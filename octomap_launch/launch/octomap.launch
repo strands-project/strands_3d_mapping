@@ -22,7 +22,7 @@
 		<param name="sensor_model/max_range" value="5.0" />
 		
 		<!-- data source to integrate (PointCloud2) -->
-		<remap from="cloud_in" to="/camera/depth/points" />
+		<remap from="cloud_in" to="/head_xtion/depth/points" />
 	</node>
 
 </launch>
