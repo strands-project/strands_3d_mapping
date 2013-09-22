@@ -1,0 +1,15 @@
+#goal definition
+float32 max_pan #Maximum translation velocity.
+float32 max_tilt #Maximum rotation velocity.
+float32 min_pan #Maximum distance of detected humans. Everything above will be ignored and the max_vel_x value will be used.
+float32 min_tilt #The distance to a human at which the robot will stop (have 0.0 velocity).
+float32 pan_step #The time it takes while no human is detected to resume to 'max_vel_x' speed.
+float32 tilt_step #The time it takes while no human is detected to resume to 'max_vel_x' speed.
+---
+#result definition
+bool success #Returns true when the time 'seconds' is up.
+---
+#feedback
+float32 current_pan #Maximum translation velocity.
+float32 current_tilt #Maximum rotation velocity.
+
