@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <package>
-  <name>scitos_PTU_sweep</name>
+  <name>scitos_ptu_sweep</name>
   <version>0.0.0</version>
-  <description>The scitos_PTU_sweep package</description>
+  <description>The scitos PTU sweep package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->
   <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
-  <maintainer email="jaime@todo.todo">jaime</maintainer>
+  <maintainer email="pulidofentanes@gmail.com">jaime</maintainer>
 
 
   <!-- One license tag required, multiple allowed, one license per tag -->
