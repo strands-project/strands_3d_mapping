@@ -20,7 +20,7 @@ tf::MessageFilter<sensor_msgs::PointCloud2> *tf_filter;
 
 void callback(const boost::shared_ptr<const sensor_msgs::PointCloud2>& msg)
 {
-  ROS_INFO("Called callback");
+  //ROS_INFO("Called callback");
   sensor_msgs::PointCloud2 pc_out;
   listener->waitForTransform(msg->header.frame_id.c_str(), "/base_link", ros::Time(), ros::Duration(3.0));
   pcl_ros::transformPointCloud("/base_link", *msg, pc_out, *listener);
