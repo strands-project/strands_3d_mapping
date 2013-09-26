@@ -4,7 +4,7 @@ project(scitos_PTU_sweep)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS actionlib actionlib_msgs message_generation rospy sensor_msgs)
+find_package(catkin REQUIRED COMPONENTS actionlib actionlib_msgs message_generation rospy sensor_msgs pcl pcl_ros)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -81,16 +81,16 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-# add_executable(scitos_PTU_sweep_node src/scitos_PTU_sweep_node.cpp)
+add_executable(transform_pc2 src/transform_pc2.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(scitos_PTU_sweep_node scitos_PTU_sweep_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(scitos_PTU_sweep_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(transform_pc2
+  ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##
