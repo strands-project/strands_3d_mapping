@@ -4,7 +4,7 @@ project(scitos_PTU_sweep)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS actionlib actionlib_msgs message_generation rospy sensor_msgs pcl pcl_ros)
+find_package(catkin REQUIRED COMPONENTS actionlib actionlib_msgs message_generation rospy sensor_msgs pcl pcl_ros tf message_filters)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
