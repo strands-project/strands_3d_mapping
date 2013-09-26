@@ -4,6 +4,7 @@ import rospy
 import actionlib
 import flir_pantilt_d46.msg
 from sensor_msgs.msg import JointState
+from sensor_msgs.msg import PointCloud2
 import scitos_PTU_sweep.msg
 
 class PTUSweep():
@@ -21,11 +22,15 @@ class PTUSweep():
         rospy.loginfo(" ...starting")
         self._as.start()
         rospy.loginfo(" ...done")
-        #sub_topic = rospy.get_param("~pedestrian_locations", '/pedestrian_localisation/localisations')
-        #rospy.Subscriber(sub_topic, PedestrianLocations, self.pedestrianCallback, None, 5)
+        sub_topic = rospy.get_param("~PointCloud", '/head_xtion/depth/points')
+        rospy.Subscriber(sub_topic, PointCloud2, self.pointCloudCallback, None, 1)
+        pub_topic = rospy.get_param("~SweepPointCloud", '/ptu_sweep/depth/points')
+        self.pub = rospy.Publisher(pub_topic, PointCloud2)
         self.client = actionlib.SimpleActionClient('SetPTUState', flir_pantilt_d46.msg.PtuGotoAction)
         self.client.wait_for_server()
         rospy.loginfo(" ... Init done")
+        self.arrived = False
+        self.published = False
 
     def executeCallback(self, goal):   
         current_pan=goal.min_pan
@@ -37,12 +42,15 @@ class PTUSweep():
             self._feedback.current_pan=current_pan
             while current_tilt < goal.max_tilt:
                 print current_pan, current_tilt
-                
                 ptugoal.pan = current_pan
                 ptugoal.tilt = current_tilt
                 self.client.send_goal(ptugoal)
                 print ptugoal
                 self.client.wait_for_result()
+                self.arrived = True
+                while not self.published:
+                    pass
+                self.published = False
                 print self.client.get_result()
                 self._feedback.current_tilt=current_tilt
                 current_tilt += goal.tilt_step     
@@ -61,6 +69,11 @@ class PTUSweep():
         self._result.success = False
         self._as.set_preempted(self._result)
 
+    def pointCloudCallback(self, msg):
+        if self.arrived:
+            self.pub.publish(msg)
+            self.published = True
+            self.arrived = False
 
 if __name__ == '__main__':
     rospy.init_node("PTUSweep")
