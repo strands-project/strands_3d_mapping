@@ -31,43 +31,58 @@ class PTUSweep():
         rospy.loginfo(" ... Init done")
         self.arrived = False
         self.published = False
+        self.cancelled = False
 
-    def executeCallback(self, goal):   
+    def executeCallback(self, goal):
+        if not goal.pan_step%(abs(goal.min_pan)+abs(goal.max_pan)) == 0 :
+            rospy.logwarn("The defined pan angle is NOT a multiple of pan step")
+        if not goal.tilt_step%(abs(goal.min_tilt)+abs(goal.max_tilt)) == 0 :
+            rospy.logwarn("The defined tilt angle is NOT a multiple of tilt step")
+        self.cancelled = False
         current_pan=goal.min_pan
         ptugoal = flir_pantilt_d46.msg.PtuGotoGoal()
         ptugoal.pan_vel = 42
         ptugoal.tilt_vel = 21
-        while current_pan < goal.max_pan:
+        while current_pan <= goal.max_pan and not self.cancelled:
             current_tilt = goal.min_tilt
             self._feedback.current_pan=current_pan
-            while current_tilt < goal.max_tilt:
-                print current_pan, current_tilt
+            while current_tilt <= goal.max_tilt and not self.cancelled:
+                #print current_pan, current_tilt
                 ptugoal.pan = current_pan
                 ptugoal.tilt = current_tilt
                 self.client.send_goal(ptugoal)
-                print ptugoal
+                #print ptugoal
                 self.client.wait_for_result()
                 self.arrived = True
                 while not self.published:
                     pass
                 self.published = False
-                print self.client.get_result()
+                #print self.client.get_result()
                 self._feedback.current_tilt=current_tilt
-                current_tilt += goal.tilt_step     
+                current_tilt = goal.max_tilt if current_tilt + goal.tilt_step > goal.max_tilt and not current_tilt == goal.max_tilt else current_tilt + goal.tilt_step
+                print "Tilt =",current_tilt
                 self._as.publish_feedback(self._feedback)               
-            current_pan += goal.pan_step
-        self._result.success = True
-        self._as.set_succeeded(self._result)
+            current_pan = goal.max_pan if current_pan + goal.pan_step > goal.max_pan and not current_pan == goal.max_pan else current_pan + goal.pan_step     
+            print "Pan =",current_pan
+        self.resetPTU()
+        if not self.cancelled :
+            self._result.success = True
+            self._as.set_succeeded(self._result)
 
 
     def preemptCallback(self):
-        #ptu_command = JointState()
-        #ptu_command.name=["pan", "tilt"]
-        #ptu_command.position=[0,0]
-        #ptu_command.velocity=[1.0]
-        #self.pub.publish(ptu_command)
+        self.cancelled = True
         self._result.success = False
         self._as.set_preempted(self._result)
+
+    def resetPTU(self):
+        ptugoal = flir_pantilt_d46.msg.PtuGotoGoal()
+        ptugoal.pan_vel = 42
+        ptugoal.tilt_vel = 21
+        ptugoal.pan = 0
+        ptugoal.tilt = 0
+        self.client.send_goal(ptugoal)
+        self.client.wait_for_result()
 
     def pointCloudCallback(self, msg):
         if self.arrived:
