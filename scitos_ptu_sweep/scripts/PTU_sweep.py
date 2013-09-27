@@ -5,23 +5,26 @@ import actionlib
 import flir_pantilt_d46.msg
 from sensor_msgs.msg import JointState
 from sensor_msgs.msg import PointCloud2
-import scitos_PTU_sweep.msg
+import scitos_ptu_sweep.msg
 
 class PTUSweep():
     
     # Create feedback and result messages
-    _feedback = scitos_PTU_sweep.msg.PTUSweepFeedback()
-    _result   = scitos_PTU_sweep.msg.PTUSweepResult()
+    _feedback = scitos_ptu_sweep.msg.PTUSweepFeedback()
+    _result   = scitos_ptu_sweep.msg.PTUSweepResult()
 
     def __init__(self, name):
         rospy.loginfo("Starting %s", name)
         self._action_name = name
         rospy.loginfo("Creating action server.")
-        self._as = actionlib.SimpleActionServer(self._action_name, scitos_PTU_sweep.msg.PTUSweepAction, execute_cb = self.executeCallback, auto_start = False)
+        self._as = actionlib.SimpleActionServer(self._action_name, scitos_ptu_sweep.msg.PTUSweepAction, execute_cb = self.executeCallback, auto_start = False)
         self._as.register_preempt_callback(self.preemptCallback)
         rospy.loginfo(" ...starting")
         self._as.start()
         rospy.loginfo(" ...done")
+        self.arrived = False
+        self.published = False
+        self.cancelled = False
         sub_topic = rospy.get_param("~PointCloud", '/head_xtion/depth/points')
         rospy.Subscriber(sub_topic, PointCloud2, self.pointCloudCallback, None, 1)
         pub_topic = rospy.get_param("~SweepPointCloud", '/ptu_sweep/depth/points')
@@ -29,14 +32,14 @@ class PTUSweep():
         self.client = actionlib.SimpleActionClient('SetPTUState', flir_pantilt_d46.msg.PtuGotoAction)
         self.client.wait_for_server()
         rospy.loginfo(" ... Init done")
-        self.arrived = False
-        self.published = False
-        self.cancelled = False
+
 
     def executeCallback(self, goal):
-        if not goal.pan_step%(abs(goal.min_pan)+abs(goal.max_pan)) == 0 :
+        if not (abs(goal.min_pan)+abs(goal.max_pan))%goal.pan_step == 0 :
+            print goal.pan_step%(abs(goal.min_pan)+abs(goal.max_pan))
             rospy.logwarn("The defined pan angle is NOT a multiple of pan step")
-        if not goal.tilt_step%(abs(goal.min_tilt)+abs(goal.max_tilt)) == 0 :
+        if not (abs(goal.min_tilt)+abs(goal.max_tilt))%goal.tilt_step == 0 :
+            print goal.tilt_step%(abs(goal.min_tilt)+abs(goal.max_tilt))
             rospy.logwarn("The defined tilt angle is NOT a multiple of tilt step")
         self.cancelled = False
         current_pan=goal.min_pan
