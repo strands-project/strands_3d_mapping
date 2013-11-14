@@ -1,0 +1,5 @@
+<launch>
+    <!-- launch Octomap -->
+	<node pkg="scitos_ptu_sweep" type="PTU_sweep.py" name="PTUSweep"/>
+	<node pkg="scitos_ptu_sweep" type="transform_pc2" name="TransformPC2"/>
+</launch>
