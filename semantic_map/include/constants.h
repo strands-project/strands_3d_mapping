@@ -1,0 +1,13 @@
+#ifndef __SEMANTIC_MAP_CONSTANTS__H
+#define __SEMANTIC_MAP_CONSTANTS__H
+
+const double ROOM_CENTROID_DISTANCE = 1.0;   // meters
+
+enum SEMANTIC_MAP_ENTITY_TYPE
+{
+    SEMANTIC_MAP_METAROOM = 0,
+    SEMANTIC_MAP_ROOM = 1,
+    SEMANTIC_MAP_OBJECT = 2
+};
+
+#endif
