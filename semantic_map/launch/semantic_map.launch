@@ -1,6 +1,6 @@
 <launch>
 
-  <node pkg="semantic_map" type="semantic_map_node" name="semantic_map_node" launch-prefix="gdb -ex run --args">
+  <node pkg="semantic_map" type="semantic_map_node" name="semantic_map_node" output="screen">
   </node>
 
 </launch>

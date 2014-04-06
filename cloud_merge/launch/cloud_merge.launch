@@ -1,0 +1,6 @@
+<launch>
+
+  <node pkg="cloud_merge" type="cloud_merge" name="cloud_merge" output="screen">
+  </node>
+
+</launch>
