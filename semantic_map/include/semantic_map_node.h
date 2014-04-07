@@ -51,6 +51,7 @@ public:
 private:
     ros::NodeHandle                                                             m_NodeHandle;
     SemanticMapSummaryParser<PointType>                                         m_SummaryParser;
+    bool                                                                        m_bSaveIntermediateData;
 };
 
 template <class PointType>
@@ -64,6 +65,23 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh)
 
     m_PublisherMetaroom = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/metaroom", 1);
     m_PublisherDynamicClusters = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/dynamic_clusters", 1);
+
+    std::string save_intermediate;
+    bool found = m_NodeHandle.getParam("save_intermediate",save_intermediate);
+    if (found)
+    {
+        if (save_intermediate == "no")
+        {
+            m_bSaveIntermediateData = false;
+            ROS_INFO_STREAM("Not saving intermediate data.");
+        } else {
+            m_bSaveIntermediateData = true;
+            ROS_INFO_STREAM("Saving intermediate data.");
+        }
+    } else {
+        ROS_INFO_STREAM("Parameter save_intermediate not defined. Defaulting to not saving the intermediate data.");
+        m_bSaveIntermediateData = false;
+    }
 }
 
 template <class PointType>

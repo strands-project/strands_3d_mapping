@@ -88,6 +88,7 @@ private:
     int                                                                         m_SemanticRoomId;
 
     bool                                                                        m_bUseImages;
+    bool                                                                        m_bSaveIntermediateData;
 
 };
 
@@ -135,6 +136,23 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     {
         std::cout<<"Parameter \"/log_run_name\" hasn't been defined. Defaulting to patrol_run_1"<<std::endl;
         m_LogRunName = "patrol_run_1";
+    }
+
+    std::string save_intermediate;
+    found = m_NodeHandle.getParam("save_intermediate",save_intermediate);
+    if (found)
+    {
+        if (save_intermediate == "no")
+        {
+            m_bSaveIntermediateData = false;
+            ROS_INFO_STREAM("Not saving intermediate data.");
+        } else {
+            m_bSaveIntermediateData = true;
+            ROS_INFO_STREAM("Saving intermediate data.");
+        }
+    } else {
+        ROS_INFO_STREAM("Parameter save_intermediate not defined. Defaulting to not saving the intermediate data.");
+        m_bSaveIntermediateData = false;
     }
 
     m_LogNameInitialized = false;
@@ -239,7 +257,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
          // initialize room
          m_SemanticRoomId++;
 //         m_vSemanticRoom.push_back(SemanticRoom<PointType>());
-         aSemanticRoom.setSaveIntermediateClouds(false);
+         aSemanticRoom.setSaveIntermediateClouds(m_bSaveIntermediateData);
          aSemanticRoom.setRoomRunNumber(m_SemanticRoomId);
          aSemanticRoom.setRoomLogName(m_LogName);
 

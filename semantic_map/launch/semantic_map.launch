@@ -1,6 +1,9 @@
 <launch>
 
+  <arg name="save_intermediate"           default="no" />
+
   <node pkg="semantic_map" type="semantic_map_node" name="semantic_map_node" output="screen">
+	<param name="save_intermediate"  value="$(arg save_intermediate)"/>
   </node>
 
 </launch>
