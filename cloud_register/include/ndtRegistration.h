@@ -81,7 +81,7 @@ public:
         finalTransform = ndt.getFinalTransformation();
 
         // Saving transformed input cloud.
-        pcl::io::savePCDFileASCII ("room_scan2_transformed.pcd", *transformedCloud);
+//        pcl::io::savePCDFileASCII ("room_scan2_transformed.pcd", *transformedCloud);
 
         return transformedCloud;
     }
