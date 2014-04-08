@@ -268,7 +268,7 @@ public:
         return m_IntermediateCloud;
     }
 
-    CloudPtr subsampleMergedCloud()
+    CloudPtr subsampleMergedCloud(double x, double y, double z)
     {
         Cloud subsampled_cloud;
 
@@ -276,7 +276,7 @@ public:
 
         pcl::VoxelGrid<PointType> vg;
         vg.setInputCloud (m_MergedCloud);
-        vg.setLeafSize (0.005f, 0.005f, 0.005f);
+        vg.setLeafSize (x,y,z);
         vg.filter (subsampled_cloud);
 
         m_MergedCloud->clear();
