@@ -277,7 +277,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         m_bAquisitionPhase = false;
 
         // publish the merged cloud
-        m_CloudMerge.subsampleMergedCloud(0.02f,0.02f,0.02f);
+        m_CloudMerge.subsampleMergedCloud(0.01f,0.01f,0.01f);
         CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
 
         sensor_msgs::PointCloud2 msg_cloud;
