@@ -26,10 +26,10 @@ include_directories(/opt/ros/hydro/include/opencv)
 include_directories(/opt/ros/hydro/include/opencv2)
 
 #OPENCV
-link_directories(/opt/ros/groovy/lib)
-include_directories(/opt/ros/groovy/include)
-include_directories(/opt/ros/groovy/include/opencv)
-include_directories(/opt/ros/groovy/include/opencv2)
+#link_directories(/opt/ros/groovy/lib)
+#include_directories(/opt/ros/groovy/include)
+#include_directories(/opt/ros/groovy/include/opencv)
+#include_directories(/opt/ros/groovy/include/opencv2)
 
 include_directories(src)
 #include_directories(src/apps)
