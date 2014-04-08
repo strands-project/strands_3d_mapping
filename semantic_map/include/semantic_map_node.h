@@ -52,6 +52,7 @@ private:
     ros::NodeHandle                                                             m_NodeHandle;
     SemanticMapSummaryParser<PointType>                                         m_SummaryParser;
     bool                                                                        m_bSaveIntermediateData;
+    std::vector<boost::shared_ptr<MetaRoom<PointType> > >                       m_vLoadedMetarooms;
 };
 
 template <class PointType>
@@ -108,53 +109,73 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
 
     ROS_INFO_STREAM("Summary XML created.");
 
-    std::vector<Entities> allMetarooms = m_SummaryParser.getMetaRooms();
-    std::string matchingMetaroomXML = "";
 
-    ROS_INFO_STREAM("all metarooms size "<<allMetarooms.size());
 
-    for (size_t i=0; i<allMetarooms.size();i++)
+    boost::shared_ptr<MetaRoom<PointType> > metaroom;
+    bool found = false;
+
+    // first check if the matching metaroom has already been loaded
+    for (size_t i=0; i<m_vLoadedMetarooms.size(); i++)
     {
-        double centroidDistance = pcl::distances::l2(allMetarooms[i].centroid,aRoom.getCentroid());
+        double centroidDistance = pcl::distances::l2(m_vLoadedMetarooms[i]->getCentroid(),aRoom.getCentroid());
         if (! (centroidDistance < ROOM_CENTROID_DISTANCE) )
         {
             continue;
         } else {
-            matchingMetaroomXML = allMetarooms[i].roomXmlFile;
+            ROS_INFO_STREAM("Matching metaroom already loaded.");
+            metaroom = m_vLoadedMetarooms[i];
+            found = true;
             break;
         }
     }
 
-    MetaRoom<PointType> metaroom;
-    ROS_INFO_STREAM("Metaroom created.");
-
-    if (matchingMetaroomXML == "")
+    // if not loaded already, look through already saved metarooms
+    if (!found)
     {
-        ROS_INFO_STREAM("No matching metaroom found. Create new metaroom.");
-    } else {
-        ROS_INFO_STREAM("Matching metaroom found. XML file: "<<matchingMetaroomXML);
 
-        metaroom = MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(matchingMetaroomXML,false);
+        std::string matchingMetaroomXML = "";
+        std::vector<Entities> allMetarooms = m_SummaryParser.getMetaRooms();
+        for (size_t i=0; i<allMetarooms.size();i++)
+        {
+            double centroidDistance = pcl::distances::l2(allMetarooms[i].centroid,aRoom.getCentroid());
+            if (! (centroidDistance < ROOM_CENTROID_DISTANCE) )
+            {
+                continue;
+            } else {
+                matchingMetaroomXML = allMetarooms[i].roomXmlFile;
+                break;
+            }
+        }
+
+        if (matchingMetaroomXML == "")
+        {
+            ROS_INFO_STREAM("No matching metaroom found. Create new metaroom.");
+            metaroom =  boost::shared_ptr<MetaRoom<PointType> >(new MetaRoom<PointType>());
+        } else {
+            ROS_INFO_STREAM("Matching metaroom found. XML file: "<<matchingMetaroomXML);
+            metaroom =  boost::shared_ptr<MetaRoom<PointType> >(new MetaRoom<PointType>(MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(matchingMetaroomXML,false)));
+        }
     }
 
-    metaroom.setSaveIntermediateSteps(false);
+    metaroom->setSaveIntermediateSteps(m_bSaveIntermediateData);
 
     // update metaroom
-    metaroom.updateMetaRoom(aRoom);
+    metaroom->updateMetaRoom(aRoom);
 
     // save metaroom
     ROS_INFO_STREAM("Saving metaroom.");
     MetaRoomXMLParser<PointType> meta_parser;
-    meta_parser.saveMetaRoomAsXML(metaroom);
+    meta_parser.saveMetaRoomAsXML(*metaroom);
 
     CloudPtr roomCloud = aRoom.getInteriorRoomCloud();
-    CloudPtr metaroomCloud = metaroom.getInteriorRoomCloud();
+    CloudPtr metaroomCloud = metaroom->getInteriorRoomCloud();
 
     // publish data
     sensor_msgs::PointCloud2 msg_metaroom;
     pcl::toROSMsg(*metaroomCloud, msg_metaroom);
     msg_metaroom.header.frame_id="/map";
     m_PublisherMetaroom.publish(msg_metaroom);
+    m_vLoadedMetarooms.push_back(metaroom);
 
 
     // compute differences
@@ -176,7 +197,7 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     }
 
     std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.05,500,100000);
-    metaroom.filterClustersBasedOnDistance(vClusters,2.5);
+    metaroom->filterClustersBasedOnDistance(vClusters,2.5);
 
     // combine clusters into one point cloud for publishing.
     CloudPtr dynamicClusters(new Cloud());

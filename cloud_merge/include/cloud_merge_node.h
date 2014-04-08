@@ -277,7 +277,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         m_bAquisitionPhase = false;
 
         // publish the merged cloud
-        m_CloudMerge.subsampleMergedCloud();
+        m_CloudMerge.subsampleMergedCloud(0.01f,0.01f,0.01f);
         CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
 
         sensor_msgs::PointCloud2 msg_cloud;
@@ -330,7 +330,9 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             tf::StampedTransform transform;
 
             sensor_msgs::PointCloud2 temp_msg;
+            pcl::toROSMsg(*transformed_cloud, temp_msg);
             temp_msg.header = pcl_conversions::fromPCL(transformed_cloud->header);
+            m_PublisherIntermediateCloud.publish(temp_msg); // publish in the local frame of reference
 
             m_TransformListener.waitForTransform("/map", transformed_cloud->header.frame_id,temp_msg.header.stamp, ros::Duration(20.0) );
             m_TransformListener.lookupTransform("/map", transformed_cloud->header.frame_id,
@@ -348,7 +350,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
             sensor_msgs::PointCloud2 msg_cloud;
             pcl::toROSMsg(*transformed_cloud, msg_cloud);
-            m_PublisherIntermediateCloud.publish(msg_cloud);
+
             m_RosPublisherIntermediateDepth.publish(m_CloudMerge.m_IntermediateFilteredDepthImage);
             m_RosPublisherIntermediateRGB.publish(m_CloudMerge.m_IntermediateFilteredRGBImage);
             m_RosPublisherIntermediateDepthCamInfo.publish(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
