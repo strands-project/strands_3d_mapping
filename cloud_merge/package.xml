@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<package>
+  <name>cloud_merge</name>
+  <version>0.0.0</version>
+  <description>The cloud_mapper package</description>
+
+  <!-- Example:  -->
+  <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
+  <maintainer email="rares@todo.todo">rares</maintainer>
+
+
+  <!-- One license tag required, multiple allowed, one license per tag -->
+  <!-- Commonly used license strings: -->
+  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>pcl_ros</build_depend>
+  <build_depend>semantic_map</build_depend>
+  <build_depend>image_geometry</build_depend>
+  <build_depend>libqt4-dev</build_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>tf</run_depend>
+  <run_depend>pcl_ros</run_depend>
+  <run_depend>semantic_map</run_depend>
+  <run_depend>libqt4-dev</run_depend>
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+</package>
