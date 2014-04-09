@@ -35,6 +35,7 @@
 #include "cloud_merge.h"
 #include "room.h"
 #include "roomXMLparser.h"
+#include "semanticMapSummaryParser.h"
 
 template <class PointType>
 class CloudMergeNode {
@@ -154,6 +155,31 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
         ROS_INFO_STREAM("Parameter save_intermediate not defined. Defaulting to not saving the intermediate data.");
         m_bSaveIntermediateData = false;
     }
+
+    std::string cleanup;
+    bool doCleanup=true;
+    found = m_NodeHandle.getParam("cleanup",cleanup);
+    if (found)
+    {
+        if (cleanup == "no")
+        {
+            doCleanup = false;
+            ROS_INFO_STREAM("Not removing old data.");
+        } else {
+            doCleanup = true;
+            ROS_INFO_STREAM("Will remove old data.");
+        }
+    } else {
+        ROS_INFO_STREAM("Parameter cleanup not defined. Defaulting to cleaning up old data.");
+        doCleanup = true;
+    }
+
+    if (doCleanup)
+    {
+        SemanticMapSummaryParser<PointType> summaryParser;
+        summaryParser.removeSemanticMapData();
+    }
+
 
     m_LogNameInitialized = false;
     m_LogName = "";

@@ -68,6 +68,16 @@ public:
 
     }
 
+    void removeSemanticMapData()
+    {
+        // first find the folder where the semantic map information is being saved
+
+        int lastIndex = m_XMLFile.lastIndexOf("/");
+        QString semanticMapFolderPath = m_XMLFile.left(lastIndex+1);
+
+        deleteFolderContents(semanticMapFolderPath);
+    }
+
     void refresh()
     {
         m_vAllRooms = parseSummaryXML();
@@ -408,6 +418,33 @@ private:
         }
 
         xmlWriter->writeEndElement(); // SemanticRooms
+    }
+
+private:
+    void deleteFolderContents(QString folderPath)
+    {
+        if (QDir(folderPath).exists())
+        {
+            ROS_INFO_STREAM("Removing data saved in "<<folderPath.toStdString());
+            QDir folder(folderPath);
+
+            //Delete all the files
+            QFileInfoList files = folder.entryInfoList(QDir::NoDotAndDotDot | QDir::Files);
+            for(int file = 0; file < files.count(); file++)
+            {
+                folder.remove(files.at(file).fileName());
+            }
+
+            //Recursively delete all the directories
+            QFileInfoList dirs = folder.entryInfoList(QDir::NoDotAndDotDot | QDir::Dirs);
+            for(int dir = 0; dir < dirs.count(); dir++)
+            {
+                this->deleteFolderContents(dirs.at(dir).absoluteFilePath ());
+                folder.rmdir(dirs.at(dir).absoluteFilePath());
+            }
+        } else {
+            return;
+        }
     }
 
 };
