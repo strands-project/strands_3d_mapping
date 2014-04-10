@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(ekz-public-lib)
+project(ekz_public_lib)
 
 set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare")
 
