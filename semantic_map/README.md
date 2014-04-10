@@ -5,8 +5,9 @@ Package for building local metric maps
 
 Make sure you have Qt installed on the robot by getting the rqt packages:
 ```bash
-sudo apt-get install  ros-hydro-qt-ros
-sudo apt-get install  ros-hydro-rqt
+sudo apt-get install ros-hydro-qt-ros
+sudo apt-get install ros-hydro-rqt
+sudo apt-get install ros-hydro-qt-build
 ```
 
 # Description 
