@@ -92,10 +92,10 @@ public:
 //            sor.setLeafSize(0.01f, 0.01f, 0.01f);
 //            sor.filter(subsampled_cloud);
 
-            //        pcl::VoxelGrid<PointType> vg;
-            //        vg.setInputCloud (m_IntermediateCloud);
-            //        vg.setLeafSize (0.005f, 0.005f, 0.005f);
-            //        vg.filter (subsampled_cloud);
+            pcl::VoxelGrid<PointType> vg;
+            vg.setInputCloud (m_IntermediateCloud);
+            vg.setLeafSize (0.005f, 0.005f, 0.005f);
+            vg.filter (subsampled_cloud);
 
 
             m_IntermediateCloud->clear();
@@ -237,14 +237,12 @@ public:
             m_IntermediateRGBImages.clear();
             m_IntermediateCameraInfo.clear();
 
-            m_IntermediateCloud->header = subsampled_cloud.header;
-            m_IntermediateCloud->height = subsampled_cloud.height;
-            m_IntermediateCloud->width  = subsampled_cloud.width;
-            m_IntermediateCloud->is_dense = subsampled_cloud.is_dense;
-
-
         }
 
+        m_IntermediateCloud->header = subsampled_cloud.header;
+        m_IntermediateCloud->height = subsampled_cloud.height;
+        m_IntermediateCloud->width  = subsampled_cloud.width;
+        m_IntermediateCloud->is_dense = subsampled_cloud.is_dense;
 
         *m_IntermediateCloud+=subsampled_cloud;
 

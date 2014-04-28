@@ -185,7 +185,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     m_LogName = "";
     m_SemanticRoomId = -1;
 
-    m_bUseImages = true;
+    m_bUseImages = false;
 
 }
 
