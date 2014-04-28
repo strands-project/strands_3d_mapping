@@ -185,7 +185,24 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     m_LogName = "";
     m_SemanticRoomId = -1;
 
-    m_bUseImages = false;
+
+    std::string generate_pointclouds;
+
+    found = m_NodeHandle.getParam("generate_pointclouds",generate_pointclouds);
+    if (found)
+    {
+        if (generate_pointclouds == "no")
+        {
+            m_bUseImages = false;
+            ROS_INFO_STREAM("Not generating point clouds, using them directly from /depth_registered/points");
+        } else {
+            m_bUseImages = true;
+            ROS_INFO_STREAM("Generating point clouds from /head_xtion/depth_registered/image_rect and /head_xtion/rgb/image_color");
+        }
+    } else {
+        ROS_INFO_STREAM("Parameter generate_pointclouds not defined. Defaulting to generating point clouds from /head_xtion/depth_registered/image_rect and /head_xtion/rgb/image_color.");
+        m_bUseImages = true;
+    }
 
 }
 

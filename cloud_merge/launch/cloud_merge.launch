@@ -1,10 +1,12 @@
 <launch>
 
   <arg name="save_intermediate"           default="no" />
+  <arg name="generate_pointclouds"        default="yes" />
   <arg name="cleanup"           	  default="yes" />
 
   <node pkg="cloud_merge" type="cloud_merge" name="cloud_merge" output="screen">
 	<param name="save_intermediate"  value="$(arg save_intermediate)"/>
+	<param name="generate_pointclouds"  value="$(arg generate_pointclouds)"/>
 	<param name="cleanup"  		 value="$(arg cleanup)"/>
   </node>
 
