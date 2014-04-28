@@ -122,9 +122,72 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
 
     image_transport::TransportHints hints("raw", ros::TransportHints(), m_NodeHandle);
 
-    m_DepthSubscriber.subscribe(*m_Depth_it, "/head_xtion/depth_registered/image_rect",       1);
-    m_RGBSubscriber.subscribe(*m_RGB_it, "/head_xtion/rgb/image_color",       1);
-    m_CameraInfoSubscriber.subscribe(m_NodeHandle,   "/head_xtion/rgb/camera_info",      1);
+    // subscribe to input clouds
+
+
+    std::string generate_pointclouds;
+
+    bool foundGenerateCloudsArgument= m_NodeHandle.getParam("generate_pointclouds",generate_pointclouds);
+    if (foundGenerateCloudsArgument)
+    {
+        if (generate_pointclouds == "no")
+        {
+            m_bUseImages = false;
+            ROS_INFO_STREAM("Not generating point clouds, using them directly from the camera.");
+        } else {
+            m_bUseImages = true;
+            ROS_INFO_STREAM("Generating point clouds from camera RGBD images.");
+        }
+    } else {
+        ROS_INFO_STREAM("Parameter generate_pointclouds not defined. Defaulting to generating point clouds from /head_xtion/depth_registered/image_rect and /head_xtion/rgb/image_color.");
+        m_bUseImages = true;
+    }
+
+    if (!m_bUseImages)
+    {
+        // subscribe to point cloud channels
+        std::string cloud_channel;
+        bool found = m_NodeHandle.getParam("input_cloud",cloud_channel);
+        if (!found)
+        {
+            cloud_channel = "/depth_registered/points";
+        }
+        m_SubscriberPointCloud = m_NodeHandle.subscribe(cloud_channel,1, &CloudMergeNode<pcl::PointXYZRGB>::pointCloudCallback,this);
+
+        ROS_INFO_STREAM("Subscribed to point cloud topic "<<cloud_channel);
+    } else {
+        // subscribe to image channels
+        std::string depth_channel;
+        bool found = m_NodeHandle.getParam("input_depth",depth_channel);
+        if (!found)
+        {
+            depth_channel = "/head_xtion/depth_registered/image_rect";
+        }
+        m_DepthSubscriber.subscribe(*m_Depth_it, depth_channel,       1);
+        ROS_INFO_STREAM("Subscribed to depth image topic "<<depth_channel);
+
+        std::string rgb_channel;
+        found = m_NodeHandle.getParam("input_rgb",rgb_channel);
+        if (!found)
+        {
+            rgb_channel = "/head_xtion/rgb/image_color";
+        }
+        m_RGBSubscriber.subscribe(*m_RGB_it, rgb_channel,       1);
+        ROS_INFO_STREAM("Subscribed to rgb image topic "<<rgb_channel);
+
+        std::string caminfo_channel;
+        found = m_NodeHandle.getParam("input_caminfo",caminfo_channel);
+        if (!found)
+        {
+            caminfo_channel = "/head_xtion/rgb/camera_info";
+        }
+        m_CameraInfoSubscriber.subscribe(m_NodeHandle, caminfo_channel,       1);
+        ROS_INFO_STREAM("Subscribed to camera info topic "<<caminfo_channel);
+
+    }
+
+
+
 
 
     m_bAquireData = false;
@@ -184,25 +247,6 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     m_LogNameInitialized = false;
     m_LogName = "";
     m_SemanticRoomId = -1;
-
-
-    std::string generate_pointclouds;
-
-    found = m_NodeHandle.getParam("generate_pointclouds",generate_pointclouds);
-    if (found)
-    {
-        if (generate_pointclouds == "no")
-        {
-            m_bUseImages = false;
-            ROS_INFO_STREAM("Not generating point clouds, using them directly from /depth_registered/points");
-        } else {
-            m_bUseImages = true;
-            ROS_INFO_STREAM("Generating point clouds from /head_xtion/depth_registered/image_rect and /head_xtion/rgb/image_color");
-        }
-    } else {
-        ROS_INFO_STREAM("Parameter generate_pointclouds not defined. Defaulting to generating point clouds from /head_xtion/depth_registered/image_rect and /head_xtion/rgb/image_color.");
-        m_bUseImages = true;
-    }
 
 }
 
