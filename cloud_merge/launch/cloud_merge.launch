@@ -1,8 +1,8 @@
 <launch>
 
-  <arg name="save_intermediate"           default="no" />
-  <arg name="generate_pointclouds"        default="yes" />
-  <arg name="cleanup"           	  default="yes" />
+  <arg name="save_intermediate"           default="false" />
+  <arg name="generate_pointclouds"        default="true" />
+  <arg name="cleanup"           	  default="true" />
 
 
   <arg name="input_cloud"           	  default="/depth_registered/points" />
@@ -11,9 +11,9 @@
   <arg name="input_caminfo"           	  default="/head_xtion/rgb/camera_info" />
 
   <node pkg="cloud_merge" type="cloud_merge" name="cloud_merge" output="screen">
-	<param name="save_intermediate"  value="$(arg save_intermediate)"/>
-	<param name="generate_pointclouds"  value="$(arg generate_pointclouds)"/>
-	<param name="cleanup"  		 value="$(arg cleanup)"/>
+	<param name="save_intermediate"  type="bool" value="$(arg save_intermediate)"/>
+	<param name="generate_pointclouds"  type="bool" value="$(arg generate_pointclouds)"/>
+	<param name="cleanup"  		 type="bool" value="$(arg cleanup)"/>
 	
 	<param name="input_cloud"  		 value="$(arg input_cloud)"/>
 	<param name="input_rgb"  		 value="$(arg input_rgb)"/>

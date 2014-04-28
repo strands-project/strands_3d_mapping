@@ -125,22 +125,16 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     // subscribe to input clouds
 
 
-    std::string generate_pointclouds;
+    bool generate_pointclouds;
+    m_NodeHandle.param<bool>("generate_pointclouds",generate_pointclouds, true);
 
-    bool foundGenerateCloudsArgument= m_NodeHandle.getParam("generate_pointclouds",generate_pointclouds);
-    if (foundGenerateCloudsArgument)
+    if (!generate_pointclouds)
     {
-        if (generate_pointclouds == "no")
-        {
-            m_bUseImages = false;
-            ROS_INFO_STREAM("Not generating point clouds, using them directly from the camera.");
-        } else {
-            m_bUseImages = true;
-            ROS_INFO_STREAM("Generating point clouds from camera RGBD images.");
-        }
+        m_bUseImages = false;
+        ROS_INFO_STREAM("Not generating point clouds, using them directly from the camera.");
     } else {
-        ROS_INFO_STREAM("Parameter generate_pointclouds not defined. Defaulting to generating point clouds from /head_xtion/depth_registered/image_rect and /head_xtion/rgb/image_color.");
         m_bUseImages = true;
+        ROS_INFO_STREAM("Generating point clouds from camera RGBD images.");
     }
 
     if (!m_bUseImages)
@@ -202,47 +196,24 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
         m_LogRunName = "patrol_run_1";
     }
 
-    std::string save_intermediate;
-    found = m_NodeHandle.getParam("save_intermediate",save_intermediate);
-    if (found)
+    found = m_NodeHandle.getParam("save_intermediate",m_bSaveIntermediateData);
+    if (!m_bSaveIntermediateData)
     {
-        if (save_intermediate == "no")
-        {
-            m_bSaveIntermediateData = false;
-            ROS_INFO_STREAM("Not saving intermediate data.");
-        } else {
-            m_bSaveIntermediateData = true;
-            ROS_INFO_STREAM("Saving intermediate data.");
-        }
+        ROS_INFO_STREAM("Not saving intermediate data.");
     } else {
-        ROS_INFO_STREAM("Parameter save_intermediate not defined. Defaulting to not saving the intermediate data.");
-        m_bSaveIntermediateData = false;
+        ROS_INFO_STREAM("Saving intermediate data.");
     }
 
-    std::string cleanup;
     bool doCleanup=true;
-    found = m_NodeHandle.getParam("cleanup",cleanup);
-    if (found)
+    m_NodeHandle.param<bool>("cleanup",doCleanup,true);
+    if (!doCleanup)
     {
-        if (cleanup == "no")
-        {
-            doCleanup = false;
-            ROS_INFO_STREAM("Not removing old data.");
-        } else {
-            doCleanup = true;
-            ROS_INFO_STREAM("Will remove old data.");
-        }
+        ROS_INFO_STREAM("Not removing old data.");
     } else {
-        ROS_INFO_STREAM("Parameter cleanup not defined. Defaulting to cleaning up old data.");
-        doCleanup = true;
-    }
-
-    if (doCleanup)
-    {
+        ROS_INFO_STREAM("Will remove old data.");
         SemanticMapSummaryParser<PointType> summaryParser;
         summaryParser.removeSemanticMapData();
     }
-
 
     m_LogNameInitialized = false;
     m_LogName = "";
