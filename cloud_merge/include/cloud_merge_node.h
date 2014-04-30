@@ -90,6 +90,7 @@ private:
 
     bool                                                                        m_bUseImages;
     bool                                                                        m_bSaveIntermediateData;
+    int                                                                         m_MaxInstances;
 
 };
 
@@ -146,7 +147,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
         {
             cloud_channel = "/depth_registered/points";
         }
-        m_SubscriberPointCloud = m_NodeHandle.subscribe(cloud_channel,1, &CloudMergeNode<pcl::PointXYZRGB>::pointCloudCallback,this);
+        m_SubscriberPointCloud = m_NodeHandle.subscribe(cloud_channel,1, &CloudMergeNode<PointType>::pointCloudCallback,this);
 
         ROS_INFO_STREAM("Subscribed to point cloud topic "<<cloud_channel);
     } else {
@@ -192,7 +193,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     bool found = m_NodeHandle.getParam("/log_run_name",m_LogRunName);
     if (!found)
     {
-        std::cout<<"Parameter \"/log_run_name\" hasn't been defined. Defaulting to patrol_run_1"<<std::endl;
+        ROS_INFO_STREAM("Parameter \"/log_run_name\" hasn't been defined. Defaulting to patrol_run_1");
         m_LogRunName = "patrol_run_1";
     }
 
@@ -206,14 +207,27 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
 
     bool doCleanup=true;
     m_NodeHandle.param<bool>("cleanup",doCleanup,true);
+    m_NodeHandle.param<int>("max_instances",m_MaxInstances,-1);
+
+
     if (!doCleanup)
     {
-        ROS_INFO_STREAM("Not removing old data.");
+        ROS_INFO_STREAM("Not removing old data at startup.");
     } else {
-        ROS_INFO_STREAM("Will remove old data.");
+        ROS_INFO_STREAM("Will remove old data at startup.");
         SemanticMapSummaryParser<PointType> summaryParser;
         summaryParser.removeSemanticMapData();
     }
+
+    if (m_MaxInstances != -1)
+    {
+        ROS_INFO_STREAM("Maximum number of instances per observations is "<<m_MaxInstances);
+        SemanticMapSummaryParser<PointType> summaryParser;
+        summaryParser.removeSemanticMapObservationInstances(m_MaxInstances);
+    } else {
+        ROS_INFO_STREAM("Maximum number of instances hasn't been defined -> storing all the data.");
+    }
+
 
     m_LogNameInitialized = false;
     m_LogName = "";
@@ -235,8 +249,6 @@ void CloudMergeNode<PointType>::imageCallback(const sensor_msgs::ImageConstPtr& 
     {
         return; // we don't need to process images
     }
-
-//    ROS_INFO_STREAM("image callback");
 
     if (m_bAquireData && m_bAquisitionPhase)
     {
@@ -355,6 +367,13 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         // Pulbish room observation
         semantic_map::RoomObservation obs_msg;
         obs_msg.xml_file_name = roomXMLPath;
+
+        // before publising, check whether some data needs to be removed
+        if (m_MaxInstances != -1)
+        {
+            SemanticMapSummaryParser<PointType> summaryParser;
+            summaryParser.removeSemanticMapObservationInstances(m_MaxInstances);
+        }
 
         m_PublisherRoomObservation.publish(obs_msg);
     }
