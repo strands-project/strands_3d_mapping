@@ -12,7 +12,7 @@ from strands_executive_msgs import task_utils
 from strands_executive_msgs.msg import Task
 from strands_executive_msgs.srv import AddTask, SetExecutionStatus
 # import strands_executive_msgs
-
+import sys
 
 if __name__ == '__main__':
     rospy.init_node("metric_map_task_client")
@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     try:
 
-	task = Task(node_id='WayPoint1', action='ptu_pan_tilt_metric_map')
+	task = Task(start_node_id=sys.argv[1], action='ptu_pan_tilt_metric_map')
         task_utils.add_int_argument(task, '-150')
         task_utils.add_int_argument(task, '60')
         task_utils.add_int_argument(task, '160')
@@ -33,7 +33,11 @@ if __name__ == '__main__':
         print task
 
         # now register this with the executor
-        add_task_srv_name = '/task_executor/add_task'
+        if  len(sys.argv)>2 and sys.argv[2]=="demand":
+            print "Demanding task be run NOW."
+            add_task_srv_name = '/task_executor/demand_task'
+        else:
+            add_task_srv_name = '/task_executor/add_task'
         set_exe_stat_srv_name = '/task_executor/set_execution_status'
         rospy.loginfo("Waiting for task_executor service...")
         rospy.wait_for_service(add_task_srv_name)
@@ -45,7 +49,7 @@ if __name__ == '__main__':
         print add_task_srv(task)
 
         # Make sure the task executor is running
-        set_execution_status(True)
+#        set_execution_status(True)
 
 
     except rospy.ServiceException, e:
