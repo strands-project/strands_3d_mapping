@@ -44,6 +44,7 @@ public:
     typedef typename Cloud::Ptr CloudPtr;
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> SyncPolicy;
     typedef message_filters::Synchronizer<SyncPolicy> Synchronizer;
+    typedef typename SemanticMapSummaryParser<PointType>::EntityStruct Entities;
 
     CloudMergeNode(ros::NodeHandle nh);
     ~CloudMergeNode();
@@ -51,6 +52,8 @@ public:
     void controlCallback(const std_msgs::String& controlString);
     void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
     void imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg);
+    void findSemanticRoomIDAndLogName(SemanticRoom<PointType>& aSemanticRoom, int& roomId, int& patrolNumber);
+
 
 
     ros::Subscriber                                                             m_SubscriberControl;
@@ -72,6 +75,8 @@ public:
     boost::shared_ptr<image_transport::ImageTransport>                          m_RGB_it, m_Depth_it;
 
 private:
+    void getRoomIDAndPatrolNumber(QString roomXmlFile, int& roomId, int& patrolNumber);
+
     ros::NodeHandle                                                             m_NodeHandle;
     CloudMerge<PointType>                                                       m_CloudMerge;
 
@@ -233,6 +238,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     m_LogName = "";
     m_SemanticRoomId = -1;
 
+//    setSemanticRoomIDAndLogName();
 }
 
 template <class PointType>
@@ -298,38 +304,28 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         m_bAquisitionPhase = true;
 
         // initialize log name
-        {
-            // check if the run name has been defined
-            std::string new_log_name;
-            bool found = m_NodeHandle.getParam("/log_run_name",new_log_name);
-            if (!found)
-            {
-                std::cout<<"Parameter \"/log_run_name\" hasn't been defined. Defaulting to patrol_run_1"<<std::endl;
-                m_LogRunName = "patrol_run_1";
-            } else {
-                if (new_log_name != m_LogRunName)
-                {
-                    m_SemanticRoomId=-1; // reset room id as we've started a new run
-                }
-                m_LogRunName = new_log_name;
-            }
+//            // check if the run name has been defined
+//            std::string new_log_name;
+//            bool found = m_NodeHandle.getParam("/log_run_name",new_log_name);
+//            if (!found)
+//            {
+//                std::cout<<"Parameter \"/log_run_name\" hasn't been defined. Defaulting to patrol_run_1"<<std::endl;
+//                m_LogRunName = "patrol_run_1";
+//            } else {
+//                if (new_log_name != m_LogRunName)
+//                {
+//                    m_SemanticRoomId=-1; // reset room id as we've started a new run
+//                }
+//                m_LogRunName = new_log_name;
+//            }
 
-            static std::locale loc(std::cout.getloc(),
-                                   new boost::posix_time::time_facet("%Y%m%d"));
-
-            std::basic_stringstream<char> wss;
-            wss.imbue(loc);
-            wss << ros::Time::now().toBoost();
-            m_LogName = wss.str()+"_"+m_LogRunName;
-            ROS_INFO_STREAM("Log name set to "<<m_LogName);
-        }
 
          // initialize room
-         m_SemanticRoomId++;
+//         m_SemanticRoomId++;
 //         m_vSemanticRoom.push_back(SemanticRoom<PointType>());
          aSemanticRoom.setSaveIntermediateClouds(m_bSaveIntermediateData);
-         aSemanticRoom.setRoomRunNumber(m_SemanticRoomId);
-         aSemanticRoom.setRoomLogName(m_LogName);
+//         aSemanticRoom.setRoomRunNumber(m_SemanticRoomId);
+//         aSemanticRoom.setRoomLogName(m_LogName);
 
          // get room start time
          aSemanticRoom.setRoomLogStartTime(ros::Time::now().toBoost());
@@ -358,6 +354,27 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         aSemanticRoom.setRoomLogEndTime(ros::Time::now().toBoost());
         // add complete cloud to semantic room
         aSemanticRoom.setCompleteRoomCloud(merged_cloud);
+
+        // set room patrol number and room id
+        int roomId, runNumber;
+        findSemanticRoomIDAndLogName(aSemanticRoom, roomId, runNumber);
+        m_SemanticRoomId = roomId;
+
+        m_LogRunName = "patrol_run_";
+        m_LogRunName += QString::number(runNumber).toStdString();
+
+        static std::locale loc(std::cout.getloc(),
+                               new boost::posix_time::time_facet("%Y%m%d"));
+
+        std::basic_stringstream<char> wss;
+        wss.imbue(loc);
+        wss << ros::Time::now().toBoost();
+        m_LogName = wss.str()+"_"+m_LogRunName;
+        ROS_INFO_STREAM("Log name set to "<<m_LogName);
+
+        aSemanticRoom.setRoomRunNumber(m_SemanticRoomId);
+        aSemanticRoom.setRoomLogName(m_LogName);
+
 
         SemanticRoomXMLParser<PointType> parser;
         ROS_INFO_STREAM("Saving semantic room file");
@@ -440,9 +457,122 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         }
 
         m_CloudMerge.processIntermediateCloud();
-    }
+    }    
 }
 
+template <class PointType>
+void CloudMergeNode<PointType>::findSemanticRoomIDAndLogName(SemanticRoom<PointType>& aSemanticRoom, int& roomRunNumber, int& roomLogName)
+{
+    SemanticMapSummaryParser<PointType> summaryParser;
+    summaryParser.createSummaryXML();
+    summaryParser.refresh();
+    std::vector<Entities> allRooms = summaryParser.getRooms();
+
+    int currentRoomID = -1;
+    int highestRoomID = -1;
+    int highestPatrolRunNumber = -1;
+    int currentRoomPatrolNumber = -1;
+
+    for (size_t i=0; i<allRooms.size(); i++)
+    {
+        QString roomXmlFile(allRooms[i].roomXmlFile.c_str());
+        int roomId, patrolNumber;
+        getRoomIDAndPatrolNumber(roomXmlFile, roomId, patrolNumber);
+        if (patrolNumber>highestPatrolRunNumber)
+        {
+            highestPatrolRunNumber = patrolNumber;
+        }
+
+        ROS_DEBUG_STREAM("Room xml "<<roomXmlFile.toStdString()<<"  room ID "<<roomId<<"  patrol number "<<patrolNumber);
+    }
+
+    ROS_DEBUG_STREAM("Highest patrol run number "<<highestPatrolRunNumber);
+
+    // search for a matchin observation in the latest patrol run.
+    // if there is a matching observation, increment the patrol run
+    // if there isn't, add this observation to the latest patrol run but increment
+
+
+    if (highestPatrolRunNumber != -1)
+    {
+        for (size_t i=0; i<allRooms.size(); i++)
+        {
+            QString roomXmlFile(allRooms[i].roomXmlFile.c_str());
+            int roomId, patrolNumber;
+            getRoomIDAndPatrolNumber(roomXmlFile, roomId, patrolNumber);
+            if (patrolNumber==highestPatrolRunNumber)
+            {
+                // check for a match using centroid distance
+                double centroidDistance = pcl::distances::l2(aSemanticRoom.getCentroid(),allRooms[i].centroid);
+                if ((centroidDistance < ROOM_CENTROID_DISTANCE) )
+                {
+                    // found a match
+                    currentRoomPatrolNumber = highestPatrolRunNumber+1; // increment the patrol number
+                    currentRoomID = 0; // first room in the next patrol run
+                    ROS_DEBUG_STREAM("Found a matching room. "<<roomId);
+                    break;
+                } else {
+                    if (roomId > highestRoomID)
+                    {
+                        highestRoomID = roomId;
+                    }
+                }
+            }
+        }
+    } else {
+        // no patrol runs performed so far. Start counting from 1
+        highestPatrolRunNumber = 1;
+    }
+
+    if (currentRoomID == -1)
+    {
+        // couldn't find a match, add the room in the latest patrol run
+        ROS_DEBUG_STREAM("Couldn't find a matching room. Incrementing highest room number");
+        currentRoomPatrolNumber = highestPatrolRunNumber;
+        currentRoomID = highestRoomID + 1;
+    }
+
+    roomRunNumber = currentRoomID;
+    roomLogName = currentRoomPatrolNumber;
+//    QString room_log_name = "patrol_run_"+QString::number(currentRoomPatrolNumber);
+
+}
+template <class PointType>
+
+void CloudMergeNode<PointType>::getRoomIDAndPatrolNumber(QString roomXmlFile, int& roomId, int& patrolNumber)
+{
+    roomId = -1;
+    patrolNumber = -1;
+
+    int lastIndex = roomXmlFile.lastIndexOf("/");
+    if (lastIndex == -1)
+    {
+        return;
+    }
+
+    QString roomFolderPath = roomXmlFile.left(lastIndex);
+    int roomIDindex = roomFolderPath.lastIndexOf("_");
+    if (roomIDindex == -1)
+    {
+        return;
+    }
+
+    roomId = roomFolderPath.right(roomFolderPath.length()-roomIDindex-1).toInt();
+    int patrolFolderIndex = roomFolderPath.lastIndexOf("/");
+    if (patrolFolderIndex == -1)
+    {
+        return;
+    }
+
+    QString patrolFolderPath = roomFolderPath.left(patrolFolderIndex);
+    int patrolNumberIndex = patrolFolderPath.lastIndexOf("_");
+    if (patrolNumberIndex == -1)
+    {
+        return;
+    }
+
+    patrolNumber = patrolFolderPath.right(patrolFolderPath.length()-patrolNumberIndex-1).toInt();
+}
 
 
 #endif
