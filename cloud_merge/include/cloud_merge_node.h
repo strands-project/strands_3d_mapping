@@ -195,14 +195,14 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
 
     scan_skip_counter = 0;
 
-    bool found = m_NodeHandle.getParam("/log_run_name",m_LogRunName);
-    if (!found)
-    {
-        ROS_INFO_STREAM("Parameter \"/log_run_name\" hasn't been defined. Defaulting to patrol_run_1");
-        m_LogRunName = "patrol_run_1";
-    }
+//    bool found = m_NodeHandle.getParam("/log_run_name",m_LogRunName);
+//    if (!found)
+//    {
+//        ROS_INFO_STREAM("Parameter \"/log_run_name\" hasn't been defined. Defaulting to patrol_run_1");
+//        m_LogRunName = "patrol_run_1";
+//    }
 
-    found = m_NodeHandle.getParam("save_intermediate",m_bSaveIntermediateData);
+    bool found = m_NodeHandle.getParam("save_intermediate",m_bSaveIntermediateData);
     if (!m_bSaveIntermediateData)
     {
         ROS_INFO_STREAM("Not saving intermediate data.");
@@ -303,29 +303,8 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         ROS_INFO_STREAM("Pan tilt sweep started -> acquire data");
         m_bAquisitionPhase = true;
 
-        // initialize log name
-//            // check if the run name has been defined
-//            std::string new_log_name;
-//            bool found = m_NodeHandle.getParam("/log_run_name",new_log_name);
-//            if (!found)
-//            {
-//                std::cout<<"Parameter \"/log_run_name\" hasn't been defined. Defaulting to patrol_run_1"<<std::endl;
-//                m_LogRunName = "patrol_run_1";
-//            } else {
-//                if (new_log_name != m_LogRunName)
-//                {
-//                    m_SemanticRoomId=-1; // reset room id as we've started a new run
-//                }
-//                m_LogRunName = new_log_name;
-//            }
-
-
          // initialize room
-//         m_SemanticRoomId++;
-//         m_vSemanticRoom.push_back(SemanticRoom<PointType>());
          aSemanticRoom.setSaveIntermediateClouds(m_bSaveIntermediateData);
-//         aSemanticRoom.setRoomRunNumber(m_SemanticRoomId);
-//         aSemanticRoom.setRoomLogName(m_LogName);
 
          // get room start time
          aSemanticRoom.setRoomLogStartTime(ros::Time::now().toBoost());
@@ -345,54 +324,59 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         // publish the merged cloud
         m_CloudMerge.subsampleMergedCloud(0.01f,0.01f,0.01f);
         CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
+        if (merged_cloud->points.size() != 0)
+        { // only process this room if it has any points
 
-        sensor_msgs::PointCloud2 msg_cloud;
-        pcl::toROSMsg(*merged_cloud, msg_cloud);
-        m_PublisherMergedCloud.publish(msg_cloud);
+            sensor_msgs::PointCloud2 msg_cloud;
+            pcl::toROSMsg(*merged_cloud, msg_cloud);
+            m_PublisherMergedCloud.publish(msg_cloud);
 
-        // set room end time
-        aSemanticRoom.setRoomLogEndTime(ros::Time::now().toBoost());
-        // add complete cloud to semantic room
-        aSemanticRoom.setCompleteRoomCloud(merged_cloud);
+            // set room end time
+            aSemanticRoom.setRoomLogEndTime(ros::Time::now().toBoost());
+            // add complete cloud to semantic room
+            aSemanticRoom.setCompleteRoomCloud(merged_cloud);
 
-        // set room patrol number and room id
-        int roomId, runNumber;
-        findSemanticRoomIDAndLogName(aSemanticRoom, roomId, runNumber);
-        m_SemanticRoomId = roomId;
+            // set room patrol number and room id
+            int roomId, runNumber;
+            findSemanticRoomIDAndLogName(aSemanticRoom, roomId, runNumber);
+            m_SemanticRoomId = roomId;
 
-        m_LogRunName = "patrol_run_";
-        m_LogRunName += QString::number(runNumber).toStdString();
+            m_LogRunName = "patrol_run_";
+            m_LogRunName += QString::number(runNumber).toStdString();
 
-        static std::locale loc(std::cout.getloc(),
-                               new boost::posix_time::time_facet("%Y%m%d"));
+            static std::locale loc(std::cout.getloc(),
+                                   new boost::posix_time::time_facet("%Y%m%d"));
 
-        std::basic_stringstream<char> wss;
-        wss.imbue(loc);
-        wss << ros::Time::now().toBoost();
-        m_LogName = wss.str()+"_"+m_LogRunName;
-        ROS_INFO_STREAM("Log name set to "<<m_LogName);
+            std::basic_stringstream<char> wss;
+            wss.imbue(loc);
+            wss << ros::Time::now().toBoost();
+            m_LogName = wss.str()+"_"+m_LogRunName;
+            ROS_INFO_STREAM("Log name set to "<<m_LogName);
 
-        aSemanticRoom.setRoomRunNumber(m_SemanticRoomId);
-        aSemanticRoom.setRoomLogName(m_LogName);
+            aSemanticRoom.setRoomRunNumber(m_SemanticRoomId);
+            aSemanticRoom.setRoomLogName(m_LogName);
 
 
-        SemanticRoomXMLParser<PointType> parser;
-        ROS_INFO_STREAM("Saving semantic room file");
-        std::string roomXMLPath = parser.saveRoomAsXML(aSemanticRoom);
-        ROS_INFO_STREAM("Saved semantic room");
+            SemanticRoomXMLParser<PointType> parser;
+            ROS_INFO_STREAM("Saving semantic room file");
+            std::string roomXMLPath = parser.saveRoomAsXML(aSemanticRoom);
+            ROS_INFO_STREAM("Saved semantic room");
 
-        // Pulbish room observation
-        semantic_map::RoomObservation obs_msg;
-        obs_msg.xml_file_name = roomXMLPath;
+            // Pulbish room observation
+            semantic_map::RoomObservation obs_msg;
+            obs_msg.xml_file_name = roomXMLPath;
 
-        // before publising, check whether some data needs to be removed
-        if (m_MaxInstances != -1)
-        {
-            SemanticMapSummaryParser<PointType> summaryParser;
-            summaryParser.removeSemanticMapObservationInstances(m_MaxInstances);
+            // before publising, check whether some data needs to be removed
+            if (m_MaxInstances != -1)
+            {
+                SemanticMapSummaryParser<PointType> summaryParser;
+                summaryParser.removeSemanticMapObservationInstances(m_MaxInstances);
+            }
+
+            m_PublisherRoomObservation.publish(obs_msg);
+        } else {
+            ROS_INFO_STREAM("Observation point cloud is empty, discarding it. This shouldn't happen, it c   ould be a problem with the camera driver or images.");
         }
-
-        m_PublisherRoomObservation.publish(obs_msg);
     }
 
     if ((controlString.data == "start_position") && m_bAquisitionPhase)

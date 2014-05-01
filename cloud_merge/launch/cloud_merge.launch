@@ -3,7 +3,7 @@
   <arg name="save_intermediate"           default="false" />
   <arg name="generate_pointclouds"        default="true" />
   <arg name="cleanup"           	  default="false" />
-  <arg name="max_instances"               default="3" />
+  <arg name="max_instances"               default="5" />
 
 
   <arg name="input_cloud"           	  default="/depth_registered/points" />
