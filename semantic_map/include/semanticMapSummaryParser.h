@@ -78,6 +78,61 @@ public:
         deleteFolderContents(semanticMapFolderPath);
     }
 
+    void removeSemanticMapObservationInstances(int maxInstances)
+    {
+        // first check the semanticMap cache folder size
+        // update summary xml
+        createSummaryXML();
+
+        // update list of rooms & metarooms
+        refresh();
+
+        std::vector<SemanticMapSummaryParser<PointType>::EntityStruct> allRooms = getRooms();
+
+        for (int i=0; i<allRooms.size();i++)
+        {
+            int matches = 1;
+            for (int j=i+1; j<allRooms.size();j++)
+            {
+                double centroidDistance = pcl::distances::l2(allRooms[i].centroid,allRooms[j].centroid);
+                if (! (centroidDistance < ROOM_CENTROID_DISTANCE) )
+                {
+                    continue;
+                } else {
+                    matches++;
+                }
+            }
+
+            if (matches > maxInstances) // too many instances of this room. Remove this one.
+            {
+                ROS_INFO_STREAM("Observation "<<allRooms[i].roomXmlFile<<" has "<<matches<<" instances.");
+                QString roomXml(allRooms[i].roomXmlFile.c_str());
+                int lastIndex = roomXml.lastIndexOf("/");
+                QString observationFolderPath = roomXml.left(lastIndex);
+                deleteFolderContents(observationFolderPath);
+
+                // check if the patrol folder is empty. If yes, remove it
+                int secondlastIndex = observationFolderPath.lastIndexOf("/");
+                QString observationPatrolFolderPath = observationFolderPath.left(secondlastIndex);
+                QDir observationPatrolFolder(observationPatrolFolderPath);
+                if (observationPatrolFolder.exists())
+                {
+
+                    QFileInfoList files = observationPatrolFolder.entryInfoList(QDir::NoDotAndDotDot | QDir::Files);
+                    QFileInfoList dirs = observationPatrolFolder.entryInfoList(QDir::NoDotAndDotDot | QDir::Dirs);
+
+                    if ((files.size() == 0) && (dirs.size() == 0))
+                    {
+                        deleteFolderContents(observationPatrolFolderPath);
+                    }
+                }
+
+            }
+        }
+
+
+    }
+
     void refresh()
     {
         m_vAllRooms = parseSummaryXML();
@@ -120,6 +175,8 @@ public:
                 toRet.push_back(m_vAllRooms[i]);
             }
         }
+
+        return toRet;
     }
 
 
@@ -271,6 +328,8 @@ public:
         xmlWriter->writeEndElement(); // SemanticMap
         xmlWriter->writeEndDocument();
 
+        ROS_INFO_STREAM("Created semantic map summary xml.");
+
 
         return true;
     }
@@ -412,7 +471,7 @@ private:
                     xmlWriter->writeEndElement();
 
                     xmlWriter->writeEndElement();
-                    ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
+//                    ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
                 }
             }
         }
@@ -440,8 +499,12 @@ private:
             for(int dir = 0; dir < dirs.count(); dir++)
             {
                 this->deleteFolderContents(dirs.at(dir).absoluteFilePath ());
-                folder.rmdir(dirs.at(dir).absoluteFilePath());
+//                folder.rmdir(dirs.at(dir).absoluteFilePath());
             }
+
+            //  delete the root folder itself
+            QDir home = QDir::homePath();
+            home.rmdir(folderPath);
         } else {
             return;
         }
