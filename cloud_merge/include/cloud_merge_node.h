@@ -484,7 +484,19 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         }
 
         m_CloudMerge.processIntermediateCloud();
-    }    
+    }
+
+    if ((controlString.data == "preempted") && m_bAquisitionPhase)
+    {
+        ROS_INFO_STREAM("The pan tilt sweep was preempted while data was being collected. Abort current observation.");
+        m_bAquireData = false;
+
+        aSemanticRoom.clearIntermediateClouds();
+        aSemanticRoom.resetRoomTransform();
+
+        m_CloudMerge.resetIntermediateCloud();
+        m_CloudMerge.resetMergedCloud();
+    }
 }
 
 template <class PointType>
