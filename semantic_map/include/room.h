@@ -61,20 +61,24 @@ public:
         m_vIntermediateRoomCloudTransforms.clear();
     }
 
-    void addIntermediateRoomCloud(CloudPtr intermediateCloud, tf::StampedTransform cloud_tf)
+    int addIntermediateRoomCloud(CloudPtr intermediateCloud, tf::StampedTransform cloud_tf)
     {
         CloudPtr newCloud(new Cloud);
         *newCloud = *intermediateCloud;
         m_vIntermediateRoomClouds.push_back(newCloud);
         m_vIntermediateRoomCloudTransforms.push_back(cloud_tf);
         m_vIntermediateRoomCloudsLoaded.push_back(true);
+
+        return m_vIntermediateRoomClouds.size();
     }
 
-    void addIntermediateRoomCloud(std::string filename, tf::StampedTransform cloud_tf)
+    int addIntermediateRoomCloud(std::string filename, tf::StampedTransform cloud_tf)
     {
         m_vIntermediateRoomCloudTransforms.push_back(cloud_tf);
         m_vIntermediateRoomCloudsLoaded.push_back(false);
         m_vIntermediateRoomCloudsFilenames.push_back(filename);
+
+        return m_vIntermediateRoomCloudsFilenames.size();
     }
 
     bool getSaveIntermediateClouds()

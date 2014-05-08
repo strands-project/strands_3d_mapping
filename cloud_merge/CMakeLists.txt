@@ -4,7 +4,7 @@ project(cloud_merge)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs tf pcl_ros semantic_map image_geometry image_transport qt_build cloud_register)
+find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs tf pcl_ros semantic_map image_geometry image_transport qt_build cloud_register ros_datacentre_cpp_client)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive")
 
@@ -39,4 +39,7 @@ add_executable(cloud_merge ${HDRS} ${SRCS})
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}
+   ${Boost_LIBRARIES}
+   mongoclient
+   message_store
  )

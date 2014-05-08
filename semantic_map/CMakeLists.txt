@@ -4,7 +4,9 @@ project(semantic_map)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs pcl_ros cloud_register message_generation qt_build)
+find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs pcl_ros cloud_register message_generation qt_build ros_datacentre_cpp_client)
+
+find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive")
 
@@ -59,13 +61,18 @@ set(SRCS
     src/occlusionChecker.cpp
 )
 
-
 add_library(semantic_map ${HDRS} ${SRCS})
 add_executable(semantic_map_node include/semantic_map_node.h src/semantic_map_node.cpp src/semantic_map_main.cpp)
 
+add_dependencies(semantic_map primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
+add_dependencies(semantic_map_node primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
+
  target_link_libraries(semantic_map_node
+   mongoclient
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}
+   ${Boost_LIBRARIES}
+   message_store
   )
 

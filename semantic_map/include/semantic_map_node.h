@@ -12,6 +12,8 @@
 #include "std_msgs/String.h"
 #include <tf/transform_listener.h>
 
+#include <ros_datacentre/message_store.h>
+
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
 
@@ -29,7 +31,6 @@
 #include "roomXMLparser.h"
 #include "metaroomXMLparser.h"
 #include "semanticMapSummaryParser.h"
-
 
 template <class PointType>
 class SemanticMapNode {
@@ -53,10 +54,11 @@ private:
     SemanticMapSummaryParser<PointType>                                         m_SummaryParser;
     bool                                                                        m_bSaveIntermediateData;
     std::vector<boost::shared_ptr<MetaRoom<PointType> > >                       m_vLoadedMetarooms;
+    ros_datacentre::MessageStoreProxy                                           m_messageStore;
 };
 
 template <class PointType>
-SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh)
+SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore(nh)
 {
     ROS_INFO_STREAM("Semantic map node initialized");
 
@@ -212,6 +214,9 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     msg_clusters.header.frame_id="/map";
     m_PublisherDynamicClusters.publish(msg_clusters);
 
+    QString databaseName = QString(aRoom.getRoomLogName().c_str()) + QString("room_")+ QString::number(aRoom.getRoomRunNumber()) +QString("_dynamic_clusters");
+    std::string id(m_messageStore.insertNamed(databaseName.toStdString(), msg_clusters));
+    std::cout<<"Point cloud \""<<databaseName.toStdString()<<"\" inserted with id "<<id<<std::endl;
 }
 
 #endif
