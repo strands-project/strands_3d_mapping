@@ -99,6 +99,7 @@ private:
     bool                                                                        m_bSaveIntermediateData;
     int                                                                         m_MaxInstances;
     ros_datacentre::MessageStoreProxy                                           m_messageStore;
+    bool                                                                        m_bLogToDB;
 
 };
 
@@ -241,9 +242,14 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     m_LogName = "";
     m_SemanticRoomId = -1;
 
-//    setSemanticRoomIDAndLogName();
+    m_NodeHandle.param<bool>("log_to_db",m_bLogToDB,true);
+    if (m_bLogToDB)
+    {
+        ROS_INFO_STREAM("Logging intermediate point clouds to the database. This could take a lot of disk space.");
+    } else {
+        ROS_INFO_STREAM("NOT logging intermediate point clouds to the database.");
+    }
 }
-
 template <class PointType>
 CloudMergeNode<PointType>::~CloudMergeNode()
 {
@@ -316,27 +322,6 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
          m_CloudMerge.resetIntermediateCloud();
          m_CloudMerge.resetMergedCloud();
-
-         // set room patrol number and room id
-         int roomId, runNumber;
-         findSemanticRoomIDAndLogName(aSemanticRoom, roomId, runNumber);
-         m_SemanticRoomId = roomId;
-
-         m_LogRunName = "patrol_run_";
-         m_LogRunName += QString::number(runNumber).toStdString();
-
-         static std::locale loc(std::cout.getloc(),
-                                new boost::posix_time::time_facet("%Y%m%d"));
-
-         std::basic_stringstream<char> wss;
-         wss.imbue(loc);
-         wss << ros::Time::now().toBoost();
-         m_LogName = wss.str()+"_"+m_LogRunName;
-         ROS_INFO_STREAM("Log name set to "<<m_LogName);
-
-         aSemanticRoom.setRoomRunNumber(m_SemanticRoomId);
-         aSemanticRoom.setRoomLogName(m_LogName);
-
     }
 
     if (controlString.data == "end_sweep")
@@ -359,6 +344,27 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             // add complete cloud to semantic room
             aSemanticRoom.setCompleteRoomCloud(merged_cloud);
 
+            // set room patrol number and room id
+            int roomId, runNumber;
+            findSemanticRoomIDAndLogName(aSemanticRoom, roomId, runNumber);
+            m_SemanticRoomId = roomId;
+
+            m_LogRunName = "patrol_run_";
+            m_LogRunName += QString::number(runNumber).toStdString();
+
+            static std::locale loc(std::cout.getloc(),
+                                   new boost::posix_time::time_facet("%Y%m%d"));
+
+            std::basic_stringstream<char> wss;
+            wss.imbue(loc);
+            wss << ros::Time::now().toBoost();
+            m_LogName = wss.str()+"_"+m_LogRunName;
+            ROS_INFO_STREAM("Log name set to "<<m_LogName);
+
+            aSemanticRoom.setRoomRunNumber(m_SemanticRoomId);
+            aSemanticRoom.setRoomLogName(m_LogName);
+
+
             SemanticRoomXMLParser<PointType> parser;
             ROS_INFO_STREAM("Saving semantic room file");
             std::string roomXMLPath = parser.saveRoomAsXML(aSemanticRoom);
@@ -375,7 +381,36 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                 summaryParser.removeSemanticMapObservationInstances(m_MaxInstances);
             }
 
-            m_PublisherRoomObservation.publish(obs_msg);           
+            m_PublisherRoomObservation.publish(obs_msg);
+
+            if (m_bLogToDB)
+            {
+                std::vector<CloudPtr> intermediateClouds = aSemanticRoom.getIntermediateClouds();
+
+                for (size_t i=0; i<intermediateClouds.size(); i++)
+                {
+                    std::string cloudName = aSemanticRoom.getRoomLogName() + "/room_"+QString::number(aSemanticRoom.getRoomRunNumber()).toStdString()+"/intermediate_cloud_"+QString::number(i).toStdString();
+
+                    sensor_msgs::PointCloud2 msg_cloud;
+                    pcl::toROSMsg(*intermediateClouds[i], msg_cloud);
+                    msg_cloud.header = pcl_conversions::fromPCL(intermediateClouds[i]->header);
+
+                    std::string id(m_messageStore.insertNamed(cloudName, msg_cloud));
+                    ROS_INFO_STREAM("Point cloud \""<<cloudName<<"\" inserted with id "<<id);
+
+                }
+            }
+
+//                std::vector< boost::shared_ptr<sensor_msgs::PointCloud2> > results;
+//                if(m_messageStore.queryNamed<sensor_msgs::PointCloud2>(cloudName, results)) {
+
+//                    BOOST_FOREACH( boost::shared_ptr<sensor_msgs::PointCloud2> p,  results)
+//                    {
+//                        CloudPtr databaseCloud(new Cloud());
+//                        pcl::fromROSMsg(*p,*databaseCloud);
+//                        ROS_INFO_STREAM("Got pointcloud by name. No points: " << databaseCloud->points.size());
+//                    }
+//                }
 
         } else {
             ROS_INFO_STREAM("Observation point cloud is empty, discarding it. This shouldn't happen, it could be a problem with the camera driver or images.");
@@ -425,9 +460,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
                 transformed_cloud = m_CloudMerge.getIntermediateCloud();
 
-                static int cloud_id = 0;
-
-                // add intermediat cloud and transform to semantic room
+                // add intermediate cloud and transform to semantic room
                 int intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform);
 
 
@@ -442,21 +475,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
                 // add intermediate point cloud to the database
                 // first create intermediate cloud name
-                std::string cloudName = aSemanticRoom.getRoomLogName() + "/room_"+QString::number(aSemanticRoom.getRoomRunNumber()).toStdString()+"/intermediate_cloud_"+QString::number(intCloudId).toStdString();
-                std::string id(m_messageStore.insertNamed(cloudName, msg_cloud));
 
-                ROS_INFO_STREAM("Point cloud \""<<cloudName<<"\" inserted with id "<<id<<std::endl);
-
-//                std::vector< boost::shared_ptr<sensor_msgs::PointCloud2> > results;
-//                if(m_messageStore.queryNamed<sensor_msgs::PointCloud2>(cloudName, results)) {
-
-//                    BOOST_FOREACH( boost::shared_ptr<sensor_msgs::PointCloud2> p,  results)
-//                    {
-//                        CloudPtr databaseCloud(new Cloud());
-//                        pcl::fromROSMsg(*p,*databaseCloud);
-//                        ROS_INFO_STREAM("Got pointcloud by name. No points: " << databaseCloud->points.size());
-//                    }
-//                }
             }
 
         }

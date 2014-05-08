@@ -1,9 +1,11 @@
 <launch>
 
-  <arg name="save_intermediate"           default="no" />
+  <arg name="save_intermediate"           default="false" />
+  <arg name="log_to_db"           	  default="true" />
 
   <node pkg="semantic_map" type="semantic_map_node" name="semantic_map_node" output="screen">
-	<param name="save_intermediate"  value="$(arg save_intermediate)"/>
+	<param name="save_intermediate"  type="bool" value="$(arg save_intermediate)"/>
+	<param name="log_to_db"  type="bool" value="$(arg log_to_db)"/>
   </node>
 
 </launch>
