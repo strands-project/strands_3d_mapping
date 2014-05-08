@@ -12,6 +12,8 @@
 #include "std_msgs/String.h"
 #include <tf/transform_listener.h>
 
+#include <ros_datacentre/message_store.h>
+
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h>
@@ -62,7 +64,7 @@ public:
     ros::Publisher                                                              m_PublisherIntermediateCloud;   
     ros::Publisher                                                              m_PublisherRoomObservation;
 
-    image_transport::Publisher                                                              m_RosPublisherIntermediateRGB;
+    image_transport::Publisher                                                  m_RosPublisherIntermediateRGB;
     image_transport::Publisher                                                  m_RosPublisherIntermediateDepth;
     ros::Publisher                                                              m_RosPublisherIntermediateDepthCamInfo;
     ros::Publisher                                                              m_RosPublisherIntermediateRGBCamInfo;
@@ -96,11 +98,13 @@ private:
     bool                                                                        m_bUseImages;
     bool                                                                        m_bSaveIntermediateData;
     int                                                                         m_MaxInstances;
+    ros_datacentre::MessageStoreProxy                                           m_messageStore;
+    bool                                                                        m_bLogToDB;
 
 };
 
 template <class PointType>
-CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListener(nh,ros::Duration(1000))
+CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListener(nh,ros::Duration(1000)), m_messageStore(nh)
 {
     ROS_INFO_STREAM("Cloud merge node initialized");
 
@@ -238,9 +242,14 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     m_LogName = "";
     m_SemanticRoomId = -1;
 
-//    setSemanticRoomIDAndLogName();
+    m_NodeHandle.param<bool>("log_to_db",m_bLogToDB,true);
+    if (m_bLogToDB)
+    {
+        ROS_INFO_STREAM("Logging intermediate point clouds to the database. This could take a lot of disk space.");
+    } else {
+        ROS_INFO_STREAM("NOT logging intermediate point clouds to the database.");
+    }
 }
-
 template <class PointType>
 CloudMergeNode<PointType>::~CloudMergeNode()
 {
@@ -313,7 +322,6 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
          m_CloudMerge.resetIntermediateCloud();
          m_CloudMerge.resetMergedCloud();
-
     }
 
     if (controlString.data == "end_sweep")
@@ -374,8 +382,38 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             }
 
             m_PublisherRoomObservation.publish(obs_msg);
+
+            if (m_bLogToDB)
+            {
+                std::vector<CloudPtr> intermediateClouds = aSemanticRoom.getIntermediateClouds();
+
+                for (size_t i=0; i<intermediateClouds.size(); i++)
+                {
+                    std::string cloudName = aSemanticRoom.getRoomLogName() + "/room_"+QString::number(aSemanticRoom.getRoomRunNumber()).toStdString()+"/intermediate_cloud_"+QString::number(i).toStdString();
+
+                    sensor_msgs::PointCloud2 msg_cloud;
+                    pcl::toROSMsg(*intermediateClouds[i], msg_cloud);
+                    msg_cloud.header = pcl_conversions::fromPCL(intermediateClouds[i]->header);
+
+                    std::string id(m_messageStore.insertNamed(cloudName, msg_cloud));
+                    ROS_INFO_STREAM("Point cloud \""<<cloudName<<"\" inserted with id "<<id);
+
+                }
+            }
+
+//                std::vector< boost::shared_ptr<sensor_msgs::PointCloud2> > results;
+//                if(m_messageStore.queryNamed<sensor_msgs::PointCloud2>(cloudName, results)) {
+
+//                    BOOST_FOREACH( boost::shared_ptr<sensor_msgs::PointCloud2> p,  results)
+//                    {
+//                        CloudPtr databaseCloud(new Cloud());
+//                        pcl::fromROSMsg(*p,*databaseCloud);
+//                        ROS_INFO_STREAM("Got pointcloud by name. No points: " << databaseCloud->points.size());
+//                    }
+//                }
+
         } else {
-            ROS_INFO_STREAM("Observation point cloud is empty, discarding it. This shouldn't happen, it c   ould be a problem with the camera driver or images.");
+            ROS_INFO_STREAM("Observation point cloud is empty, discarding it. This shouldn't happen, it could be a problem with the camera driver or images.");
         }
     }
 
@@ -405,35 +443,40 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
 
         try{
-            tf::StampedTransform transform;
+            if (transformed_cloud->points.size() > 0)
+            {
+                tf::StampedTransform transform;
 
-            sensor_msgs::PointCloud2 temp_msg;
-            pcl::toROSMsg(*transformed_cloud, temp_msg);
-            temp_msg.header = pcl_conversions::fromPCL(transformed_cloud->header);
-            m_PublisherIntermediateCloud.publish(temp_msg); // publish in the local frame of reference
+                sensor_msgs::PointCloud2 temp_msg;
+                pcl::toROSMsg(*transformed_cloud, temp_msg);
+                temp_msg.header = pcl_conversions::fromPCL(transformed_cloud->header);
+                m_PublisherIntermediateCloud.publish(temp_msg); // publish in the local frame of reference
 
-            m_TransformListener.waitForTransform("/map", transformed_cloud->header.frame_id,temp_msg.header.stamp, ros::Duration(20.0) );
-            m_TransformListener.lookupTransform("/map", transformed_cloud->header.frame_id,
-                                     temp_msg.header.stamp, transform);
+                m_TransformListener.waitForTransform("/map", transformed_cloud->header.frame_id,temp_msg.header.stamp, ros::Duration(20.0) );
+                m_TransformListener.lookupTransform("/map", transformed_cloud->header.frame_id,
+                                                    temp_msg.header.stamp, transform);
 
-            m_CloudMerge.transformIntermediateCloud(transform,"/map");
+                m_CloudMerge.transformIntermediateCloud(transform,"/map");
 
-            transformed_cloud = m_CloudMerge.getIntermediateCloud();
+                transformed_cloud = m_CloudMerge.getIntermediateCloud();
 
-            static int cloud_id = 0;
-
-            // add intermediat cloud and transform to semantic room
-            aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform);
+                // add intermediate cloud and transform to semantic room
+                int intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform);
 
 
-            sensor_msgs::PointCloud2 msg_cloud;
-            pcl::toROSMsg(*transformed_cloud, msg_cloud);
+                sensor_msgs::PointCloud2 msg_cloud;
+                pcl::toROSMsg(*transformed_cloud, msg_cloud);
 
-            m_RosPublisherIntermediateDepth.publish(m_CloudMerge.m_IntermediateFilteredDepthImage);
-            m_RosPublisherIntermediateRGB.publish(m_CloudMerge.m_IntermediateFilteredRGBImage);
-            m_RosPublisherIntermediateDepthCamInfo.publish(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
+                m_RosPublisherIntermediateDepth.publish(m_CloudMerge.m_IntermediateFilteredDepthImage);
+                m_RosPublisherIntermediateRGB.publish(m_CloudMerge.m_IntermediateFilteredRGBImage);
+                m_RosPublisherIntermediateDepthCamInfo.publish(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
 
-//            ROS_INFO_STREAM("Transformed cloud aquisition time "<<transformed_cloud->header.stamp<<"  and frame "<<transformed_cloud->header.frame_id<<"  and points "<<transformed_cloud->points.size());
+                //            ROS_INFO_STREAM("Transformed clod aquisition time "<<transformed_cloud->header.stamp<<"  and frame "<<transformed_cloud->header.frame_id<<"  and points "<<transformed_cloud->points.size());
+
+                // add intermediate point cloud to the database
+                // first create intermediate cloud name
+
+            }
 
         }
         catch (tf::TransformException ex){
@@ -441,7 +484,19 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         }
 
         m_CloudMerge.processIntermediateCloud();
-    }    
+    }
+
+    if ((controlString.data == "preempted") && m_bAquisitionPhase)
+    {
+        ROS_INFO_STREAM("The pan tilt sweep was preempted while data was being collected. Abort current observation.");
+        m_bAquireData = false;
+
+        aSemanticRoom.clearIntermediateClouds();
+        aSemanticRoom.resetRoomTransform();
+
+        m_CloudMerge.resetIntermediateCloud();
+        m_CloudMerge.resetMergedCloud();
+    }
 }
 
 template <class PointType>

@@ -12,6 +12,8 @@
 #include "std_msgs/String.h"
 #include <tf/transform_listener.h>
 
+#include <ros_datacentre/message_store.h>
+
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
 
@@ -29,7 +31,6 @@
 #include "roomXMLparser.h"
 #include "metaroomXMLparser.h"
 #include "semanticMapSummaryParser.h"
-
 
 template <class PointType>
 class SemanticMapNode {
@@ -53,10 +54,12 @@ private:
     SemanticMapSummaryParser<PointType>                                         m_SummaryParser;
     bool                                                                        m_bSaveIntermediateData;
     std::vector<boost::shared_ptr<MetaRoom<PointType> > >                       m_vLoadedMetarooms;
+    ros_datacentre::MessageStoreProxy                                           m_messageStore;
+    bool                                                                        m_bLogToDB;
 };
 
 template <class PointType>
-SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh)
+SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore(nh)
 {
     ROS_INFO_STREAM("Semantic map node initialized");
 
@@ -67,21 +70,21 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh)
     m_PublisherMetaroom = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/metaroom", 1);
     m_PublisherDynamicClusters = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/dynamic_clusters", 1);
 
-    std::string save_intermediate;
-    bool found = m_NodeHandle.getParam("save_intermediate",save_intermediate);
-    if (found)
+    bool save_intermediate;
+    m_NodeHandle.param<bool>("save_intermediate",save_intermediate,false);
+    if (!save_intermediate)
     {
-        if (save_intermediate == "no")
-        {
-            m_bSaveIntermediateData = false;
-            ROS_INFO_STREAM("Not saving intermediate data.");
-        } else {
-            m_bSaveIntermediateData = true;
-            ROS_INFO_STREAM("Saving intermediate data.");
-        }
+        ROS_INFO_STREAM("NOT saving intermediate data.");
     } else {
-        ROS_INFO_STREAM("Parameter save_intermediate not defined. Defaulting to not saving the intermediate data.");
-        m_bSaveIntermediateData = false;
+        ROS_INFO_STREAM("Saving intermediate data.");
+    }
+
+    m_NodeHandle.param<bool>("log_to_db",m_bLogToDB,true);
+    if (m_bLogToDB)
+    {
+        ROS_INFO_STREAM("Logging dynamic clusters to the database.");
+    } else {
+        ROS_INFO_STREAM("NOT logging dynamic clusters to the database.");
     }
 }
 
@@ -212,6 +215,23 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     msg_clusters.header.frame_id="/map";
     m_PublisherDynamicClusters.publish(msg_clusters);
 
+    if (m_bLogToDB)
+    {
+        QString databaseName = QString(aRoom.getRoomLogName().c_str()) + QString("/room_")+ QString::number(aRoom.getRoomRunNumber()) +QString("/dynamic_clusters");
+        std::string id(m_messageStore.insertNamed(databaseName.toStdString(), msg_clusters));
+        ROS_INFO_STREAM("Dynamic clusters \""<<databaseName.toStdString()<<"\" inserted with id "<<id);
+
+        std::vector< boost::shared_ptr<sensor_msgs::PointCloud2> > results;
+        if(m_messageStore.queryNamed<sensor_msgs::PointCloud2>(databaseName.toStdString(), results)) {
+
+            BOOST_FOREACH( boost::shared_ptr<sensor_msgs::PointCloud2> p,  results)
+            {
+                CloudPtr databaseCloud(new Cloud());
+                pcl::fromROSMsg(*p,*databaseCloud);
+                ROS_INFO_STREAM("Got pointcloud by name. No points: " << databaseCloud->points.size());
+            }
+        }
+    }
 }
 
 #endif
