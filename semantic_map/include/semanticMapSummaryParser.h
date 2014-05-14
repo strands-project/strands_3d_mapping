@@ -511,7 +511,7 @@ private:
             for(int dir = 0; dir < dirs.count(); dir++)
             {
                 this->deleteFolderContents(dirs.at(dir).absoluteFilePath ());
-//                folder.rmdir(dirs.at(dir).absoluteFilePath());
+                folder.rmdir(dirs.at(dir).absoluteFilePath());
             }
 
             //  delete the root folder itself
