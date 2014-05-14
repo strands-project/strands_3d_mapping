@@ -232,7 +232,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     {
         ROS_INFO_STREAM("Maximum number of instances per observations is "<<m_MaxInstances);
         SemanticMapSummaryParser<PointType> summaryParser;
-        summaryParser.removeSemanticMapObservationInstances(m_MaxInstances);
+        summaryParser.removeSemanticMapObservationInstances(m_MaxInstances,true);
     } else {
         ROS_INFO_STREAM("Maximum number of instances hasn't been defined -> storing all the data.");
     }
@@ -378,7 +378,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             if (m_MaxInstances != -1)
             {
                 SemanticMapSummaryParser<PointType> summaryParser;
-                summaryParser.removeSemanticMapObservationInstances(m_MaxInstances);
+                summaryParser.removeSemanticMapObservationInstances(m_MaxInstances,true);
             }
 
             m_PublisherRoomObservation.publish(obs_msg);
