@@ -4,6 +4,7 @@
   <arg name="generate_pointclouds"        default="true" />
   <arg name="cleanup"           	  default="false" />
   <arg name="log_to_db"           	  default="true" />
+  <arg name="cache_old_data"           	  default="true" />
   <arg name="max_instances"               default="5" />
 
 
@@ -18,6 +19,7 @@
 	<param name="cleanup"  		    	 type="bool" value="$(arg cleanup)"/>
 	<param name="log_to_db"  		 type="bool" value="$(arg log_to_db)"/>
 	<param name="max_instances"    	 type="int" value="$(arg max_instances)"/>
+	<param name="cache_old_data"	type="bool" value="$(arg cache_old_data)"/>
 	
 	<param name="input_cloud"  		 value="$(arg input_cloud)"/>
 	<param name="input_rgb"  		 value="$(arg input_rgb)"/>
