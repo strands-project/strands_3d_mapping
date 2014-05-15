@@ -1,7 +1,7 @@
 <launch>
 
     <!-- Launch the PTU action server used for doing the pan tilt sweep -->
-    <node pkg="scitos_ptu" type="ptu_action_server_metric_map.py" name="ptu_action_server_metric_map" output="screen">
+    <node pkg="scitos_ptu" type="ptu_action_server_metric_map.py" name="ptu_action_server_metric_map" output="screen" respawn="true">
 
     <!-- The system merging the individual frames into a local map -->
     <include file="$(find cloud_merge)/launch/cloud_merge.launch">
