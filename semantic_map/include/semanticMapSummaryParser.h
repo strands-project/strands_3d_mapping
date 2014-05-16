@@ -354,7 +354,7 @@ private:
         xmlWriter->writeStartElement("MetaRooms");
 
         QStringList metaroomRootFolders = QDir(qrootFolder).entryList(QStringList("*"),
-                                                        QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+                                                        QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time | QDir::Reversed);
 
         for (size_t i=0; i<metaroomRootFolders.size(); i++)
         {
@@ -366,7 +366,7 @@ private:
                 // this is the folder containing the metarooms
                 QString folders = qrootFolder + metaroomRootFolders[i]+"/";
                 QStringList metaroomFolders = QDir(folders).entryList(QStringList("*"),
-                                                                QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+                                                                QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
 
                 for (size_t j=0; j<metaroomFolders.size();j++)
                 {
@@ -417,7 +417,7 @@ private:
 
         // parse folder structure and look for semantic objects
         QStringList dateFolders = QDir(qrootFolder).entryList(QStringList("*"),
-                                                        QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+                                                        QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time);
 
         for (size_t i=0; i<dateFolders.size(); i++)
         {
@@ -445,12 +445,12 @@ private:
 
             QString dateFolder = qrootFolder+dateFolders[i];
             QStringList patrolFolders = QDir(dateFolder).entryList(QStringList("*"),
-                                                                    QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+                                                                    QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
             for (size_t j=0; j<patrolFolders.size(); j++)
             {
                 QString patrolFolder = dateFolder + "/" + patrolFolders[j];
                 QStringList roomFolders = QDir(patrolFolder).entryList(QStringList("*"),
-                                                                     QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+                                                                     QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
                 for (size_t k=0; k<roomFolders.size(); k++)
                 {
                     // parse XML file and extract some important fields with which to populate the index.html file
