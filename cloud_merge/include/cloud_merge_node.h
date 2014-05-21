@@ -100,6 +100,7 @@ private:
     int                                                                         m_MaxInstances;
     ros_datacentre::MessageStoreProxy                                           m_messageStore;
     bool                                                                        m_bLogToDB;
+    bool                                                                        m_bCacheOldData;
 
 };
 
@@ -190,10 +191,6 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
 
     }
 
-
-
-
-
     m_bAquireData = false;
     m_bAquisitionPhase = false;
 
@@ -232,7 +229,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     {
         ROS_INFO_STREAM("Maximum number of instances per observations is "<<m_MaxInstances);
         SemanticMapSummaryParser<PointType> summaryParser;
-        summaryParser.removeSemanticMapObservationInstances(m_MaxInstances);
+        summaryParser.removeSemanticMapObservationInstances(m_MaxInstances,m_bCacheOldData);
     } else {
         ROS_INFO_STREAM("Maximum number of instances hasn't been defined -> storing all the data.");
     }
@@ -249,6 +246,15 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     } else {
         ROS_INFO_STREAM("NOT logging intermediate point clouds to the database.");
     }
+
+    m_NodeHandle.param<bool>("cache_old_data",m_bCacheOldData,true);
+    if (m_bCacheOldData)
+    {
+        ROS_INFO_STREAM("Old data will be cached. This could take a lot of disk space.");
+    } else {
+        ROS_INFO_STREAM("Old data will be deleted.");
+    }
+
 }
 template <class PointType>
 CloudMergeNode<PointType>::~CloudMergeNode()
@@ -378,7 +384,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             if (m_MaxInstances != -1)
             {
                 SemanticMapSummaryParser<PointType> summaryParser;
-                summaryParser.removeSemanticMapObservationInstances(m_MaxInstances);
+                summaryParser.removeSemanticMapObservationInstances(m_MaxInstances,m_bCacheOldData);
             }
 
             m_PublisherRoomObservation.publish(obs_msg);
