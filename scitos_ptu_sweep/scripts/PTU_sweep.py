@@ -81,18 +81,15 @@ class PTUSweep():
             current_pan=goal.min_pan
             self._feedback.current_tilt=current_tilt
             while current_pan <= goal.max_pan and not (ended or self.cancelled):
-                #print current_pan, current_tilt
                 ptugoal.pan = current_pan
                 ptugoal.tilt = current_tilt
                 self.client.send_goal(ptugoal)
-                #print ptugoal
                 self.client.wait_for_result()
                 self.arrived = True
                 while not self.published and not self.img_published :
                     pass
                 self.published = False
                 self.img_published = False
-                #print self.client.get_result()
                 self._feedback.current_pan=current_pan
                 current_pan = goal.max_pan if current_pan + goal.pan_step > goal.max_pan and not current_pan >= goal.max_pan else current_pan + goal.pan_step             
                 self._as.publish_feedback(self._feedback)
@@ -101,16 +98,14 @@ class PTUSweep():
                 ended=True
             else:
                 current_pan=goal.max_pan
-            #print "Tilt+ =",current_tilt
             self._feedback.current_tilt=current_tilt
             while current_pan >= goal.min_pan and not ended or self.cancelled: 
-                #print current_pan, current_tilt
                 ptugoal.pan = current_pan
                 ptugoal.tilt = current_tilt
                 self.client.send_goal(ptugoal)
                 self.client.wait_for_result()
                 self.arrived = True
-                while not self.published not self.img_published :
+                while not self.published and not self.img_published :
                     pass
                 self.published = False
                 self.img_published = False
