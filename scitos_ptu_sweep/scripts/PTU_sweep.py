@@ -28,18 +28,18 @@ class PTUSweep():
         self.cancelled = False
         
         #Point Cloud topic to subscribe to
-        sub_topic = rospy.get_param("~PointCloud", '/head_xtion/depth/points')
+        self.sub_topic = rospy.get_param("~PointCloud", '/head_xtion/depth/points')
         #Point Cloud topic to publish to
         pub_topic = rospy.get_param("~SweepPointCloud", '/ptu_sweep/depth/points')
 
         #Image topic to subscribe to        
-        sub_img_topic = rospy.get_param("~Image", '/head_xtion/rgb/image_color')
+        self.sub_img_topic = rospy.get_param("~Image", '/head_xtion/rgb/image_color')
         #Image topic to publish to
         pub_img_topic = rospy.get_param("~SweepImage", '/ptu_sweep/rgb/image_color')
         
         #Subscribers and publishers
-        rospy.Subscriber(sub_topic, PointCloud2, self.pointCloudCallback, None, 1)
-        rospy.Subscriber(sub_img_topic, Image, self.imageCallback, None, 1)
+        rospy.Subscriber(self.sub_topic, PointCloud2, self.pointCloudCallback, None, 1)
+        rospy.Subscriber(self.sub_img_topic, Image, self.imageCallback, None, 1)
         self.pub = rospy.Publisher(pub_topic, PointCloud2)
         self.pub_img = rospy.Publisher(pub_img_topic, Image)
 
@@ -59,6 +59,11 @@ class PTUSweep():
             print goal.tilt_step%(abs(goal.min_tilt)+abs(goal.max_tilt))
             rospy.logwarn("The defined tilt angle is NOT a multiple of tilt step")
         print "New sweep requested"
+
+        #Subscribers  
+        pc2_sub = rospy.Subscriber(self.sub_topic, PointCloud2, self.pointCloudCallback, None, 1)
+        img_sub = rospy.Subscriber(self.sub_img_topic, Image, self.imageCallback, None, 1)
+        
         self.cancelled = False
         max_pan= 159
         min_pan= -159
@@ -115,6 +120,9 @@ class PTUSweep():
             current_tilt = goal.max_tilt if current_tilt + goal.tilt_step > goal.max_tilt and not current_tilt >= goal.max_tilt else current_tilt + goal.tilt_step
       
         self.resetPTU()
+
+        pc2_sub.unregister()
+        img_sub.unregister()
         if not self.cancelled :
             self._result.success = True
             self._as.set_succeeded(self._result)

@@ -1,5 +1,10 @@
 <launch>
-    <!-- launch Octomap -->
+	<!-- declare arg to be passed in -->
+	<arg name="machine" default="left-cortex" />
+	<arg name="user" default="strands" />
+
+	<machine name="$(arg machine)" address="$(arg machine)" env-loader="/opt/strands/strands_catkin_ws/devel/env.sh" user="$(arg user)" default="true"/>
 	<node pkg="scitos_ptu_sweep" type="PTU_sweep.py" name="PTUSweep"/>
 	<node pkg="scitos_ptu_sweep" type="transform_pc2" name="TransformPC2"/>
+
 </launch>
