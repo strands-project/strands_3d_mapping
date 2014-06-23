@@ -23,8 +23,11 @@ class PTUSweep():
         self._as.start()
         rospy.loginfo(" ...done")
         self.arrived = False
+        self.arrived1 = False
+        self.arrived2 = False
         self.published = False
         self.img_published  = False
+        self.reg_published  = False
         self.cancelled = False
         
         #Point Cloud topic to subscribe to
@@ -38,11 +41,14 @@ class PTUSweep():
         pub_img_topic = rospy.get_param("~SweepImage", '/ptu_sweep/rgb/image_color')
         
         #Subscribers and publishers
+        
+
         rospy.Subscriber(self.sub_topic, PointCloud2, self.pointCloudCallback, None, 1)
         rospy.Subscriber(self.sub_img_topic, Image, self.imageCallback, None, 1)
         self.pub = rospy.Publisher(pub_topic, PointCloud2)
         self.pub_img = rospy.Publisher(pub_img_topic, Image)
-
+        self.pub_reg = rospy.Publisher("/transform_pc2/depth_registered/points", PointCloud2)
+        
 
         self.pan_speed = rospy.get_param("~ptu_pan_speed", 100)
         self.tilt_speed = rospy.get_param("~ptu_tilt_speed", 100)
@@ -62,6 +68,7 @@ class PTUSweep():
 
         #Subscribers  
         pc2_sub = rospy.Subscriber(self.sub_topic, PointCloud2, self.pointCloudCallback, None, 1)
+        reg_sub = rospy.Subscriber('/head_xtion/depth_registered/points', PointCloud2, self.rgpc_callback,  queue_size=1)
         img_sub = rospy.Subscriber(self.sub_img_topic, Image, self.imageCallback, None, 1)
         
         self.cancelled = False
@@ -91,10 +98,13 @@ class PTUSweep():
                 self.client.send_goal(ptugoal)
                 self.client.wait_for_result()
                 self.arrived = True
-                while not self.published and not self.img_published :
+                self.arrived1 = True
+                self.arrived2 = True
+                while not self.published and not self.img_published and not self.reg_published :
                     pass
                 self.published = False
                 self.img_published = False
+                self.reg_published = False
                 self._feedback.current_pan=current_pan
                 current_pan = goal.max_pan if current_pan + goal.pan_step > goal.max_pan and not current_pan >= goal.max_pan else current_pan + goal.pan_step             
                 self._as.publish_feedback(self._feedback)
@@ -110,10 +120,13 @@ class PTUSweep():
                 self.client.send_goal(ptugoal)
                 self.client.wait_for_result()
                 self.arrived = True
-                while not self.published and not self.img_published :
+                self.arrived1 = True
+                self.arrived2 = True
+                while not self.published and not self.img_published and not self.reg_published :
                     pass
                 self.published = False
                 self.img_published = False
+                self.reg_published = False
                 self._feedback.current_pan=current_pan
                 current_pan = goal.min_pan if current_pan - goal.pan_step < goal.min_pan and not current_pan <= goal.min_pan else current_pan - goal.pan_step
                 self._as.publish_feedback(self._feedback)
@@ -123,6 +136,8 @@ class PTUSweep():
 
         pc2_sub.unregister()
         img_sub.unregister()
+        reg_sub.unregister()
+        
         if not self.cancelled :
             self._result.success = True
             self._as.set_succeeded(self._result)
@@ -149,10 +164,16 @@ class PTUSweep():
             self.arrived = False
             
     def imageCallback(self, msg) :
-        if self.arrived:
+        if self.arrived1:
             self.pub_img.publish(msg)
             self.img_published = True
-            self.arrived = False       
+            self.arrived1 = False    
+    
+    def rgpc_callback(self, msg) :
+        if self.arrived2:
+            self.pub_reg.publish(msg)
+            self.reg_published = True
+            self.arrived2 = False
     
 
 if __name__ == '__main__':
