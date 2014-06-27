@@ -52,6 +52,7 @@ public:
     ~CloudMergeNode();
 
     void controlCallback(const std_msgs::String& controlString);
+    void topoNodeCallback(const std_msgs::String& controlString);
     void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
     void imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg);
     void findSemanticRoomIDAndLogName(SemanticRoom<PointType>& aSemanticRoom, int& roomId, int& patrolNumber);
@@ -60,6 +61,7 @@ public:
 
     ros::Subscriber                                                             m_SubscriberControl;
     ros::Subscriber                                                             m_SubscriberPointCloud;
+    ros::Subscriber                                                             m_SubscriberTopoNode;
     ros::Publisher                                                              m_PublisherMergedCloud;
     ros::Publisher                                                              m_PublisherMergedCloudDownsampled;
     ros::Publisher                                                              m_PublisherIntermediateCloud;   
@@ -102,6 +104,7 @@ private:
     ros_datacentre::MessageStoreProxy                                           m_messageStore;
     bool                                                                        m_bLogToDB;
     bool                                                                        m_bCacheOldData;
+    std::string                                                                 m_CurrentTopoNode;
 
 };
 
@@ -111,6 +114,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     ROS_INFO_STREAM("Cloud merge node initialized");
 
     m_NodeHandle = nh;
+    m_CurrentTopoNode = "WayPoint1";
     m_RGB_it.reset(new image_transport::ImageTransport(nh));
     m_Depth_it.reset(new image_transport::ImageTransport(nh));
 
@@ -118,6 +122,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     m_MessageSynchronizer->registerCallback(boost::bind(&CloudMergeNode::imageCallback, this, _1, _2, _3));
 
     m_SubscriberControl = m_NodeHandle.subscribe("/ptu/log",1, &CloudMergeNode::controlCallback,this);
+    m_SubscriberTopoNode = m_NodeHandle.subscribe("/current_node",1, &CloudMergeNode::topoNodeCallback,this);
 
     m_PublisherIntermediateCloud = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/intermediate_point_cloud", 1);
     m_PublisherMergedCloud = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/merged_point_cloud", 1);
@@ -311,6 +316,13 @@ void CloudMergeNode<PointType>::pointCloudCallback(const sensor_msgs::PointCloud
 }
 
 template <class PointType>
+void CloudMergeNode<PointType>::topoNodeCallback(const std_msgs::String& topoNodeString)
+{
+    ROS_INFO_STREAM("Topological node  " << topoNodeString.data);
+    m_CurrentTopoNode = topoNodeString.data;
+}
+
+template <class PointType>
 void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlString)
 {
 //    ROS_INFO_STREAM("Received control string "<<controlString);
@@ -377,6 +389,11 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
             aSemanticRoom.setRoomRunNumber(m_SemanticRoomId);
             aSemanticRoom.setRoomLogName(m_LogName);
+            if (m_CurrentTopoNode != "none")
+            {
+                aSemanticRoom.setRoomStringId(m_CurrentTopoNode);
+                ROS_INFO_STREAM("Set room waypoint to "<<m_CurrentTopoNode);
+            }
 
 
             SemanticRoomXMLParser<PointType> parser;
