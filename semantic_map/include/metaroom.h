@@ -217,10 +217,6 @@ public:
 
 private:
 
-
-
-
-
     std::vector<MetaRoomUpdateIteration>                                m_MetaRoomUpdateIterations;
     pcl::ModelCoefficients::Ptr                                         m_MetaRoomCeilingPrimitive;
     bool                                                                m_MetaRoomCeilingPrimitiveDirection;
@@ -639,7 +635,7 @@ public:
         }
     }
 
-    static CloudPtr downsampleCloud(CloudPtr input)
+    static CloudPtr downsampleCloud(CloudPtr input, double leafSize = 0.01f)
     {
         ROS_INFO_STREAM("PointCloud before filtering has: " << input->points.size () << " data points.");
 
@@ -647,7 +643,7 @@ public:
         pcl::VoxelGrid<PointType> vg;
         CloudPtr cloud_filtered (new Cloud);
         vg.setInputCloud (input);
-        vg.setLeafSize (0.01f, 0.01f, 0.01f);
+        vg.setLeafSize (leafSize, leafSize, leafSize);
         vg.filter (*cloud_filtered);
         ROS_INFO_STREAM("PointCloud after filtering has: " << cloud_filtered->points.size ()  << " data points.");
 
