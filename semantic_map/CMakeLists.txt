@@ -8,9 +8,12 @@ find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs pcl_ro
 
 find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
 
-set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive")
+set(CMAKE_CXX_FLAGS "-mno-avx -g -fPIC -std=c++0x -fpermissive")
 
-find_package(PCL 1.7 REQUIRED)
+set(CMAKE_PREFIX_PATH /usr/share/pcl-1.7/ ${CMAKE_PREFIX_PATH})
+
+set(PCL_DIR /usr/share/pcl-1.7/)
+find_package(PCL 1.7 REQUIRED NO_DEFAULT_PATH)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})

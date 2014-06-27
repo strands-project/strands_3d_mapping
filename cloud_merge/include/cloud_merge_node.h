@@ -61,6 +61,7 @@ public:
     ros::Subscriber                                                             m_SubscriberControl;
     ros::Subscriber                                                             m_SubscriberPointCloud;
     ros::Publisher                                                              m_PublisherMergedCloud;
+    ros::Publisher                                                              m_PublisherMergedCloudDownsampled;
     ros::Publisher                                                              m_PublisherIntermediateCloud;   
     ros::Publisher                                                              m_PublisherRoomObservation;
 
@@ -120,6 +121,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
 
     m_PublisherIntermediateCloud = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/intermediate_point_cloud", 1);
     m_PublisherMergedCloud = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/merged_point_cloud", 1);
+    m_PublisherMergedCloudDownsampled = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/merged_point_cloud_downsampled", 1);
 
     // intermediate image publishers (use image transport for compressed images).
     m_ImageTransport = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(nh));
@@ -274,7 +276,7 @@ void CloudMergeNode<PointType>::imageCallback(const sensor_msgs::ImageConstPtr& 
     if (m_bAquireData && m_bAquisitionPhase)
     {
         scan_skip_counter++;
-        if (scan_skip_counter < 7)
+        if (scan_skip_counter < 5)
             return;
 
         m_CloudMerge.addIntermediateImage(depth_msg, rgb_msg, info_msg);
@@ -292,7 +294,7 @@ void CloudMergeNode<PointType>::pointCloudCallback(const sensor_msgs::PointCloud
         return; // we don't need to process images
     }
 
-    ROS_INFO_STREAM("Point cloud callback");
+    //ROS_INFO_STREAM("Point cloud callback");
     if (m_bAquireData && m_bAquisitionPhase)
     {
         scan_skip_counter++;
@@ -335,7 +337,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         ROS_INFO_STREAM("Pan tilt sweep stopped");
         m_bAquisitionPhase = false;
 
-        // publish the merged cloud
+        // publish the merged cloud for table detection
         m_CloudMerge.subsampleMergedCloud(0.01f,0.01f,0.01f);
         CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
         if (merged_cloud->points.size() != 0)
@@ -344,6 +346,12 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             sensor_msgs::PointCloud2 msg_cloud;
             pcl::toROSMsg(*merged_cloud, msg_cloud);
             m_PublisherMergedCloud.publish(msg_cloud);
+
+	    // subsample again for visualization and metaroom purposes
+            m_CloudMerge.subsampleMergedCloud(0.03f,0.03f,0.03f);
+            CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
+            pcl::toROSMsg(*merged_cloud, msg_cloud);
+            m_PublisherMergedCloudDownsampled.publish(msg_cloud);
 
             // set room end time
             aSemanticRoom.setRoomLogEndTime(ros::Time::now().toBoost());

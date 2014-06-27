@@ -84,6 +84,11 @@ public:
     {
         Cloud subsampled_cloud;
 
+	if (!m_IntermediateCloud != 0)
+	{
+		return;
+	}
+
         if (m_IntermediateCloud->points.size() != 0) // only process the intermediate point cloud if we are using it
         {
 //            ROS_INFO_STREAM("Subsampling intermediate cloud");

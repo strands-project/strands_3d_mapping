@@ -179,9 +179,11 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     msg_metaroom.header.frame_id="/map";
     m_PublisherMetaroom.publish(msg_metaroom);
     m_vLoadedMetarooms.push_back(metaroom);
-
+    ROS_INFO_STREAM("Published metaroom");
+ 
 
     // compute differences
+    ROS_INFO_STREAM("Computing differences");
     CloudPtr difference(new Cloud());
 
     pcl::SegmentDifferences<PointType> segment;
@@ -192,15 +194,21 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     tree->setInputCloud (metaroomCloud);
     segment.setSearchMethod(tree);
     segment.segment(*difference);
+    ROS_INFO_STREAM("Computed differences");
+    ROS_INFO_STREAM("Metaroom cloud "<<metaroomCloud->points.size()<<"  room cloud "<<roomCloud->points.size());
 
     if (difference->points.size() == 0)
     {
         // metaroom and room observation are identical -> no dynamic clusters can be computed
+	
+	ROS_INFO_STREAM("No dynamic clusters.");
         return;
     }
 
-    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.05,500,100000);
+    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.05,150,100000);
     metaroom->filterClustersBasedOnDistance(vClusters,2.5);
+    
+    ROS_INFO_STREAM("Clustered differences");
 
     // combine clusters into one point cloud for publishing.
     CloudPtr dynamicClusters(new Cloud());
@@ -214,6 +222,7 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     pcl::toROSMsg(*dynamicClusters, msg_clusters);
     msg_clusters.header.frame_id="/map";
     m_PublisherDynamicClusters.publish(msg_clusters);
+    ROS_INFO_STREAM("Published differences "<<dynamicClusters->points.size());
 
     if (m_bLogToDB)
     {
