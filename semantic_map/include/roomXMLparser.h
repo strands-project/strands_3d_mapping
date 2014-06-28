@@ -130,8 +130,12 @@ public:
         xmlWriter->writeEndElement();
         if (aRoom.getCompleteRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
-            pcl::io::savePCDFileBinary(completeCloudFilename.toStdString(), *aRoom.getCompleteRoomCloud());
-            ROS_INFO_STREAM("Saving complete cloud file name "<<completeCloudFilename.toStdString());
+            QFile file(completeCloudFilename);
+            if (!file.exists())
+            {
+                pcl::io::savePCDFileBinary(completeCloudFilename.toStdString(), *aRoom.getCompleteRoomCloud());
+                ROS_INFO_STREAM("Saving complete cloud file name "<<completeCloudFilename.toStdString());
+            }
         }
 
         // RoomInteriorCloud
@@ -142,8 +146,12 @@ public:
         xmlWriter->writeEndElement();
         if (aRoom.getInteriorRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
-            pcl::io::savePCDFileBinary(interiorCloudFilename.toStdString(), *aRoom.getInteriorRoomCloud());
-            ROS_INFO_STREAM("Saving interior cloud file name "<<interiorCloudFilename.toStdString());
+            QFile file(interiorCloudFilename);
+            if (!file.exists())
+            {
+                pcl::io::savePCDFileBinary(interiorCloudFilename.toStdString(), *aRoom.getInteriorRoomCloud());
+                ROS_INFO_STREAM("Saving interior cloud file name "<<interiorCloudFilename.toStdString());
+            }
         }
 
         // RoomDeNoisedCloud
@@ -154,8 +162,12 @@ public:
         xmlWriter->writeEndElement();
         if (aRoom.getDeNoisedRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
-            pcl::io::savePCDFileBinary(denoisedCloudFilename.toStdString(), *aRoom.getDeNoisedRoomCloud());
-            ROS_INFO_STREAM("Saving denoised cloud file name "<<denoisedCloudFilename.toStdString());
+            QFile file(denoisedCloudFilename);
+            if (!file.exists())
+            {
+                pcl::io::savePCDFileBinary(denoisedCloudFilename.toStdString(), *aRoom.getDeNoisedRoomCloud());
+                ROS_INFO_STREAM("Saving denoised cloud file name "<<denoisedCloudFilename.toStdString());
+            }
         }
 
         // RoomDynamicClusters
@@ -166,8 +178,12 @@ public:
         xmlWriter->writeEndElement();
         if (aRoom.getDynamicClustersCloudLoaded()) // only save the cloud file if it's been loaded
         {
-            pcl::io::savePCDFileBinary(dynamicClustersFilename.toStdString(), *aRoom.getDynamicClustersCloud());
-            ROS_INFO_STREAM("Saving dynamic clusters cloud file name "<<dynamicClustersFilename.toStdString());
+            QFile file(dynamicClustersFilename);
+            if (!file.exists())
+            {
+                pcl::io::savePCDFileBinary(dynamicClustersFilename.toStdString(), *aRoom.getDynamicClustersCloud());
+                ROS_INFO_STREAM("Saving dynamic clusters cloud file name "<<dynamicClustersFilename.toStdString());
+            }
         }
 
         // RoomCentroid
@@ -213,8 +229,12 @@ public:
 
                 if(roomIntermediateCloudsLoaded[i] && aRoom.getSaveIntermediateClouds())
                 {
-                    pcl::io::savePCDFileBinary(intermediateCloudPath.toStdString(), *roomIntermediateClouds[i]);
-                    ROS_INFO_STREAM("Saving intermediate cloud file name "<<intermediateCloudPath.toStdString());
+                    QFile file(intermediateCloudPath);
+                    if (!file.exists())
+                    {
+                        pcl::io::savePCDFileBinary(intermediateCloudPath.toStdString(), *roomIntermediateClouds[i]);
+                        ROS_INFO_STREAM("Saving intermediate cloud file name "<<intermediateCloudPath.toStdString());
+                    }
                 }
 
                 // RoomIntermediateCloudTransform
