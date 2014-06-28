@@ -5,10 +5,8 @@
   <arg name="cleanup" default="false" />
   <arg name="cache_old_data" default="true" />
   <arg name="max_instances" default="2" />
+  <arg name="update_metaroom" default="false" />
 
-
-    <!-- Launch the PTU action server used for doing the pan tilt sweep. Launched from another launch file  -->
-    <!-- <node pkg="scitos_ptu" type="ptu_action_server_metric_map.py" name="ptu_action_server_metric_map" output="screen"/> -->
 
     <!-- Launch the PTU action server used for doing the pan tilt sweep. -->
     <node pkg="ftp_upload" type="ftp_upload_action_server.py" name="ftp_upload_action_server" output="screen"/> 
@@ -27,7 +25,7 @@
     <!-- The system doing the analysis of static vs dynamic parts of the local maps -->
     
     <include file="$(find semantic_map)/launch/semantic_map.launch"> 
-    
+        <arg name="update_metaroom" value="$(arg update_metaroom)"/>
     </include>
     
 

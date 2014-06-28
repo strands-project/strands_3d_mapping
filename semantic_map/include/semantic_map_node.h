@@ -82,6 +82,7 @@ private:
     std::map<std::string, boost::shared_ptr<MetaRoom<PointType> > >             m_WaypointToMetaroomMap;
     std::map<std::string, SemanticRoom<PointType> >                             m_WaypointToRoomMap;
     std::map<std::string, CloudPtr>                                             m_WaypointToDynamicClusterMap;
+    bool                                                                        m_bUpdateMetaroom;
 };
 
 template <class PointType>
@@ -118,6 +119,16 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
     } else {
         ROS_INFO_STREAM("NOT logging dynamic clusters to the database.");
     }
+
+    bool m_bUpdateMetaroom;
+    m_NodeHandle.param<bool>("update_metaroom",m_bUpdateMetaroom,true);
+    if (m_bUpdateMetaroom)
+    {
+        ROS_INFO_STREAM("The metarooms will be updated with new room observations.");
+    } else {
+        ROS_INFO_STREAM("The metarooms will NOT be updated with new room observations.");
+    }
+
 }
 
 template <class PointType>
@@ -192,6 +203,7 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
         }
     }
 
+    metaroom->setUpdateMetaroom(m_bUpdateMetaroom);
     metaroom->setSaveIntermediateSteps(m_bSaveIntermediateData);
 
     // update metaroom

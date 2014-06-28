@@ -230,11 +230,13 @@ private:
     std::string                                                         m_ConsistencyUpdateCloudFilename;
     bool                                                                m_ConsistencyUpdateCloudLoaded;
     bool                                                                m_bSaveIntermediateSteps;
+    bool                                                                m_bUpdateMetaroom;
 
 public:
 
 
-    MetaRoom(bool saveIntermediateSteps=true) : RoomBase<PointType>(), m_SensorOrigin(0.0,0.0,0.0), m_ConsistencyUpdateCloud(new Cloud()), m_bSaveIntermediateSteps(saveIntermediateSteps)
+    MetaRoom(bool saveIntermediateSteps=true) : RoomBase<PointType>(), m_SensorOrigin(0.0,0.0,0.0), m_ConsistencyUpdateCloud(new Cloud()), m_bSaveIntermediateSteps(saveIntermediateSteps),
+        m_bUpdateMetaroom(true)
     {
         m_MetaRoomCeilingPrimitive = pcl::ModelCoefficients::Ptr(new (pcl::ModelCoefficients));
         m_MetaRoomCeilingPrimitive->values = std::vector<float>(4,0.0); // initialize with 0
@@ -249,6 +251,11 @@ public:
     ~MetaRoom()
     {
 
+    }
+
+    void setUpdateMetaroom(bool updateMetaroom)
+    {
+        m_bUpdateMetaroom = updateMetaroom;
     }
 
     void resetMetaRoom()
@@ -478,6 +485,12 @@ public:
             SemanticRoomXMLParser<PointType> parser;
             parser.saveRoomAsXML(aRoom);
 
+        }
+
+        if (!m_bUpdateMetaroom)
+        {
+            // stop here, don't update the metaroom with the room observation
+            return true;
         }
 
         // compute differences between the two (aligned) points clouds

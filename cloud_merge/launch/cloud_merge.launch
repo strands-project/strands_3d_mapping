@@ -6,6 +6,9 @@
   <arg name="log_to_db"           	  default="true" />
   <arg name="cache_old_data"           	  default="true" />
   <arg name="max_instances"               default="2" />
+  <arg name="voxel_size_table_top"        default="0.01" />
+  <arg name="voxel_size_observation"      default="0.03" />
+  <arg name="point_cutoff_distance"       default="4.0"/>
 
 
   <arg name="input_cloud"           	  default="/head_xtion/depth_registered/points" />
@@ -25,6 +28,10 @@
 	<param name="input_rgb"  		 value="$(arg input_rgb)"/>
 	<param name="input_depth"  		 value="$(arg input_depth)"/>
 	<param name="input_caminfo"  		 value="$(arg input_caminfo)"/>
+  
+ 	<param name="voxel_size_table_top"        type="double" value="$(arg voxel_size_table_top)" />
+	<param name="voxel_size_observation"      type="double" value="$(arg voxel_size_observation)" />
+  	<param name="point_cutoff_distance"       type="double" value="$(arg point_cutoff_distance)" />
   </node>
 
 </launch>

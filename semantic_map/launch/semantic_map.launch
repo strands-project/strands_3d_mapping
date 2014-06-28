@@ -2,10 +2,12 @@
 
   <arg name="save_intermediate"           default="false" />
   <arg name="log_to_db"           	  default="false" />
+  <arg name="update_metaroom"             default="true" />
 
   <node pkg="semantic_map" type="semantic_map_node" name="semantic_map_node" output="screen" respawn="true">
 	<param name="save_intermediate"  type="bool" value="$(arg save_intermediate)"/>
 	<param name="log_to_db"  type="bool" value="$(arg log_to_db)"/>
+	<param name="update_metaroom"  type="bool" value="$(arg update_metaroom)"/>
   </node>
 
 </launch>

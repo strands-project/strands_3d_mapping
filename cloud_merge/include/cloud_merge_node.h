@@ -106,6 +106,9 @@ private:
     bool                                                                        m_bCacheOldData;
     std::string                                                                 m_CurrentTopoNode;
 
+    double                                                                      m_VoxelSizeTabletop;
+    double                                                                      m_VoxelSizeObservation;
+
 };
 
 template <class PointType>
@@ -262,6 +265,16 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
         ROS_INFO_STREAM("Old data will be deleted.");
     }
 
+    m_NodeHandle.param<double>("voxel_size_table_top",m_VoxelSizeTabletop,0.01);
+    m_NodeHandle.param<double>("voxel_size_observation",m_VoxelSizeObservation,0.03);
+    double cutoffDistance;
+    m_NodeHandle.param<double>("point_cutoff_distance",cutoffDistance,4.0);
+    m_CloudMerge.setMaximumPointDistance(cutoffDistance);
+
+    ROS_INFO_STREAM("Voxel size for the table top point cloud is "<<m_VoxelSizeTabletop);
+    ROS_INFO_STREAM("Voxel size for the observation and metaroom point cloud is "<<m_VoxelSizeObservation);
+    ROS_INFO_STREAM("Point cutoff distance set to "<<cutoffDistance);
+
 }
 template <class PointType>
 CloudMergeNode<PointType>::~CloudMergeNode()
@@ -318,7 +331,6 @@ void CloudMergeNode<PointType>::pointCloudCallback(const sensor_msgs::PointCloud
 template <class PointType>
 void CloudMergeNode<PointType>::topoNodeCallback(const std_msgs::String& topoNodeString)
 {
-    ROS_INFO_STREAM("Topological node  " << topoNodeString.data);
     m_CurrentTopoNode = topoNodeString.data;
 }
 
@@ -350,7 +362,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         m_bAquisitionPhase = false;
 
         // publish the merged cloud for table detection
-        m_CloudMerge.subsampleMergedCloud(0.01f,0.01f,0.01f);
+        m_CloudMerge.subsampleMergedCloud(m_VoxelSizeTabletop,m_VoxelSizeTabletop,m_VoxelSizeTabletop);
         CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
         if (merged_cloud->points.size() != 0)
         { // only process this room if it has any points
@@ -360,7 +372,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             m_PublisherMergedCloud.publish(msg_cloud);
 
 	    // subsample again for visualization and metaroom purposes
-            m_CloudMerge.subsampleMergedCloud(0.03f,0.03f,0.03f);
+            m_CloudMerge.subsampleMergedCloud(m_VoxelSizeObservation,m_VoxelSizeObservation,m_VoxelSizeObservation);
             CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
             pcl::toROSMsg(*merged_cloud, msg_cloud);
             m_PublisherMergedCloudDownsampled.publish(msg_cloud);
