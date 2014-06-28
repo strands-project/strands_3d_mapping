@@ -278,6 +278,10 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     m_PublisherDynamicClusters.publish(msg_clusters);
     ROS_INFO_STREAM("Published differences "<<dynamicClusters->points.size());
 
+    aRoom.setDynamicClustersCloud(dynamicClusters);
+    // save updated room
+    parser.saveRoomAsXML(aRoom);
+
     if (aRoom.getRoomStringId() != "") // waypoint id set, update the map
     {
         m_WaypointToDynamicClusterMap[aRoom.getRoomStringId()] = dynamicClusters;

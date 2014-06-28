@@ -158,6 +158,18 @@ public:
             ROS_INFO_STREAM("Saving denoised cloud file name "<<denoisedCloudFilename.toStdString());
         }
 
+        // RoomDynamicClusters
+        xmlWriter->writeStartElement("RoomDynamicClusters");
+        QString dynamicClustersFilename("dynamic_clusters.pcd");
+        dynamicClustersFilename = roomFolder + dynamicClustersFilename; // add the folder prefix
+        xmlWriter->writeAttribute("filename",dynamicClustersFilename);
+        xmlWriter->writeEndElement();
+        if (aRoom.getDynamicClustersCloudLoaded()) // only save the cloud file if it's been loaded
+        {
+            pcl::io::savePCDFileBinary(dynamicClustersFilename.toStdString(), *aRoom.getDynamicClustersCloud());
+            ROS_INFO_STREAM("Saving dynamic clusters cloud file name "<<dynamicClustersFilename.toStdString());
+        }
+
         // RoomCentroid
         xmlWriter->writeStartElement("Centroid");
         Eigen::Vector4f centroid = aRoom.getCentroid();
@@ -400,6 +412,28 @@ public:
                         }
                     } else {
                         std::cerr<<"RoomDeNoisedCloud xml node does not have filename attribute. Aborting."<<std::endl;
+                        return aRoom;
+                    }
+                }
+
+                if (xmlReader->name() == "RoomDynamicClusters")
+                {
+                    QXmlStreamAttributes attributes = xmlReader->attributes();
+                    if (attributes.hasAttribute("filename"))
+                    {
+                        QString roomDynamicClustersFile = attributes.value("filename").toString();
+                        if (deepLoad)
+                        {
+                            std::cout<<"Loading dynamic clusters cloud file name "<<roomDynamicClustersFile.toStdString()<<std::endl;
+                            pcl::PCDReader reader;
+                            CloudPtr cloud (new Cloud);
+                            reader.read (roomDynamicClustersFile.toStdString(), *cloud);
+                            aRoom.setDynamicClustersCloud(cloud);
+                        } else {
+                            aRoom.setDynamicClustersCloud(roomDynamicClustersFile.toStdString());
+                        }
+                    } else {
+                        std::cerr<<"RoomDynamicClusters xml node does not have filename attribute. Aborting."<<std::endl;
                         return aRoom;
                     }
                 }

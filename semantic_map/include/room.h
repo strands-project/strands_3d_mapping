@@ -26,6 +26,9 @@ public:
 
 private:
 
+    CloudPtr                                         m_DynamicClustersCloud;
+    bool                                             m_DynamicClustersLoaded;
+    std::string                                      m_DynamicClustersFilename;
     // intermediate room clouds
     std::vector<CloudPtr>                            m_vIntermediateRoomClouds;
     std::vector<tf::StampedTransform>                m_vIntermediateRoomCloudTransforms;
@@ -42,7 +45,8 @@ private:
 
 public:
 
-    SemanticRoom(bool saveIntermediateClouds=true) : RoomBase<PointType>(), m_bSaveIntermediateClouds(saveIntermediateClouds)
+    SemanticRoom(bool saveIntermediateClouds=true) : RoomBase<PointType>(), m_bSaveIntermediateClouds(saveIntermediateClouds), m_DynamicClustersCloud(new Cloud()),
+        m_DynamicClustersLoaded(false), m_DynamicClustersFilename("")
     {
         m_RoomStringId = "";
         m_RoomLogName = "";
@@ -53,6 +57,38 @@ public:
     ~SemanticRoom()
     {
 
+    }
+
+    CloudPtr getDynamicClustersCloud()
+    {
+        if (!m_DynamicClustersLoaded)
+        {
+            // first load the complete point cloud
+            std::cout<<"Loading dynamic clusters cloud "<<m_DynamicClustersFilename<<std::endl;
+            pcl::PCDReader reader;
+            CloudPtr cloud (new Cloud);
+            reader.read (m_DynamicClustersFilename, *cloud);
+            this->setDynamicClustersCloud(cloud);
+        }
+
+        return m_DynamicClustersCloud;
+    }
+
+    void setDynamicClustersCloud(CloudPtr dynCl)
+    {
+        *m_DynamicClustersCloud = *dynCl;
+        m_DynamicClustersLoaded = true;
+    }
+
+    void setDynamicClustersCloud(std::string dynClF)
+    {
+        m_DynamicClustersFilename = dynClF;
+        m_DynamicClustersLoaded = false;
+    }
+
+    bool getDynamicClustersCloudLoaded()
+    {
+        return m_DynamicClustersLoaded;
     }
 
     void clearIntermediateClouds()
