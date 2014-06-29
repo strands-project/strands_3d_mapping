@@ -258,10 +258,10 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
         return;
     }
 
-    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.03,75,100000);
+    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.1,75,100000);
     metaroom->filterClustersBasedOnDistance(vClusters,3.5);
     
-    ROS_INFO_STREAM("Clustered differences");
+    ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
 
     // combine clusters into one point cloud for publishing.
     int colorId = 0;
@@ -279,27 +279,35 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
             {
                 g = 255;
             }
-//            if (colorId == 2)
-//            {
-//                r = 127;
-//                g = 127;
-//            }
-//            if (colorId == 2)
-//            {
-//                g = 127;
-//                b = 127;
-//            }
+
             if (colorId == 2)
             {
                 r = 127;
                 b = 127;
+            }
+            if (colorId == 3)
+            {
+                r = 255;
+                g = 102;
+                b = 51;
+            }
+            if (colorId == 4)
+            {
+                r = 255;
+                g = 51;
+                b = 204;
+            }
+            if (colorId == 5)
+            {
+                g = 138;
+                b = 184;
             }
 
             uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
             vClusters[i]->points[j].rgb = *reinterpret_cast<float*>(&rgb);
         }
         colorId++;
-        if (colorId == 3)
+        if (colorId == 6)
         {
             colorId = 0;
         }
@@ -314,7 +322,7 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     m_PublisherDynamicClusters.publish(msg_clusters);
     ROS_INFO_STREAM("Published differences "<<dynamicClusters->points.size());
 
-    aRoom.setDynamicClustersCloud(dynamicClusters);
+//    aRoom.setDynamicClustersCloud(dynamicClusters);
     // save updated room
     parser.saveRoomAsXML(aRoom);
 
