@@ -94,9 +94,9 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
 
     m_SubscriberRoomObservation = m_NodeHandle.subscribe("/local_metric_map/room_observations",1, &SemanticMapNode::roomObservationCallback,this);
 
-    m_PublisherMetaroom = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/metaroom", 1);
-    m_PublisherDynamicClusters = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/dynamic_clusters", 1);
-    m_PublisherObservation = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/merged_point_cloud_downsampled", 1);
+    m_PublisherMetaroom = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/metaroom", 1, true);
+    m_PublisherDynamicClusters = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/dynamic_clusters", 1, true);
+    m_PublisherObservation = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/merged_point_cloud_downsampled", 1, true);
 
 
     m_MetaroomServiceServer = m_NodeHandle.advertiseService("SemanticMap/MetaroomService", &SemanticMapNode::metaroomServiceCallback, this);
@@ -120,7 +120,6 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
         ROS_INFO_STREAM("NOT logging dynamic clusters to the database.");
     }
 
-    bool m_bUpdateMetaroom;
     m_NodeHandle.param<bool>("update_metaroom",m_bUpdateMetaroom,true);
     if (m_bUpdateMetaroom)
     {
@@ -265,9 +264,46 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     ROS_INFO_STREAM("Clustered differences");
 
     // combine clusters into one point cloud for publishing.
+    int colorId = 0;
     CloudPtr dynamicClusters(new Cloud());
     for (size_t i=0; i<vClusters.size(); i++)
     {
+        for (size_t j=0; j<vClusters[i]->points.size(); j++)
+        {
+            uint8_t r = 0, g = 0, b = 0;
+            if (colorId == 0)
+            {
+                b = 255;
+            }
+            if (colorId == 1)
+            {
+                g = 255;
+            }
+//            if (colorId == 2)
+//            {
+//                r = 127;
+//                g = 127;
+//            }
+//            if (colorId == 2)
+//            {
+//                g = 127;
+//                b = 127;
+//            }
+            if (colorId == 2)
+            {
+                r = 127;
+                b = 127;
+            }
+
+            uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+            vClusters[i]->points[j].rgb = *reinterpret_cast<float*>(&rgb);
+        }
+        colorId++;
+        if (colorId == 3)
+        {
+            colorId = 0;
+        }
+
         *dynamicClusters += *vClusters[i];
     }
 
