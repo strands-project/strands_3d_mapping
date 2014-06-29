@@ -258,8 +258,8 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
         return;
     }
 
-    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.05,150,100000);
-    metaroom->filterClustersBasedOnDistance(vClusters,2.5);
+    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.03,75,100000);
+    metaroom->filterClustersBasedOnDistance(vClusters,3.5);
     
     ROS_INFO_STREAM("Clustered differences");
 
