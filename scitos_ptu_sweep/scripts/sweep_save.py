@@ -19,10 +19,6 @@ class saveSweep():
         rospy.loginfo("Starting %s", name)
 
         self.msg_store = MessageStoreProxy(collection='patrol_data')
-        rospy.loginfo(" ...starting")
-        self._as.start()
-        rospy.loginfo(" ...done")        
-
         
         current_time = datetime.now()
         self.dt_text= current_time.strftime('%A, %B %d, at %H:%M hours')
@@ -32,8 +28,6 @@ class saveSweep():
         self.pub_reg = rospy.Subscriber('/transform_pc2/depth/points', PointCloud2, self.Callback, None, 1)
 
         
-        self._result.success = True
-        self._as.set_succeeded(self._result)
 
 
     def nodeCallback(self, msg):
