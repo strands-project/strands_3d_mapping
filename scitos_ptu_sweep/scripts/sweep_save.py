@@ -19,10 +19,6 @@ class saveSweep():
         rospy.loginfo("Starting %s", name)
 
         self.msg_store = MessageStoreProxy(collection='patrol_data')
-        rospy.loginfo(" ...starting")
-        self._as.start()
-        rospy.loginfo(" ...done")        
-
         
         current_time = datetime.now()
         self.dt_text= current_time.strftime('%A, %B %d, at %H:%M hours')

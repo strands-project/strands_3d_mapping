@@ -46,11 +46,15 @@ class PTUSweep():
 
         rospy.Subscriber(self.sub_topic, PointCloud2, self.pointCloudCallback, None, 1)
         rospy.Subscriber(self.sub_img_topic, Image, self.imageCallback, None, 1)
+        rospy.Subscriber("/joint_states", JointState, self.jointCallback, None, 1)
+        
         self.pub = rospy.Publisher(pub_topic, PointCloud2)
         self.pub_img = rospy.Publisher(pub_img_topic, Image)
         self.pub_reg = rospy.Publisher("/transform_pc2/depth_registered/points", PointCloud2)
 
         self.pub_node = rospy.Publisher("/ptu_sweep/current_node", String)
+        self.joint_pub = rospy.Publisher("/ptu_sweep/joint_state", JointState)
+
 
         self.pan_speed = rospy.get_param("~ptu_pan_speed", 100)
         self.tilt_speed = rospy.get_param("~ptu_tilt_speed", 100)
@@ -129,10 +133,12 @@ class PTUSweep():
                 self.client.send_goal(ptugoal)
                 self.client.wait_for_result()
                 self.arrived = True
+                self.arrived0 = True
                 self.arrived1 = True
                 self.arrived2 = True
-                while not self.published and not self.img_published and not self.reg_published :
+                while not self.published and not self.img_published and not self.reg_published and not self.joint_published :
                     pass
+                self.joint_published = False
                 self.published = False
                 self.img_published = False
                 self.reg_published = False
@@ -176,7 +182,13 @@ class PTUSweep():
             self.pub.publish(msg)
             self.published = True
             self.arrived = False
-            
+    
+    def jointCallback(self, msg) :              
+        if self.arrived0:
+            self.joint_pub.publish(msg)
+            self.joint_published = True
+            self.arrived0 = False
+        
     def imageCallback(self, msg) :
         if self.arrived1:
             self.pub_img.publish(msg)
