@@ -28,8 +28,6 @@ class saveSweep():
         self.pub_reg = rospy.Subscriber('/transform_pc2/depth/points', PointCloud2, self.Callback, None, 1)
 
         
-        self._result.success = True
-        self._as.set_succeeded(self._result)
 
 
     def nodeCallback(self, msg):
