@@ -6,7 +6,7 @@ project(cloud_merge)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs tf pcl_ros semantic_map image_geometry image_transport qt_build cloud_register ros_datacentre_cpp_client)
 
-set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive")
+set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
 
 find_package(PCL 1.7 REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
