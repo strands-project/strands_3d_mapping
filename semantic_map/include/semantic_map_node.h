@@ -30,6 +30,7 @@
 #include <pcl_ros/transforms.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/filters/passthrough.h>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 
@@ -58,6 +59,8 @@ public:
 
     SemanticMapNode(ros::NodeHandle nh);
     ~SemanticMapNode();
+
+    void processRoomObservation(std::string xml_file_name);
 
     void roomObservationCallback(const semantic_map::RoomObservationConstPtr& obs_msg);
     bool metaroomServiceCallback(MetaroomServiceRequest &req, MetaroomServiceResponse &res);
@@ -112,7 +115,7 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
         ROS_INFO_STREAM("Saving intermediate data.");
     }
 
-    m_NodeHandle.param<bool>("log_to_db",m_bLogToDB,true);
+    m_NodeHandle.param<bool>("log_to_db",m_bLogToDB,false);
     if (m_bLogToDB)
     {
         ROS_INFO_STREAM("Logging dynamic clusters to the database.");
@@ -136,14 +139,14 @@ SemanticMapNode<PointType>::~SemanticMapNode()
 
 }
 
+
 template <class PointType>
-void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::RoomObservationConstPtr& obs_msg)
+void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_name)
 {
-    std::cout<<"Room obs message received"<<std::endl;
-    std::cout<<"File name "<<obs_msg->xml_file_name<<std::endl;
+    std::cout<<"File name "<<xml_file_name<<std::endl;
 
     SemanticRoomXMLParser<PointType> parser;
-    SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(obs_msg->xml_file_name,false);
+    SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(xml_file_name,false);
     aRoom.resetRoomTransform();
 
     // update summary xml
@@ -223,7 +226,7 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     m_PublisherMetaroom.publish(msg_metaroom);
     m_vLoadedMetarooms.push_back(metaroom);
     ROS_INFO_STREAM("Published metaroom");
- 
+
 
     if (aRoom.getRoomStringId() != "") // waypoint id set, update the map
     {
@@ -253,67 +256,116 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     if (difference->points.size() == 0)
     {
         // metaroom and room observation are identical -> no dynamic clusters can be computed
-	
-	ROS_INFO_STREAM("No dynamic clusters.");
+
+    ROS_INFO_STREAM("No dynamic clusters.");
         return;
     }
 
-    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.1,75,100000);
-    metaroom->filterClustersBasedOnDistance(vClusters,3.5);
-    
+    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.05,65,10000);
+    metaroom->filterClustersBasedOnDistance(vClusters,3.0);
+
     ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
 
     // combine clusters into one point cloud for publishing.
-    int colorId = 0;
+//    int colorId = 0;
+//    CloudPtr dynamicClusters(new Cloud());
+//    for (size_t i=0; i<vClusters.size(); i++)
+//    {
+//        for (size_t j=0; j<vClusters[i]->points.size(); j++)
+//        {
+//            uint8_t r = 0, g = 0, b = 0;
+//            if (colorId == 0)
+//            {
+//                b = 255;
+//            }
+//            if (colorId == 1)
+//            {
+//                g = 255;
+//            }
+
+//            if (colorId == 2)
+//            {
+//                r = 127;
+//                b = 127;
+//            }
+//            if (colorId == 3)
+//            {
+//                r = 255;
+//                g = 102;
+//                b = 51;
+//            }
+//            if (colorId == 4)
+//            {
+//                r = 255;
+//                g = 51;
+//                b = 204;
+//            }
+//            if (colorId == 5)
+//            {
+//                g = 138;
+//                b = 184;
+//            }
+
+//            uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+//            vClusters[i]->points[j].rgb = *reinterpret_cast<float*>(&rgb);
+//        }
+//        colorId++;
+//        if (colorId == 6)
+//        {
+//            colorId = 0;
+//        }
+
+//        *dynamicClusters += *vClusters[i];
+//    }
+
+//    CloudPtr dynamicClusters(new Cloud());
+//    for (size_t i=0; i<vClusters.size(); i++)
+//    {
+//        *dynamicClusters += *vClusters[i];
+//    }
+
+    // Check cluster planarity and discard the absolutely planar ones (usually parts of walls, floor, ceiling).
     CloudPtr dynamicClusters(new Cloud());
     for (size_t i=0; i<vClusters.size(); i++)
     {
-        for (size_t j=0; j<vClusters[i]->points.size(); j++)
+        pcl::SACSegmentation<PointType> seg;
+        pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+        pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+
+        seg.setOptimizeCoefficients (true);
+        seg.setModelType (pcl::SACMODEL_PLANE);
+        seg.setMethodType (pcl::SAC_RANSAC);
+        seg.setMaxIterations (100);
+        seg.setDistanceThreshold (0.02);
+//        seg.setAxis(Eigen::Vector3f(0,0,1));
+//        seg.setEpsAngle (0.1);
+
+        seg.setInputCloud (vClusters[i]);
+        seg.segment (*inliers, *coefficients);
+        if (inliers->indices.size () > 0.9 * vClusters[i]->points.size())
         {
-            uint8_t r = 0, g = 0, b = 0;
-            if (colorId == 0)
-            {
-                b = 255;
-            }
-            if (colorId == 1)
-            {
-                g = 255;
-            }
-
-            if (colorId == 2)
-            {
-                r = 127;
-                b = 127;
-            }
-            if (colorId == 3)
-            {
-                r = 255;
-                g = 102;
-                b = 51;
-            }
-            if (colorId == 4)
-            {
-                r = 255;
-                g = 51;
-                b = 204;
-            }
-            if (colorId == 5)
-            {
-                g = 138;
-                b = 184;
-            }
-
-            uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
-            vClusters[i]->points[j].rgb = *reinterpret_cast<float*>(&rgb);
+            ROS_INFO_STREAM("Discarding planar dynamic cluster");
+        } else {
+            *dynamicClusters += *vClusters[i];
         }
-        colorId++;
-        if (colorId == 6)
-        {
-            colorId = 0;
-        }
-
-        *dynamicClusters += *vClusters[i];
     }
+
+//    // Filter out ceiling and floor clusters
+//    pcl::PassThrough<PointType> lower_pass;
+//    CloudPtr temp_cloud (new Cloud);
+//    lower_pass.setInputCloud (dynamicClusters);
+//    lower_pass.setFilterFieldName ("z");
+//    lower_pass.setFilterLimits (-.5, .5);
+////    lower_pass.filter (*temp_cloud);
+////    *dynamicClusters = *temp_cloud;
+
+//    pcl::PassThrough<PointType> upper_pass;
+//    upper_pass.setInputCloud (dynamicClusters);
+//    upper_pass.setFilterFieldName ("z");
+//    upper_pass.setFilterLimits (0.1, 2.5);
+//    upper_pass.filter (*temp_cloud);
+//    *dynamicClusters = *temp_cloud;
+    // cluster planarity
 
     // publish dynamic clusters
     sensor_msgs::PointCloud2 msg_clusters;
@@ -322,7 +374,7 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     m_PublisherDynamicClusters.publish(msg_clusters);
     ROS_INFO_STREAM("Published differences "<<dynamicClusters->points.size());
 
-//    aRoom.setDynamicClustersCloud(dynamicClusters);
+    aRoom.setDynamicClustersCloud(dynamicClusters);
     // save updated room
     parser.saveRoomAsXML(aRoom);
 
@@ -349,6 +401,14 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
             }
         }
     }
+}
+
+
+template <class PointType>
+void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::RoomObservationConstPtr& obs_msg)
+{
+    std::cout<<"Room obs message received"<<std::endl;
+    this->processRoomObservation(obs_msg->xml_file_name);
 }
 
 template <class PointType>

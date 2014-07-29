@@ -67,7 +67,10 @@ public:
             std::cout<<"Loading dynamic clusters cloud "<<m_DynamicClustersFilename<<std::endl;
             pcl::PCDReader reader;
             CloudPtr cloud (new Cloud);
-            reader.read (m_DynamicClustersFilename, *cloud);
+            if (m_DynamicClustersFilename!="")
+            {
+                reader.read (m_DynamicClustersFilename, *cloud);
+            }
             this->setDynamicClustersCloud(cloud);
         }
 

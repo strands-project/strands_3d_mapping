@@ -133,8 +133,11 @@ public:
             QFile file(completeCloudFilename);
             if (!file.exists())
             {
-                pcl::io::savePCDFileBinary(completeCloudFilename.toStdString(), *aRoom.getCompleteRoomCloud());
-                ROS_INFO_STREAM("Saving complete cloud file name "<<completeCloudFilename.toStdString());
+                if (aRoom.getCompleteRoomCloud()->points.size()>0)
+                {
+                    pcl::io::savePCDFileBinary(completeCloudFilename.toStdString(), *aRoom.getCompleteRoomCloud());
+                    ROS_INFO_STREAM("Saving complete cloud file name "<<completeCloudFilename.toStdString());
+                }
             }
         }
 
@@ -149,9 +152,13 @@ public:
             QFile file(interiorCloudFilename);
             if (!file.exists())
             {
-                pcl::io::savePCDFileBinary(interiorCloudFilename.toStdString(), *aRoom.getInteriorRoomCloud());
-                ROS_INFO_STREAM("Saving interior cloud file name "<<interiorCloudFilename.toStdString());
+                if (aRoom.getInteriorRoomCloud()->points.size()>0)
+                {
+                    pcl::io::savePCDFileBinary(interiorCloudFilename.toStdString(), *aRoom.getInteriorRoomCloud());
+                    ROS_INFO_STREAM("Saving interior cloud file name "<<interiorCloudFilename.toStdString());
+                }
             }
+            aRoom.setInteriorRoomCloud(interiorCloudFilename.toStdString());
         }
 
         // RoomDeNoisedCloud
@@ -165,26 +172,40 @@ public:
             QFile file(denoisedCloudFilename);
             if (!file.exists())
             {
-                pcl::io::savePCDFileBinary(denoisedCloudFilename.toStdString(), *aRoom.getDeNoisedRoomCloud());
-                ROS_INFO_STREAM("Saving denoised cloud file name "<<denoisedCloudFilename.toStdString());
+                if (aRoom.getDeNoisedRoomCloud()->points.size())
+                {
+                    pcl::io::savePCDFileBinary(denoisedCloudFilename.toStdString(), *aRoom.getDeNoisedRoomCloud());
+                    ROS_INFO_STREAM("Saving denoised cloud file name "<<denoisedCloudFilename.toStdString());
+                }
             }
         }
 
         // RoomDynamicClusters
-        xmlWriter->writeStartElement("RoomDynamicClusters");
         QString dynamicClustersFilename("dynamic_clusters.pcd");
         dynamicClustersFilename = roomFolder + dynamicClustersFilename; // add the folder prefix
-        xmlWriter->writeAttribute("filename",dynamicClustersFilename);
-        xmlWriter->writeEndElement();
-        if (aRoom.getDynamicClustersCloudLoaded()) // only save the cloud file if it's been loaded
+        QFile dynamicClustersFile(dynamicClustersFilename);
+
+        if (aRoom.getDynamicClustersCloudLoaded() && aRoom.getDynamicClustersCloud()->points.size()) // only save the cloud file if it's been loaded
         {
-            QFile file(dynamicClustersFilename);
-            if (!file.exists())
+//            if (!dynamicClustersFile.exists())
+//            {
+                    pcl::io::savePCDFileBinary(dynamicClustersFilename.toStdString(), *aRoom.getDynamicClustersCloud());
+                    ROS_INFO_STREAM("Saving dynamic clusters cloud file name "<<dynamicClustersFilename.toStdString());
+//            }
+
+            xmlWriter->writeStartElement("RoomDynamicClusters");
+            xmlWriter->writeAttribute("filename",dynamicClustersFilename);
+            xmlWriter->writeEndElement();
+        } else {
+            if (dynamicClustersFile.exists())
             {
-                pcl::io::savePCDFileBinary(dynamicClustersFilename.toStdString(), *aRoom.getDynamicClustersCloud());
-                ROS_INFO_STREAM("Saving dynamic clusters cloud file name "<<dynamicClustersFilename.toStdString());
+                xmlWriter->writeStartElement("RoomDynamicClusters");
+                xmlWriter->writeAttribute("filename",dynamicClustersFilename);
+                xmlWriter->writeEndElement();
             }
         }
+
+
 
         // RoomCentroid
         xmlWriter->writeStartElement("Centroid");
