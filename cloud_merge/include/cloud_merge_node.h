@@ -55,8 +55,9 @@ public:
     void topoNodeCallback(const std_msgs::String& controlString);
     void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
     void imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg);
-    void findSemanticRoomIDAndLogName(SemanticRoom<PointType>& aSemanticRoom, int& roomId, int& patrolNumber);
 
+    static void findSemanticRoomIDAndLogName(SemanticRoom<PointType>& aSemanticRoom, int& roomId, int& patrolNumber);
+    static void getRoomIDAndPatrolNumber(QString roomXmlFile, int& roomId, int& patrolNumber);
 
 
     ros::Subscriber                                                             m_SubscriberControl;
@@ -80,7 +81,7 @@ public:
     boost::shared_ptr<image_transport::ImageTransport>                          m_RGB_it, m_Depth_it;
 
 private:
-    void getRoomIDAndPatrolNumber(QString roomXmlFile, int& roomId, int& patrolNumber);
+
 
     ros::NodeHandle                                                             m_NodeHandle;
     CloudMerge<PointType>                                                       m_CloudMerge;
@@ -266,7 +267,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     }
 
     m_NodeHandle.param<double>("voxel_size_table_top",m_VoxelSizeTabletop,0.01);
-    m_NodeHandle.param<double>("voxel_size_observation",m_VoxelSizeObservation,0.03);
+    m_NodeHandle.param<double>("voxel_size_observation",m_VoxelSizeObservation,0.05);
     double cutoffDistance;
     m_NodeHandle.param<double>("point_cutoff_distance",cutoffDistance,4.0);
     m_CloudMerge.setMaximumPointDistance(cutoffDistance);
