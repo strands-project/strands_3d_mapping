@@ -4,7 +4,7 @@ project(semantic_map)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs pcl_ros cloud_register message_generation qt_build ros_datacentre_cpp_client)
+find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs pcl_ros cloud_register message_generation qt_build mongodb_store_cpp_client)
 
 find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
 
