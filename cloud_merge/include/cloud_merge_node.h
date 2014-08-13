@@ -12,7 +12,7 @@
 #include "std_msgs/String.h"
 #include <tf/transform_listener.h>
 
-#include <ros_datacentre/message_store.h>
+#include <mongodb_store/message_store.h>
 
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
@@ -98,7 +98,7 @@ private:
     bool                                                                        m_bUseImages;
     bool                                                                        m_bSaveIntermediateData;
     int                                                                         m_MaxInstances;
-    ros_datacentre::MessageStoreProxy                                           m_messageStore;
+    mongodb_store::MessageStoreProxy                                           m_messageStore;
     bool                                                                        m_bLogToDB;
     bool                                                                        m_bCacheOldData;
 
