@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(cloud_register)
 
-set(CMAKE_CXX_FLAGS "-mno-avx -O4 -fPIC -std=c++0x -fpermissive")
+set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
 
 find_package(catkin REQUIRED COMPONENTS roscpp rospy sensor_msgs std_msgs tf pcl_ros)
 

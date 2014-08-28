@@ -12,7 +12,7 @@
 #include "std_msgs/String.h"
 #include <tf/transform_listener.h>
 
-#include <ros_datacentre/message_store.h>
+#include <mongodb_store/message_store.h>
 
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
@@ -80,7 +80,7 @@ private:
     SemanticMapSummaryParser<PointType>                                         m_SummaryParser;
     bool                                                                        m_bSaveIntermediateData;
     std::vector<boost::shared_ptr<MetaRoom<PointType> > >                       m_vLoadedMetarooms;
-    ros_datacentre::MessageStoreProxy                                           m_messageStore;
+    mongodb_store::MessageStoreProxy                                           m_messageStore;
     bool                                                                        m_bLogToDB;
     std::map<std::string, boost::shared_ptr<MetaRoom<PointType> > >             m_WaypointToMetaroomMap;
     std::map<std::string, SemanticRoom<PointType> >                             m_WaypointToRoomMap;
