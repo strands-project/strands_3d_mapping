@@ -36,6 +36,8 @@ set(SRCS
 
 add_executable(cloud_merge ${HDRS} ${SRCS})
 
+add_dependencies(cloud_merge ${catkin_EXPORTED_TARGETS})
+
  target_link_libraries(cloud_merge
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
