@@ -2,17 +2,12 @@
 <package>
   <name>cloud_merge</name>
   <version>0.0.0</version>
-  <description>The cloud_mapper package</description>
+  <description>The cloud_merge package</description>
 
-  <!-- Example:  -->
-  <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
-  <maintainer email="rares@todo.todo">rares</maintainer>
+  <maintainer email="raambrus@kth.se">Rares Ambrus</maintainer>
 
 
-  <!-- One license tag required, multiple allowed, one license per tag -->
-  <!-- Commonly used license strings: -->
-  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
-  <license>TODO</license>
+  <license>MIT</license>
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>rospy</build_depend>
