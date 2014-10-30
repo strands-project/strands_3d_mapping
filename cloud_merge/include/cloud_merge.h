@@ -48,14 +48,19 @@ public:
     sensor_msgs::CameraInfoConstPtr             m_IntermediateFilteredDepthCamInfo;
 
 
-    CloudMerge(): m_IntermediateCloud(new Cloud()), m_MergedCloud(new Cloud())
+    CloudMerge(double maximumPointDistance = 4.0): m_IntermediateCloud(new Cloud()), m_MergedCloud(new Cloud())
     {
-        m_dMaximumPointDistance = 3.0;
+        m_dMaximumPointDistance = 4.0;
     }
 
     ~CloudMerge()
     {
 
+    }
+
+    void setMaximumPointDistance( double distance)
+    {
+        m_dMaximumPointDistance = distance;
     }
 
     void addIntermediateCloud(Cloud cloud)
@@ -83,6 +88,11 @@ public:
     CloudPtr subsampleIntermediateCloud() // this method first checks whether we are using point clouds directly from the sensor or whether we are averaging a set of depth images from the camera
     {
         Cloud subsampled_cloud;
+
+	if (!m_IntermediateCloud != 0)
+	{
+		return;
+	}
 
         if (m_IntermediateCloud->points.size() != 0) // only process the intermediate point cloud if we are using it
         {
@@ -270,7 +280,7 @@ public:
     {
         Cloud subsampled_cloud;
 
-        m_MergedCloud = CloudMerge<PointType>::filterPointCloud(m_MergedCloud, 4.0); // distance filtering, remove outliers and nans
+        m_MergedCloud = CloudMerge<PointType>::filterPointCloud(m_MergedCloud, m_dMaximumPointDistance); // distance filtering, remove outliers and nans
 
         pcl::VoxelGrid<PointType> vg;
         vg.setInputCloud (m_MergedCloud);

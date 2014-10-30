@@ -4,7 +4,7 @@ project(cloud_merge)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs tf pcl_ros semantic_map image_geometry image_transport qt_build cloud_register mongodb_store_cpp_client)
+find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs tf pcl_ros semantic_map image_geometry image_transport qt_build cloud_register )
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
 
@@ -17,6 +17,7 @@ rosbuild_prepare_qt4(QtCore QtXml)
 
 catkin_package(
    INCLUDE_DIRS include
+   CATKIN_DEPENDS mongodb_store
 )
 
 include_directories(include
@@ -35,11 +36,11 @@ set(SRCS
 
 add_executable(cloud_merge ${HDRS} ${SRCS})
 
+add_dependencies(cloud_merge ${catkin_EXPORTED_TARGETS})
+
  target_link_libraries(cloud_merge
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}
    ${Boost_LIBRARIES}
-   mongoclient
-   message_store
  )

@@ -52,15 +52,19 @@ public:
     ~CloudMergeNode();
 
     void controlCallback(const std_msgs::String& controlString);
+    void topoNodeCallback(const std_msgs::String& controlString);
     void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
     void imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg);
-    void findSemanticRoomIDAndLogName(SemanticRoom<PointType>& aSemanticRoom, int& roomId, int& patrolNumber);
 
+    static void findSemanticRoomIDAndLogName(SemanticRoom<PointType>& aSemanticRoom, int& roomId, int& patrolNumber);
+    static void getRoomIDAndPatrolNumber(QString roomXmlFile, int& roomId, int& patrolNumber);
 
 
     ros::Subscriber                                                             m_SubscriberControl;
     ros::Subscriber                                                             m_SubscriberPointCloud;
+    ros::Subscriber                                                             m_SubscriberTopoNode;
     ros::Publisher                                                              m_PublisherMergedCloud;
+    ros::Publisher                                                              m_PublisherMergedCloudDownsampled;
     ros::Publisher                                                              m_PublisherIntermediateCloud;   
     ros::Publisher                                                              m_PublisherRoomObservation;
 
@@ -77,7 +81,7 @@ public:
     boost::shared_ptr<image_transport::ImageTransport>                          m_RGB_it, m_Depth_it;
 
 private:
-    void getRoomIDAndPatrolNumber(QString roomXmlFile, int& roomId, int& patrolNumber);
+
 
     ros::NodeHandle                                                             m_NodeHandle;
     CloudMerge<PointType>                                                       m_CloudMerge;
@@ -101,6 +105,10 @@ private:
     mongodb_store::MessageStoreProxy                                           m_messageStore;
     bool                                                                        m_bLogToDB;
     bool                                                                        m_bCacheOldData;
+    std::string                                                                 m_CurrentTopoNode;
+
+    double                                                                      m_VoxelSizeTabletop;
+    double                                                                      m_VoxelSizeObservation;
 
 };
 
@@ -110,6 +118,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     ROS_INFO_STREAM("Cloud merge node initialized");
 
     m_NodeHandle = nh;
+    m_CurrentTopoNode = "WayPoint1";
     m_RGB_it.reset(new image_transport::ImageTransport(nh));
     m_Depth_it.reset(new image_transport::ImageTransport(nh));
 
@@ -117,9 +126,11 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     m_MessageSynchronizer->registerCallback(boost::bind(&CloudMergeNode::imageCallback, this, _1, _2, _3));
 
     m_SubscriberControl = m_NodeHandle.subscribe("/ptu/log",1, &CloudMergeNode::controlCallback,this);
+    m_SubscriberTopoNode = m_NodeHandle.subscribe("/current_node",1, &CloudMergeNode::topoNodeCallback,this);
 
     m_PublisherIntermediateCloud = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/intermediate_point_cloud", 1);
     m_PublisherMergedCloud = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/merged_point_cloud", 1);
+    m_PublisherMergedCloudDownsampled = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/merged_point_cloud_downsampled", 1);
 
     // intermediate image publishers (use image transport for compressed images).
     m_ImageTransport = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(nh));
@@ -255,6 +266,16 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
         ROS_INFO_STREAM("Old data will be deleted.");
     }
 
+    m_NodeHandle.param<double>("voxel_size_table_top",m_VoxelSizeTabletop,0.01);
+    m_NodeHandle.param<double>("voxel_size_observation",m_VoxelSizeObservation,0.05);
+    double cutoffDistance;
+    m_NodeHandle.param<double>("point_cutoff_distance",cutoffDistance,4.0);
+    m_CloudMerge.setMaximumPointDistance(cutoffDistance);
+
+    ROS_INFO_STREAM("Voxel size for the table top point cloud is "<<m_VoxelSizeTabletop);
+    ROS_INFO_STREAM("Voxel size for the observation and metaroom point cloud is "<<m_VoxelSizeObservation);
+    ROS_INFO_STREAM("Point cutoff distance set to "<<cutoffDistance);
+
 }
 template <class PointType>
 CloudMergeNode<PointType>::~CloudMergeNode()
@@ -274,7 +295,7 @@ void CloudMergeNode<PointType>::imageCallback(const sensor_msgs::ImageConstPtr& 
     if (m_bAquireData && m_bAquisitionPhase)
     {
         scan_skip_counter++;
-        if (scan_skip_counter < 7)
+        if (scan_skip_counter < 5)
             return;
 
         m_CloudMerge.addIntermediateImage(depth_msg, rgb_msg, info_msg);
@@ -292,7 +313,7 @@ void CloudMergeNode<PointType>::pointCloudCallback(const sensor_msgs::PointCloud
         return; // we don't need to process images
     }
 
-    ROS_INFO_STREAM("Point cloud callback");
+    //ROS_INFO_STREAM("Point cloud callback");
     if (m_bAquireData && m_bAquisitionPhase)
     {
         scan_skip_counter++;
@@ -306,6 +327,12 @@ void CloudMergeNode<PointType>::pointCloudCallback(const sensor_msgs::PointCloud
 
         m_CloudMerge.addIntermediateCloud(*new_cloud);
     }
+}
+
+template <class PointType>
+void CloudMergeNode<PointType>::topoNodeCallback(const std_msgs::String& topoNodeString)
+{
+    m_CurrentTopoNode = topoNodeString.data;
 }
 
 template <class PointType>
@@ -335,8 +362,8 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         ROS_INFO_STREAM("Pan tilt sweep stopped");
         m_bAquisitionPhase = false;
 
-        // publish the merged cloud
-        m_CloudMerge.subsampleMergedCloud(0.01f,0.01f,0.01f);
+        // publish the merged cloud for table detection
+        m_CloudMerge.subsampleMergedCloud(m_VoxelSizeTabletop,m_VoxelSizeTabletop,m_VoxelSizeTabletop);
         CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
         if (merged_cloud->points.size() != 0)
         { // only process this room if it has any points
@@ -344,6 +371,12 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             sensor_msgs::PointCloud2 msg_cloud;
             pcl::toROSMsg(*merged_cloud, msg_cloud);
             m_PublisherMergedCloud.publish(msg_cloud);
+
+	    // subsample again for visualization and metaroom purposes
+            m_CloudMerge.subsampleMergedCloud(m_VoxelSizeObservation,m_VoxelSizeObservation,m_VoxelSizeObservation);
+            CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
+            pcl::toROSMsg(*merged_cloud, msg_cloud);
+            m_PublisherMergedCloudDownsampled.publish(msg_cloud);
 
             // set room end time
             aSemanticRoom.setRoomLogEndTime(ros::Time::now().toBoost());
@@ -369,6 +402,11 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
             aSemanticRoom.setRoomRunNumber(m_SemanticRoomId);
             aSemanticRoom.setRoomLogName(m_LogName);
+            if (m_CurrentTopoNode != "none")
+            {
+                aSemanticRoom.setRoomStringId(m_CurrentTopoNode);
+                ROS_INFO_STREAM("Set room waypoint to "<<m_CurrentTopoNode);
+            }
 
 
             SemanticRoomXMLParser<PointType> parser;

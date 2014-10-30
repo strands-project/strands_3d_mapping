@@ -130,8 +130,15 @@ public:
         xmlWriter->writeEndElement();
         if (aRoom.getCompleteRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
-            pcl::io::savePCDFileBinary(completeCloudFilename.toStdString(), *aRoom.getCompleteRoomCloud());
-            ROS_INFO_STREAM("Saving complete cloud file name "<<completeCloudFilename.toStdString());
+            QFile file(completeCloudFilename);
+            if (!file.exists())
+            {
+                if (aRoom.getCompleteRoomCloud()->points.size()>0)
+                {
+                    pcl::io::savePCDFileBinary(completeCloudFilename.toStdString(), *aRoom.getCompleteRoomCloud());
+                    ROS_INFO_STREAM("Saving complete cloud file name "<<completeCloudFilename.toStdString());
+                }
+            }
         }
 
         // RoomInteriorCloud
@@ -142,8 +149,16 @@ public:
         xmlWriter->writeEndElement();
         if (aRoom.getInteriorRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
-            pcl::io::savePCDFileBinary(interiorCloudFilename.toStdString(), *aRoom.getInteriorRoomCloud());
-            ROS_INFO_STREAM("Saving interior cloud file name "<<interiorCloudFilename.toStdString());
+            QFile file(interiorCloudFilename);
+            if (!file.exists())
+            {
+                if (aRoom.getInteriorRoomCloud()->points.size()>0)
+                {
+                    pcl::io::savePCDFileBinary(interiorCloudFilename.toStdString(), *aRoom.getInteriorRoomCloud());
+                    ROS_INFO_STREAM("Saving interior cloud file name "<<interiorCloudFilename.toStdString());
+                }
+            }
+            aRoom.setInteriorRoomCloud(interiorCloudFilename.toStdString());
         }
 
         // RoomDeNoisedCloud
@@ -154,9 +169,43 @@ public:
         xmlWriter->writeEndElement();
         if (aRoom.getDeNoisedRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
-            pcl::io::savePCDFileBinary(denoisedCloudFilename.toStdString(), *aRoom.getDeNoisedRoomCloud());
-            ROS_INFO_STREAM("Saving denoised cloud file name "<<denoisedCloudFilename.toStdString());
+            QFile file(denoisedCloudFilename);
+            if (!file.exists())
+            {
+                if (aRoom.getDeNoisedRoomCloud()->points.size())
+                {
+                    pcl::io::savePCDFileBinary(denoisedCloudFilename.toStdString(), *aRoom.getDeNoisedRoomCloud());
+                    ROS_INFO_STREAM("Saving denoised cloud file name "<<denoisedCloudFilename.toStdString());
+                }
+            }
         }
+
+        // RoomDynamicClusters
+        QString dynamicClustersFilename("dynamic_clusters.pcd");
+        dynamicClustersFilename = roomFolder + dynamicClustersFilename; // add the folder prefix
+        QFile dynamicClustersFile(dynamicClustersFilename);
+
+        if (aRoom.getDynamicClustersCloudLoaded() && aRoom.getDynamicClustersCloud()->points.size()) // only save the cloud file if it's been loaded
+        {
+//            if (!dynamicClustersFile.exists())
+//            {
+                    pcl::io::savePCDFileBinary(dynamicClustersFilename.toStdString(), *aRoom.getDynamicClustersCloud());
+                    ROS_INFO_STREAM("Saving dynamic clusters cloud file name "<<dynamicClustersFilename.toStdString());
+//            }
+
+            xmlWriter->writeStartElement("RoomDynamicClusters");
+            xmlWriter->writeAttribute("filename",dynamicClustersFilename);
+            xmlWriter->writeEndElement();
+        } else {
+            if (dynamicClustersFile.exists())
+            {
+                xmlWriter->writeStartElement("RoomDynamicClusters");
+                xmlWriter->writeAttribute("filename",dynamicClustersFilename);
+                xmlWriter->writeEndElement();
+            }
+        }
+
+
 
         // RoomCentroid
         xmlWriter->writeStartElement("Centroid");
@@ -201,8 +250,12 @@ public:
 
                 if(roomIntermediateCloudsLoaded[i] && aRoom.getSaveIntermediateClouds())
                 {
-                    pcl::io::savePCDFileBinary(intermediateCloudPath.toStdString(), *roomIntermediateClouds[i]);
-                    ROS_INFO_STREAM("Saving intermediate cloud file name "<<intermediateCloudPath.toStdString());
+                    QFile file(intermediateCloudPath);
+                    if (!file.exists())
+                    {
+                        pcl::io::savePCDFileBinary(intermediateCloudPath.toStdString(), *roomIntermediateClouds[i]);
+                        ROS_INFO_STREAM("Saving intermediate cloud file name "<<intermediateCloudPath.toStdString());
+                    }
                 }
 
                 // RoomIntermediateCloudTransform
@@ -400,6 +453,28 @@ public:
                         }
                     } else {
                         std::cerr<<"RoomDeNoisedCloud xml node does not have filename attribute. Aborting."<<std::endl;
+                        return aRoom;
+                    }
+                }
+
+                if (xmlReader->name() == "RoomDynamicClusters")
+                {
+                    QXmlStreamAttributes attributes = xmlReader->attributes();
+                    if (attributes.hasAttribute("filename"))
+                    {
+                        QString roomDynamicClustersFile = attributes.value("filename").toString();
+                        if (deepLoad)
+                        {
+                            std::cout<<"Loading dynamic clusters cloud file name "<<roomDynamicClustersFile.toStdString()<<std::endl;
+                            pcl::PCDReader reader;
+                            CloudPtr cloud (new Cloud);
+                            reader.read (roomDynamicClustersFile.toStdString(), *cloud);
+                            aRoom.setDynamicClustersCloud(cloud);
+                        } else {
+                            aRoom.setDynamicClustersCloud(roomDynamicClustersFile.toStdString());
+                        }
+                    } else {
+                        std::cerr<<"RoomDynamicClusters xml node does not have filename attribute. Aborting."<<std::endl;
                         return aRoom;
                     }
                 }
