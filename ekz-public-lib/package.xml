@@ -18,7 +18,7 @@
   <run_depend>cv_bridge</run_depend>
   <run_depend>libg2o</run_depend>
   <run_depend>opencv2</run_depend>
-  <run_depend>libpcl-dev</run_depend>
+  <run_depend>libpcl-all</run_depend>
   <run_depend>pcl_ros</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>rospy</run_depend>
