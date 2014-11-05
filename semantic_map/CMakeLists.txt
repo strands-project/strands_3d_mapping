@@ -4,7 +4,7 @@ project(semantic_map)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros cloud_register message_generation qt_build)
+find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build)
 
 find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
 
@@ -59,6 +59,7 @@ set(HDRS
     include/metaroomXMLparser.h
     include/semanticMapSummaryParser.h
     include/occlusionChecker.h
+    include/ndtRegistration.h
 )
 
 set(SRCS
@@ -69,6 +70,7 @@ set(SRCS
     src/metaroomXMLparser.cpp
     src/semanticMapSummaryParser.cpp
     src/occlusionChecker.cpp
+    src/ndtRegistration.cpp
 )
 
 add_library(semantic_map ${HDRS} ${SRCS})
