@@ -19,7 +19,6 @@
   <build_depend>semantic_map</build_depend>
   <build_depend>image_geometry</build_depend>
   <build_depend>libqt4-dev</build_depend>
-  <build_depend>cloud_register</build_depend>
   <build_depend>qt-build</build_depend>
   <build_depend>qt-ros</build_depend>
   <build_depend>mongodb_store</build_depend>

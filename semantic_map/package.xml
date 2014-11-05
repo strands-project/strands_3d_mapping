@@ -16,7 +16,6 @@
   <build_depend>std_msgs</build_depend>
   <build_depend>sensor_msgs</build_depend>
   <build_depend>message_generation</build_depend>
-  <build_depend>cloud_register</build_depend>
   <build_depend>libqt4-dev</build_depend>
   <build_depend>qt-build</build_depend>
   <build_depend>qt-ros</build_depend>
@@ -28,7 +27,6 @@
   <run_depend>std_msgs</run_depend>
   <run_depend>sensor_msgs</run_depend>
   <run_depend>message_runtime</run_depend>
-  <run_depend>cloud_register</run_depend>
   <run_depend>libqt4-dev</run_depend>
   <run_depend>qt-ros</run_depend>
   <run_depend>mongodb_store</run_depend>
