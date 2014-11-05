@@ -19,8 +19,8 @@
   <build_depend>semantic_map</build_depend>
   <build_depend>image_geometry</build_depend>
   <build_depend>libqt4-dev</build_depend>
-  <build_depend>qt-build</build_depend>
-  <build_depend>qt-ros</build_depend>
+  <build_depend>qt_build</build_depend>
+  <build_depend>qt_ros</build_depend>
   <build_depend>mongodb_store</build_depend>
   <run_depend>rospy</run_depend>
   <run_depend>roscpp</run_depend>
@@ -31,7 +31,7 @@
   <run_depend>libpcl-all</run_depend>
   <run_depend>semantic_map</run_depend>
   <run_depend>libqt4-dev</run_depend>
-  <run_depend>qt-ros</run_depend>
+  <run_depend>qt_ros</run_depend>
   <run_depend>mongodb_store</run_depend>
 
 
