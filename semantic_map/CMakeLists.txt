@@ -4,7 +4,7 @@ project(semantic_map)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros cloud_register message_generation qt_build)
+find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build)
 
 find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
 
@@ -59,6 +59,7 @@ set(HDRS
     include/metaroomXMLparser.h
     include/semanticMapSummaryParser.h
     include/occlusionChecker.h
+    include/ndtRegistration.h
 )
 
 set(SRCS
@@ -69,6 +70,7 @@ set(SRCS
     src/metaroomXMLparser.cpp
     src/semanticMapSummaryParser.cpp
     src/occlusionChecker.cpp
+    src/ndtRegistration.cpp
 )
 
 add_library(semantic_map ${HDRS} ${SRCS})
@@ -83,4 +85,23 @@ add_dependencies(semantic_map_node primitive_extraction_generate_messages_cpp st
    ${QT_LIBRARIES}
    ${Boost_LIBRARIES}
   )
+
+############################# INSTALL TARGETS
+
+install(TARGETS semantic_map semantic_map_node 
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY include/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
+install(DIRECTORY launch/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
+
+
+# TODO add messages and scripts
 
