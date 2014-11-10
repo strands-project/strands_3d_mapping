@@ -504,22 +504,36 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
                 transformed_cloud = m_CloudMerge.getIntermediateCloud();
 
-                // add intermediate cloud and transform to semantic room
-                int intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform);
+                // add intermediate cloud (local frame of ref) and transform to semantic room
+                int intCloudId;
+                if (m_CloudMerge.m_IntermediateFilteredDepthCamInfo)
+                {
+                    image_geometry::PinholeCameraModel cloudCameraParams;
+                    cloudCameraParams.fromCameraInfo(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
+                    intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform,cloudCameraParams);
+                } else {
+                    intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform);
+                }
+
 
 
                 sensor_msgs::PointCloud2 msg_cloud;
                 pcl::toROSMsg(*transformed_cloud, msg_cloud);
 
-                m_RosPublisherIntermediateDepth.publish(m_CloudMerge.m_IntermediateFilteredDepthImage);
-                m_RosPublisherIntermediateRGB.publish(m_CloudMerge.m_IntermediateFilteredRGBImage);
-                m_RosPublisherIntermediateDepthCamInfo.publish(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
+                if (m_CloudMerge.m_IntermediateFilteredDepthImage)
+                {
+                    m_RosPublisherIntermediateDepth.publish(m_CloudMerge.m_IntermediateFilteredDepthImage);
+                }
+                if (m_CloudMerge.m_IntermediateFilteredRGBImage)
+                {
+                    m_RosPublisherIntermediateRGB.publish(m_CloudMerge.m_IntermediateFilteredRGBImage);
+                }
+                if (m_CloudMerge.m_IntermediateFilteredDepthCamInfo)
+                {
+                    m_RosPublisherIntermediateDepthCamInfo.publish(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
+                }
 
-                //            ROS_INFO_STREAM("Transformed clod aquisition time "<<transformed_cloud->header.stamp<<"  and frame "<<transformed_cloud->header.frame_id<<"  and points "<<transformed_cloud->points.size());
-
-                // add intermediate point cloud to the database
-                // first create intermediate cloud name
-
+                //            ROS_INFO_STREAM("Transformed cloud aquisition time "<<transformed_cloud->header.stamp<<"  and frame "<<transformed_cloud->header.frame_id<<"  and points "<<transformed_cloud->points.size());
             }
 
         }

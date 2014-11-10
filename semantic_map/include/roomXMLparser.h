@@ -10,12 +10,19 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include "tf/tf.h"
 
+#include <image_geometry/pinhole_camera_model.h>
+
 #include "room.h"
+
+#include <opencv2/core/eigen.hpp>
 
 // QT
 #include <QFile>
 #include <QDir>
 #include <QXmlStreamWriter>
+#include <QDebug>
+
+#include <fstream>
 
 template <class PointType>
 class SemanticRoomXMLParser {
@@ -23,6 +30,12 @@ public:
 
     typedef pcl::PointCloud<PointType> Cloud;
     typedef typename Cloud::Ptr CloudPtr;
+
+    struct IntermediateCloudData{
+        std::string                     filename;
+        tf::StampedTransform            transform;
+        sensor_msgs::CameraInfo         camInfo;
+    };
 
 
     SemanticRoomXMLParser(std::string rootFolder="home")
@@ -124,9 +137,9 @@ public:
 
         // RoomCompleteCloud
         xmlWriter->writeStartElement("RoomCompleteCloud");
-        QString completeCloudFilename("complete_cloud.pcd");
-        completeCloudFilename = roomFolder + completeCloudFilename; // add the folder prefix
-        xmlWriter->writeAttribute("filename",completeCloudFilename);
+        QString cloudFilename("complete_cloud.pcd");
+        QString completeCloudFilename = roomFolder + cloudFilename; // add the folder prefix
+        xmlWriter->writeAttribute("filename",cloudFilename);
         xmlWriter->writeEndElement();
         if (aRoom.getCompleteRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
@@ -143,9 +156,9 @@ public:
 
         // RoomInteriorCloud
         xmlWriter->writeStartElement("RoomInteriorCloud");
-        QString interiorCloudFilename("interior_cloud.pcd");
-        interiorCloudFilename = roomFolder + interiorCloudFilename; // add the folder prefix
-        xmlWriter->writeAttribute("filename",interiorCloudFilename);
+        QString interiorCloudFilenameLocal("interior_cloud.pcd");
+        QString interiorCloudFilename = roomFolder + interiorCloudFilenameLocal; // add the folder prefix
+        xmlWriter->writeAttribute("filename",interiorCloudFilenameLocal);
         xmlWriter->writeEndElement();
         if (aRoom.getInteriorRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
@@ -163,9 +176,9 @@ public:
 
         // RoomDeNoisedCloud
         xmlWriter->writeStartElement("RoomDeNoisedCloud");
-        QString denoisedCloudFilename("denoised_cloud.pcd");
-        denoisedCloudFilename = roomFolder + denoisedCloudFilename; // add the folder prefix
-        xmlWriter->writeAttribute("filename",denoisedCloudFilename);
+        QString denoisedCloudFilenameLocal("denoised_cloud.pcd");
+        QString denoisedCloudFilename = roomFolder + denoisedCloudFilenameLocal; // add the folder prefix
+        xmlWriter->writeAttribute("filename",denoisedCloudFilenameLocal);
         xmlWriter->writeEndElement();
         if (aRoom.getDeNoisedRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
@@ -181,8 +194,8 @@ public:
         }
 
         // RoomDynamicClusters
-        QString dynamicClustersFilename("dynamic_clusters.pcd");
-        dynamicClustersFilename = roomFolder + dynamicClustersFilename; // add the folder prefix
+        QString dynamicClustersFilenameLocal("dynamic_clusters.pcd");
+        QString dynamicClustersFilename = roomFolder + dynamicClustersFilenameLocal; // add the folder prefix
         QFile dynamicClustersFile(dynamicClustersFilename);
 
         if (aRoom.getDynamicClustersCloudLoaded() && aRoom.getDynamicClustersCloud()->points.size()) // only save the cloud file if it's been loaded
@@ -194,13 +207,13 @@ public:
 //            }
 
             xmlWriter->writeStartElement("RoomDynamicClusters");
-            xmlWriter->writeAttribute("filename",dynamicClustersFilename);
+            xmlWriter->writeAttribute("filename",dynamicClustersFilenameLocal);
             xmlWriter->writeEndElement();
         } else {
             if (dynamicClustersFile.exists())
             {
                 xmlWriter->writeStartElement("RoomDynamicClusters");
-                xmlWriter->writeAttribute("filename",dynamicClustersFilename);
+                xmlWriter->writeAttribute("filename",dynamicClustersFilenameLocal);
                 xmlWriter->writeEndElement();
             }
         }
@@ -229,24 +242,22 @@ public:
         xmlWriter->writeStartElement("RoomIntermediateClouds");
         std::vector<CloudPtr> roomIntermediateClouds = aRoom.getIntermediateClouds();
         std::vector<tf::StampedTransform> roomIntermediateCloudTransforms = aRoom.getIntermediateCloudTransforms();
+        std::vector<image_geometry::PinholeCameraModel> roomIntermediateCloudCameraParameters = aRoom.getIntermediateCloudCameraParameters();
         std::vector<bool>   roomIntermediateCloudsLoaded = aRoom.getIntermediateCloudsLoaded();
-//        if (roomIntermediateClouds.size() != roomIntermediateCloudTransforms.size())
-//        {
-//            std::cerr<<"The size of the intermediate cloud vector and the transforms vector do not match"<<std::endl;
-//            xmlWriter->writeCharacters("Error");
-//        } else {
             for (size_t i=0; i<roomIntermediateCloudTransforms.size(); i++)
             {
                 // RoomIntermediateCloud
                 xmlWriter->writeStartElement("RoomIntermediateCloud");
                 std::stringstream ss;
+            QString intermediateCloudLocalPath = "";
                 QString intermediateCloudPath = "";
                 if (aRoom.getSaveIntermediateClouds())
                 {
                     ss << "intermediate_cloud"<<std::setfill('0')<<std::setw(4)<<i<<".pcd";
-                    intermediateCloudPath = roomFolder + ss.str().c_str();
+                intermediateCloudLocalPath = ss.str().c_str();
+                intermediateCloudPath = roomFolder + intermediateCloudLocalPath;
                 }
-                xmlWriter->writeAttribute("filename",intermediateCloudPath);
+            xmlWriter->writeAttribute("filename",intermediateCloudLocalPath);
 
                 if(roomIntermediateCloudsLoaded[i] && aRoom.getSaveIntermediateClouds())
                 {
@@ -311,6 +322,63 @@ public:
 
 //                ROS_INFO_STREAM("TF message "<<msg<<"\nStamp "<<msg.header.stamp.sec<<"."<<msg.header.stamp.nsec);
                 xmlWriter->writeEndElement(); // RoomIntermediateCloudTransform
+
+            Eigen::IOFormat CommaInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", ", ", "", "", " << ", "");
+            xmlWriter->writeStartElement("RoomIntermediateCameraParameters");
+
+            image_geometry::PinholeCameraModel aCameraModel = roomIntermediateCloudCameraParameters[i];
+            const sensor_msgs::CameraInfo & camInfo = aCameraModel.cameraInfo();
+
+            // size
+            cv::Size imageSize = aCameraModel.fullResolution();
+            xmlWriter->writeAttribute("width",QString::number(camInfo.width));
+            xmlWriter->writeAttribute("height",QString::number(camInfo.height));
+            xmlWriter->writeAttribute("distortion_model",QString(camInfo.distortion_model.c_str()));
+            xmlWriter->writeAttribute("frame_id",QString(camInfo.header.frame_id.c_str()));
+
+            // K matrix
+            QString KString;
+            for (size_t j=0; j<9;j++)
+            {
+                KString+=QString::number(camInfo.K[j]);
+                KString+=",";
+            }
+            xmlWriter->writeAttribute("K",KString);
+//            ROS_INFO_STREAM("K matrix "<<KString.toStdString());
+
+            // D matrix
+            QString DString;
+            for (size_t j=0; j<5;j++)
+            {
+                DString+=QString::number(camInfo.D[j]);
+                DString+=",";
+            }
+            xmlWriter->writeAttribute("D",DString);
+//            ROS_INFO_STREAM("D matrix "<<DString.toStdString());
+
+            // R matrix
+            QString RString;
+            for (size_t j=0; j<9;j++)
+            {
+                RString+=QString::number(camInfo.R[j]);
+                RString+=",";
+            }
+            xmlWriter->writeAttribute("R",RString);
+//            ROS_INFO_STREAM("R matrix "<<RString.toStdString());
+
+            // P matrix
+            QString PString;
+            for (size_t j=0; j<12;j++)
+            {
+                PString+=QString::number(camInfo.P[j]);
+                PString+=",";
+            }
+            xmlWriter->writeAttribute("P",PString);
+//            ROS_INFO_STREAM("P matrix "<<PString.toStdString());
+
+
+            xmlWriter->writeEndElement(); // RoomIntermediateCameraParameters
+
                 xmlWriter->writeEndElement(); // RoomIntermediateCloud
             }
 //        }
@@ -337,6 +405,11 @@ public:
             std::cerr<<"Could not open file "<<xmlFile<<" to load room."<<std::endl;
             return aRoom;
         }
+
+        // room folder
+        QString xmlFileQS(xmlFile.c_str());
+        int index = xmlFileQS.lastIndexOf('/');
+        QString roomFolder = xmlFileQS.left(index);
 
         file.open(QIODevice::ReadOnly);
 
@@ -397,7 +470,14 @@ public:
                     if (attributes.hasAttribute("filename"))
                     {
                         QString roomCompleteCloudFile = attributes.value("filename").toString();
-                        if (deepLoad)
+                        int sl_index = roomCompleteCloudFile.indexOf('/');
+                        if (sl_index == -1)
+                        {
+                            roomCompleteCloudFile=roomFolder + "/" + roomCompleteCloudFile;
+                        }
+                        std::ifstream file(roomCompleteCloudFile.toStdString().c_str());
+
+                        if (deepLoad && file)
                         {
                             std::cout<<"Loading complete cloud file name "<<roomCompleteCloudFile.toStdString()<<std::endl;
                             pcl::PCDReader reader;
@@ -419,7 +499,13 @@ public:
                     if (attributes.hasAttribute("filename"))
                     {
                         QString roomInteriorCloudFile = attributes.value("filename").toString();
-                        if (deepLoad)
+                        int sl_index = roomInteriorCloudFile.indexOf('/');
+                        if (sl_index == -1)
+                        {
+                            roomInteriorCloudFile=roomFolder + "/" + roomInteriorCloudFile;
+                        }
+                        std::ifstream file(roomInteriorCloudFile.toStdString().c_str());
+                        if (deepLoad && file)
                         {
                             std::cout<<"Loading interior cloud file name "<<roomInteriorCloudFile.toStdString()<<std::endl;
                             pcl::PCDReader reader;
@@ -441,7 +527,14 @@ public:
                     if (attributes.hasAttribute("filename"))
                     {
                         QString roomDenoisedCloudFile = attributes.value("filename").toString();
-                        if (deepLoad)
+                        int sl_index = roomDenoisedCloudFile.indexOf('/');
+                        if (sl_index == -1)
+                        {
+                            roomDenoisedCloudFile=roomFolder + "/" + roomDenoisedCloudFile;
+                        }
+
+                        std::ifstream file(roomDenoisedCloudFile.toStdString().c_str());
+                        if (deepLoad && file)
                         {
                             std::cout<<"Loading denoised cloud file name "<<roomDenoisedCloudFile.toStdString()<<std::endl;
                             pcl::PCDReader reader;
@@ -463,7 +556,14 @@ public:
                     if (attributes.hasAttribute("filename"))
                     {
                         QString roomDynamicClustersFile = attributes.value("filename").toString();
-                        if (deepLoad)
+                        int sl_index = roomDynamicClustersFile.indexOf('/');
+                        if (sl_index == -1)
+                        {
+                            roomDynamicClustersFile=roomFolder + "/" + roomDynamicClustersFile;
+                        }
+
+                        std::ifstream file(roomDynamicClustersFile.toStdString().c_str());
+                        if (deepLoad && file)
                         {
                             std::cout<<"Loading dynamic clusters cloud file name "<<roomDynamicClustersFile.toStdString()<<std::endl;
                             pcl::PCDReader reader;
@@ -505,16 +605,28 @@ public:
 
                 if (xmlReader->name() == "RoomIntermediateCloud")
                 {
-                    std::pair<std::string, tf::StampedTransform> cloudAndTransform = parseRoomIntermediateCloudNode(*xmlReader);
-                    if (deepLoad)
+                    IntermediateCloudData intermediateCloudData = parseRoomIntermediateCloudNode(*xmlReader);
+                    image_geometry::PinholeCameraModel aCameraModel;
+                    aCameraModel.fromCameraInfo(intermediateCloudData.camInfo);
+
+                    QString intermediateCloudFilename(intermediateCloudData.filename.c_str());
+
+                    int sl_index = intermediateCloudFilename.indexOf('/');
+                    if (sl_index == -1)
                     {
-                        std::cout<<"Loading intermediate cloud file name "<<cloudAndTransform.first<<std::endl;
+                        intermediateCloudData.filename=roomFolder.toStdString() + "/" + intermediateCloudData.filename;
+                    }
+
+                    std::ifstream file(intermediateCloudData.filename.c_str());
+                    if (deepLoad && file)
+                    {
+                        std::cout<<"Loading intermediate cloud file name "<<intermediateCloudData.filename<<std::endl;
                         pcl::PCDReader reader;
                         CloudPtr cloud (new Cloud);
-                        reader.read (cloudAndTransform.first, *cloud);
-                        aRoom.addIntermediateRoomCloud(cloud, cloudAndTransform.second);
+                        reader.read (intermediateCloudData.filename, *cloud);
+                        aRoom.addIntermediateRoomCloud(cloud, intermediateCloudData.transform,aCameraModel);
                     } else {
-                        aRoom.addIntermediateRoomCloud(cloudAndTransform.first, cloudAndTransform.second);
+                        aRoom.addIntermediateRoomCloud(intermediateCloudData.filename, intermediateCloudData.transform,aCameraModel);
                     }
 
                 }
@@ -529,11 +641,14 @@ public:
 
 private:
 
-    static std::pair<std::string, tf::StampedTransform> parseRoomIntermediateCloudNode(QXmlStreamReader& xmlReader)
+    static IntermediateCloudData parseRoomIntermediateCloudNode(QXmlStreamReader& xmlReader)
     {        
         tf::StampedTransform transform;
         geometry_msgs::TransformStamped tfmsg;
-        std::pair<std::string, tf::StampedTransform> toRet;
+        sensor_msgs::CameraInfo camInfo;
+        bool camInfoError = false;
+
+        IntermediateCloudData       structToRet;
 //        toRet.first = CloudPtr(new Cloud);
         QString intermediateParentNode("");
 
@@ -545,13 +660,13 @@ private:
         if (attributes.hasAttribute("filename"))
         {
             QString roomIntermediateCloudFile = attributes.value("filename").toString();            
-            toRet.first = roomIntermediateCloudFile.toStdString();
+            structToRet.filename = roomIntermediateCloudFile.toStdString();
 //            pcl::PCDReader reader;
 //            reader.read (roomIntermediateCloudFile.toStdString(), *toRet.first);
 
         } else {
             std::cerr<<"RoomIntermediateCloud xml node does not have filename attribute. Aborting."<<std::endl;
-            return toRet;
+            return structToRet;
         }
         QXmlStreamReader::TokenType token = xmlReader.readNext();
 
@@ -619,14 +734,142 @@ private:
                         tfmsg.transform.translation.z = z;
                     }
                 }
+
+                // camera parameters
+                if (xmlReader.name() == "RoomIntermediateCameraParameters")
+                {
+                    QXmlStreamAttributes paramAttributes = xmlReader.attributes();
+
+                    if (paramAttributes.hasAttribute("height"))
+                    {
+                        QString val = paramAttributes.value("height").toString();
+                        camInfo.height = val.toInt();
+
+                    } else {
+                        ROS_ERROR("RoomIntermediateCameraParameters xml node does not have the height attribute. Cannot construct camera parameters object.");
+                        camInfoError = true;
+                    }
+
+                    if (paramAttributes.hasAttribute("width"))
+                    {
+                        QString val = paramAttributes.value("width").toString();
+                        camInfo.width = val.toInt();
+
+                    } else {
+                        ROS_ERROR("RoomIntermediateCameraParameters xml node does not have the width attribute. Cannot construct camera parameters object.");
+                        camInfoError = true;
+                    }
+
+                    if (paramAttributes.hasAttribute("distortion_model"))
+                    {
+                        QString val = paramAttributes.value("distortion_model").toString();
+                        camInfo.distortion_model = val.toStdString();
+
+                    } else {
+                        ROS_ERROR("RoomIntermediateCameraParameters xml node does not have the distortion_model attribute. Cannot construct camera parameters object.");
+                        camInfoError = true;
+                    }
+
+                    if (paramAttributes.hasAttribute("frame_id"))
+                    {
+                        QString val = paramAttributes.value("frame_id").toString();
+                        camInfo.header.frame_id = val.toStdString();
+
+                    } else {
+                        ROS_ERROR("RoomIntermediateCameraParameters xml node does not have the frame_id attribute. Cannot construct camera parameters object.");
+                        camInfoError = true;
+                    }
+
+                    if (paramAttributes.hasAttribute("K"))
+                    {
+                        QString val = paramAttributes.value("K").toString();
+                        QStringList val_list = val.split(",",QString::SkipEmptyParts);
+                        if (val_list.size() != 9) // wrong number of parameters
+                        {
+                            ROS_ERROR("RoomIntermediateCameraParameters K attribute has more than 9 parameters. Cannot construct camera parameters object.");
+                            camInfoError = true;
+                        } else {
+                            for (size_t j=0; j< val_list.size();j++)
+                            {
+                                camInfo.K[j] = val_list[j].toDouble();
+                            }
+                        }
+                    } else {
+                        ROS_ERROR("RoomIntermediateCameraParameters xml node does not have the K attribute. Cannot construct camera parameters object.");
+                        camInfoError = true;
+                    }
+
+                    if (paramAttributes.hasAttribute("D"))
+                    {
+                        QString val = paramAttributes.value("D").toString();
+                        QStringList val_list = val.split(",",QString::SkipEmptyParts);
+                        if (val_list.size() != 5) // wrong number of parameters
+                        {
+                            ROS_ERROR("RoomIntermediateCameraParameters D attribute has more than 5 parameters. Cannot construct camera parameters object.");
+                            camInfoError = true;
+                        } else {
+                            for (size_t j=0; j< val_list.size();j++)
+                            {
+                                camInfo.D.push_back(val_list[j].toDouble());
+                            }
+                        }
+                    } else {
+                        ROS_ERROR("RoomIntermediateCameraParameters xml node does not have the D attribute. Cannot construct camera parameters object.");
+                        camInfoError = true;
+                    }
+
+                    if (paramAttributes.hasAttribute("R"))
+                    {
+                        QString val = paramAttributes.value("R").toString();
+                        QStringList val_list = val.split(",",QString::SkipEmptyParts);
+                        if (val_list.size() != 9) // wrong number of parameters
+                        {
+                            ROS_ERROR("RoomIntermediateCameraParameters R attribute has more than 9 parameters. Cannot construct camera parameters object.");
+                            camInfoError = true;
+                        } else {
+                            for (size_t j=0; j< val_list.size();j++)
+                            {
+                                camInfo.R[j] = val_list[j].toDouble();
+                            }
+                        }
+                    } else {
+                        ROS_ERROR("RoomIntermediateCameraParameters xml node does not have the R attribute. Cannot construct camera parameters object.");
+                        camInfoError = true;
+                    }
+
+                    if (paramAttributes.hasAttribute("P"))
+                    {
+                        QString val = paramAttributes.value("P").toString();
+                        QStringList val_list = val.split(",",QString::SkipEmptyParts);
+                        if (val_list.size() != 12) // wrong number of parameters
+                        {
+                            ROS_ERROR("RoomIntermediateCameraParameters P attribute has more than 12 parameters. Cannot construct camera parameters object.");
+                            camInfoError = true;
+                        } else {
+                            for (size_t j=0; j< val_list.size();j++)
+                            {
+                                camInfo.P[j] = val_list[j].toDouble();
+                            }
+                        }
+                    } else {
+                        ROS_ERROR("RoomIntermediateCameraParameters xml node does not have the P attribute. Cannot construct camera parameters object.");
+                        camInfoError = true;
+                    }
+
+
+                }
+
             }
             token = xmlReader.readNext();
         }
 
+        if (!camInfoError)
+        {
+            structToRet.camInfo = camInfo;
+        }
         tf::transformStampedMsgToTF(tfmsg, transform);
-//        toRet.first = cloud;
-        toRet.second = transform;
-        return toRet;
+        structToRet.transform = transform;
+        return structToRet;
     }
 
     QString                                 m_RootFolder;

@@ -11,11 +11,15 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/centroid.h>
 
+#include <image_geometry/pinhole_camera_model.h>
+
 #include "ros/time.h"
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include "tf/tf.h"
 
 #include "roombase.h"
+
+
 
 template <class PointType>
 class SemanticRoom : public RoomBase<PointType>{
@@ -34,6 +38,7 @@ private:
     std::vector<tf::StampedTransform>                m_vIntermediateRoomCloudTransforms;
     std::vector<bool>                                m_vIntermediateRoomCloudsLoaded;
     std::vector<std::string>                         m_vIntermediateRoomCloudsFilenames;
+    std::vector<image_geometry::PinholeCameraModel>  m_vIntermediateRoomCloudsCamParams;
 
     std::string                                      m_RoomStringId;
     int                                              m_RoomRunNumber;
@@ -100,22 +105,24 @@ public:
         m_vIntermediateRoomCloudTransforms.clear();
     }
 
-    int addIntermediateRoomCloud(CloudPtr intermediateCloud, tf::StampedTransform cloud_tf)
+    int addIntermediateRoomCloud(CloudPtr intermediateCloud, tf::StampedTransform cloud_tf, image_geometry::PinholeCameraModel cloudCamParams=image_geometry::PinholeCameraModel())
     {
         CloudPtr newCloud(new Cloud);
         *newCloud = *intermediateCloud;
         m_vIntermediateRoomClouds.push_back(newCloud);
         m_vIntermediateRoomCloudTransforms.push_back(cloud_tf);
         m_vIntermediateRoomCloudsLoaded.push_back(true);
+        m_vIntermediateRoomCloudsCamParams.push_back(cloudCamParams);
 
         return m_vIntermediateRoomClouds.size();
     }
 
-    int addIntermediateRoomCloud(std::string filename, tf::StampedTransform cloud_tf)
+    int addIntermediateRoomCloud(std::string filename, tf::StampedTransform cloud_tf, image_geometry::PinholeCameraModel cloudCamParams=image_geometry::PinholeCameraModel())
     {
         m_vIntermediateRoomCloudTransforms.push_back(cloud_tf);
         m_vIntermediateRoomCloudsLoaded.push_back(false);
         m_vIntermediateRoomCloudsFilenames.push_back(filename);
+        m_vIntermediateRoomCloudsCamParams.push_back(cloudCamParams);
 
         return m_vIntermediateRoomCloudsFilenames.size();
     }
@@ -138,6 +145,11 @@ public:
     std::vector<tf::StampedTransform> getIntermediateCloudTransforms()
     {
         return m_vIntermediateRoomCloudTransforms;
+    }
+
+    std::vector<image_geometry::PinholeCameraModel> getIntermediateCloudCameraParameters()
+    {
+        return m_vIntermediateRoomCloudsCamParams;
     }
 
     std::vector<bool>   getIntermediateCloudsLoaded()

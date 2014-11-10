@@ -1,9 +1,9 @@
 <launch>
 
-  <arg name="save_intermediate"           default="false" />
+  <arg name="save_intermediate"           default="true" />
   <arg name="generate_pointclouds"        default="true" />
   <arg name="cleanup"           	  default="false" />
-  <arg name="log_to_db"           	  default="true" />
+  <arg name="log_to_db"           	  default="false" />
   <arg name="cache_old_data"           	  default="true" />
   <arg name="max_instances"               default="2" />
   <arg name="voxel_size_table_top"        default="0.01" />
@@ -11,7 +11,6 @@
   <arg name="point_cutoff_distance"       default="4.0"/>
 
 
-  <arg name="input_cloud"           	  default="/head_xtion/depth_registered/points" />
   <arg name="input_rgb"           	  default="/head_xtion/rgb/image_color" />
   <arg name="input_depth"           	  default="/head_xtion/depth_registered/image_rect" />
   <arg name="input_caminfo"           	  default="/head_xtion/rgb/camera_info" />
@@ -24,7 +23,7 @@
 	<param name="max_instances"    	 type="int" value="$(arg max_instances)"/>
 	<param name="cache_old_data"	type="bool" value="$(arg cache_old_data)"/>
 	
-	<param name="input_cloud"  		 value="$(arg input_cloud)"/>
+<!--	<param name="input_cloud"  		 value="$(arg input_cloud)"/> -->
 	<param name="input_rgb"  		 value="$(arg input_rgb)"/>
 	<param name="input_depth"  		 value="$(arg input_depth)"/>
 	<param name="input_caminfo"  		 value="$(arg input_caminfo)"/>

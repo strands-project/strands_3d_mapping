@@ -96,9 +96,13 @@ public:
 
         std::vector<SemanticMapSummaryParser<PointType>::EntityStruct> allRooms = getRooms();
 
+        std::vector<std::pair<std::string, boost::posix_time::ptime> > currentMatches;
+
         for (int i=0; i<allRooms.size();i++)
         {
+            bool matchesFound = false;
             int matches = 1;
+            currentMatches.push_back(std::make_pair(allRooms[i].roomXmlFile,allRooms[i].roomLogStartTime));
             for (int j=i+1; j<allRooms.size();j++)
             {
                 double centroidDistance = pcl::distances::l2(allRooms[i].centroid,allRooms[j].centroid);
@@ -107,15 +111,35 @@ public:
                     continue;
                 } else {
                     matches++;
+                    currentMatches.push_back(std::make_pair(allRooms[j].roomXmlFile,allRooms[j].roomLogStartTime));
                 }
             }
 
-            if (matches > maxInstances) // too many instances of this room. Remove this one.
+            while (matches > maxInstances) // too many instances of this room
             {
-                ROS_INFO_STREAM("Observation "<<allRooms[i].roomXmlFile<<" has "<<matches<<" instances.");
-                QString roomXml(allRooms[i].roomXmlFile.c_str());
+                matchesFound = true;
+                ROS_INFO_STREAM("Observation "<<currentMatches[0].first<<" has "<<matches<<" instances.");
+                // find oldest observations and remove them
+
+                std::string oldestRoomFile = currentMatches[0].first;
+                boost::posix_time::ptime oldestRoomTime = currentMatches[0].second;
+                int oldestIndex = 0;
+                for (int k=1; k<currentMatches.size();k++)
+                {
+                    if (currentMatches[k].second < oldestRoomTime)
+                    {
+                        oldestRoomFile = currentMatches[k].first;
+                        oldestRoomTime = currentMatches[k].second;
+                        oldestIndex = k;
+                    }
+                }
+
+//                currentMatches[oldestIndex].second = boost::posix_time::ptime:: // update the time so we don't remove this observation again
+
+                QString roomXml(currentMatches[oldestIndex].first.c_str());
                 int lastIndex = roomXml.lastIndexOf("/");
                 QString observationFolderPath = roomXml.left(lastIndex);
+
                 if (!cache)
                 {
                     deleteFolderContents(observationFolderPath);
@@ -139,6 +163,22 @@ public:
                     }
                 }
 
+                // remove element from vector
+                currentMatches.erase(currentMatches.begin()+oldestIndex);
+//                if (oldestIndex == 0)
+//                {
+//                    break;
+//                }
+                matches--; // decrement match counter
+            }
+
+            // update list of rooms & metarooms
+            if (matchesFound)
+            {
+                createSummaryXML();
+                refresh();
+                allRooms = getRooms();
+                i=0;
             }
         }
 
@@ -307,6 +347,8 @@ public:
         if (rootFolder == "")
         {
             qrootFolder =(QDir::homePath() + QString("/.semanticMap/"));
+        } else {
+            qrootFolder = rootFolder.c_str();
         }
 
         if (!QDir(qrootFolder).exists())
@@ -414,7 +456,6 @@ private:
     {
         xmlWriter->writeStartElement("SemanticRooms");
 
-
         // parse folder structure and look for semantic objects
         QStringList dateFolders = QDir(qrootFolder).entryList(QStringList("*"),
                                                         QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time);
@@ -439,7 +480,7 @@ private:
 
             if (!isValidDate)
             {
-//                std::cout<<"Skipping folder "<<dateFolders[i].toStdString()<<" as it doesn't have the right format."<<std::endl;
+                std::cout<<"Skipping folder "<<dateFolders[i].toStdString()<<" as it doesn't have the right format."<<std::endl;
                 continue;
             }
 
@@ -453,6 +494,7 @@ private:
                                                                      QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
                 for (size_t k=0; k<roomFolders.size(); k++)
                 {
+
                     // parse XML file and extract some important fields with which to populate the index.html file
                     QString roomXmlFile = patrolFolder+"/"+roomFolders[k] + "/room.xml";
                     SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(roomXmlFile.toStdString(), false);
@@ -483,7 +525,7 @@ private:
                     xmlWriter->writeEndElement();
 
                     xmlWriter->writeEndElement();
-//                    ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
+                    ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
                 }
             }
         }
