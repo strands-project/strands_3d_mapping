@@ -7,10 +7,6 @@
   <arg name="max_instances" default="2" />
   <arg name="update_metaroom" default="false" />
 
-	
-  <!--
-    <node pkg="ftp_upload" type="ftp_upload_action_server.py" name="ftp_upload_action_server" output="screen"/> 
-  -->
     
     <!-- The system merging the individual frames into a local map -->
     <include file="$(find cloud_merge)/launch/cloud_merge.launch">
