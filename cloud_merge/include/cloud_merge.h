@@ -48,14 +48,19 @@ public:
     sensor_msgs::CameraInfoConstPtr             m_IntermediateFilteredDepthCamInfo;
 
 
-    CloudMerge(): m_IntermediateCloud(new Cloud()), m_MergedCloud(new Cloud())
+    CloudMerge(double maximumPointDistance = 4.0): m_IntermediateCloud(new Cloud()), m_MergedCloud(new Cloud())
     {
-        m_dMaximumPointDistance = 3.0;
+        m_dMaximumPointDistance = 4.0;
     }
 
     ~CloudMerge()
     {
 
+    }
+
+    void setMaximumPointDistance( double distance)
+    {
+        m_dMaximumPointDistance = distance;
     }
 
     void addIntermediateCloud(Cloud cloud)
@@ -84,6 +89,11 @@ public:
     {
         Cloud subsampled_cloud;
 
+	if (!m_IntermediateCloud != 0)
+	{
+		return;
+	}
+
         if (m_IntermediateCloud->points.size() != 0) // only process the intermediate point cloud if we are using it
         {
 //            ROS_INFO_STREAM("Subsampling intermediate cloud");
@@ -92,10 +102,10 @@ public:
 //            sor.setLeafSize(0.01f, 0.01f, 0.01f);
 //            sor.filter(subsampled_cloud);
 
-            //        pcl::VoxelGrid<PointType> vg;
-            //        vg.setInputCloud (m_IntermediateCloud);
-            //        vg.setLeafSize (0.005f, 0.005f, 0.005f);
-            //        vg.filter (subsampled_cloud);
+            pcl::VoxelGrid<PointType> vg;
+            vg.setInputCloud (m_IntermediateCloud);
+            vg.setLeafSize (0.005f, 0.005f, 0.005f);
+            vg.filter (subsampled_cloud);
 
 
             m_IntermediateCloud->clear();
@@ -237,14 +247,12 @@ public:
             m_IntermediateRGBImages.clear();
             m_IntermediateCameraInfo.clear();
 
-            m_IntermediateCloud->header = subsampled_cloud.header;
-            m_IntermediateCloud->height = subsampled_cloud.height;
-            m_IntermediateCloud->width  = subsampled_cloud.width;
-            m_IntermediateCloud->is_dense = subsampled_cloud.is_dense;
-
-
         }
 
+        m_IntermediateCloud->header = subsampled_cloud.header;
+        m_IntermediateCloud->height = subsampled_cloud.height;
+        m_IntermediateCloud->width  = subsampled_cloud.width;
+        m_IntermediateCloud->is_dense = subsampled_cloud.is_dense;
 
         *m_IntermediateCloud+=subsampled_cloud;
 
@@ -272,7 +280,7 @@ public:
     {
         Cloud subsampled_cloud;
 
-        m_MergedCloud = CloudMerge<PointType>::filterPointCloud(m_MergedCloud, 4.0); // distance filtering, remove outliers and nans
+        m_MergedCloud = CloudMerge<PointType>::filterPointCloud(m_MergedCloud, m_dMaximumPointDistance); // distance filtering, remove outliers and nans
 
         pcl::VoxelGrid<PointType> vg;
         vg.setInputCloud (m_MergedCloud);

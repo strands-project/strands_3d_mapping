@@ -46,6 +46,7 @@ public:
 
 private:
     QString                                 m_XMLFile;
+    QString                                 m_CachePath;
     std::vector<EntityStruct>               m_vAllRooms;
     bool                                    m_bIsInitialized;
 
@@ -58,6 +59,12 @@ public:
             m_XMLFile =(QDir::homePath() + QString("/.semanticMap/index.xml"));
         } else {
             m_XMLFile = QString(xmlFile.c_str());
+        }
+
+        m_CachePath = (QDir::homePath() + QString("/.semanticMap/cache/"));
+        if (!QDir(m_CachePath).exists())
+        {
+            QDir().mkdir(m_CachePath);
         }
 
         m_bIsInitialized = false;
@@ -76,6 +83,66 @@ public:
         QString semanticMapFolderPath = m_XMLFile.left(lastIndex+1);
 
         deleteFolderContents(semanticMapFolderPath);
+    }
+
+    void removeSemanticMapObservationInstances(int maxInstances, bool cache = false)
+    {
+        // first check the semanticMap cache folder size
+        // update summary xml
+        createSummaryXML();
+
+        // update list of rooms & metarooms
+        refresh();
+
+        std::vector<SemanticMapSummaryParser<PointType>::EntityStruct> allRooms = getRooms();
+
+        for (int i=0; i<allRooms.size();i++)
+        {
+            int matches = 1;
+            for (int j=i+1; j<allRooms.size();j++)
+            {
+                double centroidDistance = pcl::distances::l2(allRooms[i].centroid,allRooms[j].centroid);
+                if (! (centroidDistance < ROOM_CENTROID_DISTANCE) )
+                {
+                    continue;
+                } else {
+                    matches++;
+                }
+            }
+
+            if (matches > maxInstances) // too many instances of this room. Remove this one.
+            {
+                ROS_INFO_STREAM("Observation "<<allRooms[i].roomXmlFile<<" has "<<matches<<" instances.");
+                QString roomXml(allRooms[i].roomXmlFile.c_str());
+                int lastIndex = roomXml.lastIndexOf("/");
+                QString observationFolderPath = roomXml.left(lastIndex);
+                if (!cache)
+                {
+                    deleteFolderContents(observationFolderPath);
+                } else {
+                    moveToCache(observationFolderPath);
+                }
+
+                // check if the patrol folder is empty. If yes, remove it
+                int secondlastIndex = observationFolderPath.lastIndexOf("/");
+                QString observationPatrolFolderPath = observationFolderPath.left(secondlastIndex);
+                QDir observationPatrolFolder(observationPatrolFolderPath);
+                if (observationPatrolFolder.exists())
+                {
+
+                    QFileInfoList files = observationPatrolFolder.entryInfoList(QDir::NoDotAndDotDot | QDir::Files);
+                    QFileInfoList dirs = observationPatrolFolder.entryInfoList(QDir::NoDotAndDotDot | QDir::Dirs);
+
+                    if ((files.size() == 0) && (dirs.size() == 0))
+                    {
+                        deleteFolderContents(observationPatrolFolderPath);
+                    }
+                }
+
+            }
+        }
+
+
     }
 
     void refresh()
@@ -120,6 +187,8 @@ public:
                 toRet.push_back(m_vAllRooms[i]);
             }
         }
+
+        return toRet;
     }
 
 
@@ -271,6 +340,8 @@ public:
         xmlWriter->writeEndElement(); // SemanticMap
         xmlWriter->writeEndDocument();
 
+        ROS_INFO_STREAM("Created semantic map summary xml.");
+
 
         return true;
     }
@@ -283,7 +354,7 @@ private:
         xmlWriter->writeStartElement("MetaRooms");
 
         QStringList metaroomRootFolders = QDir(qrootFolder).entryList(QStringList("*"),
-                                                        QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+                                                        QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time | QDir::Reversed);
 
         for (size_t i=0; i<metaroomRootFolders.size(); i++)
         {
@@ -295,7 +366,7 @@ private:
                 // this is the folder containing the metarooms
                 QString folders = qrootFolder + metaroomRootFolders[i]+"/";
                 QStringList metaroomFolders = QDir(folders).entryList(QStringList("*"),
-                                                                QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+                                                                QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
 
                 for (size_t j=0; j<metaroomFolders.size();j++)
                 {
@@ -346,7 +417,7 @@ private:
 
         // parse folder structure and look for semantic objects
         QStringList dateFolders = QDir(qrootFolder).entryList(QStringList("*"),
-                                                        QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+                                                        QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time);
 
         for (size_t i=0; i<dateFolders.size(); i++)
         {
@@ -374,12 +445,12 @@ private:
 
             QString dateFolder = qrootFolder+dateFolders[i];
             QStringList patrolFolders = QDir(dateFolder).entryList(QStringList("*"),
-                                                                    QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+                                                                    QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
             for (size_t j=0; j<patrolFolders.size(); j++)
             {
                 QString patrolFolder = dateFolder + "/" + patrolFolders[j];
                 QStringList roomFolders = QDir(patrolFolder).entryList(QStringList("*"),
-                                                                     QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+                                                                     QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
                 for (size_t k=0; k<roomFolders.size(); k++)
                 {
                     // parse XML file and extract some important fields with which to populate the index.html file
@@ -412,7 +483,7 @@ private:
                     xmlWriter->writeEndElement();
 
                     xmlWriter->writeEndElement();
-                    ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
+//                    ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
                 }
             }
         }
@@ -442,6 +513,79 @@ private:
                 this->deleteFolderContents(dirs.at(dir).absoluteFilePath ());
                 folder.rmdir(dirs.at(dir).absoluteFilePath());
             }
+
+            //  delete the root folder itself
+            QDir home = QDir::homePath();
+            home.rmdir(folderPath);
+        } else {
+            return;
+        }
+    }
+
+    void moveFolderContents(QString sourceFolder, QString destinationFolder)
+    {
+        if (QDir(sourceFolder).exists() && QDir(destinationFolder).exists())
+        {
+            ROS_INFO_STREAM("Moving data saved in "<<sourceFolder.toStdString()<<" to "<<destinationFolder.toStdString());
+            QDir folder(sourceFolder);
+
+            //Delete all the files
+            QFileInfoList files = folder.entryInfoList(QDir::NoDotAndDotDot | QDir::Files);
+            for(int file = 0; file < files.count(); file++)
+            {
+//                folder.remove(files.at(file).fileName());
+                QString sourceFilePath = sourceFolder + "/"+files.at(file).fileName();
+                QString destinationFilePath = destinationFolder + "/"+files.at(file).fileName();
+//                ROS_INFO_STREAM("File to move "<<sourceFilePath.toStdString()<<" to "<<destinationFilePath.toStdString());
+                QDir().rename(sourceFilePath,destinationFilePath);
+            }
+
+
+        } else {
+            ROS_INFO_STREAM("Cannot move folder contents as either the source or the destination folders don't exist");
+            return;
+        }
+    }
+
+    void moveToCache(QString folderPath)
+    {
+        // this method will also create the proper folder structure: YYMMDD/patrol_run_#/room_#
+        if (QDir(folderPath).exists())
+        {
+            QString semanticMapSubstr = ".semanticMap/";
+            int relativePathIndex = folderPath.lastIndexOf(semanticMapSubstr);
+            QString relativeFolderPath = folderPath.right(folderPath.length() - relativePathIndex-semanticMapSubstr.length());
+            QString cachePath = m_CachePath + relativeFolderPath;
+
+//            ROS_INFO_STREAM("Moving data saved in "<<folderPath.toStdString()<<" to "<<"cache path "<<cachePath.toStdString());
+            // create intermediate folders
+            int folderIndex = 0;
+
+            QString currentCachePath = m_CachePath;
+            QString currentRelativeFolderPath = relativeFolderPath;
+            while (folderIndex != -1)
+            {
+                folderIndex = currentRelativeFolderPath.indexOf('/');
+                QString currentFolder;
+                if (folderIndex!=-1)
+                {
+                    currentFolder = currentRelativeFolderPath.left(folderIndex);
+                } else {
+                    currentFolder = currentRelativeFolderPath;
+                }
+                currentRelativeFolderPath = currentRelativeFolderPath.right(currentRelativeFolderPath.length() - folderIndex - 1);
+
+                currentCachePath = currentCachePath+currentFolder+"/";
+//                ROS_INFO_STREAM("Creating folder "<<currentCachePath.toStdString());
+                QDir().mkdir(currentCachePath);
+            }
+
+            moveFolderContents(folderPath, currentCachePath);
+
+            // remove the (empty) folder after the files have been moved
+            QDir home = QDir::homePath();
+            home.rmdir(folderPath);
+
         } else {
             return;
         }

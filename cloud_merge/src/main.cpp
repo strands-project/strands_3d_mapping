@@ -15,8 +15,6 @@ int main(int argc, char **argv)
 
     CloudMergeNode<pcl::PointXYZRGB> aCloudMergeNode(aRosNode);
 
-    aCloudMergeNode.m_SubscriberPointCloud = aRosNode.subscribe("/depth_registered/points",1, &CloudMergeNode<pcl::PointXYZRGB>::pointCloudCallback,&aCloudMergeNode);
-
     ros::Rate loop_rate(10);
     while (ros::ok())
     {

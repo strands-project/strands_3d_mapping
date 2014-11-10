@@ -1,0 +1,32 @@
+<launch>
+
+  <arg name="save_intermediate" default="true" />
+  <arg name="log_to_db" default="false" />
+  <arg name="cleanup" default="false" />
+  <arg name="cache_old_data" default="true" />
+  <arg name="max_instances" default="2" />
+  <arg name="update_metaroom" default="false" />
+
+
+    <!-- Launch the PTU action server used for doing the pan tilt sweep. -->
+    <node pkg="ftp_upload" type="ftp_upload_action_server.py" name="ftp_upload_action_server" output="screen"/> 
+    
+    <!-- The system merging the individual frames into a local map -->
+    <include file="$(find cloud_merge)/launch/cloud_merge.launch">
+
+	<arg name="save_intermediate" value="$(arg save_intermediate)"/>
+        <arg name="log_to_db" value="$(arg log_to_db)"/>
+        <arg name="cleanup" value="$(arg cleanup)"/>
+        <arg name="cache_old_data" value="$(arg cache_old_data)"/>
+        <arg name="max_instances" value="$(arg max_instances)"/>
+    
+    </include>
+
+    <!-- The system doing the analysis of static vs dynamic parts of the local maps -->
+    
+    <include file="$(find semantic_map)/launch/semantic_map.launch"> 
+        <arg name="update_metaroom" value="$(arg update_metaroom)"/>
+    </include>
+    
+
+</launch>

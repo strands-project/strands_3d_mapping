@@ -9,7 +9,8 @@
 
 #include <pcl/io/pcd_io.h>
 
-#include "ndt.h"
+//#include "ndt.h"
+#include <pcl/registration/ndt.h>
 #include <pcl/filters/approximate_voxel_grid.h>
 
 #include <string>

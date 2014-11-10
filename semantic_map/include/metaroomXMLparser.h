@@ -208,7 +208,7 @@ public:
             }
             xmlWriter->writeEndElement();
 
-            if (updateIterations[i].getClustersToBeAdded()->points.size() > 0)
+            if (updateIterations[i].clustersToBeAddedLoaded && updateIterations[i].getClustersToBeAdded()->points.size() > 0)
             {
                 xmlWriter->writeStartElement("ClustersToBeAdded");
                 {
@@ -228,7 +228,7 @@ public:
                 xmlWriter->writeEndElement();
             }
 
-            if (updateIterations[i].getClustersToBeRemoved()->points.size() > 0)
+            if (updateIterations[i].clustersToBeRemovedLoaded && updateIterations[i].getClustersToBeRemoved()->points.size() > 0)
             {
                 xmlWriter->writeStartElement("ClustersToBeRemoved");
                 {

@@ -21,9 +21,7 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include "tf/tf.h"
 
-#include <cloud_register.h>
-#include <ndtRegistration.h>
-
+#include "ndtRegistration.h"
 #include "roombase.h"
 #include "room.h"
 #include "constants.h"
@@ -217,10 +215,6 @@ public:
 
 private:
 
-
-
-
-
     std::vector<MetaRoomUpdateIteration>                                m_MetaRoomUpdateIterations;
     pcl::ModelCoefficients::Ptr                                         m_MetaRoomCeilingPrimitive;
     bool                                                                m_MetaRoomCeilingPrimitiveDirection;
@@ -234,11 +228,13 @@ private:
     std::string                                                         m_ConsistencyUpdateCloudFilename;
     bool                                                                m_ConsistencyUpdateCloudLoaded;
     bool                                                                m_bSaveIntermediateSteps;
+    bool                                                                m_bUpdateMetaroom;
 
 public:
 
 
-    MetaRoom(bool saveIntermediateSteps=true) : RoomBase<PointType>(), m_SensorOrigin(0.0,0.0,0.0), m_ConsistencyUpdateCloud(new Cloud()), m_bSaveIntermediateSteps(saveIntermediateSteps)
+    MetaRoom(bool saveIntermediateSteps=true) : RoomBase<PointType>(), m_SensorOrigin(0.0,0.0,0.0), m_ConsistencyUpdateCloud(new Cloud()), m_bSaveIntermediateSteps(saveIntermediateSteps),
+        m_bUpdateMetaroom(true)
     {
         m_MetaRoomCeilingPrimitive = pcl::ModelCoefficients::Ptr(new (pcl::ModelCoefficients));
         m_MetaRoomCeilingPrimitive->values = std::vector<float>(4,0.0); // initialize with 0
@@ -253,6 +249,11 @@ public:
     ~MetaRoom()
     {
 
+    }
+
+    void setUpdateMetaroom(bool updateMetaroom)
+    {
+        m_bUpdateMetaroom = updateMetaroom;
     }
 
     void resetMetaRoom()
@@ -404,7 +405,7 @@ public:
         this->m_SensorOrigin = so;
     }
 
-    bool    updateMetaRoom(SemanticRoom<PointType> aRoom)
+    bool    updateMetaRoom(SemanticRoom<PointType>& aRoom)
     {
         // check if meta room is initialized
         if (!this->m_CompleteRoomCloudLoaded && this->m_CompleteRoomCloudFilename == "")
@@ -420,12 +421,13 @@ public:
             std::vector<tf::StampedTransform> roomTransforms = aRoom.getIntermediateCloudTransforms();
             if (roomTransforms.size() == 0)
             {
-                ROS_INFO_STREAM("No intermediate transforms saved. Cannot set sensor origin -> cannot initialize metaroom.");
-                return false;
-            }
+                ROS_INFO_STREAM("No intermediate transforms saved. Sensor origin will be set as the origin");
+                this->m_SensorOrigin = tf::Vector3(0.0,0.0,0.0);
+            } else {
 
-            tf::StampedTransform middleTransform = roomTransforms[(int)floor(roomTransforms.size()/2)];
-            this->m_SensorOrigin = middleTransform.getOrigin();
+                tf::StampedTransform middleTransform = roomTransforms[(int)floor(roomTransforms.size()/2)];
+                this->m_SensorOrigin = middleTransform.getOrigin();
+            }
             // filter down metaroom point cloud
             CloudPtr cloud_filtered = MetaRoom<PointType>::downsampleCloud(this->getCompleteRoomCloud()->makeShared());
 
@@ -484,6 +486,12 @@ public:
 
         }
 
+        if (!m_bUpdateMetaroom)
+        {
+            // stop here, don't update the metaroom with the room observation
+            return true;
+        }
+
         // compute differences between the two (aligned) points clouds
         {
             CloudPtr differenceMetaRoomToRoom(new Cloud);
@@ -525,8 +533,8 @@ public:
             sor.filter (*differenceMetaRoomToRoomFiltered);
 
             // Cluster objects
-            std::vector<CloudPtr> vDifferenceMetaRoomToRoomClusters = this->clusterPointCloud(differenceMetaRoomToRoomFiltered,0.04,500,100000);
-            std::vector<CloudPtr> vDifferenceRoomToMetaRoomClusters = this->clusterPointCloud(differenceRoomToMetaRoomFiltered,0.04,500,100000);
+            std::vector<CloudPtr> vDifferenceMetaRoomToRoomClusters = this->clusterPointCloud(differenceMetaRoomToRoomFiltered,0.05,65,100000);
+            std::vector<CloudPtr> vDifferenceRoomToMetaRoomClusters = this->clusterPointCloud(differenceRoomToMetaRoomFiltered,0.05,65,100000);
 
 
             // filter clusters based on distance
@@ -569,15 +577,18 @@ public:
 
             if (m_bSaveIntermediateSteps)
             {
-                MetaRoomUpdateIteration updateIteration;
-                updateIteration.roomLogName = aRoom.getRoomLogName();
-                updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
-                updateIteration.setDifferenceMetaRoomToRoom(differenceMetaRoomToRoomFiltered);
-                updateIteration.setDifferenceRoomToMetaRoom(differenceRoomToMetaRoomFiltered);
-                updateIteration.setClustersToBeAdded(cloudToBeAdded);
-                updateIteration.setClustersToBeRemoved(allClusters);
-                updateIteration.setMetaRoomInteriorCloud(updatedMetaRoomCloud);
-                m_MetaRoomUpdateIterations.push_back(updateIteration);
+                if ((differenceMetaRoomToRoomFiltered->points.size()!=0) && (differenceRoomToMetaRoomFiltered->points.size() != 0))
+                {
+                    MetaRoomUpdateIteration updateIteration;
+                    updateIteration.roomLogName = aRoom.getRoomLogName();
+                    updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
+                    updateIteration.setDifferenceMetaRoomToRoom(differenceMetaRoomToRoomFiltered);
+                    updateIteration.setDifferenceRoomToMetaRoom(differenceRoomToMetaRoomFiltered);
+                    updateIteration.setClustersToBeAdded(cloudToBeAdded);
+                    updateIteration.setClustersToBeRemoved(allClusters);
+                    updateIteration.setMetaRoomInteriorCloud(updatedMetaRoomCloud);
+                    m_MetaRoomUpdateIterations.push_back(updateIteration);
+                }
             }
 
         }
@@ -639,7 +650,7 @@ public:
         }
     }
 
-    static CloudPtr downsampleCloud(CloudPtr input)
+    static CloudPtr downsampleCloud(CloudPtr input, double leafSize = 0.01f)
     {
         ROS_INFO_STREAM("PointCloud before filtering has: " << input->points.size () << " data points.");
 
@@ -647,7 +658,7 @@ public:
         pcl::VoxelGrid<PointType> vg;
         CloudPtr cloud_filtered (new Cloud);
         vg.setInputCloud (input);
-        vg.setLeafSize (0.01f, 0.01f, 0.01f);
+        vg.setLeafSize (leafSize, leafSize, leafSize);
         vg.filter (*cloud_filtered);
         ROS_INFO_STREAM("PointCloud after filtering has: " << cloud_filtered->points.size ()  << " data points.");
 

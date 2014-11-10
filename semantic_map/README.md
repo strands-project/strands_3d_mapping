@@ -5,8 +5,9 @@ Package for building local metric maps
 
 Make sure you have Qt installed on the robot by getting the rqt packages:
 ```bash
-sudo apt-get install  ros-hydro-qt-ros
-sudo apt-get install  ros-hydro-rqt
+sudo apt-get install ros-hydro-qt-ros
+sudo apt-get install ros-hydro-rqt
+sudo apt-get install ros-hydro-qt-build
 ```
 
 # Description 
@@ -19,13 +20,7 @@ Some data is stored on the disk, in the folder
 ~.semanticMap/ 
 ```
 
-This contains room observations (with or without individual point clouds) and meta-room information, each with a corresponding xml file. Whenever a new observation is available, the appropriate meta-room is loaded and updated. A statistical analyzer checks a set of previous observations for data which has been removed from the meta-room by mistake due to misalignment errors. The system is based on the assumption that the robots conducts patrol runs, and the patrol run number (or name) is used to keep track of room observations. The semantic map node reads this parameter from the parameter server under:
-
-``` bash
-/log_run_name
-```
-
-```TODO:``` add a component that automatically deduces the run number based on the number of observations available of the same place, thus eliminating the need for this parameter.
+This contains room observations (with or without individual point clouds) and meta-room information, each with a corresponding xml file. Whenever a new observation is available, the appropriate meta-room is loaded and updated. A statistical analyzer checks a set of previous observations for data which has been removed from the meta-room by mistake due to misalignment errors. The system is based on the assumption that the robots conducts patrol runs, and the patrol run number (or name) is used to keep track of room observations, which are stored inside the corresponding patrol folders. Both the patrol number and the observation ID are computed automatically. 
 
 Data is published on the following topics:
 
@@ -45,8 +40,14 @@ roslaunch cloud_merge cloud_merge.launch
 ```
 
 Launch parameters:
-* save_intermediate (yes/no)- whether to save the intermediate point clouds to disk; default no
-* cleanup (yes/no) - whether to remove previously saved data; default yes
+* save_intermediate (true/false)- whether to save the intermediate point clouds to disk; default false
+* cleanup (true/false) - whether to remove previously saved data; default false
+* generate_pointclouds (true/false) - generate point clouds from RGBD images or use the point clouds produced by the camera driver directly; default true
+* max_instances (int) - how many instances of each observation to keep stored on disk; default 5
+* input_cloud - name of the topic for the RGBD input point clouds (this is used when generate_pointclouds is false); default /depth_registered/points
+* input_rgb - name of the topic for the RGB image (this is used when generate_pointclouds is true); default /head_xtion/rgb/image_color
+* input_depth - name of the topic for the depth image (this is used when generate_pointclouds is true); default /head_xtion/depth_registered/image_rect 
+* input_caminfo - name of the topic for the camera parameters (this is used when generate_pointclouds is true); default /head_xtion/rgb/camera_info
 
 ```bash
 roslaunch semantic_map semantic_map.launch
@@ -64,5 +65,3 @@ Add a pan tilt sweep as a task
 ```bash
 rosrun semantic_map metric_map_task_client.py
 ```
-
-If doing multiple patrol runs and reobserving the same area, set the parameter ```/log_run_name``` to some value, ideally ```patrol_run_#```; the default is ```patrol_run_1```. This is used to sort the stored data.
