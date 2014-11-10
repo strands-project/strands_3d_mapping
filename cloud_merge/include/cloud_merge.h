@@ -32,6 +32,7 @@ public:
     typedef typename Cloud::iterator CloudIterator;
 
 private:
+
     CloudPtr                                            m_IntermediateCloud;
     CloudPtr                                            m_MergedCloud;
     double                                              m_dMaximumPointDistance;
@@ -89,34 +90,160 @@ public:
     {
         Cloud subsampled_cloud;
 
-	if (!m_IntermediateCloud != 0)
-	{
-		return;
-	}
+	/*
+        if (m_IntermediateCloud == 0)
+        {
+            return m_IntermediateCloud;
+        }
+	*/
 
         if (m_IntermediateCloud->points.size() != 0) // only process the intermediate point cloud if we are using it
         {
-//            ROS_INFO_STREAM("Subsampling intermediate cloud");
-//            noise_approximate_voxel_grid sor(3, 1);
-//            sor.setInputCloud(m_IntermediateCloud);
-//            sor.setLeafSize(0.01f, 0.01f, 0.01f);
-//            sor.filter(subsampled_cloud);
+            return subsampleIntermediateCloudFromPointClouds();
+        } else {
+            return subsampleIntermediateCloudFromImages();
+        }
+
+    }
+
+    void transformIntermediateCloud(const tf::Transform& transform, const std::string& new_frame = "")
+    {
+        Cloud transformed_cloud;
+        pcl_ros::transformPointCloud(*m_IntermediateCloud, transformed_cloud,transform);
+        m_IntermediateCloud->clear();
+        *m_IntermediateCloud += transformed_cloud;
+        if (new_frame != "")
+        {
+            m_IntermediateCloud->header.frame_id=new_frame;
+        }
+    }
+
+    CloudPtr getIntermediateCloud()
+    {
+        return m_IntermediateCloud;
+    }
+
+    CloudPtr subsampleMergedCloud(double x, double y, double z)
+    {
+        Cloud subsampled_cloud;
+
+        m_MergedCloud = CloudMerge<PointType>::filterPointCloud(m_MergedCloud, m_dMaximumPointDistance); // distance filtering, remove outliers and nans
+
+        pcl::VoxelGrid<PointType> vg;
+        vg.setInputCloud (m_MergedCloud);
+        vg.setLeafSize (x,y,z);
+        vg.filter (subsampled_cloud);
+
+        m_MergedCloud->clear();
+
+        *m_MergedCloud+=subsampled_cloud;
+
+        ROS_INFO_STREAM("Room observation now has "<<m_MergedCloud->points.size()<<" points");
+
+        return m_MergedCloud;
+    }
+
+    CloudPtr getMergedCloud()
+    {
+        return m_MergedCloud;
+    }
+
+    void transformMergedCloud(const tf::Transform& transform, const std::string& new_frame = "")
+    {
+        Cloud transformed_cloud;
+        pcl_ros::transformPointCloud(*m_MergedCloud, transformed_cloud,transform);
+        m_MergedCloud->clear();
+        *m_MergedCloud+=transformed_cloud;
+        if (new_frame != "")
+        {
+            m_MergedCloud->header.frame_id=new_frame;
+        }
+    }
+
+    static CloudPtr filterPointCloud(CloudPtr input, const double& distance) // distance filtering from the centroid of the point cloud, remove outliers and nans
+    {
+        pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+
+        Eigen::Vector4f centroid;
+        pcl::compute3DCentroid(*input, centroid);
+
+
+        int vector_size = input->points.size();
+        for (size_t i=0; i<vector_size; i++)
+        {
+            Eigen::Vector4f point(input->points[i].x,input->points[i].y,input->points[i].z,0.0);
+            double dist_from_centroid = pcl::distances::l2(centroid,point);
+
+            if (fabs(dist_from_centroid) > distance)
+            {
+                inliers->indices.push_back(i);
+            }
+        }
+
+        // filter points based on indices
+        pcl::ExtractIndices<PointType> extract;
+        extract.setInputCloud (input);
+        extract.setIndices (inliers);
+        extract.setNegative (true);
+
+        CloudPtr filtered_cloud(new Cloud);
+        extract.filter (*filtered_cloud);
+
+        *input = *filtered_cloud;
+
+        return input;
+    }
+
+    void resetIntermediateCloud()
+    {
+        m_IntermediateCloud = CloudPtr(new Cloud());
+    }
+
+    void resetMergedCloud()
+    {
+        m_MergedCloud = CloudPtr(new Cloud());
+    }
+
+private:
+    CloudPtr subsampleIntermediateCloudFromPointClouds()
+    {
+        // Point clouds are added to m_IntermediateCloud when the camera stops at one position during the sweep
+        Cloud subsampled_cloud;
+        if (m_IntermediateCloud->points.size() != 0)
+        {
+            //            ROS_INFO_STREAM("Subsampling intermediate cloud");
+            //            noise_approximate_voxel_grid sor(3, 1);
+            //            sor.setInputCloud(m_IntermediateCloud);
+            //            sor.setLeafSize(0.01f, 0.01f, 0.01f);
+            //            sor.filter(subsampled_cloud);
 
             pcl::VoxelGrid<PointType> vg;
             vg.setInputCloud (m_IntermediateCloud);
             vg.setLeafSize (0.005f, 0.005f, 0.005f);
             vg.filter (subsampled_cloud);
 
-
             m_IntermediateCloud->clear();
         }
 
-        if (m_IntermediateDepthImages.size() != 0) // otherwise use the raw images
+        m_IntermediateCloud->header = subsampled_cloud.header;
+        m_IntermediateCloud->height = subsampled_cloud.height;
+        m_IntermediateCloud->width  = subsampled_cloud.width;
+        m_IntermediateCloud->is_dense = subsampled_cloud.is_dense;
+        *m_IntermediateCloud+=subsampled_cloud;
+
+        return m_IntermediateCloud;
+    }
+
+    CloudPtr subsampleIntermediateCloudFromImages()
+    {
+        // Images are added m_IntermediateDepthImages and m_IntermediateRGBImages when the camera stops at one position during the sweep
+        Cloud subsampled_cloud;
+        if (m_IntermediateDepthImages.size() != 0)
         {
             // convert images into point cloud
-            subsampled_cloud.header = pcl_conversions::toPCL(m_IntermediateDepthImages[0]->header);
-            subsampled_cloud.height = m_IntermediateDepthImages[0]->height;
-            subsampled_cloud.width  = m_IntermediateDepthImages[0]->width;
+            subsampled_cloud.header = pcl_conversions::toPCL(m_IntermediateDepthImages.back()->header);
+            subsampled_cloud.height = m_IntermediateDepthImages.back()->height;
+            subsampled_cloud.width  = m_IntermediateDepthImages.back()->width;
             subsampled_cloud.is_dense = false;
             subsampled_cloud.points.resize(subsampled_cloud.height * subsampled_cloud.width);
 
@@ -246,7 +373,6 @@ public:
             m_IntermediateDepthImages.clear();
             m_IntermediateRGBImages.clear();
             m_IntermediateCameraInfo.clear();
-
         }
 
         m_IntermediateCloud->header = subsampled_cloud.header;
@@ -258,105 +384,6 @@ public:
 
         return m_IntermediateCloud;
     }
-
-    void transformIntermediateCloud(const tf::Transform& transform, const std::string& new_frame = "")
-    {
-        Cloud transformed_cloud;
-        pcl_ros::transformPointCloud(*m_IntermediateCloud, transformed_cloud,transform);
-        m_IntermediateCloud->clear();
-        *m_IntermediateCloud += transformed_cloud;
-        if (new_frame != "")
-        {
-            m_IntermediateCloud->header.frame_id=new_frame;
-        }
-    }
-
-    CloudPtr getIntermediateCloud()
-    {
-        return m_IntermediateCloud;
-    }
-
-    CloudPtr subsampleMergedCloud(double x, double y, double z)
-    {
-        Cloud subsampled_cloud;
-
-        m_MergedCloud = CloudMerge<PointType>::filterPointCloud(m_MergedCloud, m_dMaximumPointDistance); // distance filtering, remove outliers and nans
-
-        pcl::VoxelGrid<PointType> vg;
-        vg.setInputCloud (m_MergedCloud);
-        vg.setLeafSize (x,y,z);
-        vg.filter (subsampled_cloud);
-
-        m_MergedCloud->clear();
-
-        *m_MergedCloud+=subsampled_cloud;
-
-        ROS_INFO_STREAM("Room observation now has "<<m_MergedCloud->points.size()<<" points");
-
-        return m_MergedCloud;
-    }
-
-    CloudPtr getMergedCloud()
-    {
-        return m_MergedCloud;
-    }
-
-    void transformMergedCloud(const tf::Transform& transform, const std::string& new_frame = "")
-    {
-        Cloud transformed_cloud;
-        pcl_ros::transformPointCloud(*m_MergedCloud, transformed_cloud,transform);
-        m_MergedCloud->clear();
-        *m_MergedCloud+=transformed_cloud;
-        if (new_frame != "")
-        {
-            m_MergedCloud->header.frame_id=new_frame;
-        }
-    }
-
-    static CloudPtr filterPointCloud(CloudPtr input, const double& distance) // distance filtering from the centroid of the point cloud, remove outliers and nans
-    {
-        pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-
-        Eigen::Vector4f centroid;
-        pcl::compute3DCentroid(*input, centroid);
-
-
-        int vector_size = input->points.size();
-        for (size_t i=0; i<vector_size; i++)
-        {
-            Eigen::Vector4f point(input->points[i].x,input->points[i].y,input->points[i].z,0.0);
-            double dist_from_centroid = pcl::distances::l2(centroid,point);
-
-            if (fabs(dist_from_centroid) > distance)
-            {
-                inliers->indices.push_back(i);
-            }
-        }
-
-        // filter points based on indices
-        pcl::ExtractIndices<PointType> extract;
-        extract.setInputCloud (input);
-        extract.setIndices (inliers);
-        extract.setNegative (true);
-
-        CloudPtr filtered_cloud(new Cloud);
-        extract.filter (*filtered_cloud);
-
-        *input = *filtered_cloud;
-
-        return input;
-    }
-
-    void resetIntermediateCloud()
-    {
-        m_IntermediateCloud = CloudPtr(new Cloud());
-    }
-
-    void resetMergedCloud()
-    {
-        m_MergedCloud = CloudPtr(new Cloud());
-    }
-
 };
 
 
