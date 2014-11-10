@@ -54,3 +54,14 @@ add_executable(load_multiple_files src/loadMultipleFilesMain.cpp)
    metaroomXMLparser
  )
 
+############################# INSTALL TARGETS
+
+install(TARGETS metaroomXMLparser  load_single_file load_multiple_files
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY include/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
