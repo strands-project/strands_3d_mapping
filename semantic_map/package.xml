@@ -21,6 +21,8 @@
   <build_depend>qt_ros</build_depend>
   <build_depend>mongodb_store</build_depend>
   <build_depend>libpcl-all-dev</build_depend>
+  <build_depend>image_geometry</build_depend>
+
 
   <run_depend>rospy</run_depend>
   <run_depend>roscpp</run_depend>
