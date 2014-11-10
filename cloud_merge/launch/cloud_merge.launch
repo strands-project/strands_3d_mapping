@@ -23,7 +23,7 @@
 	<param name="max_instances"    	 type="int" value="$(arg max_instances)"/>
 	<param name="cache_old_data"	type="bool" value="$(arg cache_old_data)"/>
 	
-	<param name="input_cloud"  		 value="$(arg input_cloud)"/>
+<!--	<param name="input_cloud"  		 value="$(arg input_cloud)"/> -->
 	<param name="input_rgb"  		 value="$(arg input_rgb)"/>
 	<param name="input_depth"  		 value="$(arg input_depth)"/>
 	<param name="input_caminfo"  		 value="$(arg input_caminfo)"/>
