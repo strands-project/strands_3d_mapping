@@ -4,7 +4,7 @@
   <version>0.0.0</version>
   <description>The ekz_public_lib package</description>
   <maintainer email="ekz@kth.se">Johan Ekekrantz</maintainer>
-  <license>BSD</license>
+  <license>MIT</license>
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>cv_bridge</build_depend>
   <build_depend>libg2o</build_depend>
@@ -16,7 +16,6 @@
   <build_depend>sensor_msgs</build_depend>
   <build_depend>std_msgs</build_depend>
   <run_depend>cv_bridge</run_depend>
-  <run_depend>libg2o</run_depend>
   <run_depend>opencv2</run_depend>
   <run_depend>libpcl-all</run_depend>
   <run_depend>pcl_ros</run_depend>
