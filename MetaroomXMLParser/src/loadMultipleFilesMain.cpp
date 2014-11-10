@@ -9,8 +9,18 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
-    SimpleSummaryParser<PointType> summary_parser("/home/cvapdemo/Data/index.xml");
-    summary_parser.createSummaryXML("/home/cvapdemo/Data/");
+
+    if (argc < 2)
+    {
+        cout<<"Please provide folder as input."<<endl;
+        return -1;
+    }
+
+    string folderPath = argv[1];
+    string summaryXMLPath = folderPath + "/index.xml";
+
+    SimpleSummaryParser<PointType> summary_parser(summaryXMLPath);
+    summary_parser.createSummaryXML(folderPath);
 
     SimpleXMLParser<PointType> simple_parser;
     SimpleXMLParser<PointType>::RoomData roomData;
