@@ -160,6 +160,7 @@ Summary:
 	Example for registering data provided in .png files sequentially using a Map3D object using ORB features and AICK with bag of words.
 Input:
 	a path to a folder where png files with the correct names are located
+	a path+fileprefix to a folder where a pre trained bag of words model is located
 Output:
 	.pcd file of aligned data
 USAGE:
@@ -167,7 +168,7 @@ USAGE:
 
 ====================example_bow_images.cpp====================
 Summary:
-	Example for training a bag of words model fro data provided in .png files using a Map3Dbow.
+	Example for training a bag of words model for data provided in .png files using a Map3Dbow.
 Input:
 	a path to a folder where png files with the correct names are located, a path/name for output, number of files to read and a number to controll how what part of the frames given will be used.
 Output:

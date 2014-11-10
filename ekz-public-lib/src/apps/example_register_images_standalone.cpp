@@ -19,12 +19,12 @@ int main(int argc, char **argv){
 	FeatureExtractor *  fe = new SurfExtractor();
 
 	vector< RGBDFrame * > frames;
-	for(int i = 5; i < 100; i+=5){
+	for(int i = 25; i <= 95; i+=5){
 		printf("adding a new frame\n");
 		char rgbbuf[512];
 		char depthbuf[512];
-		sprintf(rgbbuf,"%s/RGB%.10i.png",input.c_str(),i+1);
-		sprintf(depthbuf,"%s/Depth%.10i.png",input.c_str(),i+1);
+		sprintf(rgbbuf,"%s/RGB%.10i.png",input.c_str(),i);
+		sprintf(depthbuf,"%s/Depth%.10i.png",input.c_str(),i);
 		FrameInput * fi = new FrameInput(cal, string(rgbbuf) , string(depthbuf));
 		frames.push_back(new RGBDFrame(fi,fe,seg));
 	}
