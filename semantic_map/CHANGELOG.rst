@@ -2,6 +2,13 @@
 Changelog for package semantic_map
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Merge remote-tracking branch 'upstream/hydro-devel' into hydro-devel
+* Fixed some dependencies
+* Removing ftp_upload info
+* Contributors: Rares Ambrus
+
 0.0.1 (2014-11-11)
 ------------------
 * removed launching of the ftp upload action server

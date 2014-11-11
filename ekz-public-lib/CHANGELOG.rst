@@ -2,6 +2,9 @@
 Changelog for package ekz_public_lib
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.0.1 (2014-11-11)
 ------------------
 * keeping upstream package.xml
