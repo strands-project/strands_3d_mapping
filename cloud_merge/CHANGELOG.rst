@@ -2,6 +2,12 @@
 Changelog for package cloud_merge
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.0.3 (2014-11-11)
+------------------
+
+0.0.2 (2014-11-11)
+------------------
+
 0.0.1 (2014-11-11)
 ------------------
 * Removed ability to process input point clouds. Using images to generate the point clouds

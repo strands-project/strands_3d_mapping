@@ -2,6 +2,12 @@
 Changelog for package scitos_ptu_sweep
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.0.3 (2014-11-11)
+------------------
+
+0.0.2 (2014-11-11)
+------------------
+
 0.0.1 (2014-11-11)
 ------------------
 * Merge pull request `#46 <https://github.com/strands-project/strands_3d_mapping/issues/46>`_ from Jailander/hydro-devel

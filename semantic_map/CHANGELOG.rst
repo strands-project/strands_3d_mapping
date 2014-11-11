@@ -2,6 +2,18 @@
 Changelog for package semantic_map
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.0.3 (2014-11-11)
+------------------
+* removed deprecated call to setInputCloud
+* Contributors: Rares Ambrus
+
+0.0.2 (2014-11-11)
+------------------
+* Merge remote-tracking branch 'upstream/hydro-devel' into hydro-devel
+* Fixed some dependencies
+* Removing ftp_upload info
+* Contributors: Rares Ambrus
+
 0.0.1 (2014-11-11)
 ------------------
 * removed launching of the ftp upload action server
