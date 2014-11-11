@@ -22,11 +22,11 @@ if __name__ == '__main__':
     try:
 
         task = Task(start_node_id=sys.argv[1], action='ftp_upload')
-        ftp_server = '130.237.218.61'
-        username = 'guest_data'
-        password = 'guest'
-        remote_path = 'pools/A/A0/Guest'
-        remote_folder = 'G4S'
+        ftp_server = 
+        username = 
+        password = 
+        remote_path = 
+        remote_folder = 
         cachePath = expanduser("~") + '/.semanticMap/cache'
 
         task_utils.add_string_argument(task, ftp_server) # FTP server address

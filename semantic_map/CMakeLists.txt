@@ -103,5 +103,3 @@ install(DIRECTORY launch/
 )
 
 
-# TODO add messages and scripts
-

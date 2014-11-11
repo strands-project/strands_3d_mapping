@@ -22,6 +22,7 @@
   <build_depend>mongodb_store</build_depend>
   <build_depend>libpcl-all-dev</build_depend>
   <build_depend>image_geometry</build_depend>
+  <build_depend>pcl_ros</build_depend>
 
 
   <run_depend>rospy</run_depend>
@@ -33,6 +34,7 @@
   <run_depend>qt_ros</run_depend>
   <run_depend>mongodb_store</run_depend>
   <run_depend>libpcl-all</run_depend>
+  <run_depend>pcl_ros</run_depend>
 
   <export>
   </export>
