@@ -4,7 +4,7 @@ project(metaroom_xml_parser)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs qt_build image_geometry)
+find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs qt_build image_geometry tf)
 
 set(CMAKE_CXX_FLAGS "-O4 -g -fPIC -std=c++0x -fpermissive")
 
