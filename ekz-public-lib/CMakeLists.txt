@@ -30,20 +30,20 @@ include_directories(/opt/ros/hydro/include/opencv2)
 #include_directories(/opt/ros/groovy/include)
 #include_directories(/opt/ros/groovy/include/opencv)
 #include_directories(/opt/ros/groovy/include/opencv2)
-
-include_directories(src)
+#include_directories(include)
+include_directories(include)
 #include_directories(src/apps)
-include_directories(src/FeatureDescriptor)
-include_directories(src/mygeometry)
-include_directories(src/FeatureExtractor)
-include_directories(src/RGBDSegmentation)
-include_directories(src/core)
-#include_directories(src/graphcutting)
-#include_directories(src/graph)
-include_directories(src/TransformationFilter)
-include_directories(src/FrameMatcher)
-include_directories(src/Map)
-#include_directories(src/g2otypes)
+include_directories(include/FeatureDescriptor)
+include_directories(include/mygeometry)
+include_directories(include/FeatureExtractor)
+include_directories(include/RGBDSegmentation)
+include_directories(include/core)
+#include_directories(include/graphcutting)
+#include_directories(include/graph)
+include_directories(include/TransformationFilter)
+include_directories(include/FrameMatcher)
+include_directories(include/Map)
+#include_directories(include/g2otypes)
 
 ####################################################
 ##################### BUILD LIBS ###################
@@ -130,6 +130,16 @@ catkin_package(
    LIBRARIES frameinput_ekzpublic FeatureDescriptor_ekzpublic FrameMatcher_ekzpublic TransformationFilter_ekzpublic core_ekzpublic map3d_ekzpublic RGBDSegmentation_ekzpublic FeatureExtractor_ekzpublic FeatureDescriptor_ekzpublic mygeometry_ekzpublic 
    CATKIN_DEPENDS 
    DEPENDS OpenCV PCL 
+)
+
+install(TARGETS frameinput_ekzpublic FeatureDescriptor_ekzpublic FrameMatcher_ekzpublic TransformationFilter_ekzpublic core_ekzpublic map3d_ekzpublic RGBDSegmentation_ekzpublic FeatureExtractor_ekzpublic FeatureDescriptor_ekzpublic mygeometry_ekzpublic example_bow_images example_register_images_map example_register_images_standalone example_register_pcd_map example_register_pcd_standalone example_register_images_fast_map pcd_recorder image_recorder
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY include/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 
 

@@ -25,14 +25,14 @@ int main(int argc, char **argv){
 	m->setMatcher(new BowAICK(max_points, nr_iter,shrinking,bow_threshold,distance_threshold,feature_threshold));//Create a new matcher
 
 	vector< RGBDFrame * > frames;
-	for(int i = 2; i < 100; i+=2){
+	for(int i = 25; i <= 95; i+=5){
 		printf("----------------------%i-------------------\nadding a new frame\n",i);
 		
 		//Get paths to image files
 		char rgbbuf[512];
 		char depthbuf[512];
-		sprintf(rgbbuf,"%s/RGB%.10i.png",input.c_str(),i+1);
-		sprintf(depthbuf,"%s/Depth%.10i.png",input.c_str(),i+1);
+		sprintf(rgbbuf,"%s/RGB%.10i.png",input.c_str(),i);
+		sprintf(depthbuf,"%s/Depth%.10i.png",input.c_str(),i);
 
 		//Add frame to map
 		m->addFrame(string(rgbbuf) , string(depthbuf));

@@ -13,14 +13,14 @@ int main(int argc, char **argv){
 	m->setVerbose(true);				//Set the map to give text output
 
 	vector< RGBDFrame * > frames;
-	for(int i = step; i < nr_files; i+=step){
+	for(int i = step; i <= nr_files; i+=step){
 		printf("adding a new frame\n");
 		
 		//Get paths to image files
 		char rgbbuf[512];
 		char depthbuf[512];
-		sprintf(rgbbuf,"%s/RGB%.10i.png",input.c_str(),i+1);
-		sprintf(depthbuf,"%s/Depth%.10i.png",input.c_str(),i+1);
+		sprintf(rgbbuf,"%s/RGB%.10i.png",input.c_str(),i);
+		sprintf(depthbuf,"%s/Depth%.10i.png",input.c_str(),i);
 		
 		printf("%i \n",i);
 		//Add frame to map
