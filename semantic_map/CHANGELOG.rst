@@ -2,8 +2,8 @@
 Changelog for package semantic_map
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.3 (2014-11-11)
+------------------
 * removed deprecated call to setInputCloud
 * Contributors: Rares Ambrus
 

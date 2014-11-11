@@ -2,8 +2,8 @@
 Changelog for package metaroom_xml_parser
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.3 (2014-11-11)
+------------------
 * Merge pull request `#48 <https://github.com/strands-project/strands_3d_mapping/issues/48>`_ from RaresAmbrus/hydro-devel
   Removed deprecated function call
 * Added maintainer details
