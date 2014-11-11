@@ -2,8 +2,8 @@
 Changelog for package cloud_merge
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.1 (2014-11-11)
+------------------
 * Removed ability to process input point clouds. Using images to generate the point clouds
 * Logging intermediate data to the database disabled by default
 * Saving intermediate data enabled by default

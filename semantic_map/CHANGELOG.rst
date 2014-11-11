@@ -2,8 +2,8 @@
 Changelog for package semantic_map
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.1 (2014-11-11)
+------------------
 * removed launching of the ftp upload action server
 * removed launching of the ftp upload action server
 * Fixed method for detecting oldest rooms in the cache
