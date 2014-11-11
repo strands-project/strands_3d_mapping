@@ -1,7 +1,6 @@
 #ifndef __SIMPLE_XML_PARSER__H
 #define __SIMPLE_XML_PARSER__H
 
-#include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 
