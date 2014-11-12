@@ -26,7 +26,7 @@
 #include "room.h"
 #include "constants.h"
 #include "room_xml_parser.h"
-#include "occlusionChecker.h"
+#include "occlusion_checker.h"
 
 template <class PointType>
 class MetaRoom : public RoomBase<PointType> {
