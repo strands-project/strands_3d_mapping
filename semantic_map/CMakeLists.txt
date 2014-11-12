@@ -51,15 +51,15 @@ include_directories(include
 
 
 set(HDRS
-    include/constants.h
-    include/room.h
-    include/metaroom.h
-    include/roombase.h
-    include/roomXMLparser.h
-    include/metaroomXMLparser.h
-    include/semanticMapSummaryParser.h
-    include/occlusionChecker.h
-    include/ndtRegistration.h
+    include/semantic_map/constants.h
+    include/semantic_map/room.h
+    include/semantic_map/metaroom.h
+    include/semantic_map/roombase.h
+    include/semantic_map/roomXMLparser.h
+    include/semantic_map/metaroomXMLparser.h
+    include/semantic_map/semanticMapSummaryParser.h
+    include/semantic_map/occlusionChecker.h
+    include/semantic_map/ndtRegistration.h
 )
 
 set(SRCS
@@ -74,7 +74,7 @@ set(SRCS
 )
 
 add_library(semantic_map ${HDRS} ${SRCS})
-add_executable(semantic_map_node include/semantic_map_node.h src/semantic_map_node.cpp src/semantic_map_main.cpp)
+add_executable(semantic_map_node src/semantic_map_node.cpp src/semantic_map_main.cpp)
 
 add_dependencies(semantic_map primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
 add_dependencies(semantic_map_node primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
@@ -94,9 +94,10 @@ install(TARGETS semantic_map semantic_map_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(DIRECTORY include/
+install(DIRECTORY include/semantic_map/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
+
 
 install(DIRECTORY launch/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
