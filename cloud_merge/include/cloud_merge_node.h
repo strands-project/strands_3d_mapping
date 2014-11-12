@@ -35,7 +35,7 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 #include <semantic_map/room.h>
-#include <semantic_map/roomXMLparser.h>
+#include <semantic_map/room_xml_parser.h>
 #include <semantic_map/semanticMapSummaryParser.h>
 
 #include "cloud_merge.h"

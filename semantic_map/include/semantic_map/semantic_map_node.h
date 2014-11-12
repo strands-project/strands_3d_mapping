@@ -34,7 +34,7 @@
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 
-#include "roomXMLparser.h"
+#include "room_xml_parser.h"
 #include "metaroom_xml_parser.h"
 #include "semanticMapSummaryParser.h"
 

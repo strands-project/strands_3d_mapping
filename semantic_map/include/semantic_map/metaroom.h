@@ -25,7 +25,7 @@
 #include "roombase.h"
 #include "room.h"
 #include "constants.h"
-#include "roomXMLparser.h"
+#include "room_xml_parser.h"
 #include "occlusionChecker.h"
 
 template <class PointType>

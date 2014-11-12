@@ -55,7 +55,7 @@ set(HDRS
     include/semantic_map/room.h
     include/semantic_map/metaroom.h
     include/semantic_map/roombase.h
-    include/semantic_map/roomXMLparser.h
+    include/semantic_map/room_xml_parser.h
     include/semantic_map/metaroom_xml_parser.h
     include/semantic_map/semanticMapSummaryParser.h
     include/semantic_map/occlusionChecker.h
@@ -66,7 +66,7 @@ set(SRCS
     src/room.cpp
     src/metaroom.cpp
     src/roombase.cpp
-    src/roomXMLparser.cpp
+    src/room_xml_parser.cpp
     src/metaroom_xml_parser.cpp
     src/semanticMapSummaryParser.cpp
     src/occlusionChecker.cpp
