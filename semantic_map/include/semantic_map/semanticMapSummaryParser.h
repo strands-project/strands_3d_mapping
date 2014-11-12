@@ -14,7 +14,7 @@
 #include <QDir>
 #include <QXmlStreamWriter>
 
-#include <room.h>
+#include "room.h"
 #include "metaroom.h"
 #include "roomXMLparser.h"
 #include "metaroomXMLparser.h"
