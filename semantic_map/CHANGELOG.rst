@@ -15,8 +15,8 @@ Changelog for package semantic_map
 * Moved headers in the include/semantic_map folder
 * Contributors: Rares Ambrus
 
-Forthcoming
------------
+0.0.5 (2014-11-12)
+------------------
 * 0.0.4
 * updated changelogs
 * renaming
