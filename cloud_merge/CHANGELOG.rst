@@ -2,8 +2,8 @@
 Changelog for package cloud_merge
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.4 (2014-11-12)
+------------------
 * renaming
 * Changed filename
 * Changed cloud_merge include statement by prefixing it with the package_name

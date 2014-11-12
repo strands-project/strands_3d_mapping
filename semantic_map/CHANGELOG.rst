@@ -2,8 +2,8 @@
 Changelog for package semantic_map
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.4 (2014-11-12)
+------------------
 * renaming
 * renaming
 * Changed filename to ndt_registration.h
