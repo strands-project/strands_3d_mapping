@@ -59,7 +59,7 @@ set(HDRS
     include/semantic_map/metaroom_xml_parser.h
     include/semantic_map/semanticMapSummaryParser.h
     include/semantic_map/occlusionChecker.h
-    include/semantic_map/ndtRegistration.h
+    include/semantic_map/ndt_registration.h
 )
 
 set(SRCS
@@ -70,7 +70,7 @@ set(SRCS
     src/metaroom_xml_parser.cpp
     src/semanticMapSummaryParser.cpp
     src/occlusionChecker.cpp
-    src/ndtRegistration.cpp
+    src/ndt_registration.cpp
 )
 
 add_library(semantic_map ${HDRS} ${SRCS})
