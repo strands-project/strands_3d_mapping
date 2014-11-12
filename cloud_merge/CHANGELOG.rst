@@ -2,6 +2,13 @@
 Changelog for package cloud_merge
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* renaming
+* Changed filename
+* Changed cloud_merge include statement by prefixing it with the package_name
+* Contributors: Rares Ambrus
+
 0.0.3 (2014-11-11)
 ------------------
 
