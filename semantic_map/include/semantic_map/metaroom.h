@@ -21,12 +21,12 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include "tf/tf.h"
 
-#include "ndtRegistration.h"
+#include "ndt_registration.h"
 #include "roombase.h"
 #include "room.h"
 #include "constants.h"
-#include "roomXMLparser.h"
-#include "occlusionChecker.h"
+#include "room_xml_parser.h"
+#include "occlusion_checker.h"
 
 template <class PointType>
 class MetaRoom : public RoomBase<PointType> {

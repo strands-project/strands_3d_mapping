@@ -34,9 +34,9 @@
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 
-#include "roomXMLparser.h"
-#include "metaroomXMLparser.h"
-#include "semanticMapSummaryParser.h"
+#include "room_xml_parser.h"
+#include "metaroom_xml_parser.h"
+#include "semantic_map_summary_parser.h"
 
 template <class PointType>
 class SemanticMapNode {

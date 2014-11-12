@@ -34,10 +34,11 @@
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 
+#include <semantic_map/room.h>
+#include <semantic_map/room_xml_parser.h>
+#include <semantic_map/semantic_map_summary_parser.h>
+
 #include "cloud_merge.h"
-#include "room.h"
-#include "roomXMLparser.h"
-#include "semanticMapSummaryParser.h"
 
 template <class PointType>
 class CloudMergeNode {

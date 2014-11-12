@@ -14,10 +14,10 @@
 #include <QDir>
 #include <QXmlStreamWriter>
 
-#include <room.h>
+#include "room.h"
 #include "metaroom.h"
-#include "roomXMLparser.h"
-#include "metaroomXMLparser.h"
+#include "room_xml_parser.h"
+#include "metaroom_xml_parser.h"
 #include "constants.h"
 
 
