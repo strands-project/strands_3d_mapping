@@ -1,4 +1,4 @@
-#include "semantic_map_node.h"
+#include "semantic_map/semantic_map_node.h"
 
 int main(int argc, char **argv)
 {
