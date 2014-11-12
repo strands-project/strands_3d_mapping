@@ -36,7 +36,7 @@
 
 #include "room_xml_parser.h"
 #include "metaroom_xml_parser.h"
-#include "semanticMapSummaryParser.h"
+#include "semantic_map_summary_parser.h"
 
 template <class PointType>
 class SemanticMapNode {

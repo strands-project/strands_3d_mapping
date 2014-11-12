@@ -36,7 +36,7 @@
 
 #include <semantic_map/room.h>
 #include <semantic_map/room_xml_parser.h>
-#include <semantic_map/semanticMapSummaryParser.h>
+#include <semantic_map/semantic_map_summary_parser.h>
 
 #include "cloud_merge.h"
 
