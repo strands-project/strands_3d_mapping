@@ -5,6 +5,12 @@ Changelog for package ekz_public_lib
 0.0.4 (2014-11-12)
 ------------------
 
+Forthcoming
+-----------
+* 0.0.4
+* updated changelogs
+* Contributors: Jenkins
+
 0.0.3 (2014-11-11)
 ------------------
 

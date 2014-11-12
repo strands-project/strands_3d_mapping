@@ -15,6 +15,21 @@ Changelog for package semantic_map
 * Moved headers in the include/semantic_map folder
 * Contributors: Rares Ambrus
 
+Forthcoming
+-----------
+* 0.0.4
+* updated changelogs
+* renaming
+* renaming
+* Changed filename to ndt_registration.h
+* Changed filename
+* Changed filename
+* Changed include statement to reflect new header layout
+* Changed install rule to reflect new header layout
+* updated include paths in semantic_map to reflect the new include layout
+* Moved headers in the include/semantic_map folder
+* Contributors: Jenkins, Rares Ambrus
+
 0.0.3 (2014-11-11)
 ------------------
 * removed deprecated call to setInputCloud
