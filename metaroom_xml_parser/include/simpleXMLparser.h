@@ -172,7 +172,7 @@ public:
                         aRoom.vIntermediateRoomCloudCamParams.push_back(aCameraModel);
                         std::pair<cv::Mat,cv::Mat> rgbAndDepth = SimpleXMLParser<PointType>::createRGBandDepthFromPC(cloud);
                         aRoom.vIntermediateRGBImages.push_back(rgbAndDepth.first);
-                        aRoom.vIntermediateRGBImages.push_back(rgbAndDepth.second);
+                        aRoom.vIntermediateDepthImages.push_back(rgbAndDepth.second);
                     }
 
                 }
