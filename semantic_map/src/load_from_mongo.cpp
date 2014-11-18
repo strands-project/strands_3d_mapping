@@ -89,13 +89,13 @@ int main(int argc, char** argv)
             }
 
             // save intermediate and complete point clouds
-            QString room_name = "room_sweep_";
-//            QString room_name = aRoom.getRoomLogName() + "___" + QString::number((aRoom.getRoomRunNumber());
+//            QString room_name = "room_sweep_";
+            QString room_name = QString(aRoom.getRoomLogName().c_str()) + QString("___") + QString::number(aRoom.getRoomRunNumber());
 
             for (int j=0; j<aRoom.getIntermediateCloudTransforms().size();j++)
             {
-                stringstream ss;ss<<room_name.toStdString()<<i<<"___intermediate_cloud_"<<j;
-//                stringstream ss;ss<<room_name.toStdString()<<"___intermediate_cloud_"<<j;
+//                stringstream ss;ss<<room_name.toStdString()<<i<<"___intermediate_cloud_"<<j;
+                stringstream ss;ss<<room_name.toStdString()<<"___intermediate_cloud_"<<j;
                 sensor_msgs::PointCloud2 msg_cloud;
                 std::vector< boost::shared_ptr<sensor_msgs::PointCloud2> > results;
 
@@ -121,7 +121,7 @@ int main(int argc, char** argv)
 
             // complete cloud
             {
-                stringstream ss;ss<<room_name.toStdString()<<i<<"___complete_cloud";
+                stringstream ss;ss<<room_name.toStdString()<<"___complete_cloud";
                 sensor_msgs::PointCloud2 msg_cloud;
                 std::vector< boost::shared_ptr<sensor_msgs::PointCloud2> > results;
 
