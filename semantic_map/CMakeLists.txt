@@ -76,6 +76,8 @@ set(SRCS
 add_library(semantic_map ${HDRS} ${SRCS})
 add_executable(semantic_map_node src/semantic_map_node.cpp src/semantic_map_main.cpp)
 
+add_executable(load_from_mongo src/load_from_mongo.cpp)
+
 add_dependencies(semantic_map primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
 add_dependencies(semantic_map_node primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
 
@@ -86,9 +88,17 @@ add_dependencies(semantic_map_node primitive_extraction_generate_messages_cpp st
    ${Boost_LIBRARIES}
   )
 
+ target_link_libraries(load_from_mongo
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+   ${Boost_LIBRARIES}
+  )
+
+
 ############################# INSTALL TARGETS
 
-install(TARGETS semantic_map semantic_map_node 
+install(TARGETS semantic_map semantic_map_node load_from_mongo
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
