@@ -3,7 +3,7 @@
   <arg name="save_intermediate" default="true" />
   <arg name="log_to_db" default="false" />
   <arg name="cleanup" default="false" />
-  <arg name="cache_old_data" default="true" />
+  <arg name="cache_old_data" default="false" />
   <arg name="max_instances" default="2" />
   <arg name="update_metaroom" default="false" />
 
