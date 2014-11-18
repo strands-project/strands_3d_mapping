@@ -23,7 +23,9 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
-#include <semantic_map/RoomObservation.h>
+// QT
+#include <QFile>
+#include <QDir>
 
 // PCL includes
 #include <pcl_ros/point_cloud.h>
@@ -31,14 +33,18 @@
 #include <pcl_ros/transforms.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl_conversions/pcl_conversions.h>
-
 #include <boost/date_time/posix_time/posix_time.hpp>
 
+
+#include <semantic_map/RoomObservation.h>
 #include <semantic_map/room.h>
 #include <semantic_map/room_xml_parser.h>
 #include <semantic_map/semantic_map_summary_parser.h>
 
+
 #include "cloud_merge.h"
+#include "mongodb_interface.h"
+
 
 template <class PointType>
 class CloudMergeNode {
@@ -57,8 +63,8 @@ public:
     void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
     void imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg);
 
-    static void findSemanticRoomIDAndLogName(SemanticRoom<PointType>& aSemanticRoom, int& roomId, int& patrolNumber);
-    static void getRoomIDAndPatrolNumber(QString roomXmlFile, int& roomId, int& patrolNumber);
+    void findSemanticRoomIDAndLogName(SemanticRoom<PointType>& aSemanticRoom, int& roomId, int& patrolNumber);
+    void getRoomIDAndPatrolNumber(QString roomXmlFile, int& roomId, int& patrolNumber);
 
 
     ros::Subscriber                                                             m_SubscriberControl;
@@ -103,7 +109,8 @@ private:
     bool                                                                        m_bUseImages;
     bool                                                                        m_bSaveIntermediateData;
     int                                                                         m_MaxInstances;
-    mongodb_store::MessageStoreProxy                                           m_messageStore;
+    MongodbInterface                                                            m_MongodbInterface;
+
     bool                                                                        m_bLogToDB;
     bool                                                                        m_bCacheOldData;
     std::string                                                                 m_CurrentTopoNode;
@@ -114,7 +121,7 @@ private:
 };
 
 template <class PointType>
-CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListener(nh,ros::Duration(1000)), m_messageStore(nh)
+CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListener(nh,ros::Duration(1000)), m_MongodbInterface(nh)
 {
     ROS_INFO_STREAM("Cloud merge node initialized");
 
@@ -430,32 +437,9 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
             if (m_bLogToDB)
             {
-                std::vector<CloudPtr> intermediateClouds = aSemanticRoom.getIntermediateClouds();
-
-                for (size_t i=0; i<intermediateClouds.size(); i++)
-                {
-                    std::string cloudName = aSemanticRoom.getRoomLogName() + "/room_"+QString::number(aSemanticRoom.getRoomRunNumber()).toStdString()+"/intermediate_cloud_"+QString::number(i).toStdString();
-
-                    sensor_msgs::PointCloud2 msg_cloud;
-                    pcl::toROSMsg(*intermediateClouds[i], msg_cloud);
-                    msg_cloud.header = pcl_conversions::fromPCL(intermediateClouds[i]->header);
-
-                    std::string id(m_messageStore.insertNamed(cloudName, msg_cloud));
-                    ROS_INFO_STREAM("Point cloud \""<<cloudName<<"\" inserted with id "<<id);
-
-                }
+                m_MongodbInterface.logRoomToDB(aSemanticRoom,roomXMLPath);
             }
 
-//                std::vector< boost::shared_ptr<sensor_msgs::PointCloud2> > results;
-//                if(m_messageStore.queryNamed<sensor_msgs::PointCloud2>(cloudName, results)) {
-
-//                    BOOST_FOREACH( boost::shared_ptr<sensor_msgs::PointCloud2> p,  results)
-//                    {
-//                        CloudPtr databaseCloud(new Cloud());
-//                        pcl::fromROSMsg(*p,*databaseCloud);
-//                        ROS_INFO_STREAM("Got pointcloud by name. No points: " << databaseCloud->points.size());
-//                    }
-//                }
 
         } else {
             ROS_INFO_STREAM("Observation point cloud is empty, discarding it. This shouldn't happen, it could be a problem with the camera driver or images.");
@@ -516,8 +500,6 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform);
                 }
 
-
-
                 sensor_msgs::PointCloud2 msg_cloud;
                 pcl::toROSMsg(*transformed_cloud, msg_cloud);
 
@@ -565,6 +547,12 @@ void CloudMergeNode<PointType>::findSemanticRoomIDAndLogName(SemanticRoom<PointT
     summaryParser.createSummaryXML();
     summaryParser.refresh();
     std::vector<Entities> allRooms = summaryParser.getRooms();
+
+    if (m_bLogToDB)
+    {
+        std::vector<Entities> allMongoRooms = m_MongodbInterface.getMongodbRooms<PointType>();
+        allRooms.insert(allRooms.end(), allMongoRooms.begin(), allMongoRooms.end());
+    }
 
     int currentRoomID = -1;
     int highestRoomID = -1;
