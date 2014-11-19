@@ -26,6 +26,7 @@
 // QT
 #include <QFile>
 #include <QDir>
+#include <qtconcurrentrun.h>
 
 // PCL includes
 #include <pcl_ros/point_cloud.h>
@@ -437,7 +438,10 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
             if (m_bLogToDB)
             {
-                m_MongodbInterface.logRoomToDB(aSemanticRoom,roomXMLPath);
+
+                // log in separate thread
+                /*auto future = */QtConcurrent::run(m_MongodbInterface, &MongodbInterface::logRoomToDB<PointType>,aSemanticRoom,roomXMLPath);
+//                m_MongodbInterface.logRoomToDB(aSemanticRoom,roomXMLPath);
             }
 
 
@@ -485,10 +489,6 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                 m_TransformListener.lookupTransform("/map", transformed_cloud->header.frame_id,
                                                     temp_msg.header.stamp, transform);
 
-                m_CloudMerge.transformIntermediateCloud(transform,"/map");
-
-                transformed_cloud = m_CloudMerge.getIntermediateCloud();
-
                 // add intermediate cloud (local frame of ref) and transform to semantic room
                 int intCloudId;
                 if (m_CloudMerge.m_IntermediateFilteredDepthCamInfo)
@@ -500,8 +500,11 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform);
                 }
 
-                sensor_msgs::PointCloud2 msg_cloud;
-                pcl::toROSMsg(*transformed_cloud, msg_cloud);
+//                m_CloudMerge.transformIntermediateCloud(transform,"/map");
+//                transformed_cloud = m_CloudMerge.getIntermediateCloud();
+
+//                sensor_msgs::PointCloud2 msg_cloud;
+//                pcl::toROSMsg(*transformed_cloud, msg_cloud);
 
                 if (m_CloudMerge.m_IntermediateFilteredDepthImage)
                 {

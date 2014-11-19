@@ -1,11 +1,22 @@
 <launch>
 
   <arg name="save_intermediate" default="true" />
-  <arg name="log_to_db" default="false" />
+  <arg name="log_to_db" default="true" />
   <arg name="cleanup" default="false" />
   <arg name="cache_old_data" default="false" />
   <arg name="max_instances" default="2" />
   <arg name="update_metaroom" default="false" />
+
+  <arg name="machine" default="localhost" />
+  <arg name="user" default="" />
+
+  <arg name="sweep_ip" default="localhost" />
+  <arg name="sweep_user" default="" />
+
+  <arg name="mapping_ip" default="localhost" />
+  <arg name="mapping_user" default="" />
+
+  <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true" />
 
     
     <!-- The system merging the individual frames into a local map -->
@@ -16,14 +27,26 @@
         <arg name="cleanup" value="$(arg cleanup)"/>
         <arg name="cache_old_data" value="$(arg cache_old_data)"/>
         <arg name="max_instances" value="$(arg max_instances)"/>
-    
+  
+    	<arg name="machine" value="$(arg mapping_ip)"/>
+	<arg name="user" value="$(arg mapping_user)" />  
     </include>
 
     <!-- The system doing the analysis of static vs dynamic parts of the local maps -->
     
     <include file="$(find semantic_map)/launch/semantic_map.launch"> 
         <arg name="update_metaroom" value="$(arg update_metaroom)"/>
+
+    	<arg name="machine" value="$(arg mapping_ip)"/>
+	<arg name="user" value="$(arg mapping_user)" />  
     </include>
-    
+	
+    <!-- Action server for executing the PTU sweeps -->
+    <include file="$(find scitos_ptu)/launch/ptu_action_server_metric_map.launch"> 
+
+    	<arg name="machine" value="$(arg sweep_ip)"/>
+	<arg name="user" value="$(arg sweep_user)" />  
+    </include>
+   
 
 </launch>
