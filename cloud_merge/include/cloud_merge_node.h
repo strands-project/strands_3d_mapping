@@ -26,6 +26,7 @@
 // QT
 #include <QFile>
 #include <QDir>
+#include <qtconcurrentrun.h>
 
 // PCL includes
 #include <pcl_ros/point_cloud.h>
@@ -437,7 +438,10 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
             if (m_bLogToDB)
             {
-                m_MongodbInterface.logRoomToDB(aSemanticRoom,roomXMLPath);
+
+                // log in separate thread
+                /*auto future = */QtConcurrent::run(m_MongodbInterface, &MongodbInterface::logRoomToDB<PointType>,aSemanticRoom,roomXMLPath);
+//                m_MongodbInterface.logRoomToDB(aSemanticRoom,roomXMLPath);
             }
 
 
