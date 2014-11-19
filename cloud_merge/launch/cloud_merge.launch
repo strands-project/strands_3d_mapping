@@ -12,7 +12,7 @@
 
 
   <arg name="input_rgb"           	  default="/head_xtion/rgb/image_color" />
-  <arg name="input_depth"           	  default="/head_xtion/depth_registered/image_rect" />
+  <arg name="input_depth"           	  default="/head_xtion/depth/image_rect" />
   <arg name="input_caminfo"           	  default="/head_xtion/rgb/camera_info" />
 
   <node pkg="cloud_merge" type="cloud_merge" name="cloud_merge" output="screen" respawn="true">
