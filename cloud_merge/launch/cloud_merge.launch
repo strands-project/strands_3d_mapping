@@ -10,12 +10,16 @@
   <arg name="voxel_size_observation"      default="0.03" />
   <arg name="point_cutoff_distance"       default="4.0"/>
 
-
   <arg name="input_rgb"           	  default="/head_xtion/rgb/image_color" />
   <arg name="input_depth"           	  default="/head_xtion/depth_registered/image_rect" />
   <arg name="input_caminfo"           	  default="/head_xtion/rgb/camera_info" />
 
-  <node pkg="cloud_merge" type="cloud_merge" name="cloud_merge" output="screen" respawn="true">
+  <arg name="machine"   	default="localhost" />
+  <arg name="user"   	default="" />
+ 
+  <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)"/>
+
+  <node machine="$(arg machine)" pkg="cloud_merge" type="cloud_merge" name="cloud_merge" output="screen" respawn="true">
 	<param name="save_intermediate"  type="bool" value="$(arg save_intermediate)"/>
 	<param name="generate_pointclouds"       type="bool" value="$(arg generate_pointclouds)"/>
 	<param name="cleanup"  		    	 type="bool" value="$(arg cleanup)"/>
