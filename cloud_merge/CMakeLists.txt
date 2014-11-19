@@ -27,11 +27,13 @@ include_directories(include
 
 set(HDRS
     include/cloud_merge.h
-    include/cloud_merge_node.h)
+    include/cloud_merge_node.h
+    include/mongodb_interface.h)
 
 set(SRCS
     src/cloud_merge.cpp
     src/cloud_merge_node.cpp
+    src/mongodb_interface.cpp
     src/main.cpp)
 
 add_executable(cloud_merge ${HDRS} ${SRCS})

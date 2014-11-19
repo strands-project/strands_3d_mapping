@@ -3,8 +3,8 @@
   <arg name="save_intermediate"           default="true" />
   <arg name="generate_pointclouds"        default="true" />
   <arg name="cleanup"           	  default="false" />
-  <arg name="log_to_db"           	  default="false" />
-  <arg name="cache_old_data"           	  default="true" />
+  <arg name="log_to_db"           	  default="true" />
+  <arg name="cache_old_data"           	  default="false" />
   <arg name="max_instances"               default="2" />
   <arg name="voxel_size_table_top"        default="0.01" />
   <arg name="voxel_size_observation"      default="0.03" />
