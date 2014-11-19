@@ -15,8 +15,8 @@ Changelog for package semantic_map
 * Moved headers in the include/semantic_map folder
 * Contributors: Rares Ambrus
 
-Forthcoming
------------
+0.0.6 (2014-11-19)
+------------------
 * Deleting old data by default (instead of storing it in the cache to be uploaded to an ftp server)
 * Bugfixes in loading metric map data from mongo and saving it on the disk
 * Importing room observations from the databse and saving them to disk

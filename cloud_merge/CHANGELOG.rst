@@ -9,8 +9,8 @@ Changelog for package cloud_merge
 * Changed cloud_merge include statement by prefixing it with the package_name
 * Contributors: Rares Ambrus
 
-Forthcoming
------------
+0.0.6 (2014-11-19)
+------------------
 * Deleting old data by default (instead of storing it in the cache to be uploaded to an ftp server)
 * Logging to database enabled by default
 * Added support for logging room sweeps into mongodb

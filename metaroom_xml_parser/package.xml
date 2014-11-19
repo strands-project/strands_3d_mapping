@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>metaroom_xml_parser</name>
-  <version>0.0.5</version>
+  <version>0.0.6</version>
   <description>Metaroom XML parser</description>
 
   <maintainer email="raambrus@kth.se">Rares Ambrus</maintainer>
