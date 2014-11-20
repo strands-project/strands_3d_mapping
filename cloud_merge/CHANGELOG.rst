@@ -9,8 +9,8 @@ Changelog for package cloud_merge
 * Changed cloud_merge include statement by prefixing it with the package_name
 * Contributors: Rares Ambrus
 
-Forthcoming
------------
+0.0.7 (2014-11-20)
+------------------
 * Added machine and user parameters
 * Saving intermediate clouds in the local frame of reference
 * Added scitos_ptu run dependency

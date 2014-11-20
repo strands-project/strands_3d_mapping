@@ -15,8 +15,8 @@ Changelog for package semantic_map
 * Moved headers in the include/semantic_map folder
 * Contributors: Rares Ambrus
 
-Forthcoming
------------
+0.0.7 (2014-11-20)
+------------------
 * Added machine and user parameters
 * Moved this launch file to the cloud_merge package (since it already depends on semantic_map, makes sense to have the launch file here). Also added starting the scitos_ptu metric map action server
 * Contributors: Rares Ambrus
