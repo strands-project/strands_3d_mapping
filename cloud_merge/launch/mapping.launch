@@ -41,12 +41,12 @@
 	<arg name="user" value="$(arg mapping_user)" />  
     </include>
 	
-    <!-- Action server for executing the PTU sweeps -->
+    <!-- Action server for executing the PTU sweeps 
     <include file="$(find scitos_ptu)/launch/ptu_action_server_metric_map.launch"> 
 
     	<arg name="machine" value="$(arg sweep_ip)"/>
 	<arg name="user" value="$(arg sweep_user)" />  
     </include>
-   
+    -->
 
 </launch>
