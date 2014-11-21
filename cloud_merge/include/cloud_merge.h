@@ -86,6 +86,16 @@ public:
         m_IntermediateCloud->clear();
     }
 
+    auto getIntermediateDepthImages() -> decltype(m_IntermediateDepthImages)
+    {
+        return m_IntermediateDepthImages;
+    }
+
+    auto getIntermediateRGBImages() -> decltype(m_IntermediateRGBImages)
+    {
+        return m_IntermediateRGBImages;
+    }
+
     CloudPtr subsampleIntermediateCloud() // this method first checks whether we are using point clouds directly from the sensor or whether we are averaging a set of depth images from the camera
     {
         Cloud subsampled_cloud;

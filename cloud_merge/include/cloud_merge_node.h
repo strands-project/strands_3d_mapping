@@ -114,6 +114,7 @@ private:
 
     bool                                                                        m_bLogToDB;
     bool                                                                        m_bCacheOldData;
+    bool                                                                        m_bSaveIntermediateImages;
     std::string                                                                 m_CurrentTopoNode;
 
     double                                                                      m_VoxelSizeTabletop;
@@ -274,6 +275,16 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     } else {
         ROS_INFO_STREAM("Old data will be deleted.");
     }
+
+    m_NodeHandle.param<bool>("save_intermediate_images",m_bSaveIntermediateImages,true);
+    if (m_bSaveIntermediateImages)
+    {
+        ROS_INFO_STREAM("Intermediate images will be saved. This could take a lot of disk space.");
+    } else {
+        ROS_INFO_STREAM("Intermediate images will NOT be saved.");
+    }
+
+
 
     m_NodeHandle.param<double>("voxel_size_table_top",m_VoxelSizeTabletop,0.01);
     m_NodeHandle.param<double>("voxel_size_observation",m_VoxelSizeObservation,0.05);
@@ -466,7 +477,13 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
        // ROS_INFO_STREAM("Stop aquiring data");
         m_bAquireData = false;
 
-        // process the accumulated point cloud
+
+        // get intermediate images (in case we want to save them)
+        auto intermediate_rgb_images = m_CloudMerge.getIntermediateRGBImages();
+        auto intermediate_depth_images = m_CloudMerge.getIntermediateDepthImages();
+
+        // process the accumulated point cloud               
+
         CloudPtr transformed_cloud = m_CloudMerge.subsampleIntermediateCloud();
         if (transformed_cloud->points.size() == 0)
         {
@@ -498,6 +515,11 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform,cloudCameraParams);
                 } else {
                     intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform);
+                }
+
+                if (m_bSaveIntermediateImages)
+                {
+                    aSemanticRoom.addIntermediateCloudImages(intermediate_rgb_images, intermediate_depth_images);
                 }
 
 //                m_CloudMerge.transformIntermediateCloud(transform,"/map");
