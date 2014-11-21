@@ -8,6 +8,9 @@ Changelog for package metaroom_xml_parser
 * metaroom_xml_parser tf dependencies
 * Contributors: Rares Ambrus
 
+0.0.7 (2014-11-20)
+------------------
+
 0.0.6 (2014-11-19)
 ------------------
 * Fixed bug in generating depth images from saved pointclouds
