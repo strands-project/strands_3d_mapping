@@ -13,9 +13,14 @@
 
 #include <image_geometry/pinhole_camera_model.h>
 
-#include "ros/time.h"
+#include <ros/time.h>
+#include <tf/tf.h>
+
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include "tf/tf.h"
+
+#include <cv_bridge/cv_bridge.h>
+
+#include <opencv2/core/core.hpp>
 
 #include "roombase.h"
 
@@ -35,6 +40,9 @@ private:
     std::string                                      m_DynamicClustersFilename;
     // intermediate room clouds
     std::vector<CloudPtr>                            m_vIntermediateRoomClouds;
+    std::vector<std::vector<cv::Mat>>                m_vIntermediateDepthImages;
+    std::vector<std::vector<cv::Mat>>                m_vIntermediateRGBImages;
+
     std::vector<tf::StampedTransform>                m_vIntermediateRoomCloudTransforms;
     std::vector<bool>                                m_vIntermediateRoomCloudsLoaded;
     std::vector<std::string>                         m_vIntermediateRoomCloudsFilenames;
@@ -115,6 +123,52 @@ public:
         m_vIntermediateRoomCloudsCamParams.push_back(cloudCamParams);
 
         return m_vIntermediateRoomClouds.size();
+    }
+
+    void addIntermediateCloudImages(std::vector<sensor_msgs::Image::ConstPtr> sensor_rgb_images, std::vector<sensor_msgs::Image::ConstPtr> sensor_depth_images)
+    {
+        std::vector<cv::Mat> rgb_images, depth_images;
+
+        for_each( sensor_rgb_images.begin(), sensor_rgb_images.end(), [&] (sensor_msgs::Image::ConstPtr image)
+        {
+            cv_bridge::CvImagePtr cv_ptr;
+            try
+            {
+                cv_ptr = cv_bridge::toCvCopy(*image, "bgr8");
+                rgb_images.push_back(cv_ptr->image);
+            }
+            catch (cv_bridge::Exception& e)
+            {
+                ROS_ERROR("cv_bridge exception: %s", e.what());
+            }
+        } );
+
+        for_each( sensor_depth_images.begin(), sensor_depth_images.end(), [&] (decltype (*sensor_depth_images.begin()) image)
+        {
+            cv_bridge::CvImagePtr cv_ptr;
+            try
+            {
+                cv_ptr = cv_bridge::toCvCopy(*image, "16UC1");
+                depth_images.push_back(cv_ptr->image);
+            }
+            catch (cv_bridge::Exception& e)
+            {
+                ROS_ERROR("cv_bridge exception: %s", e.what());
+            }
+        } );
+
+        m_vIntermediateDepthImages.push_back(depth_images);
+        m_vIntermediateRGBImages.push_back(rgb_images);
+    }
+
+    auto getIntermediateDepthImages() -> decltype(m_vIntermediateDepthImages)
+    {
+        return m_vIntermediateDepthImages;
+    }
+
+    auto getIntermediateRGBImages() -> decltype(m_vIntermediateRGBImages)
+    {
+        return m_vIntermediateRGBImages;
     }
 
     int addIntermediateRoomCloud(std::string filename, tf::StampedTransform cloud_tf, image_geometry::PinholeCameraModel cloudCamParams=image_geometry::PinholeCameraModel())

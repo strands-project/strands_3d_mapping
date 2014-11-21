@@ -24,6 +24,8 @@
 
 #include <fstream>
 
+#include <opencv2/highgui/highgui.hpp>
+
 template <class PointType>
 class SemanticRoomXMLParser {
 public:
@@ -383,6 +385,35 @@ public:
             }
 //        }
         xmlWriter->writeEndElement(); // RoomIntermediateClouds
+
+        // Intermediate cloud images
+        size_t i, j;
+
+        auto v_depth_images = aRoom.getIntermediateDepthImages();
+        auto v_rgb_images = aRoom.getIntermediateRGBImages();
+
+        auto save_image = [&](cv::Mat image, std::string base_name)
+        {
+            std::stringstream ss(base_name); ss<<"_"<<std::setfill('0')<<std::setw(4)<<i<<"_"<<std::setfill('0')<<std::setw(4)<<j<<".png";
+            cv::imwrite(ss.str().c_str(),image);
+        };
+
+        for (i=0; i<v_depth_images.size(); i++)
+        {
+            for (j=0; j<v_depth_images[i].size(); j++)
+            {
+                save_image(v_depth_images[i][j],"depth_image");
+            }
+        }
+
+        for (i=0; i<v_rgb_images.size(); i++)
+        {
+            for (j=0; j<v_rgb_images[i].size(); j++)
+            {
+                save_image(v_rgb_images[i][j],"rgb_image");
+            }
+        }
+
 
         xmlWriter->writeEndElement(); // Semantic Room
 
