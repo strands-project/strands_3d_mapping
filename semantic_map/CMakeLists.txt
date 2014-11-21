@@ -4,7 +4,7 @@ project(semantic_map)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build image_geometry)
+find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build image_geometry cv_bridge)
 
 find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
 
@@ -40,7 +40,7 @@ generate_messages(
 
 catkin_package(
    INCLUDE_DIRS include
-   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs 
+   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge
 )
 
 include_directories(include
