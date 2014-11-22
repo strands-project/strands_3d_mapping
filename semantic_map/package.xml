@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>semantic_map</name>
-  <version>0.0.7</version>
+  <version>0.0.8</version>
   <description>The semantic map package</description>
 
   <maintainer email="raambrus@kth.se">Rares Ambrus</maintainer>

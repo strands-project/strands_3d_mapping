@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>ekz_public_lib</name>
-  <version>0.0.7</version>
+  <version>0.0.8</version>
   <description>The ekz_public_lib package</description>
   <maintainer email="ekz@kth.se">Johan Ekekrantz</maintainer>
   <license>BSD</license>
