@@ -9,6 +9,13 @@ Changelog for package cloud_merge
 * Changed cloud_merge include statement by prefixing it with the package_name
 * Contributors: Rares Ambrus
 
+Forthcoming
+-----------
+* Fixed bug: transforming intermediate cloud to global frame of ref before adding it to the merged cloud (it's still saved in the local frame of ref)
+* Update README.md
+* Initial README
+* Contributors: Rares Ambrus, RaresAmbrus
+
 0.0.8 (2014-11-22)
 ------------------
 * Added empty readme

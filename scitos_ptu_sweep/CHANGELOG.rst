@@ -5,6 +5,9 @@ Changelog for package scitos_ptu_sweep
 0.0.4 (2014-11-12)
 ------------------
 
+Forthcoming
+-----------
+
 0.0.8 (2014-11-22)
 ------------------
 
