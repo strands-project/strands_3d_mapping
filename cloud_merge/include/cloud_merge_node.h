@@ -500,7 +500,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform);
                 }
 
-//                m_CloudMerge.transformIntermediateCloud(transform,"/map");
+                m_CloudMerge.transformIntermediateCloud(transform,"/map");
 //                transformed_cloud = m_CloudMerge.getIntermediateCloud();
 
 //                sensor_msgs::PointCloud2 msg_cloud;
