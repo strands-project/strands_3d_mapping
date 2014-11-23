@@ -9,6 +9,23 @@ Changelog for package cloud_merge
 * Changed cloud_merge include statement by prefixing it with the package_name
 * Contributors: Rares Ambrus
 
+0.0.8 (2014-11-22)
+------------------
+* Added empty readme
+* Not launching the sweep action server from here anymore (doesn't start properly when located on another machine)
+* Merge branch 'hydro-devel' of https://github.com/RaresAmbrus/strands_3d_mapping into hydro-devel
+* Changed depth topic
+* Contributors: Rares Ambrus, RaresAmbrus
+
+0.0.7 (2014-11-20)
+------------------
+* Added machine and user parameters
+* Saving intermediate clouds in the local frame of reference
+* Added scitos_ptu run dependency
+* Moved this launch file to the cloud_merge package (since it already depends on semantic_map, makes sense to have the launch file here). Also added starting the scitos_ptu metric map action server
+* Logging to mongodb in a separate thread
+* Contributors: Rares Ambrus
+
 0.0.6 (2014-11-19)
 ------------------
 * Deleting old data by default (instead of storing it in the cache to be uploaded to an ftp server)
