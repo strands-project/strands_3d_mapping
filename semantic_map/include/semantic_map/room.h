@@ -33,6 +33,16 @@ public:
     typedef pcl::PointCloud<PointType> Cloud;
     typedef typename Cloud::Ptr CloudPtr;
 
+    struct IntermediatePositionImages
+    {
+        std::vector<cv::Mat>                vIntermediateDepthImages;
+        std::vector<cv::Mat>                vIntermediateRGBImages;
+        tf::StampedTransform                intermediateDepthTransform;
+        tf::StampedTransform                intermediateRGBTransform;
+        image_geometry::PinholeCameraModel  intermediateRGBCamParams;
+        image_geometry::PinholeCameraModel  intermediateDepthCamParams;
+    };
+
 private:
 
     CloudPtr                                         m_DynamicClustersCloud;
@@ -46,13 +56,7 @@ private:
     std::vector<image_geometry::PinholeCameraModel>  m_vIntermediateRoomCloudsCamParams;
 
     // intermediate cloud images
-    std::vector<std::vector<cv::Mat>>                m_vIntermediateDepthImages;
-    std::vector<std::vector<cv::Mat>>                m_vIntermediateRGBImages;
-    std::vector<tf::StampedTransform>                m_vIntermediateDepthTransforms;
-    std::vector<tf::StampedTransform>                m_vIntermediateRGBTransforms;
-    std::vector<image_geometry::PinholeCameraModel>  m_vIntermediateRGBCamParams;
-    std::vector<image_geometry::PinholeCameraModel>  m_vIntermediateDepthCamParams;
-
+    std::vector<IntermediatePositionImages>                m_vIntermediatePositionImages;
 
     std::string                                      m_RoomStringId;
     int                                              m_RoomRunNumber;
@@ -165,25 +169,22 @@ public:
             }
         } );
 
-        m_vIntermediateDepthImages.push_back(depth_images);
-        m_vIntermediateRGBImages.push_back(rgb_images);
+        IntermediatePositionImages intermediate_images;
+        intermediate_images.vIntermediateDepthImages.assign(depth_images.begin(), depth_images.end());
+        intermediate_images.vIntermediateRGBImages.assign(rgb_images.begin(), rgb_images.end());
+        intermediate_images.intermediateRGBCamParams = rgb_params;
+        intermediate_images.intermediateDepthCamParams = depth_params;
+        intermediate_images.intermediateRGBTransform = rgb_transform;
+        intermediate_images.intermediateDepthTransform = depth_transform;
 
-        m_vIntermediateDepthTransforms.push_back(depth_transform);
-        m_vIntermediateRGBTransforms.push_back(rgb_transform);
-
-        m_vIntermediateDepthCamParams.push_back(depth_params);
-        m_vIntermediateRGBCamParams.push_back(rgb_params);
     }
 
-    auto getIntermediateDepthImages() -> decltype(m_vIntermediateDepthImages)
+    auto getIntermdiatePositionImages()  -> decltype(m_vIntermediatePositionImages)
     {
-        return m_vIntermediateDepthImages;
+        return m_vIntermediatePositionImages;
     }
 
-    auto getIntermediateRGBImages() -> decltype(m_vIntermediateRGBImages)
-    {
-        return m_vIntermediateRGBImages;
-    }
+
 
     int addIntermediateRoomCloud(std::string filename, tf::StampedTransform cloud_tf, image_geometry::PinholeCameraModel cloudCamParams=image_geometry::PinholeCameraModel())
     {

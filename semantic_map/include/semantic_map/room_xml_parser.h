@@ -386,36 +386,8 @@ public:
 //        }
         xmlWriter->writeEndElement(); // RoomIntermediateClouds
 
-        // Intermediate cloud images
-        size_t i, j;
-
-        auto v_depth_images = aRoom.getIntermediateDepthImages();
-        auto v_rgb_images = aRoom.getIntermediateRGBImages();
-
-        auto save_image = [&](cv::Mat image, std::string base_name)
-        {
-            std::stringstream ss; ss<<base_name; ss<<"_"<<std::setfill('0')<<std::setw(4)<<i<<"_"<<std::setfill('0')<<std::setw(4)<<j<<".png";
-            cv::imwrite(ss.str().c_str(),image);
-            ROS_INFO_STREAM("Saving intermediate image: "<<ss.str().c_str()<<"  base name "<<base_name);
-        };
-
-        for (i=0; i<v_depth_images.size(); i++)
-        {
-            for (j=0; j<v_depth_images[i].size(); j++)
-            {
-                std::string image_root_name = roomFolder.toStdString() + "/depth_image";
-                save_image(v_depth_images[i][j],image_root_name);
-            }
-        }
-
-        for (i=0; i<v_rgb_images.size(); i++)
-        {
-            for (j=0; j<v_rgb_images[i].size(); j++)
-            {
-                std::string image_root_name = roomFolder.toStdString() + "/rgb_image";
-                save_image(v_rgb_images[i][j],image_root_name);
-            }
-        }
+         // Intermediate cloud images
+        saveIntermediateImagesToXML(aRoom,xmlWriter, roomFolder.toStdString());
 
 
         xmlWriter->writeEndElement(); // Semantic Room
@@ -426,6 +398,85 @@ public:
         return xmlFile;
 
     }
+
+    void  saveIntermediateImagesToXML(SemanticRoom<PointType>& aRoom, QXmlStreamWriter* xmlWriter, std::string roomFolder)
+    {
+
+        auto v_intermdiate_images = aRoom.getIntermdiatePositionImages();
+
+        if (v_intermdiate_images.size() > 0)
+        {
+            xmlWriter->writeStartElement("RoomIntermediateImages");
+
+            size_t i, j;
+
+            auto save_image = [&](cv::Mat image, std::string base_name)
+            {
+                std::stringstream ss; ss<<base_name; ss<<"_"<<std::setfill('0')<<std::setw(4)<<i<<"_"<<std::setfill('0')<<std::setw(4)<<j<<".png";
+                cv::imwrite(ss.str().c_str(),image);
+                ROS_INFO_STREAM("Saving intermediate image: "<<ss.str().c_str()<<"  base name "<<base_name);
+            };
+
+            for (i=0; i<v_intermdiate_images.size();i++)
+            {
+                xmlWriter->writeStartElement("IntermediatePosition");
+
+                xmlWriter->writeAttribute("RGB_Images", QString::number(v_intermdiate_images[i].vIntermediateRGBImages.size()));
+                xmlWriter->writeAttribute("Depth_Images", QString::number(v_intermdiate_images[i].vIntermediateDepthImages.size()));
+
+                // ------------------------------  Camera Parameters ----------------------------------------------------
+                saveCameraParametersToXML(v_intermdiate_images[i].intermediateRGBCamParams, xmlWriter, "RGBCameraParameters");
+                saveCameraParametersToXML(v_intermdiate_images[i].intermediateDepthCamParams, xmlWriter, "DepthCameraParameters");
+                // ------------------------------  Camera Parameters ----------------------------------------------------
+
+                // ------------------------------   RGB & Depth Transform  ----------------------------------------------------
+                saveTfStampedTransfromToXml(v_intermdiate_images[i].intermediateRGBTransform, xmlWriter, "RGBTransform");
+                saveTfStampedTransfromToXml(v_intermdiate_images[i].intermediateDepthTransform, xmlWriter, "DepthTransform");
+                // ------------------------------   RGB & Depth Transform  ----------------------------------------------------
+
+
+                xmlWriter->writeEndElement(); // IntermediatePosition
+
+                for (j=0; j<v_intermdiate_images[i].vIntermediateDepthImages.size();j++)
+                {
+                    std::string image_root_name = roomFolder + "/depth_image";
+                    save_image(v_intermdiate_images[i].vIntermediateDepthImages[j],image_root_name);
+                }
+                for (j=0; j<v_intermdiate_images[i].vIntermediateRGBImages.size();j++)
+                {
+                    std::string image_root_name = roomFolder+ "/rgb_image";
+                    save_image(v_intermdiate_images[i].vIntermediateRGBImages[j],image_root_name);
+                }
+            }
+
+//            for (i=0; i<v_depth_images.size(); i++)
+//            {
+//                for (j=0; j<v_depth_images[i].size(); j++)
+//                {
+
+//                }
+//            }
+
+//            for (i=0; i<v_rgb_images.size(); i++)
+//            {
+//                for (j=0; j<v_rgb_images[i].size(); j++)
+//                {
+//                    std::string image_root_name = roomFolder.toStdString() + "/rgb_image";
+//                    save_image(v_rgb_images[i][j],image_root_name);
+//                }
+//            }
+
+
+
+            xmlWriter->writeEndElement(); // RoomIntermediateImages
+        }
+
+
+
+
+    }
+
+
 
     static SemanticRoom<PointType> loadRoomFromXML(const std::string& xmlFile, bool deepLoad=true)
     {
@@ -904,6 +955,80 @@ private:
         tf::transformStampedMsgToTF(tfmsg, transform);
         structToRet.transform = transform;
         return structToRet;
+    }
+
+    void saveTfStampedTransfromToXml(tf::StampedTransform transform, QXmlStreamWriter* xmlWriter, std::string nodeName)
+    {
+        geometry_msgs::TransformStamped msg_reg;
+        tf::transformStampedTFToMsg(transform, msg_reg);
+
+        xmlWriter->writeStartElement(nodeName.c_str());
+        xmlWriter->writeAttribute("Stamp_sec",QString::number(msg_reg.header.stamp.sec));
+        xmlWriter->writeAttribute("Stamp_nsec",QString::number(msg_reg.header.stamp.nsec));
+        xmlWriter->writeAttribute("FrameId",QString(msg_reg.header.frame_id.c_str()));
+        xmlWriter->writeAttribute("ChildFrameId",QString(msg_reg.child_frame_id.c_str()));
+        xmlWriter->writeAttribute("Trans_x",QString::number(msg_reg.transform.translation.x));
+        xmlWriter->writeAttribute("Trans_y",QString::number(msg_reg.transform.translation.y));
+        xmlWriter->writeAttribute("Trans_z",QString::number(msg_reg.transform.translation.z));
+        xmlWriter->writeAttribute("Rot_w",QString::number(msg_reg.transform.rotation.w));
+        xmlWriter->writeAttribute("Rot_x",QString::number(msg_reg.transform.rotation.x));
+        xmlWriter->writeAttribute("Rot_y",QString::number(msg_reg.transform.rotation.y));
+        xmlWriter->writeAttribute("Rot_z",QString::number(msg_reg.transform.rotation.z));
+
+        xmlWriter->writeEndElement();
+
+    }
+
+    void saveCameraParametersToXML(image_geometry::PinholeCameraModel cam_model, QXmlStreamWriter* xmlWriter, std::string nodeName)
+    {
+        xmlWriter->writeStartElement(nodeName.c_str());
+
+        const sensor_msgs::CameraInfo & camInfo = cam_model.cameraInfo();
+
+        // size
+        cv::Size imageSize = cam_model.fullResolution();
+        xmlWriter->writeAttribute("width",QString::number(camInfo.width));
+        xmlWriter->writeAttribute("height",QString::number(camInfo.height));
+        xmlWriter->writeAttribute("distortion_model",QString(camInfo.distortion_model.c_str()));
+        xmlWriter->writeAttribute("frame_id",QString(camInfo.header.frame_id.c_str()));
+
+        // K matrix
+        QString KString;
+        for (size_t j=0; j<9;j++)
+        {
+            KString+=QString::number(camInfo.K[j]);
+            KString+=",";
+        }
+        xmlWriter->writeAttribute("K",KString);
+
+        // D matrix
+        QString DString;
+        for (size_t j=0; j<5;j++)
+        {
+            DString+=QString::number(camInfo.D[j]);
+            DString+=",";
+        }
+        xmlWriter->writeAttribute("D",DString);
+
+        // R matrix
+        QString RString;
+        for (size_t j=0; j<9;j++)
+        {
+            RString+=QString::number(camInfo.R[j]);
+            RString+=",";
+        }
+        xmlWriter->writeAttribute("R",RString);
+
+        // P matrix
+        QString PString;
+        for (size_t j=0; j<12;j++)
+        {
+            PString+=QString::number(camInfo.P[j]);
+            PString+=",";
+        }
+        xmlWriter->writeAttribute("P",PString);
+
+        xmlWriter->writeEndElement();
     }
 
     QString                                 m_RootFolder;
