@@ -177,6 +177,8 @@ public:
         intermediate_images.intermediateRGBTransform = rgb_transform;
         intermediate_images.intermediateDepthTransform = depth_transform;
 
+        m_vIntermediatePositionImages.push_back(intermediate_images);
+
     }
 
     auto getIntermdiatePositionImages()  -> decltype(m_vIntermediatePositionImages)
