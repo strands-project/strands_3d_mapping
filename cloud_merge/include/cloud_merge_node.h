@@ -210,16 +210,16 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
             caminfo_channel = "/head_xtion/rgb/camera_info";
         }
         m_RGBCameraInfoSubscriber.subscribe(m_NodeHandle, caminfo_channel,       1);
-        ROS_INFO_STREAM("Subscribed to camera info topic "<<caminfo_channel);
+        ROS_INFO_STREAM("Subscribed to rgb camera info topic "<<caminfo_channel);
 
         std::string caminfo_channel_depth;
-        found = m_NodeHandle.getParam("input_caminfo_rgb",caminfo_channel_depth);
+        found = m_NodeHandle.getParam("input_caminfo_depth",caminfo_channel_depth);
         if (!found)
         {
             caminfo_channel_depth = "/head_xtion/depth/camera_info";
         }
         m_DepthCameraInfoSubscriber.subscribe(m_NodeHandle, caminfo_channel_depth,       1);
-        ROS_INFO_STREAM("Subscribed to camera info topic "<<caminfo_channel_depth);
+        ROS_INFO_STREAM("Subscribed to depth camera info topic "<<caminfo_channel_depth);
 
     }
 
