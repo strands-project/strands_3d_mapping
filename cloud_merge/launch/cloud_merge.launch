@@ -31,7 +31,8 @@
 <!--	<param name="input_cloud"  		 value="$(arg input_cloud)"/> -->
 	<param name="input_rgb"  		 value="$(arg input_rgb)"/>
 	<param name="input_depth"  		 value="$(arg input_depth)"/>
-	<param name="input_caminfo"  		 value="$(arg input_caminfo)"/>
+	<param name="input_caminfo_rgb"  		 value="$(arg input_caminfo_rgb)"/>
+	<param name="input_caminfo_depth"  		 value="$(arg input_caminfo_depth)"/>
   
  	<param name="voxel_size_table_top"        type="double" value="$(arg voxel_size_table_top)" />
 	<param name="voxel_size_observation"      type="double" value="$(arg voxel_size_observation)" />
