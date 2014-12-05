@@ -396,14 +396,15 @@ public:
         {
             std::stringstream ss(base_name); ss<<"_"<<std::setfill('0')<<std::setw(4)<<i<<"_"<<std::setfill('0')<<std::setw(4)<<j<<".png";
             cv::imwrite(ss.str().c_str(),image);
-            ROS_INFO_STREAM("Saving intermediate image: "<<ss.str().c_str());
+            ROS_INFO_STREAM("Saving intermediate image: "<<ss.str().c_str()<<"  base name "<<base_name);
         };
 
         for (i=0; i<v_depth_images.size(); i++)
         {
             for (j=0; j<v_depth_images[i].size(); j++)
             {
-                save_image(v_depth_images[i][j],"depth_image");
+                std::string image_root_name = roomFolder.toStdString() + "depth_image";
+                save_image(v_depth_images[i][j],image_root_name);
             }
         }
 
@@ -411,7 +412,8 @@ public:
         {
             for (j=0; j<v_rgb_images[i].size(); j++)
             {
-                save_image(v_rgb_images[i][j],"rgb_image");
+                std::string image_root_name = roomFolder.toStdString() + "rgb_image";
+                save_image(v_rgb_images[i][j],image_root_name);
             }
         }
 
