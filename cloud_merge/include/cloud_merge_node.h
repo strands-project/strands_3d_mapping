@@ -202,7 +202,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
         ROS_INFO_STREAM("Subscribed to rgb image topic "<<rgb_channel);
 
         std::string caminfo_channel;
-        found = m_NodeHandle.getParam("input_caminfo",caminfo_channel);
+        found = m_NodeHandle.getParam("input_caminfo_rgb",caminfo_channel);
         if (!found)
         {
             caminfo_channel = "/head_xtion/rgb/camera_info";
