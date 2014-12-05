@@ -39,14 +39,20 @@ private:
     bool                                             m_DynamicClustersLoaded;
     std::string                                      m_DynamicClustersFilename;
     // intermediate room clouds
-    std::vector<CloudPtr>                            m_vIntermediateRoomClouds;
-    std::vector<std::vector<cv::Mat>>                m_vIntermediateDepthImages;
-    std::vector<std::vector<cv::Mat>>                m_vIntermediateRGBImages;
-
+    std::vector<CloudPtr>                            m_vIntermediateRoomClouds;     
     std::vector<tf::StampedTransform>                m_vIntermediateRoomCloudTransforms;
     std::vector<bool>                                m_vIntermediateRoomCloudsLoaded;
     std::vector<std::string>                         m_vIntermediateRoomCloudsFilenames;
     std::vector<image_geometry::PinholeCameraModel>  m_vIntermediateRoomCloudsCamParams;
+
+    // intermediate cloud images
+    std::vector<std::vector<cv::Mat>>                m_vIntermediateDepthImages;
+    std::vector<std::vector<cv::Mat>>                m_vIntermediateRGBImages;
+    std::vector<tf::StampedTransform>                m_vIntermediateDepthTransforms;
+    std::vector<tf::StampedTransform>                m_vIntermediateRGBTransforms;
+    std::vector<image_geometry::PinholeCameraModel>  m_vIntermediateRGBCamParams;
+    std::vector<image_geometry::PinholeCameraModel>  m_vIntermediateDepthCamParams;
+
 
     std::string                                      m_RoomStringId;
     int                                              m_RoomRunNumber;
@@ -125,7 +131,9 @@ public:
         return m_vIntermediateRoomClouds.size();
     }
 
-    void addIntermediateCloudImages(std::vector<sensor_msgs::Image::ConstPtr> sensor_rgb_images, std::vector<sensor_msgs::Image::ConstPtr> sensor_depth_images)
+    void addIntermediateCloudImages(std::vector<sensor_msgs::Image::ConstPtr> sensor_rgb_images, std::vector<sensor_msgs::Image::ConstPtr> sensor_depth_images,
+                                    tf::StampedTransform rgb_transform, tf::StampedTransform depth_transform,
+                                    image_geometry::PinholeCameraModel rgb_params, image_geometry::PinholeCameraModel depth_params)
     {
         std::vector<cv::Mat> rgb_images, depth_images;
 
@@ -159,6 +167,12 @@ public:
 
         m_vIntermediateDepthImages.push_back(depth_images);
         m_vIntermediateRGBImages.push_back(rgb_images);
+
+        m_vIntermediateDepthTransforms.push_back(depth_transform);
+        m_vIntermediateRGBTransforms.push_back(rgb_transform);
+
+        m_vIntermediateDepthCamParams.push_back(depth_params);
+        m_vIntermediateRGBCamParams.push_back(rgb_params);
     }
 
     auto getIntermediateDepthImages() -> decltype(m_vIntermediateDepthImages)

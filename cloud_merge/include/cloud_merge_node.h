@@ -52,7 +52,7 @@ class CloudMergeNode {
 public:
     typedef pcl::PointCloud<PointType> Cloud;
     typedef typename Cloud::Ptr CloudPtr;
-    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> SyncPolicy;
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo, sensor_msgs::CameraInfo> SyncPolicy;
     typedef message_filters::Synchronizer<SyncPolicy> Synchronizer;
     typedef typename SemanticMapSummaryParser<PointType>::EntityStruct Entities;
 
@@ -62,7 +62,7 @@ public:
     void controlCallback(const std_msgs::String& controlString);
     void topoNodeCallback(const std_msgs::String& controlString);
     void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
-    void imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg);
+    void imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg, const sensor_msgs::CameraInfoConstPtr& info_msg_depth);
 
     void findSemanticRoomIDAndLogName(SemanticRoom<PointType>& aSemanticRoom, int& roomId, int& patrolNumber);
     void getRoomIDAndPatrolNumber(QString roomXmlFile, int& roomId, int& patrolNumber);
@@ -85,7 +85,8 @@ public:
 
     boost::shared_ptr<Synchronizer>                                             m_MessageSynchronizer;
     image_transport::SubscriberFilter                                           m_DepthSubscriber, m_RGBSubscriber;
-    message_filters::Subscriber<sensor_msgs::CameraInfo>                        m_CameraInfoSubscriber;
+    message_filters::Subscriber<sensor_msgs::CameraInfo>                        m_RGBCameraInfoSubscriber;
+    message_filters::Subscriber<sensor_msgs::CameraInfo>                        m_DepthCameraInfoSubscriber;
     boost::shared_ptr<image_transport::ImageTransport>                          m_RGB_it, m_Depth_it;
 
 private:
@@ -132,8 +133,8 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     m_RGB_it.reset(new image_transport::ImageTransport(nh));
     m_Depth_it.reset(new image_transport::ImageTransport(nh));
 
-    m_MessageSynchronizer.reset( new Synchronizer(SyncPolicy(15), m_DepthSubscriber, m_RGBSubscriber, m_CameraInfoSubscriber) );
-    m_MessageSynchronizer->registerCallback(boost::bind(&CloudMergeNode::imageCallback, this, _1, _2, _3));
+    m_MessageSynchronizer.reset( new Synchronizer(SyncPolicy(15), m_DepthSubscriber, m_RGBSubscriber, m_RGBCameraInfoSubscriber, m_DepthCameraInfoSubscriber) );
+    m_MessageSynchronizer->registerCallback(boost::bind(&CloudMergeNode::imageCallback, this, _1, _2, _3, _4));
 
     m_SubscriberControl = m_NodeHandle.subscribe("/ptu/log",1, &CloudMergeNode::controlCallback,this);
     m_SubscriberTopoNode = m_NodeHandle.subscribe("/current_node",1, &CloudMergeNode::topoNodeCallback,this);
@@ -201,14 +202,24 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
         m_RGBSubscriber.subscribe(*m_RGB_it, rgb_channel,       1);
         ROS_INFO_STREAM("Subscribed to rgb image topic "<<rgb_channel);
 
+
         std::string caminfo_channel;
         found = m_NodeHandle.getParam("input_caminfo_rgb",caminfo_channel);
         if (!found)
         {
             caminfo_channel = "/head_xtion/rgb/camera_info";
         }
-        m_CameraInfoSubscriber.subscribe(m_NodeHandle, caminfo_channel,       1);
+        m_RGBCameraInfoSubscriber.subscribe(m_NodeHandle, caminfo_channel,       1);
         ROS_INFO_STREAM("Subscribed to camera info topic "<<caminfo_channel);
+
+        std::string caminfo_channel_depth;
+        found = m_NodeHandle.getParam("input_caminfo_rgb",caminfo_channel_depth);
+        if (!found)
+        {
+            caminfo_channel_depth = "/head_xtion/depth/camera_info";
+        }
+        m_DepthCameraInfoSubscriber.subscribe(m_NodeHandle, caminfo_channel_depth,       1);
+        ROS_INFO_STREAM("Subscribed to camera info topic "<<caminfo_channel_depth);
 
     }
 
@@ -304,7 +315,7 @@ CloudMergeNode<PointType>::~CloudMergeNode()
 }
 
 template <class PointType>
-void CloudMergeNode<PointType>::imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg)
+void CloudMergeNode<PointType>::imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg, const sensor_msgs::CameraInfoConstPtr& info_msg_depth)
 {
 
     if (!m_bUseImages)
@@ -318,7 +329,7 @@ void CloudMergeNode<PointType>::imageCallback(const sensor_msgs::ImageConstPtr& 
         if (scan_skip_counter < 5)
             return;
 
-        m_CloudMerge.addIntermediateImage(depth_msg, rgb_msg, info_msg);
+        m_CloudMerge.addIntermediateImage(depth_msg, rgb_msg, info_msg, info_msg_depth);
     }
 
 }
@@ -519,14 +530,33 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
                 if (m_bSaveIntermediateImages)
                 {
-                    aSemanticRoom.addIntermediateCloudImages(intermediate_rgb_images, intermediate_depth_images);
+
+                    // find rgb and depth transforms
+                    tf::StampedTransform rgb_transform, depth_transform;
+                    std::string rgb_frame, depth_frame;
+                    depth_frame = m_CloudMerge.m_IntermediateFilteredDepthCamInfo->header.frame_id;
+                    rgb_frame = m_CloudMerge.m_IntermediateFilteredRGBCamInfo->header.frame_id;
+
+                    m_TransformListener.waitForTransform("/map", rgb_frame,m_CloudMerge.m_IntermediateFilteredRGBCamInfo->header.stamp, ros::Duration(20.0) );
+                    m_TransformListener.lookupTransform("/map", rgb_frame, m_CloudMerge.m_IntermediateFilteredRGBCamInfo->header.stamp, rgb_transform);
+
+                    m_TransformListener.waitForTransform("/map", depth_frame,m_CloudMerge.m_IntermediateFilteredDepthCamInfo->header.stamp, ros::Duration(20.0) );
+                    m_TransformListener.lookupTransform("/map", depth_frame, m_CloudMerge.m_IntermediateFilteredDepthCamInfo->header.stamp, depth_transform);
+
+
+                    // camera parameters
+                    image_geometry::PinholeCameraModel rgbCameraParams, depthCameraParams;
+                    depthCameraParams.fromCameraInfo(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
+                    depthCameraParams.fromCameraInfo(m_CloudMerge.m_IntermediateFilteredRGBCamInfo);
+
+
+                    aSemanticRoom.addIntermediateCloudImages(intermediate_rgb_images, intermediate_depth_images,
+                                                             rgb_transform, depth_transform,
+                                                             rgbCameraParams, depthCameraParams);
                 }
 
                 m_CloudMerge.transformIntermediateCloud(transform,"/map");
                 transformed_cloud = m_CloudMerge.getIntermediateCloud();
-
-//                sensor_msgs::PointCloud2 msg_cloud;
-//                pcl::toROSMsg(*transformed_cloud, msg_cloud);
 
                 if (m_CloudMerge.m_IntermediateFilteredDepthImage)
                 {
