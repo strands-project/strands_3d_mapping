@@ -449,24 +449,6 @@ public:
                 }
             }
 
-//            for (i=0; i<v_depth_images.size(); i++)
-//            {
-//                for (j=0; j<v_depth_images[i].size(); j++)
-//                {
-
-//                }
-//            }
-
-//            for (i=0; i<v_rgb_images.size(); i++)
-//            {
-//                for (j=0; j<v_rgb_images[i].size(); j++)
-//                {
-//                    std::string image_root_name = roomFolder.toStdString() + "/rgb_image";
-//                    save_image(v_rgb_images[i][j],image_root_name);
-//                }
-//            }
-
-
 
             xmlWriter->writeEndElement(); // RoomIntermediateImages
         }

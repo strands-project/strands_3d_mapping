@@ -547,7 +547,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     // camera parameters
                     image_geometry::PinholeCameraModel rgbCameraParams, depthCameraParams;
                     depthCameraParams.fromCameraInfo(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
-                    depthCameraParams.fromCameraInfo(m_CloudMerge.m_IntermediateFilteredRGBCamInfo);
+                    rgbCameraParams.fromCameraInfo(m_CloudMerge.m_IntermediateFilteredRGBCamInfo);
 
 
                     aSemanticRoom.addIntermediateCloudImages(intermediate_rgb_images, intermediate_depth_images,
