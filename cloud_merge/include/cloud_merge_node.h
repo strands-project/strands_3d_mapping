@@ -522,8 +522,8 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     aSemanticRoom.addIntermediateCloudImages(intermediate_rgb_images, intermediate_depth_images);
                 }
 
-//                m_CloudMerge.transformIntermediateCloud(transform,"/map");
-//                transformed_cloud = m_CloudMerge.getIntermediateCloud();
+                m_CloudMerge.transformIntermediateCloud(transform,"/map");
+                transformed_cloud = m_CloudMerge.getIntermediateCloud();
 
 //                sensor_msgs::PointCloud2 msg_cloud;
 //                pcl::toROSMsg(*transformed_cloud, msg_cloud);
