@@ -77,7 +77,7 @@ public:
         m_IntermediateDepthImages.push_back(depth_img);
         m_IntermediateRGBImages.push_back(rgb_img);
         m_IntermediateCameraInfo.push_back(info_img);
-        m_IntermediateCameraInfoDepth.push_back(info_img);
+        m_IntermediateCameraInfoDepth.push_back(info_img_depth);
     }
 
     void processIntermediateCloud()
