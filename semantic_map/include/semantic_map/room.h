@@ -178,7 +178,11 @@ public:
         intermediate_images.intermediateDepthTransform = depth_transform;
 
         m_vIntermediatePositionImages.push_back(intermediate_images);
+    }
 
+    void addIntermediateCloudImages(IntermediatePositionImages newImages)
+    {
+        m_vIntermediatePositionImages.push_back(newImages);
     }
 
     auto getIntermdiatePositionImages()  -> decltype(m_vIntermediatePositionImages)
