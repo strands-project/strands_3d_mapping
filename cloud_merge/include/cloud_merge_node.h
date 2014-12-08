@@ -327,7 +327,7 @@ void CloudMergeNode<PointType>::imageCallback(const sensor_msgs::ImageConstPtr& 
     {
         scan_skip_counter++;
         if (scan_skip_counter < 5)
-            return;
+//            return;
 
         m_CloudMerge.addIntermediateImage(depth_msg, rgb_msg, info_msg, info_msg_depth);
     }
