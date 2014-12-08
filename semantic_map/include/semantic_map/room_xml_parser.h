@@ -419,7 +419,7 @@ public:
             {
                 std::stringstream ss; ss<<base_name; ss<<"_"<<std::setfill('0')<<std::setw(4)<<i<<"_"<<std::setfill('0')<<std::setw(4)<<j<<".png";
                 cv::imwrite(ss.str().c_str(),image);
-                ROS_INFO_STREAM("Saving intermediate image: "<<ss.str().c_str()<<"  base name "<<base_name);
+                ROS_INFO_STREAM("Saving intermediate image: "<<ss.str().c_str());
             };
 
             for (i=0; i<v_intermdiate_images.size();i++)
@@ -1047,6 +1047,7 @@ private:
 
             token = xmlReader->readNext();
         }
+        intermediatePoisitionCounter++;
 
         return toRet;
 
