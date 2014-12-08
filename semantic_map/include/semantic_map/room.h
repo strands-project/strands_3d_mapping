@@ -41,6 +41,8 @@ public:
         tf::StampedTransform                intermediateRGBTransform;
         image_geometry::PinholeCameraModel  intermediateRGBCamParams;
         image_geometry::PinholeCameraModel  intermediateDepthCamParams;
+        int                                 numRGBImages, numDepthImages;
+        bool                                images_loaded;
     };
 
 private:
@@ -176,6 +178,8 @@ public:
         intermediate_images.intermediateDepthCamParams = depth_params;
         intermediate_images.intermediateRGBTransform = rgb_transform;
         intermediate_images.intermediateDepthTransform = depth_transform;
+        intermediate_images.numRGBImages = rgb_images.size();
+        intermediate_images.numDepthImages = depth_images.size();
 
         m_vIntermediatePositionImages.push_back(intermediate_images);
     }

@@ -47,6 +47,8 @@ public:
         if (rootFolder == "home")
         {
             m_RootFolder =(QDir::homePath() + QString("/.semanticMap/"));
+        } else {
+            m_RootFolder = rootFolder.c_str();
         }
 
         // create root folder
@@ -90,6 +92,7 @@ public:
         }
 
         xmlFile = roomFolder.toStdString() + xmlFile;
+        ROS_INFO_STREAM("Room xml file "<<xmlFile);
 
         QFile file(xmlFile.c_str());
         if (file.exists())
@@ -423,8 +426,8 @@ public:
             {
                 xmlWriter->writeStartElement("IntermediatePosition");
 
-                xmlWriter->writeAttribute("RGB_Images", QString::number(v_intermdiate_images[i].vIntermediateRGBImages.size()));
-                xmlWriter->writeAttribute("Depth_Images", QString::number(v_intermdiate_images[i].vIntermediateDepthImages.size()));
+                xmlWriter->writeAttribute("RGB_Images", QString::number(v_intermdiate_images[i].numRGBImages));
+                xmlWriter->writeAttribute("Depth_Images", QString::number(v_intermdiate_images[i].numDepthImages));
 
                 // ------------------------------  Camera Parameters ----------------------------------------------------
                 saveCameraParametersToXML(v_intermdiate_images[i].intermediateRGBCamParams, xmlWriter, "RGBCameraParameters");
@@ -439,15 +442,18 @@ public:
 
                 xmlWriter->writeEndElement(); // IntermediatePosition
 
-                for (j=0; j<v_intermdiate_images[i].vIntermediateDepthImages.size();j++)
+                if (v_intermdiate_images[i].images_loaded)
                 {
-                    std::string image_root_name = roomFolder + "/depth_image";
-                    save_image(v_intermdiate_images[i].vIntermediateDepthImages[j],image_root_name);
-                }
-                for (j=0; j<v_intermdiate_images[i].vIntermediateRGBImages.size();j++)
-                {
-                    std::string image_root_name = roomFolder+ "/rgb_image";
-                    save_image(v_intermdiate_images[i].vIntermediateRGBImages[j],image_root_name);
+                    for (j=0; j<v_intermdiate_images[i].vIntermediateDepthImages.size();j++)
+                    {
+                        std::string image_root_name = roomFolder + "/depth_image";
+                        save_image(v_intermdiate_images[i].vIntermediateDepthImages[j],image_root_name);
+                    }
+                    for (j=0; j<v_intermdiate_images[i].vIntermediateRGBImages.size();j++)
+                    {
+                        std::string image_root_name = roomFolder+ "/rgb_image";
+                        save_image(v_intermdiate_images[i].vIntermediateRGBImages[j],image_root_name);
+                    }
                 }
             }
 
@@ -698,7 +704,8 @@ public:
 
                 if (xmlReader->name() == "IntermediatePosition")
                 {
-                    auto positionImages = parseIntermediatePositionImages(xmlReader);
+                    auto positionImages = parseIntermediatePositionImages(xmlReader, roomFolder.toStdString(), deepLoad);
+
                     aRoom.addIntermediateCloudImages(positionImages);
                 }
             }
@@ -756,6 +763,16 @@ private:
                 {
                     int nsec = xmlReader.readElementText().toInt();
                     tfmsg.header.stamp.nsec = nsec;
+                }
+                if (xmlReader.name() == "FrameId")
+                {
+                    QString val = xmlReader.readElementText();
+                    tfmsg.header.frame_id = val.toStdString();
+                }
+                if (xmlReader.name() == "ChildFrameId")
+                {
+                    QString val = xmlReader.readElementText();
+                    tfmsg.child_frame_id = val.toStdString();
                 }
                 if (xmlReader.name() == "Translation")
                 {
@@ -944,12 +961,12 @@ private:
         return structToRet;
     }
 
-    static IntermediatePositionImages parseIntermediatePositionImages(QXmlStreamReader* xmlReader)
+    static IntermediatePositionImages parseIntermediatePositionImages(QXmlStreamReader* xmlReader, std::string roomFolder, bool deepLoad)
     {
 
-        ROS_INFO_STREAM("Parsing Intermediate position images xml node");
-        IntermediatePositionImages toRet;
+        static int intermediatePoisitionCounter = 0;
 
+        IntermediatePositionImages toRet;
         tf::StampedTransform transform;
         geometry_msgs::TransformStamped tfmsg;
         sensor_msgs::CameraInfo camInfo;
@@ -962,36 +979,71 @@ private:
         }
         QXmlStreamAttributes attributes = xmlReader->attributes();
 
+        // read in number of depth and rgb images
+        int numRGB, numDepth;
+        if (attributes.hasAttribute("RGB_Images"))
+        {
+            numRGB = attributes.value("RGB_Images").toString().toInt();
+        }
+
+        if (attributes.hasAttribute("Depth_Images"))
+        {
+            numDepth = attributes.value("Depth_Images").toString().toInt();
+        }
+
+        // read in the images
+
+        if (deepLoad)
+        {
+            for (int i=0; i<numRGB;i++)
+            {
+                std::stringstream ss; ss<<roomFolder;ss<<"/rgb_image"; ss<<"_"<<std::setfill('0')<<std::setw(4)<<intermediatePoisitionCounter<<"_"<<std::setfill('0')<<std::setw(4)<<i<<".png";
+                cv::Mat image = cv::imread(ss.str().c_str(), CV_LOAD_IMAGE_COLOR);
+                ROS_INFO_STREAM("Loading intermediate image: "<<ss.str().c_str());
+                toRet.vIntermediateRGBImages.push_back(image);
+            };
+
+            for (int i=0; i<numDepth;i++)
+            {
+                std::stringstream ss; ss<<roomFolder;ss<<"/depth_image"; ss<<"_"<<std::setfill('0')<<std::setw(4)<<intermediatePoisitionCounter<<"_"<<std::setfill('0')<<std::setw(4)<<i<<".png";
+                cv::Mat image = cv::imread(ss.str().c_str(), CV_LOAD_IMAGE_ANYDEPTH);
+                ROS_INFO_STREAM("Loading intermediate image: "<<ss.str().c_str());
+                toRet.vIntermediateDepthImages.push_back(image);
+            };
+        }
+        toRet.images_loaded = deepLoad;
+        toRet.numRGBImages = numRGB;
+        toRet.numDepthImages = numDepth;
+
 
         QXmlStreamReader::TokenType token = xmlReader->readNext();
 
         while(!((token == QXmlStreamReader::EndElement) && (xmlReader->name() == "IntermediatePosition")) )
         {
 
-            if ((xmlReader->name() == "RGBTransform") && (!token == QXmlStreamReader::EndElement))
+            if ((xmlReader->name() == "RGBTransform") && !(token == QXmlStreamReader::EndElement))
             {
                 bool errorReading = false;
                 toRet.intermediateRGBTransform = readTfStampedTransformFromXml(xmlReader, "RGBTransform", errorReading);
             }
 
-            if ((xmlReader->name() == "DepthTransform") && (!token == QXmlStreamReader::EndElement))
+            if ((xmlReader->name() == "DepthTransform") && !(token == QXmlStreamReader::EndElement))
             {
                 bool errorReading = false;
                 toRet.intermediateDepthTransform = readTfStampedTransformFromXml(xmlReader, "DepthTransform", errorReading);
             }
 
-            if ((xmlReader->name() == "RGBCameraParameters") && (!token == QXmlStreamReader::EndElement))
+            if ((xmlReader->name() == "RGBCameraParameters") && !(token == QXmlStreamReader::EndElement))
             {
                 bool errorReading = false;
                 toRet.intermediateRGBCamParams = readCamParamsFromXml(xmlReader, "RGBCameraParameters", errorReading);
             }
 
-            if ((xmlReader->name() == "DepthCameraParameters") && (!token == QXmlStreamReader::EndElement))
+            if ((xmlReader->name() == "DepthCameraParameters") && !(token == QXmlStreamReader::EndElement))
             {
                 bool errorReading = false;
-                toRet.intermediateDepthCamParams = readCamParamsFromXml(xmlReader, "RGBCameraParameters", errorReading);
+                toRet.intermediateDepthCamParams = readCamParamsFromXml(xmlReader, "DepthCameraParameters", errorReading);
             }
-
 
             token = xmlReader->readNext();
         }
@@ -1265,6 +1317,7 @@ private:
 
         if (!errorReading)
         {
+//            ROS_INFO_STREAM("No error while parsing node "<<xmlReader->name().toString().toStdString()<<"  constructing tf object ");
             tf::transformStampedMsgToTF(tfmsg, transform);
         }
 
