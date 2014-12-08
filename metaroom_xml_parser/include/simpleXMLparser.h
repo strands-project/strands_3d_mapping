@@ -514,6 +514,7 @@ private:
 
             token = xmlReader->readNext();
         }
+        intermediatePoisitionCounter++;
 
         return toRet;
 
