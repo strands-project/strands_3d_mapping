@@ -238,9 +238,9 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     bool found = m_NodeHandle.getParam("save_intermediate_clouds",m_bSaveIntermediateData);
     if (!m_bSaveIntermediateData)
     {
-        ROS_INFO_STREAM("Not saving intermediate data.");
+        ROS_INFO_STREAM("Not saving intermediate point clouds.");
     } else {
-        ROS_INFO_STREAM("Saving intermediate data.");
+        ROS_INFO_STREAM("Saving intermediate point clouds.");
     }
 
     bool doCleanup=true;
