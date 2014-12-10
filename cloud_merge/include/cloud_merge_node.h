@@ -287,7 +287,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
         ROS_INFO_STREAM("Old data will be deleted.");
     }
 
-    m_NodeHandle.param<bool>("save_intermediate_images",m_bSaveIntermediateImages,true);
+    m_NodeHandle.param<bool>("save_intermediate_images",m_bSaveIntermediateImages,false);
     if (m_bSaveIntermediateImages)
     {
         ROS_INFO_STREAM("Intermediate images will be saved. This could take a lot of disk space.");
