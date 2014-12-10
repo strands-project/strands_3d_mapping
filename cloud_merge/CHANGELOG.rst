@@ -9,6 +9,21 @@ Changelog for package cloud_merge
 * Changed cloud_merge include statement by prefixing it with the package_name
 * Contributors: Rares Ambrus
 
+0.0.9 (2014-11-23)
+------------------
+* Fixed bug: transforming intermediate cloud to global frame of ref before adding it to the merged cloud (it's still saved in the local frame of ref)
+* Update README.md
+* Initial README
+* Contributors: Rares Ambrus, RaresAmbrus
+
+0.0.8 (2014-11-22)
+------------------
+* Added empty readme
+* Not launching the sweep action server from here anymore (doesn't start properly when located on another machine)
+* Merge branch 'hydro-devel' of https://github.com/RaresAmbrus/strands_3d_mapping into hydro-devel
+* Changed depth topic
+* Contributors: Rares Ambrus, RaresAmbrus
+
 0.0.7 (2014-11-20)
 ------------------
 * Added machine and user parameters
