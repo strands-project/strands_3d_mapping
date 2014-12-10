@@ -1,6 +1,6 @@
 <launch>
 
-  <arg name="save_intermediate"           default="true" />
+  <arg name="save_intermediate_clouds"    default="true" />
   <arg name="save_intermediate_images"    default="false" />
   <arg name="generate_pointclouds"        default="true" />
   <arg name="cleanup"           	  default="false" />
@@ -22,7 +22,7 @@
   <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)"/>
 
   <node machine="$(arg machine)" pkg="cloud_merge" type="cloud_merge" name="cloud_merge" output="screen" respawn="true">
-	<param name="save_intermediate"  type="bool" value="$(arg save_intermediate)"/>
+	<param name="save_intermediate_clouds"  type="bool" value="$(arg save_intermediate_clouds)"/>
 	<param name="save_intermediate_images"  type="bool" value="$(arg save_intermediate_images)"/>
 	<param name="generate_pointclouds"       type="bool" value="$(arg generate_pointclouds)"/>
 	<param name="cleanup"  		    	 type="bool" value="$(arg cleanup)"/>

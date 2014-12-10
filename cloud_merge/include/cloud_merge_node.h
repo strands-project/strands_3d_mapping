@@ -235,7 +235,7 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
 //        m_LogRunName = "patrol_run_1";
 //    }
 
-    bool found = m_NodeHandle.getParam("save_intermediate",m_bSaveIntermediateData);
+    bool found = m_NodeHandle.getParam("save_intermediate_clouds",m_bSaveIntermediateData);
     if (!m_bSaveIntermediateData)
     {
         ROS_INFO_STREAM("Not saving intermediate data.");
