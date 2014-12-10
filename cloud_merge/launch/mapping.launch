@@ -1,6 +1,7 @@
 <launch>
 
   <arg name="save_intermediate" default="true" />
+  <arg name="save_intermediate_images" default="true" />
   <arg name="log_to_db" default="true" />
   <arg name="cleanup" default="false" />
   <arg name="cache_old_data" default="false" />
@@ -23,6 +24,7 @@
     <include file="$(find cloud_merge)/launch/cloud_merge.launch">
 
 	<arg name="save_intermediate" value="$(arg save_intermediate)"/>
+	<arg name="save_intermediate_images" value="$(arg save_intermediate_images)"/>
         <arg name="log_to_db" value="$(arg log_to_db)"/>
         <arg name="cleanup" value="$(arg cleanup)"/>
         <arg name="cache_old_data" value="$(arg cache_old_data)"/>
