@@ -17,6 +17,7 @@ rosbuild_prepare_qt4(QtCore QtXml)
 
 catkin_package(
    INCLUDE_DIRS include
+   LIBRARIES metaroom_xml_parser
    DEPENDS qt_build image_geometry libqt4-dev
 )
 
@@ -34,7 +35,7 @@ set(SRCS
     src/simpleSummaryParser.cpp
     )
 
-add_library(metaroomXMLparser ${HDRS} ${SRCS})
+add_library(metaroom_xml_parser ${HDRS}  src/simpleXMLparser.cpp src/simpleSummaryParser.cpp)
 
 add_executable(load_single_file src/loadSingleFileMain.cpp)
 
@@ -42,7 +43,6 @@ add_executable(load_single_file src/loadSingleFileMain.cpp)
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}
-   metaroomXMLparser
  )
 
 add_executable(load_multiple_files src/loadMultipleFilesMain.cpp)
@@ -51,12 +51,12 @@ add_executable(load_multiple_files src/loadMultipleFilesMain.cpp)
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}
-   metaroomXMLparser
+   metaroom_xml_parser
  )
 
 ############################# INSTALL TARGETS
 
-install(TARGETS metaroomXMLparser  load_single_file load_multiple_files
+install(TARGETS metaroom_xml_parser  load_single_file load_multiple_files
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

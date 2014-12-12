@@ -62,11 +62,11 @@ int main(int argc, char** argv)
         cout<<"cx" <<int_image.intermediateDepthCamParams.cx()<<endl;
         cout<<"cy" <<int_image.intermediateDepthCamParams.cy()<<endl;
 
-//        for (cv::Mat image : int_image.vIntermediateRGBImages)
-//        {
-//            imshow( "Display window", image );                   // Show our image inside it.
-//            waitKey(0);                                          // Wait for a keystroke in the window
-//        }
+        for (cv::Mat image : int_image.vIntermediateRGBImages)
+        {
+            imshow( "Display window", image );                   // Show our image inside it.
+            waitKey(0);                                          // Wait for a keystroke in the window
+        }
 
 //        for (cv::Mat image : int_image.vIntermediateDepthImages)
 //        {

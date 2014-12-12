@@ -3,7 +3,7 @@
 
 typedef pcl::PointXYZRGB PointType;
 
-typedef typename SimpleSummaryParser<PointType>::EntityStruct Entities;
+typedef typename SimpleSummaryParser::EntityStruct Entities;
 
 using namespace std;
 
@@ -19,7 +19,7 @@ int main(int argc, char** argv)
     string folderPath = argv[1];
     string summaryXMLPath = folderPath + "/index.xml";
 
-    SimpleSummaryParser<PointType> summary_parser(summaryXMLPath);
+    SimpleSummaryParser summary_parser(summaryXMLPath);
     summary_parser.createSummaryXML(folderPath);
 
     SimpleXMLParser<PointType> simple_parser;
