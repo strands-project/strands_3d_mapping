@@ -52,7 +52,7 @@ include_directories(include
 
 set(HDRS
     include/semantic_map/constants.h
-    include/semantic_map/room.h
+    include/semantic_map/room.h    
     include/semantic_map/metaroom.h
     include/semantic_map/roombase.h
     include/semantic_map/room_xml_parser.h
@@ -61,6 +61,10 @@ set(HDRS
     include/semantic_map/occlusion_checker.h
     include/semantic_map/ndt_registration.h
 )
+
+set(HDRS_IMPL
+    include/semantic_map/room.hpp
+    )
 
 set(SRCS
     src/room.cpp
@@ -73,7 +77,7 @@ set(SRCS
     src/ndt_registration.cpp
 )
 
-add_library(semantic_map ${HDRS} ${SRCS})
+add_library(semantic_map ${HDRS} ${HDRS_IMPL} ${SRCS})
 add_executable(semantic_map_node src/semantic_map_node.cpp src/semantic_map_main.cpp)
 
 add_executable(load_from_mongo src/load_from_mongo.cpp)
