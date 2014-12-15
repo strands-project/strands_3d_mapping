@@ -37,12 +37,19 @@ set(SRCS
 
 add_library(metaroom_xml_parser ${HDRS}  src/simpleXMLparser.cpp src/simpleSummaryParser.cpp)
 
-add_executable(load_single_file src/loadSingleFileMain.cpp)
+add_executable(load_single_file src/loadSingleFileMain.cpp )
+
+ target_link_libraries(metaroom_xml_parser
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+ )
 
  target_link_libraries(load_single_file
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}
+   metaroom_xml_parser
  )
 
 add_executable(load_multiple_files src/loadMultipleFilesMain.cpp)

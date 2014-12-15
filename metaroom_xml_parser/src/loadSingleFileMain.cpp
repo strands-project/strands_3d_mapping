@@ -18,7 +18,9 @@ int main(int argc, char** argv)
 
     SimpleXMLParser<PointType> parser;
 
+//    SimpleXMLParser::RoomData<PointType> roomData;
     SimpleXMLParser<PointType>::RoomData roomData;
+
 
     roomData = parser.loadRoomFromXML(argv[1]);
 
@@ -74,4 +76,6 @@ int main(int argc, char** argv)
 //            waitKey(0);                                          // Wait for a keystroke in the window
 //        }
     }
+
+
 }

@@ -18,12 +18,14 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+
 template <class PointType>
 class SimpleXMLParser {
 public:
 
-    typedef pcl::PointCloud<PointType> Cloud;
-    typedef typename Cloud::Ptr CloudPtr;
+//    typedef pcl::PointCloud<PointType> Cloud;
+//    typedef typename Cloud::Ptr CloudPtr;
+
 
     struct IntermediateCloudData{
         std::string                     filename;
@@ -41,35 +43,34 @@ public:
         image_geometry::PinholeCameraModel  intermediateDepthCamParams;
     };
 
-
+//    template <class PointType>
     struct RoomData
     {
-        std::vector<CloudPtr>                            vIntermediateRoomClouds;
+
+        std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>                            vIntermediateRoomClouds;
         std::vector<tf::StampedTransform>                vIntermediateRoomCloudTransforms;
         std::vector<image_geometry::PinholeCameraModel>  vIntermediateRoomCloudCamParams;
         std::vector<cv::Mat>                             vIntermediateRGBImages; // type CV_8UC3
         std::vector<cv::Mat>                             vIntermediateDepthImages; // type CV_16UC1
-        CloudPtr                                         completeRoomCloud;
+        boost::shared_ptr<pcl::PointCloud<PointType>>                                         completeRoomCloud;
         std::string                                      roomWaypointId;
         std::vector<IntermediatePositionImages>          vIntermediatePositionImages;
 
         RoomData(){
-            completeRoomCloud = CloudPtr(new Cloud());
+            completeRoomCloud = boost::shared_ptr<pcl::PointCloud<PointType>>(new pcl::PointCloud<PointType>());
         }
     };
 
 
 
-    SimpleXMLParser()
-    {
-    }
+    SimpleXMLParser(){}
 
     ~SimpleXMLParser()
-    {
+    {}
 
-    }
 
-    static std::pair<cv::Mat, cv::Mat> createRGBandDepthFromPC(CloudPtr cloud)
+//    template <class PointType>
+    static std::pair<cv::Mat, cv::Mat> createRGBandDepthFromPC(boost::shared_ptr<pcl::PointCloud<PointType>> cloud)
     {
         std::pair<cv::Mat, cv::Mat> toRet;
         toRet.first = cv::Mat::zeros(480, 640, CV_8UC3); // RGB image
@@ -91,6 +92,7 @@ public:
         return toRet;
     }
 
+//    template <class PointType>
     static RoomData loadRoomFromXML(const std::string& xmlFile)
     {
         RoomData aRoom;
@@ -144,7 +146,7 @@ public:
 
                         std::cout<<"Loading complete cloud file name "<<roomCompleteCloudFile.toStdString()<<std::endl;
                         pcl::PCDReader reader;
-                        CloudPtr cloud (new Cloud);
+                        boost::shared_ptr<pcl::PointCloud<PointType>> cloud (new pcl::PointCloud<PointType>);
                         reader.read (roomCompleteCloudFile.toStdString(), *cloud);
                         *aRoom.completeRoomCloud = *cloud;
                     } else {
@@ -176,12 +178,12 @@ public:
                     {
                         std::cout<<"Loading intermediate cloud file name "<<cloudFileName.toStdString()<<std::endl;
                         pcl::PCDReader reader;
-                        CloudPtr cloud (new Cloud);
+                        boost::shared_ptr<pcl::PointCloud<PointType>> cloud (new pcl::PointCloud<PointType>);
                         reader.read (cloudFileName.toStdString(), *cloud);
                         aRoom.vIntermediateRoomClouds.push_back(cloud);
                         aRoom.vIntermediateRoomCloudTransforms.push_back(intermediateCloudData.transform);
                         aRoom.vIntermediateRoomCloudCamParams.push_back(aCameraModel);
-                        std::pair<cv::Mat,cv::Mat> rgbAndDepth = SimpleXMLParser<PointType>::createRGBandDepthFromPC(cloud);
+                        std::pair<cv::Mat,cv::Mat> rgbAndDepth = SimpleXMLParser::createRGBandDepthFromPC(cloud);
                         aRoom.vIntermediateRGBImages.push_back(rgbAndDepth.first);
                         aRoom.vIntermediateDepthImages.push_back(rgbAndDepth.second);
                     }
@@ -792,5 +794,6 @@ private:
         return transform;
 
     }
+
 };
 #endif
