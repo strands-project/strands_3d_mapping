@@ -84,7 +84,7 @@ set(SRCS
 )
 
 add_library(semantic_map ${HDRS} ${HDRS_IMPL} ${SRCS})
-add_executable(semantic_map_node src/semantic_map_node.cpp src/semantic_map_main.cpp)
+add_executable(semantic_map_node include/semantic_map/semantic_map_node.h src/semantic_map_node.cpp src/semantic_map_main.cpp)
 
 add_executable(load_from_mongo src/load_from_mongo.cpp)
 
