@@ -4,6 +4,7 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/registration/distances.h>
 
 #include "ros/time.h"
 #include "ros/serialization.h"
@@ -14,12 +15,21 @@
 #include <QDir>
 #include <QXmlStreamWriter>
 
-#include "room.h"
-#include "metaroom.h"
-#include "room_xml_parser.h"
-#include "metaroom_xml_parser.h"
 #include "constants.h"
+#include "semantic_map/metaroom_xml_parser.h"
 
+
+template <class PointType>
+class SemanticRoom;
+
+template <class PointType>
+class MetaRoom;
+
+template <class PointType>
+class SemanticRoomXMLParser;
+
+template <class PointType>
+class MetaRoomXMLParser;
 
 class SemanticMapSummaryParser {
 

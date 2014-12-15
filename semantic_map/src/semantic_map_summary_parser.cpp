@@ -1,4 +1,4 @@
 #include "semantic_map/semantic_map_summary_parser.h"
-
-//template class SemanticMapSummaryParser<pcl::PointXYZ>;
-//template class SemanticMapSummaryParser<pcl::PointXYZRGB>;
+#include "semantic_map/room.h"
+#include "semantic_map/room_xml_parser.h"
+#include "semantic_map/metaroom.h"

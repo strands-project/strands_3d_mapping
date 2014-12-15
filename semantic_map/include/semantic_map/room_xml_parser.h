@@ -5,18 +5,16 @@
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 
-#include "ros/time.h"
-#include "ros/serialization.h"
+#include <ros/time.h>
+#include <ros/serialization.h>
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include "tf/tf.h"
+#include <tf/tf.h>
 
 #include <image_geometry/pinhole_camera_model.h>
 
-#include "room.h"
-
 #include <opencv2/core/eigen.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
-// QT
 #include <QFile>
 #include <QDir>
 #include <QXmlStreamWriter>
@@ -24,7 +22,8 @@
 
 #include <fstream>
 
-#include <opencv2/highgui/highgui.hpp>
+#include "room.h"
+
 
 template <class PointType>
 class SemanticRoomXMLParser {
