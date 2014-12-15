@@ -2,7 +2,7 @@
 #define __CLOUD_MERGE_NODE__H
 
 #include <stdio.h>
-#include <iostream>
+#include <iosfwd>
 #include <stdlib.h>
 #include <string>
 
