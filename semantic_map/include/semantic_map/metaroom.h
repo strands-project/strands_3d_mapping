@@ -27,6 +27,7 @@
 #include "constants.h"
 #include "room_xml_parser.h"
 #include "occlusion_checker.h"
+#include "metaroom_update_iteration.h"
 
 template <class PointType>
 class MetaRoom : public RoomBase<PointType> {
@@ -36,186 +37,9 @@ public:
     typedef typename Cloud::Ptr CloudPtr;
     typedef pcl::search::KdTree<PointType> Tree;
 
-    struct MetaRoomUpdateIteration
-    {
-        int                                              roomRunNumber;
-        std::string                                      roomLogName;
-        CloudPtr                                         differenceMetaRoomToRoom;
-        std::string                                      differenceMetaRoomToRoomFilename;
-        bool                                             differenceMetaRoomToRoomLoaded;
-
-        CloudPtr                                         differenceRoomToMetaRoom;
-        std::string                                      differenceRoomToMetaRoomFilename;
-        bool                                             differenceRoomToMetaRoomLoaded;
-
-        CloudPtr                                         clustersToBeAdded;
-        std::string                                      clustersToBeAddedFilename;
-        bool                                             clustersToBeAddedLoaded;
-
-        CloudPtr                                         clustersToBeRemoved;
-        std::string                                      clustersToBeRemovedFilename;
-        bool                                             clustersToBeRemovedLoaded;
-
-        CloudPtr                                         metaRoomInteriorCloud;
-        std::string                                      metaRoomInteriorCloudFilename;
-        bool                                             metaRoomInteriorCloudLoaded;
-
-        MetaRoomUpdateIteration() : differenceMetaRoomToRoom(new Cloud()), differenceRoomToMetaRoom(new Cloud()),
-            clustersToBeAdded(new Cloud()), clustersToBeRemoved(new Cloud()), metaRoomInteriorCloud(new Cloud())
-        {
-            differenceMetaRoomToRoomLoaded = false;
-            differenceRoomToMetaRoomLoaded = false;
-            clustersToBeAddedLoaded = false;
-            clustersToBeRemovedLoaded = false;
-            metaRoomInteriorCloudLoaded = false;
-            roomRunNumber = -1;
-            roomLogName = "";
-            differenceMetaRoomToRoomFilename = "";
-            differenceRoomToMetaRoomFilename = "";
-            clustersToBeAddedFilename = "";
-            clustersToBeRemovedFilename = "";
-            metaRoomInteriorCloudFilename = "";
-        }
-
-        CloudPtr        getDifferenceMetaRoomToRoom()
-        {
-            if (!differenceMetaRoomToRoomLoaded)
-            {
-                // first load the complete point cloud
-                std::cout<<"Loading differenceMetaRoomToRoom "<<differenceMetaRoomToRoomFilename<<std::endl;
-                pcl::PCDReader reader;
-                CloudPtr cloud (new Cloud);
-                reader.read (differenceMetaRoomToRoomFilename, *cloud);
-                *differenceMetaRoomToRoom = *cloud;
-                differenceMetaRoomToRoomLoaded = true;
-            }
-            return differenceMetaRoomToRoom;
-        }
-
-        CloudPtr        getDifferenceRoomToMetaRoom()
-        {
-            if (!differenceRoomToMetaRoomLoaded)
-            {
-                // first load the complete point cloud
-                std::cout<<"Loading differenceMetaRoomToRoom "<<differenceRoomToMetaRoomFilename<<std::endl;
-                pcl::PCDReader reader;
-                CloudPtr cloud (new Cloud);
-                reader.read (differenceRoomToMetaRoomFilename, *cloud);
-                *differenceRoomToMetaRoom = *cloud;
-                differenceRoomToMetaRoomLoaded = true;
-            }
-            return differenceRoomToMetaRoom;
-        }
-
-        CloudPtr        getClustersToBeAdded()
-        {
-            if (!clustersToBeAddedLoaded)
-            {
-                // first load the clusters to be added
-                std::cout<<"Loading clusters to be added "<<clustersToBeAddedFilename<<std::endl;
-                pcl::PCDReader reader;
-                CloudPtr cloud (new Cloud);
-                reader.read (clustersToBeAddedFilename, *cloud);
-                *clustersToBeAdded = *cloud;
-                clustersToBeAddedLoaded = true;
-            }
-            return clustersToBeAdded;
-        }
-
-        CloudPtr        getClustersToBeRemoved()
-        {
-            if (!clustersToBeRemovedLoaded)
-            {
-                // first load the clusters to be removed
-                std::cout<<"Loading clusters to be removed "<<clustersToBeRemovedFilename<<std::endl;
-                pcl::PCDReader reader;
-                CloudPtr cloud (new Cloud);
-                reader.read (clustersToBeRemovedFilename, *cloud);
-                *clustersToBeRemoved = *cloud;
-                clustersToBeRemovedLoaded = true;
-            }
-            return clustersToBeRemoved;
-        }
-
-        CloudPtr        getMetaRoomInteriorCloud()
-        {
-            if (!metaRoomInteriorCloudLoaded)
-            {
-                // first load the metaroom interior cloud
-                std::cout<<"Loading the metaroom interior cloud "<<metaRoomInteriorCloudFilename<<std::endl;
-                pcl::PCDReader reader;
-                CloudPtr cloud (new Cloud);
-                reader.read (metaRoomInteriorCloudFilename, *cloud);
-                *metaRoomInteriorCloud = *cloud;
-                metaRoomInteriorCloudLoaded = true;
-            }
-            return metaRoomInteriorCloud;
-        }
-
-        void setDifferenceMetaRoomToRoom(CloudPtr diffMRToR)
-        {
-            *differenceMetaRoomToRoom = *diffMRToR;
-            differenceMetaRoomToRoomLoaded = true;
-        }
-
-        void setDifferenceMetaRoomToRoom(std::string diffMRToRFile)
-        {
-            differenceMetaRoomToRoomFilename = diffMRToRFile;
-            differenceMetaRoomToRoomLoaded = false;
-        }
-
-        void setDifferenceRoomToMetaRoom(CloudPtr diffRToMR)
-        {
-            *differenceRoomToMetaRoom = *diffRToMR;
-            differenceRoomToMetaRoomLoaded = true;
-        }
-
-        void setDifferenceRoomToMetaRoom(std::string diffRToMRFile)
-        {
-            differenceRoomToMetaRoomFilename = diffRToMRFile;
-            differenceRoomToMetaRoomLoaded = false;
-        }
-
-        void setClustersToBeAdded(CloudPtr clusters)
-        {
-            *clustersToBeAdded = *clusters;
-            clustersToBeAddedLoaded = true;
-        }
-
-        void setClustersToBeAdded(std::string clusters)
-        {
-            clustersToBeAddedFilename = clusters;
-            clustersToBeAddedLoaded = false;
-        }
-
-        void setClustersToBeRemoved(CloudPtr clusters)
-        {
-            *clustersToBeRemoved = *clusters;
-            clustersToBeRemovedLoaded = true;
-        }
-
-        void setClustersToBeRemoved(std::string clusters)
-        {
-            clustersToBeRemovedFilename = clusters;
-            clustersToBeRemovedLoaded = false;
-        }
-        //
-        void setMetaRoomInteriorCloud(CloudPtr interior)
-        {
-            *metaRoomInteriorCloud = *interior;
-            metaRoomInteriorCloudLoaded = true;
-        }
-
-        void setMetaRoomInteriorCloud(std::string interior)
-        {
-            metaRoomInteriorCloudFilename = interior;
-            metaRoomInteriorCloudLoaded = false;
-        }
-    };
-
 private:
 
-    std::vector<MetaRoomUpdateIteration>                                m_MetaRoomUpdateIterations;
+    std::vector<MetaRoomUpdateIteration<PointType>>                     m_MetaRoomUpdateIterations;
     pcl::ModelCoefficients::Ptr                                         m_MetaRoomCeilingPrimitive;
     bool                                                                m_MetaRoomCeilingPrimitiveDirection;
     pcl::ModelCoefficients::Ptr                                         m_MetaRoomFloorPrimitive;
@@ -280,7 +104,7 @@ public:
         m_bSaveIntermediateSteps = saveSteps;
     }
 
-    std::vector<MetaRoomUpdateIteration> getUpdateIterations()
+    std::vector<MetaRoomUpdateIteration<PointType>> getUpdateIterations()
     {
         return m_MetaRoomUpdateIterations;
     }
@@ -353,7 +177,7 @@ public:
         return toRet;
     }
 
-    void addUpdateIteration(MetaRoomUpdateIteration newIteration)
+    void addUpdateIteration(MetaRoomUpdateIteration<PointType> newIteration)
     {
         m_MetaRoomUpdateIterations.push_back(newIteration);
     }
@@ -591,7 +415,7 @@ public:
             {
                 if ((differenceMetaRoomToRoomFiltered->points.size()!=0) && (differenceRoomToMetaRoomFiltered->points.size() != 0))
                 {
-                    MetaRoomUpdateIteration updateIteration;
+                    MetaRoomUpdateIteration<PointType> updateIteration;
                     updateIteration.roomLogName = aRoom.getRoomLogName();
                     updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
                     updateIteration.setDifferenceMetaRoomToRoom(differenceMetaRoomToRoomFiltered);

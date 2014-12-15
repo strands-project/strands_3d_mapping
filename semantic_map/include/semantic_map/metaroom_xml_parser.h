@@ -13,6 +13,7 @@
 
 #include "metaroom.h"
 #include "constants.h"
+#include "metaroom_update_iteration.h"
 
 // QT
 #include <QFile>
@@ -161,7 +162,7 @@ public:
 
         // update iterations
         xmlWriter->writeStartElement("UpdateIterations");
-        std::vector<typename MetaRoom<PointType>::MetaRoomUpdateIteration > updateIterations = aMetaRoom.getUpdateIterations();
+        std::vector<MetaRoomUpdateIteration<PointType>> updateIterations = aMetaRoom.getUpdateIterations();
         for (size_t i=0; i<updateIterations.size();i++)
         {
             xmlWriter->writeStartElement("UpdateIteration");
@@ -567,7 +568,7 @@ public:
                 // Update iterations
                 if (xmlReader->name() == "UpdateIteration")
                 {
-                    typename MetaRoom<PointType>::MetaRoomUpdateIteration updateIteration;
+                    MetaRoomUpdateIteration<PointType> updateIteration;
                     bool completelyUpdated = true;
                     while(!((token == QXmlStreamReader::EndElement) && (xmlReader->name() == "UpdateIteration")) )
                     {

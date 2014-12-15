@@ -54,6 +54,7 @@ set(HDRS
     include/semantic_map/constants.h
     include/semantic_map/room.h    
     include/semantic_map/metaroom.h
+    include/semantic_map/metaroom_update_iteration.h
     include/semantic_map/roombase.h
     include/semantic_map/room_xml_parser.h
     include/semantic_map/metaroom_xml_parser.h
@@ -65,11 +66,13 @@ set(HDRS
 set(HDRS_IMPL
     include/semantic_map/room.hpp
     include/semantic_map/room_xml_parser.hpp
+    include/semantic_map/metaroom_update_iteration.hpp
     )
 
 set(SRCS
     src/room.cpp
     src/metaroom.cpp
+    src/metaroom_update_iteration.cpp
     src/roombase.cpp
     src/room_xml_parser.cpp
     src/metaroom_xml_parser.cpp
