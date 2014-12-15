@@ -43,7 +43,7 @@ class SemanticMapNode {
 public:
     typedef pcl::PointCloud<PointType> Cloud;
     typedef typename Cloud::Ptr CloudPtr;
-    typedef typename SemanticMapSummaryParser<PointType>::EntityStruct Entities;
+    typedef typename SemanticMapSummaryParser::EntityStruct Entities;
 
     typedef typename semantic_map::MetaroomService::Request MetaroomServiceRequest;
     typedef typename semantic_map::MetaroomService::Response MetaroomServiceResponse;
@@ -77,7 +77,7 @@ public:
 
 private:
     ros::NodeHandle                                                             m_NodeHandle;
-    SemanticMapSummaryParser<PointType>                                         m_SummaryParser;
+    SemanticMapSummaryParser                                         m_SummaryParser;
     bool                                                                        m_bSaveIntermediateData;
     std::vector<boost::shared_ptr<MetaRoom<PointType> > >                       m_vLoadedMetarooms;
     mongodb_store::MessageStoreProxy                                           m_messageStore;
@@ -150,7 +150,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     aRoom.resetRoomTransform();
 
     // update summary xml
-    m_SummaryParser.createSummaryXML();
+    m_SummaryParser.createSummaryXML<PointType>();
 
     // update list of rooms & metarooms
     m_SummaryParser.refresh();

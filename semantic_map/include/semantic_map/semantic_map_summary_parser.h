@@ -21,7 +21,6 @@
 #include "constants.h"
 
 
-template <class PointType>
 class SemanticMapSummaryParser {
 
 public:
@@ -85,16 +84,17 @@ public:
         deleteFolderContents(semanticMapFolderPath);
     }
 
+    template <class PointType>
     void removeSemanticMapObservationInstances(int maxInstances, bool cache = false)
     {
         // first check the semanticMap cache folder size
         // update summary xml
-        createSummaryXML();
+        createSummaryXML<PointType>();
 
         // update list of rooms & metarooms
         refresh();
 
-        std::vector<SemanticMapSummaryParser<PointType>::EntityStruct> allRooms = getRooms();
+        std::vector<SemanticMapSummaryParser::EntityStruct> allRooms = getRooms();
 
         std::vector<std::pair<std::string, boost::posix_time::ptime> > currentMatches;
 
@@ -175,7 +175,7 @@ public:
             // update list of rooms & metarooms
             if (matchesFound)
             {
-                createSummaryXML();
+                createSummaryXML<PointType>();
                 refresh();
                 allRooms = getRooms();
                 i=0;
@@ -341,6 +341,7 @@ public:
         return toRet;
     }
 
+    template <class PointType>
     bool createSummaryXML(std::string rootFolder="")
     {
         QString qrootFolder;
@@ -375,8 +376,8 @@ public:
         xmlWriter->writeStartDocument();
         xmlWriter->writeStartElement("SemanticMap");
 
-        saveSemanticRooms(xmlWriter, qrootFolder);
-        saveMetaRooms(xmlWriter,qrootFolder);
+        saveSemanticRooms<PointType>(xmlWriter, qrootFolder);
+        saveMetaRooms<PointType>(xmlWriter,qrootFolder);
 
 
         xmlWriter->writeEndElement(); // SemanticMap
@@ -391,6 +392,7 @@ public:
 
 private:
 
+    template <class PointType>
     void saveMetaRooms(QXmlStreamWriter* xmlWriter, QString qrootFolder)
     {
         xmlWriter->writeStartElement("MetaRooms");
@@ -452,6 +454,7 @@ private:
         xmlWriter->writeEndElement();
     }
 
+    template <class PointType>
     void saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString qrootFolder)
     {
         xmlWriter->writeStartElement("SemanticRooms");
