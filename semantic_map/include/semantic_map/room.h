@@ -2,7 +2,7 @@
 #define __SEMANTIC_ROOM__H
 
 #include <stdio.h>
-#include <iostream>
+#include <iosfwd>
 #include <stdlib.h>
 #include <string>
 
