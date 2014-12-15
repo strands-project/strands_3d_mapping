@@ -64,6 +64,7 @@ set(HDRS
 
 set(HDRS_IMPL
     include/semantic_map/room.hpp
+    include/semantic_map/room_xml_parser.hpp
     )
 
 set(SRCS
