@@ -25,6 +25,31 @@ SemanticRoomXMLParser<PointType>::~SemanticRoomXMLParser()
 
 }
 
+/// Assumes that the roomXml file follows the structure /path_to_root_folder/date_folder/patrol_run_#/room_#/room.xml
+template <class PointType>
+bool SemanticRoomXMLParser<PointType>::setRootFolderFromRoomXml(std::string roomXml)
+{
+    QString qRoomXml(roomXml.c_str());
+    int slash_index = qRoomXml.lastIndexOf('/');
+    qRoomXml = qRoomXml.left(slash_index); // room folder
+    slash_index = qRoomXml.lastIndexOf('/');
+    qRoomXml = qRoomXml.left(slash_index); // patrol folder
+    slash_index = qRoomXml.lastIndexOf('/');
+    qRoomXml = qRoomXml.left(slash_index); // date folder
+    slash_index = qRoomXml.lastIndexOf('/');
+    qRoomXml = qRoomXml.left(slash_index+1); // root folder
+
+    ROS_INFO_STREAM("Setting root folder to "<<qRoomXml.toStdString());
+    m_RootFolder = qRoomXml;
+    // create root folder
+    if (!QDir(m_RootFolder).exists())
+    {
+        bool folderCreated = QDir().mkdir(m_RootFolder);
+        ROS_INFO_STREAM("Creating the root folder returned "<<folderCreated<<" folder name "<<m_RootFolder.toStdString());
+    }
+
+}
+
 template <class PointType>
 std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointType>& aRoom, std::string xmlFile)
 {
@@ -112,7 +137,7 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
     if (aRoom.getCompleteRoomCloudLoaded()) // only save the cloud file if it's been loaded
     {
         QFile file(completeCloudFilename);
-        if (!file.exists())
+//        if (!file.exists())
         {
             if (aRoom.getCompleteRoomCloud()->points.size()>0)
             {
@@ -672,6 +697,7 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
 
                 if (intermediateCloudData.hasRegTransform)
                 {
+                    ROS_INFO_STREAM("Adding intermediate reg transform");
                     aRoom.addIntermediateRoomCloudRegisteredTransform(intermediateCloudData.regTransform);
                 }
 
@@ -804,6 +830,7 @@ typename SemanticRoomXMLParser<PointType>::IntermediateCloudData SemanticRoomXML
 
             if (xmlReader.name() == "RoomIntermediateCloudTransformRegistered")
             {
+                ROS_INFO_STREAM("Reading reg transform node");
                 regTfmsg = readTfStampedTransformFromXml(&xmlReader, "RoomIntermediateCloudTransformRegistered", regTfmsgError);
             }
 
@@ -1197,6 +1224,7 @@ template <class PointType>
 tf::StampedTransform SemanticRoomXMLParser<PointType>::readTfStampedTransformFromXml(QXmlStreamReader* xmlReader, std::string nodeName, bool& errorReading)
 {
 
+    errorReading = false;
     geometry_msgs::TransformStamped tfmsg;
     tf::StampedTransform transform;
 

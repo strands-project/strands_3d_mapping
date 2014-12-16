@@ -46,6 +46,7 @@ public:
     SemanticRoomXMLParser(std::string rootFolder="home");
     ~SemanticRoomXMLParser();
 
+    bool setRootFolderFromRoomXml(std::string roomXml);
     std::string saveRoomAsXML(SemanticRoom<PointType>& aRoom, std::string xmlFile="room.xml");
     void  saveIntermediateImagesToXML(SemanticRoom<PointType>& aRoom, QXmlStreamWriter* xmlWriter, std::string roomFolder);
 
