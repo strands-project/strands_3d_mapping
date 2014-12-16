@@ -93,6 +93,7 @@ public:
     void setSaveIntermediateClouds(bool saveIntermediate);
     auto getIntermediateClouds() -> decltype (m_vIntermediateRoomClouds);
 
+    void clearIntermediateCloudRegisteredTransforms();
     void addIntermediateRoomCloudRegisteredTransform(tf::StampedTransform cloud_reg_tf);
     std::vector<tf::StampedTransform> getIntermediateCloudTransformsRegistered();
     std::vector<tf::StampedTransform> getIntermediateCloudTransforms();

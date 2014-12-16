@@ -174,6 +174,12 @@ void SemanticRoom<PointType>::addIntermediateRoomCloudRegisteredTransform(tf::St
 }
 
 template <class PointType>
+void SemanticRoom<PointType>::clearIntermediateCloudRegisteredTransforms()
+{
+    m_vIntermediateRoomCloudTransformsRegistered.clear();
+}
+
+template <class PointType>
 std::vector<tf::StampedTransform> SemanticRoom<PointType>::getIntermediateCloudTransformsRegistered()
 {
     return m_vIntermediateRoomCloudTransformsRegistered;
