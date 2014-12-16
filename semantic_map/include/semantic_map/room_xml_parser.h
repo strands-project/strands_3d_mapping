@@ -38,6 +38,8 @@ public:
         std::string                     filename;
         tf::StampedTransform            transform;
         sensor_msgs::CameraInfo         camInfo;
+        tf::StampedTransform            regTransform;
+        bool                            hasRegTransform;
     };
 
 

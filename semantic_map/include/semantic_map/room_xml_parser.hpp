@@ -168,11 +168,11 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
 
     if (aRoom.getDynamicClustersCloudLoaded() && aRoom.getDynamicClustersCloud()->points.size()) // only save the cloud file if it's been loaded
     {
-//            if (!dynamicClustersFile.exists())
-//            {
-                pcl::io::savePCDFileBinary(dynamicClustersFilename.toStdString(), *aRoom.getDynamicClustersCloud());
-                ROS_INFO_STREAM("Saving dynamic clusters cloud file name "<<dynamicClustersFilename.toStdString());
-//            }
+        //            if (!dynamicClustersFile.exists())
+        //            {
+        pcl::io::savePCDFileBinary(dynamicClustersFilename.toStdString(), *aRoom.getDynamicClustersCloud());
+        ROS_INFO_STREAM("Saving dynamic clusters cloud file name "<<dynamicClustersFilename.toStdString());
+        //            }
 
         xmlWriter->writeStartElement("RoomDynamicClusters");
         xmlWriter->writeAttribute("filename",dynamicClustersFilenameLocal);
@@ -210,86 +210,94 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
     xmlWriter->writeStartElement("RoomIntermediateClouds");
     std::vector<CloudPtr> roomIntermediateClouds = aRoom.getIntermediateClouds();
     std::vector<tf::StampedTransform> roomIntermediateCloudTransforms = aRoom.getIntermediateCloudTransforms();
+    std::vector<tf::StampedTransform> roomIntermediateCloudTransformsRegistered = aRoom.getIntermediateCloudTransformsRegistered();
     std::vector<image_geometry::PinholeCameraModel> roomIntermediateCloudCameraParameters = aRoom.getIntermediateCloudCameraParameters();
     std::vector<bool>   roomIntermediateCloudsLoaded = aRoom.getIntermediateCloudsLoaded();
-        for (size_t i=0; i<roomIntermediateCloudTransforms.size(); i++)
-        {
-            // RoomIntermediateCloud
-            xmlWriter->writeStartElement("RoomIntermediateCloud");
-            std::stringstream ss;
+    for (size_t i=0; i<roomIntermediateCloudTransforms.size(); i++)
+    {
+        // RoomIntermediateCloud
+        xmlWriter->writeStartElement("RoomIntermediateCloud");
+        std::stringstream ss;
         QString intermediateCloudLocalPath = "";
-            QString intermediateCloudPath = "";
-            if (aRoom.getSaveIntermediateClouds())
-            {
-                ss << "intermediate_cloud"<<std::setfill('0')<<std::setw(4)<<i<<".pcd";
+        QString intermediateCloudPath = "";
+        if (aRoom.getSaveIntermediateClouds())
+        {
+            ss << "intermediate_cloud"<<std::setfill('0')<<std::setw(4)<<i<<".pcd";
             intermediateCloudLocalPath = ss.str().c_str();
             intermediateCloudPath = roomFolder + intermediateCloudLocalPath;
-            }
+        }
         xmlWriter->writeAttribute("filename",intermediateCloudLocalPath);
 
-            if(roomIntermediateCloudsLoaded[i] && aRoom.getSaveIntermediateClouds())
+        if(roomIntermediateCloudsLoaded[i] && aRoom.getSaveIntermediateClouds())
+        {
+            QFile file(intermediateCloudPath);
+            if (!file.exists())
             {
-                QFile file(intermediateCloudPath);
-                if (!file.exists())
-                {
-                    pcl::io::savePCDFileBinary(intermediateCloudPath.toStdString(), *roomIntermediateClouds[i]);
-                    ROS_INFO_STREAM("Saving intermediate cloud file name "<<intermediateCloudPath.toStdString());
-                }
+                pcl::io::savePCDFileBinary(intermediateCloudPath.toStdString(), *roomIntermediateClouds[i]);
+                ROS_INFO_STREAM("Saving intermediate cloud file name "<<intermediateCloudPath.toStdString());
             }
+        }
 
-            // RoomIntermediateCloudTransform
-            xmlWriter->writeStartElement("RoomIntermediateCloudTransform");
+        // RoomIntermediateCloudTransform
+        xmlWriter->writeStartElement("RoomIntermediateCloudTransform");
 
-            geometry_msgs::TransformStamped msg;
-            tf::transformStampedTFToMsg(roomIntermediateCloudTransforms[i], msg);
+        geometry_msgs::TransformStamped msg;
+        tf::transformStampedTFToMsg(roomIntermediateCloudTransforms[i], msg);
 
-            xmlWriter->writeStartElement("Stamp");
-            xmlWriter->writeStartElement("sec");
-            xmlWriter->writeCharacters(QString::number(msg.header.stamp.sec));
-            xmlWriter->writeEndElement();
-            xmlWriter->writeStartElement("nsec");
-            xmlWriter->writeCharacters(QString::number(msg.header.stamp.nsec));
-            xmlWriter->writeEndElement();
-            xmlWriter->writeEndElement(); // Stamp
+        xmlWriter->writeStartElement("Stamp");
+        xmlWriter->writeStartElement("sec");
+        xmlWriter->writeCharacters(QString::number(msg.header.stamp.sec));
+        xmlWriter->writeEndElement();
+        xmlWriter->writeStartElement("nsec");
+        xmlWriter->writeCharacters(QString::number(msg.header.stamp.nsec));
+        xmlWriter->writeEndElement();
+        xmlWriter->writeEndElement(); // Stamp
 
-            xmlWriter->writeStartElement("FrameId");
-            xmlWriter->writeCharacters(QString(msg.header.frame_id.c_str()));
-            xmlWriter->writeEndElement();
+        xmlWriter->writeStartElement("FrameId");
+        xmlWriter->writeCharacters(QString(msg.header.frame_id.c_str()));
+        xmlWriter->writeEndElement();
 
-            xmlWriter->writeStartElement("ChildFrameId");
-            xmlWriter->writeCharacters(QString(msg.child_frame_id.c_str()));
-            xmlWriter->writeEndElement();
+        xmlWriter->writeStartElement("ChildFrameId");
+        xmlWriter->writeCharacters(QString(msg.child_frame_id.c_str()));
+        xmlWriter->writeEndElement();
 
-            xmlWriter->writeStartElement("Transform");
-            xmlWriter->writeStartElement("Translation");
-            xmlWriter->writeStartElement("x");
-            xmlWriter->writeCharacters(QString::number(msg.transform.translation.x));
-            xmlWriter->writeEndElement();
-            xmlWriter->writeStartElement("y");
-            xmlWriter->writeCharacters(QString::number(msg.transform.translation.y));
-            xmlWriter->writeEndElement();
-            xmlWriter->writeStartElement("z");
-            xmlWriter->writeCharacters(QString::number(msg.transform.translation.z));
-            xmlWriter->writeEndElement();
-            xmlWriter->writeEndElement(); // Translation
-            xmlWriter->writeStartElement("Rotation");
-            xmlWriter->writeStartElement("w");
-            xmlWriter->writeCharacters(QString::number(msg.transform.rotation.w));
-            xmlWriter->writeEndElement();
-            xmlWriter->writeStartElement("x");
-            xmlWriter->writeCharacters(QString::number(msg.transform.rotation.x));
-            xmlWriter->writeEndElement();
-            xmlWriter->writeStartElement("y");
-            xmlWriter->writeCharacters(QString::number(msg.transform.rotation.y));
-            xmlWriter->writeEndElement();
-            xmlWriter->writeStartElement("z");
-            xmlWriter->writeCharacters(QString::number(msg.transform.rotation.z));
-            xmlWriter->writeEndElement();
-            xmlWriter->writeEndElement(); // Rotation
-            xmlWriter->writeEndElement(); // Transform
+        xmlWriter->writeStartElement("Transform");
+        xmlWriter->writeStartElement("Translation");
+        xmlWriter->writeStartElement("x");
+        xmlWriter->writeCharacters(QString::number(msg.transform.translation.x));
+        xmlWriter->writeEndElement();
+        xmlWriter->writeStartElement("y");
+        xmlWriter->writeCharacters(QString::number(msg.transform.translation.y));
+        xmlWriter->writeEndElement();
+        xmlWriter->writeStartElement("z");
+        xmlWriter->writeCharacters(QString::number(msg.transform.translation.z));
+        xmlWriter->writeEndElement();
+        xmlWriter->writeEndElement(); // Translation
+        xmlWriter->writeStartElement("Rotation");
+        xmlWriter->writeStartElement("w");
+        xmlWriter->writeCharacters(QString::number(msg.transform.rotation.w));
+        xmlWriter->writeEndElement();
+        xmlWriter->writeStartElement("x");
+        xmlWriter->writeCharacters(QString::number(msg.transform.rotation.x));
+        xmlWriter->writeEndElement();
+        xmlWriter->writeStartElement("y");
+        xmlWriter->writeCharacters(QString::number(msg.transform.rotation.y));
+        xmlWriter->writeEndElement();
+        xmlWriter->writeStartElement("z");
+        xmlWriter->writeCharacters(QString::number(msg.transform.rotation.z));
+        xmlWriter->writeEndElement();
+        xmlWriter->writeEndElement(); // Rotation
+        xmlWriter->writeEndElement(); // Transform
 
-//                ROS_INFO_STREAM("TF message "<<msg<<"\nStamp "<<msg.header.stamp.sec<<"."<<msg.header.stamp.nsec);
-            xmlWriter->writeEndElement(); // RoomIntermediateCloudTransform
+        //                ROS_INFO_STREAM("TF message "<<msg<<"\nStamp "<<msg.header.stamp.sec<<"."<<msg.header.stamp.nsec);
+        xmlWriter->writeEndElement(); // RoomIntermediateCloudTransform
+
+        // RoomIntermediateCloudRegisteredTransform
+
+        if (roomIntermediateCloudTransformsRegistered.size() == roomIntermediateCloudTransforms.size())
+        {
+            saveTfStampedTransfromToXml(roomIntermediateCloudTransformsRegistered[i], xmlWriter, "RoomIntermediateCloudTransformRegistered");
+        }
 
         Eigen::IOFormat CommaInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", ", ", "", "", " << ", "");
         xmlWriter->writeStartElement("RoomIntermediateCameraParameters");
@@ -312,7 +320,7 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
             KString+=",";
         }
         xmlWriter->writeAttribute("K",KString);
-//            ROS_INFO_STREAM("K matrix "<<KString.toStdString());
+        //            ROS_INFO_STREAM("K matrix "<<KString.toStdString());
 
         // D matrix
         QString DString;
@@ -322,7 +330,7 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
             DString+=",";
         }
         xmlWriter->writeAttribute("D",DString);
-//            ROS_INFO_STREAM("D matrix "<<DString.toStdString());
+        //            ROS_INFO_STREAM("D matrix "<<DString.toStdString());
 
         // R matrix
         QString RString;
@@ -332,7 +340,7 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
             RString+=",";
         }
         xmlWriter->writeAttribute("R",RString);
-//            ROS_INFO_STREAM("R matrix "<<RString.toStdString());
+        //            ROS_INFO_STREAM("R matrix "<<RString.toStdString());
 
         // P matrix
         QString PString;
@@ -342,17 +350,17 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
             PString+=",";
         }
         xmlWriter->writeAttribute("P",PString);
-//            ROS_INFO_STREAM("P matrix "<<PString.toStdString());
+        //            ROS_INFO_STREAM("P matrix "<<PString.toStdString());
 
 
         xmlWriter->writeEndElement(); // RoomIntermediateCameraParameters
 
-            xmlWriter->writeEndElement(); // RoomIntermediateCloud
-        }
-//        }
+        xmlWriter->writeEndElement(); // RoomIntermediateCloud
+    }
+    //        }
     xmlWriter->writeEndElement(); // RoomIntermediateClouds
 
-     // Intermediate cloud images
+    // Intermediate cloud images
     saveIntermediateImagesToXML(aRoom,xmlWriter, roomFolder.toStdString());
 
 
@@ -662,6 +670,11 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
                     aRoom.addIntermediateRoomCloud(intermediateCloudData.filename, intermediateCloudData.transform,aCameraModel);
                 }
 
+                if (intermediateCloudData.hasRegTransform)
+                {
+                    aRoom.addIntermediateRoomCloudRegisteredTransform(intermediateCloudData.regTransform);
+                }
+
             }
 
             if (xmlReader->name() == "IntermediatePosition")
@@ -686,11 +699,15 @@ typename SemanticRoomXMLParser<PointType>::IntermediateCloudData SemanticRoomXML
 {
     tf::StampedTransform transform;
     geometry_msgs::TransformStamped tfmsg;
+    tf::StampedTransform regTfmsg;
     sensor_msgs::CameraInfo camInfo;
     bool camInfoError = false;
+    bool regTfmsgError = true;
 
     SemanticRoomXMLParser<PointType>::IntermediateCloudData       structToRet;
-//        toRet.first = CloudPtr(new Cloud);
+    structToRet.hasRegTransform = false;
+
+    //        toRet.first = CloudPtr(new Cloud);
     QString intermediateParentNode("");
 
     if (xmlReader.name()!="RoomIntermediateCloud")
@@ -783,6 +800,11 @@ typename SemanticRoomXMLParser<PointType>::IntermediateCloudData SemanticRoomXML
                 {
                     tfmsg.transform.translation.z = z;
                 }
+            }
+
+            if (xmlReader.name() == "RoomIntermediateCloudTransformRegistered")
+            {
+                regTfmsg = readTfStampedTransformFromXml(&xmlReader, "RoomIntermediateCloudTransformRegistered", regTfmsgError);
             }
 
             // camera parameters
@@ -917,6 +939,14 @@ typename SemanticRoomXMLParser<PointType>::IntermediateCloudData SemanticRoomXML
     {
         structToRet.camInfo = camInfo;
     }
+    if (!regTfmsgError)
+    {
+        structToRet.regTransform = regTfmsg;
+        structToRet.hasRegTransform = true;
+    } else {
+        structToRet.hasRegTransform = false;
+    }
+
     tf::transformStampedMsgToTF(tfmsg, transform);
     structToRet.transform = transform;
     return structToRet;
@@ -1282,7 +1312,7 @@ tf::StampedTransform SemanticRoomXMLParser<PointType>::readTfStampedTransformFro
 
     if (!errorReading)
     {
-//            ROS_INFO_STREAM("No error while parsing node "<<xmlReader->name().toString().toStdString()<<"  constructing tf object ");
+        //            ROS_INFO_STREAM("No error while parsing node "<<xmlReader->name().toString().toStdString()<<"  constructing tf object ");
         tf::transformStampedMsgToTF(tfmsg, transform);
     }
 
