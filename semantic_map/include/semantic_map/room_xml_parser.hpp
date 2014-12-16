@@ -697,7 +697,6 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
 
                 if (intermediateCloudData.hasRegTransform)
                 {
-                    ROS_INFO_STREAM("Adding intermediate reg transform");
                     aRoom.addIntermediateRoomCloudRegisteredTransform(intermediateCloudData.regTransform);
                 }
 
@@ -830,7 +829,6 @@ typename SemanticRoomXMLParser<PointType>::IntermediateCloudData SemanticRoomXML
 
             if (xmlReader.name() == "RoomIntermediateCloudTransformRegistered")
             {
-                ROS_INFO_STREAM("Reading reg transform node");
                 regTfmsg = readTfStampedTransformFromXml(&xmlReader, "RoomIntermediateCloudTransformRegistered", regTfmsgError);
             }
 
