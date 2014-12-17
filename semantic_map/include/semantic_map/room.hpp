@@ -168,6 +168,24 @@ auto SemanticRoom<PointType>::getIntermediateClouds() -> decltype(m_vIntermediat
 }
 
 template <class PointType>
+void SemanticRoom<PointType>::addIntermediateRoomCloudRegisteredTransform(tf::StampedTransform cloud_reg_tf)
+{
+    m_vIntermediateRoomCloudTransformsRegistered.push_back(cloud_reg_tf);
+}
+
+template <class PointType>
+void SemanticRoom<PointType>::clearIntermediateCloudRegisteredTransforms()
+{
+    m_vIntermediateRoomCloudTransformsRegistered.clear();
+}
+
+template <class PointType>
+std::vector<tf::StampedTransform> SemanticRoom<PointType>::getIntermediateCloudTransformsRegistered()
+{
+    return m_vIntermediateRoomCloudTransformsRegistered;
+}
+
+template <class PointType>
 std::vector<tf::StampedTransform> SemanticRoom<PointType>::getIntermediateCloudTransforms()
 {
     return m_vIntermediateRoomCloudTransforms;
@@ -317,6 +335,18 @@ bool SemanticRoom<PointType>::operator==(const SemanticRoom<PointType>& rhs) // 
     if (m_vIntermediateRoomCloudTransforms.size() != rhs.m_vIntermediateRoomCloudTransforms.size())
     {
         std::cout<<"Room intermediate cloud tranform vector sizes not equal"<<std::endl;
+        return false;
+    }
+
+    if (m_vIntermediateRoomCloudTransforms.size() != rhs.m_vIntermediateRoomCloudTransforms.size())
+    {
+        std::cout<<"Room intermediate cloud tranform vector sizes not equal"<<std::endl;
+        return false;
+    }
+
+    if (m_vIntermediateRoomCloudTransformsRegistered.size() != rhs.m_vIntermediateRoomCloudTransformsRegistered.size())
+    {
+        std::cout<<"Room intermediate cloud registered tranform vector sizes not equal"<<std::endl;
         return false;
     }
 
