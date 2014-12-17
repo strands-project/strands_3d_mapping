@@ -28,11 +28,14 @@ include_directories(include
 set(HDRS
     include/simple_xml_parser.h
     include/simple_summary_parser.h
+    include/load_utilities.h
     )
 
 set(SRCS
     src/simple_xml_parser.cpp
     src/simple_summary_parser.cpp
+    src/load_utilities.cpp
+    src/load_utilities_main.cpp
     )
 
 add_library(metaroom_xml_parser ${HDRS}  ${SRCS})
