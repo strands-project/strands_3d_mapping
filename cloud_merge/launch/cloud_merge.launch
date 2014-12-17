@@ -1,6 +1,7 @@
 <launch>
 
-  <arg name="save_intermediate"           default="true" />
+  <arg name="save_intermediate_clouds"    default="true" />
+  <arg name="save_intermediate_images"    default="false" />
   <arg name="generate_pointclouds"        default="true" />
   <arg name="cleanup"           	  default="false" />
   <arg name="log_to_db"           	  default="true" />
@@ -12,7 +13,8 @@
 
   <arg name="input_rgb"           	  default="/head_xtion/rgb/image_color" />
   <arg name="input_depth"           	  default="/head_xtion/depth/image_rect" />
-  <arg name="input_caminfo"           	  default="/head_xtion/rgb/camera_info" />
+  <arg name="input_caminfo_rgb"       	  default="/head_xtion/rgb/camera_info" />
+  <arg name="input_caminfo_depth"     	  default="/head_xtion/depth/camera_info" />
 
   <arg name="machine"   	default="localhost" />
   <arg name="user"   	default="" />
@@ -20,7 +22,8 @@
   <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)"/>
 
   <node machine="$(arg machine)" pkg="cloud_merge" type="cloud_merge" name="cloud_merge" output="screen" respawn="true">
-	<param name="save_intermediate"  type="bool" value="$(arg save_intermediate)"/>
+	<param name="save_intermediate_clouds"  type="bool" value="$(arg save_intermediate_clouds)"/>
+	<param name="save_intermediate_images"  type="bool" value="$(arg save_intermediate_images)"/>
 	<param name="generate_pointclouds"       type="bool" value="$(arg generate_pointclouds)"/>
 	<param name="cleanup"  		    	 type="bool" value="$(arg cleanup)"/>
 	<param name="log_to_db"  		 type="bool" value="$(arg log_to_db)"/>
@@ -30,7 +33,8 @@
 <!--	<param name="input_cloud"  		 value="$(arg input_cloud)"/> -->
 	<param name="input_rgb"  		 value="$(arg input_rgb)"/>
 	<param name="input_depth"  		 value="$(arg input_depth)"/>
-	<param name="input_caminfo"  		 value="$(arg input_caminfo)"/>
+	<param name="input_caminfo_rgb"  		 value="$(arg input_caminfo_rgb)"/>
+	<param name="input_caminfo_depth"  		 value="$(arg input_caminfo_depth)"/>
   
  	<param name="voxel_size_table_top"        type="double" value="$(arg voxel_size_table_top)" />
 	<param name="voxel_size_observation"      type="double" value="$(arg voxel_size_observation)" />

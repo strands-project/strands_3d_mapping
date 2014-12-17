@@ -52,7 +52,7 @@ class CloudMergeNode {
 public:
     typedef pcl::PointCloud<PointType> Cloud;
     typedef typename Cloud::Ptr CloudPtr;
-    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> SyncPolicy;
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo, sensor_msgs::CameraInfo> SyncPolicy;
     typedef message_filters::Synchronizer<SyncPolicy> Synchronizer;
     typedef typename SemanticMapSummaryParser<PointType>::EntityStruct Entities;
 
@@ -62,7 +62,7 @@ public:
     void controlCallback(const std_msgs::String& controlString);
     void topoNodeCallback(const std_msgs::String& controlString);
     void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
-    void imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg);
+    void imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg, const sensor_msgs::CameraInfoConstPtr& info_msg_depth);
 
     void findSemanticRoomIDAndLogName(SemanticRoom<PointType>& aSemanticRoom, int& roomId, int& patrolNumber);
     void getRoomIDAndPatrolNumber(QString roomXmlFile, int& roomId, int& patrolNumber);
@@ -85,7 +85,8 @@ public:
 
     boost::shared_ptr<Synchronizer>                                             m_MessageSynchronizer;
     image_transport::SubscriberFilter                                           m_DepthSubscriber, m_RGBSubscriber;
-    message_filters::Subscriber<sensor_msgs::CameraInfo>                        m_CameraInfoSubscriber;
+    message_filters::Subscriber<sensor_msgs::CameraInfo>                        m_RGBCameraInfoSubscriber;
+    message_filters::Subscriber<sensor_msgs::CameraInfo>                        m_DepthCameraInfoSubscriber;
     boost::shared_ptr<image_transport::ImageTransport>                          m_RGB_it, m_Depth_it;
 
 private:
@@ -114,6 +115,7 @@ private:
 
     bool                                                                        m_bLogToDB;
     bool                                                                        m_bCacheOldData;
+    bool                                                                        m_bSaveIntermediateImages;
     std::string                                                                 m_CurrentTopoNode;
 
     double                                                                      m_VoxelSizeTabletop;
@@ -131,8 +133,8 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     m_RGB_it.reset(new image_transport::ImageTransport(nh));
     m_Depth_it.reset(new image_transport::ImageTransport(nh));
 
-    m_MessageSynchronizer.reset( new Synchronizer(SyncPolicy(15), m_DepthSubscriber, m_RGBSubscriber, m_CameraInfoSubscriber) );
-    m_MessageSynchronizer->registerCallback(boost::bind(&CloudMergeNode::imageCallback, this, _1, _2, _3));
+    m_MessageSynchronizer.reset( new Synchronizer(SyncPolicy(15), m_DepthSubscriber, m_RGBSubscriber, m_RGBCameraInfoSubscriber, m_DepthCameraInfoSubscriber) );
+    m_MessageSynchronizer->registerCallback(boost::bind(&CloudMergeNode::imageCallback, this, _1, _2, _3, _4));
 
     m_SubscriberControl = m_NodeHandle.subscribe("/ptu/log",1, &CloudMergeNode::controlCallback,this);
     m_SubscriberTopoNode = m_NodeHandle.subscribe("/current_node",1, &CloudMergeNode::topoNodeCallback,this);
@@ -200,14 +202,24 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
         m_RGBSubscriber.subscribe(*m_RGB_it, rgb_channel,       1);
         ROS_INFO_STREAM("Subscribed to rgb image topic "<<rgb_channel);
 
+
         std::string caminfo_channel;
-        found = m_NodeHandle.getParam("input_caminfo",caminfo_channel);
+        found = m_NodeHandle.getParam("input_caminfo_rgb",caminfo_channel);
         if (!found)
         {
             caminfo_channel = "/head_xtion/rgb/camera_info";
         }
-        m_CameraInfoSubscriber.subscribe(m_NodeHandle, caminfo_channel,       1);
-        ROS_INFO_STREAM("Subscribed to camera info topic "<<caminfo_channel);
+        m_RGBCameraInfoSubscriber.subscribe(m_NodeHandle, caminfo_channel,       1);
+        ROS_INFO_STREAM("Subscribed to rgb camera info topic "<<caminfo_channel);
+
+        std::string caminfo_channel_depth;
+        found = m_NodeHandle.getParam("input_caminfo_depth",caminfo_channel_depth);
+        if (!found)
+        {
+            caminfo_channel_depth = "/head_xtion/depth/camera_info";
+        }
+        m_DepthCameraInfoSubscriber.subscribe(m_NodeHandle, caminfo_channel_depth,       1);
+        ROS_INFO_STREAM("Subscribed to depth camera info topic "<<caminfo_channel_depth);
 
     }
 
@@ -223,12 +235,12 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
 //        m_LogRunName = "patrol_run_1";
 //    }
 
-    bool found = m_NodeHandle.getParam("save_intermediate",m_bSaveIntermediateData);
+    bool found = m_NodeHandle.getParam("save_intermediate_clouds",m_bSaveIntermediateData);
     if (!m_bSaveIntermediateData)
     {
-        ROS_INFO_STREAM("Not saving intermediate data.");
+        ROS_INFO_STREAM("Not saving intermediate point clouds.");
     } else {
-        ROS_INFO_STREAM("Saving intermediate data.");
+        ROS_INFO_STREAM("Saving intermediate point clouds.");
     }
 
     bool doCleanup=true;
@@ -275,6 +287,16 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
         ROS_INFO_STREAM("Old data will be deleted.");
     }
 
+    m_NodeHandle.param<bool>("save_intermediate_images",m_bSaveIntermediateImages,false);
+    if (m_bSaveIntermediateImages)
+    {
+        ROS_INFO_STREAM("Intermediate images will be saved. This could take a lot of disk space.");
+    } else {
+        ROS_INFO_STREAM("Intermediate images will NOT be saved.");
+    }
+
+
+
     m_NodeHandle.param<double>("voxel_size_table_top",m_VoxelSizeTabletop,0.01);
     m_NodeHandle.param<double>("voxel_size_observation",m_VoxelSizeObservation,0.05);
     double cutoffDistance;
@@ -293,7 +315,7 @@ CloudMergeNode<PointType>::~CloudMergeNode()
 }
 
 template <class PointType>
-void CloudMergeNode<PointType>::imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg)
+void CloudMergeNode<PointType>::imageCallback(const sensor_msgs::ImageConstPtr& depth_msg, const sensor_msgs::ImageConstPtr& rgb_msg, const sensor_msgs::CameraInfoConstPtr& info_msg, const sensor_msgs::CameraInfoConstPtr& info_msg_depth)
 {
 
     if (!m_bUseImages)
@@ -305,9 +327,9 @@ void CloudMergeNode<PointType>::imageCallback(const sensor_msgs::ImageConstPtr& 
     {
         scan_skip_counter++;
         if (scan_skip_counter < 5)
-            return;
+//            return;
 
-        m_CloudMerge.addIntermediateImage(depth_msg, rgb_msg, info_msg);
+        m_CloudMerge.addIntermediateImage(depth_msg, rgb_msg, info_msg, info_msg_depth);
     }
 
 }
@@ -466,7 +488,13 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
        // ROS_INFO_STREAM("Stop aquiring data");
         m_bAquireData = false;
 
-        // process the accumulated point cloud
+
+        // get intermediate images (in case we want to save them)
+        auto intermediate_rgb_images = m_CloudMerge.getIntermediateRGBImages();
+        auto intermediate_depth_images = m_CloudMerge.getIntermediateDepthImages();
+
+        // process the accumulated point cloud               
+
         CloudPtr transformed_cloud = m_CloudMerge.subsampleIntermediateCloud();
         if (transformed_cloud->points.size() == 0)
         {
@@ -500,11 +528,35 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform);
                 }
 
-                m_CloudMerge.transformIntermediateCloud(transform,"/map");
-//                transformed_cloud = m_CloudMerge.getIntermediateCloud();
+                if (m_bSaveIntermediateImages)
+                {
 
-//                sensor_msgs::PointCloud2 msg_cloud;
-//                pcl::toROSMsg(*transformed_cloud, msg_cloud);
+                    // find rgb and depth transforms
+                    tf::StampedTransform rgb_transform, depth_transform;
+                    std::string rgb_frame, depth_frame;
+                    depth_frame = m_CloudMerge.m_IntermediateFilteredDepthCamInfo->header.frame_id;
+                    rgb_frame = m_CloudMerge.m_IntermediateFilteredRGBCamInfo->header.frame_id;
+
+                    m_TransformListener.waitForTransform("/map", rgb_frame,m_CloudMerge.m_IntermediateFilteredRGBCamInfo->header.stamp, ros::Duration(20.0) );
+                    m_TransformListener.lookupTransform("/map", rgb_frame, m_CloudMerge.m_IntermediateFilteredRGBCamInfo->header.stamp, rgb_transform);
+
+                    m_TransformListener.waitForTransform("/map", depth_frame,m_CloudMerge.m_IntermediateFilteredDepthCamInfo->header.stamp, ros::Duration(20.0) );
+                    m_TransformListener.lookupTransform("/map", depth_frame, m_CloudMerge.m_IntermediateFilteredDepthCamInfo->header.stamp, depth_transform);
+
+
+                    // camera parameters
+                    image_geometry::PinholeCameraModel rgbCameraParams, depthCameraParams;
+                    depthCameraParams.fromCameraInfo(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
+                    rgbCameraParams.fromCameraInfo(m_CloudMerge.m_IntermediateFilteredRGBCamInfo);
+
+
+                    aSemanticRoom.addIntermediateCloudImages(intermediate_rgb_images, intermediate_depth_images,
+                                                             rgb_transform, depth_transform,
+                                                             rgbCameraParams, depthCameraParams);
+                }
+
+                m_CloudMerge.transformIntermediateCloud(transform,"/map");
+                transformed_cloud = m_CloudMerge.getIntermediateCloud();
 
                 if (m_CloudMerge.m_IntermediateFilteredDepthImage)
                 {

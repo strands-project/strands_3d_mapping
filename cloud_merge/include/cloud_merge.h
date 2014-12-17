@@ -40,6 +40,7 @@ private:
     std::vector<sensor_msgs::Image::ConstPtr> m_IntermediateDepthImages;
     std::vector<sensor_msgs::Image::ConstPtr> m_IntermediateRGBImages;
     std::vector<sensor_msgs::CameraInfoConstPtr> m_IntermediateCameraInfo;
+    std::vector<sensor_msgs::CameraInfoConstPtr> m_IntermediateCameraInfoDepth;
 
 public:
 
@@ -47,6 +48,7 @@ public:
     sensor_msgs::ImagePtr                       m_IntermediateFilteredRGBImage;
 
     sensor_msgs::CameraInfoConstPtr             m_IntermediateFilteredDepthCamInfo;
+    sensor_msgs::CameraInfoConstPtr             m_IntermediateFilteredRGBCamInfo;
 
 
     CloudMerge(double maximumPointDistance = 4.0): m_IntermediateCloud(new Cloud()), m_MergedCloud(new Cloud())
@@ -70,11 +72,12 @@ public:
         m_IntermediateCloud->header = cloud.header;
     }
 
-    void addIntermediateImage(const sensor_msgs::Image::ConstPtr& depth_img, const sensor_msgs::Image::ConstPtr& rgb_img, const sensor_msgs::CameraInfo::ConstPtr& info_img)
+    void addIntermediateImage(const sensor_msgs::Image::ConstPtr& depth_img, const sensor_msgs::Image::ConstPtr& rgb_img, const sensor_msgs::CameraInfo::ConstPtr& info_img, const sensor_msgs::CameraInfo::ConstPtr& info_img_depth)
     {
         m_IntermediateDepthImages.push_back(depth_img);
         m_IntermediateRGBImages.push_back(rgb_img);
         m_IntermediateCameraInfo.push_back(info_img);
+        m_IntermediateCameraInfoDepth.push_back(info_img_depth);
     }
 
     void processIntermediateCloud()
@@ -84,6 +87,16 @@ public:
         ROS_INFO_STREAM("Room observation now has "<<m_MergedCloud->points.size()<<" points");
 
         m_IntermediateCloud->clear();
+    }
+
+    auto getIntermediateDepthImages() -> decltype(m_IntermediateDepthImages)
+    {
+        return m_IntermediateDepthImages;
+    }
+
+    auto getIntermediateRGBImages() -> decltype(m_IntermediateRGBImages)
+    {
+        return m_IntermediateRGBImages;
     }
 
     CloudPtr subsampleIntermediateCloud() // this method first checks whether we are using point clouds directly from the sensor or whether we are averaging a set of depth images from the camera
@@ -307,7 +320,8 @@ private:
             m_IntermediateFilteredRGBImage->step  = m_IntermediateRGBImages[0]->step;
             m_IntermediateFilteredRGBImage->data.assign(m_IntermediateRGBImages[0]->data.begin(), m_IntermediateRGBImages[0]->data.end());
 
-            m_IntermediateFilteredDepthCamInfo = m_IntermediateCameraInfo[0];
+            m_IntermediateFilteredDepthCamInfo = m_IntermediateCameraInfoDepth[m_IntermediateCameraInfoDepth.size()-1];
+            m_IntermediateFilteredRGBCamInfo = m_IntermediateCameraInfo[m_IntermediateCameraInfo.size()-1];
 
             CloudIterator pt_iter = subsampled_cloud.begin();
 
@@ -373,6 +387,7 @@ private:
             m_IntermediateDepthImages.clear();
             m_IntermediateRGBImages.clear();
             m_IntermediateCameraInfo.clear();
+            m_IntermediateCameraInfoDepth.clear();
         }
 
         m_IntermediateCloud->header = subsampled_cloud.header;
