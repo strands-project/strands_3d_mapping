@@ -96,9 +96,9 @@ public:
     }
 
     template <class PointType>
-    std::vector<typename SemanticMapSummaryParser<PointType>::EntityStruct> getMongodbRooms()
+    std::vector<typename SemanticMapSummaryParser::EntityStruct> getMongodbRooms()
     {
-        typedef typename SemanticMapSummaryParser<PointType>::EntityStruct Entities;
+        typedef typename SemanticMapSummaryParser::EntityStruct Entities;
 
         std::vector<Entities> toRet;
 

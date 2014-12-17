@@ -5,10 +5,7 @@
   <description>Metaroom XML parser</description>
 
   <maintainer email="raambrus@kth.se">Rares Ambrus</maintainer>
-
-
   <license>MIT</license>
-
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>rospy</build_depend>

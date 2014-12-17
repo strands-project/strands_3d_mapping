@@ -2,7 +2,7 @@
 #define __OCCLUSION_CHECKER__H
 
 #include <stdio.h>
-#include <iostream>
+#include <iosfwd>
 #include <stdlib.h>
 #include <string>
 

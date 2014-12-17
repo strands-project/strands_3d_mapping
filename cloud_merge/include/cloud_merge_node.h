@@ -2,7 +2,7 @@
 #define __CLOUD_MERGE_NODE__H
 
 #include <stdio.h>
-#include <iostream>
+#include <iosfwd>
 #include <stdlib.h>
 #include <string>
 
@@ -54,7 +54,7 @@ public:
     typedef typename Cloud::Ptr CloudPtr;
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo, sensor_msgs::CameraInfo> SyncPolicy;
     typedef message_filters::Synchronizer<SyncPolicy> Synchronizer;
-    typedef typename SemanticMapSummaryParser<PointType>::EntityStruct Entities;
+    typedef typename SemanticMapSummaryParser::EntityStruct Entities;
 
     CloudMergeNode(ros::NodeHandle nh);
     ~CloudMergeNode();
@@ -253,15 +253,15 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
         ROS_INFO_STREAM("Not removing old data at startup.");
     } else {
         ROS_INFO_STREAM("Will remove old data at startup.");
-        SemanticMapSummaryParser<PointType> summaryParser;
+        SemanticMapSummaryParser summaryParser;
         summaryParser.removeSemanticMapData();
     }
 
     if (m_MaxInstances != -1)
     {
         ROS_INFO_STREAM("Maximum number of instances per observations is "<<m_MaxInstances);
-        SemanticMapSummaryParser<PointType> summaryParser;
-        summaryParser.removeSemanticMapObservationInstances(m_MaxInstances,m_bCacheOldData);
+        SemanticMapSummaryParser summaryParser;
+        summaryParser.removeSemanticMapObservationInstances<PointType>(m_MaxInstances,m_bCacheOldData);
     } else {
         ROS_INFO_STREAM("Maximum number of instances hasn't been defined -> storing all the data.");
     }
@@ -452,8 +452,8 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             // before publising, check whether some data needs to be removed
             if (m_MaxInstances != -1)
             {
-                SemanticMapSummaryParser<PointType> summaryParser;
-                summaryParser.removeSemanticMapObservationInstances(m_MaxInstances,m_bCacheOldData);
+                SemanticMapSummaryParser summaryParser;
+                summaryParser.removeSemanticMapObservationInstances<PointType>(m_MaxInstances,m_bCacheOldData);
             }
 
             m_PublisherRoomObservation.publish(obs_msg);
@@ -598,8 +598,8 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 template <class PointType>
 void CloudMergeNode<PointType>::findSemanticRoomIDAndLogName(SemanticRoom<PointType>& aSemanticRoom, int& roomRunNumber, int& roomLogName)
 {
-    SemanticMapSummaryParser<PointType> summaryParser;
-    summaryParser.createSummaryXML();
+    SemanticMapSummaryParser summaryParser;
+    summaryParser.createSummaryXML<PointType>();
     summaryParser.refresh();
     std::vector<Entities> allRooms = summaryParser.getRooms();
 

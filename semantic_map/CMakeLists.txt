@@ -52,8 +52,9 @@ include_directories(include
 
 set(HDRS
     include/semantic_map/constants.h
-    include/semantic_map/room.h
+    include/semantic_map/room.h    
     include/semantic_map/metaroom.h
+    include/semantic_map/metaroom_update_iteration.h
     include/semantic_map/roombase.h
     include/semantic_map/room_xml_parser.h
     include/semantic_map/metaroom_xml_parser.h
@@ -62,9 +63,19 @@ set(HDRS
     include/semantic_map/ndt_registration.h
 )
 
+set(HDRS_IMPL
+    include/semantic_map/room.hpp
+    include/semantic_map/room_xml_parser.hpp
+    include/semantic_map/metaroom_update_iteration.hpp
+    include/semantic_map/metaroom.hpp
+    include/semantic_map/metaroom_xml_parser.hpp
+    include/semantic_map/roombase.hpp
+    )
+
 set(SRCS
     src/room.cpp
     src/metaroom.cpp
+    src/metaroom_update_iteration.cpp
     src/roombase.cpp
     src/room_xml_parser.cpp
     src/metaroom_xml_parser.cpp
@@ -73,13 +84,13 @@ set(SRCS
     src/ndt_registration.cpp
 )
 
-add_library(semantic_map ${HDRS} ${SRCS})
-add_executable(semantic_map_node src/semantic_map_node.cpp src/semantic_map_main.cpp)
+add_library(semantic_map ${HDRS} ${HDRS_IMPL} ${SRCS})
+add_executable(semantic_map_node include/semantic_map/semantic_map_node.h src/semantic_map_node.cpp src/semantic_map_main.cpp)
 
 add_executable(load_from_mongo src/load_from_mongo.cpp)
 
-add_dependencies(semantic_map primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
-add_dependencies(semantic_map_node primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
+add_dependencies(semantic_map semantic_map_generate_messages_cpp primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
+add_dependencies(semantic_map_node semantic_map_generate_messages_cpp primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
 
  target_link_libraries(semantic_map_node
    ${catkin_LIBRARIES}
