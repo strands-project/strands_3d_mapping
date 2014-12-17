@@ -1,4 +1,4 @@
-#include "simpleSummaryParser.h"
+#include "simple_summary_parser.h"
 
 SimpleSummaryParser::SimpleSummaryParser(std::string xmlFile)
 {

@@ -1,4 +1,4 @@
-#include "simpleXMLparser.h"
+#include "simple_xml_parser.h"
 
 typedef pcl::PointXYZRGB PointType;
 

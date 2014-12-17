@@ -1,4 +1,4 @@
-#include "simpleXMLparser.h"
+#include "simple_xml_parser.h"
 
 //    template <class PointType>
 //std::pair<cv::Mat, cv::Mat> SimpleXMLParser::createRGBandDepthFromPC(boost::shared_ptr<pcl::PointCloud<PointType>> cloud)

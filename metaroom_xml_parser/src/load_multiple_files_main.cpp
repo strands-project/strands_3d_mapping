@@ -1,5 +1,5 @@
-#include "simpleXMLparser.h"
-#include "simpleSummaryParser.h"
+#include "simple_xml_parser.h"
+#include "simple_summary_parser.h"
 
 typedef pcl::PointXYZRGB PointType;
 
@@ -16,7 +16,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    /*
+
 
     string folderPath = argv[1];
     string summaryXMLPath = folderPath + "/index.xml";
@@ -24,8 +24,8 @@ int main(int argc, char** argv)
     SimpleSummaryParser summary_parser(summaryXMLPath);
     summary_parser.createSummaryXML(folderPath);
 
-    SimpleXMLParser simple_parser;
-    SimpleXMLParser::RoomData<PointType> roomData;
+    SimpleXMLParser<PointType> simple_parser;
+    SimpleXMLParser<PointType>::RoomData roomData;
 
     std::vector<Entities> allSweeps = summary_parser.getRooms();
 
@@ -33,7 +33,7 @@ int main(int argc, char** argv)
     {
         cout<<"Parsing "<<allSweeps[i].roomXmlFile<<endl;
 
-        roomData = simple_parser.loadRoomFromXML<PointType>(allSweeps[i].roomXmlFile);
+        roomData = simple_parser.loadRoomFromXML(allSweeps[i].roomXmlFile);
         cout<<"Complete cloud size "<<roomData.completeRoomCloud->points.size()<<endl;
         cout<<"Room waypoint id "<<roomData.roomWaypointId<<std::endl;
 
@@ -43,5 +43,5 @@ int main(int argc, char** argv)
             cout<<"Fx: "<<roomData.vIntermediateRoomCloudCamParams[i].fx()<<" Fy: "<<roomData.vIntermediateRoomCloudCamParams[i].fy()<<endl;
         }
     }
-    */
+
 }

@@ -26,18 +26,18 @@ include_directories(include
 )
 
 set(HDRS
-    include/simpleXMLparser.h
-    include/simpleSummaryParser.h
+    include/simple_xml_parser.h
+    include/simple_summary_parser.h
     )
 
 set(SRCS
-    src/simpleXMLparser.cpp
-    src/simpleSummaryParser.cpp
+    src/simple_xml_parser.cpp
+    src/simple_summary_parser.cpp
     )
 
-add_library(metaroom_xml_parser ${HDRS}  src/simpleXMLparser.cpp src/simpleSummaryParser.cpp)
+add_library(metaroom_xml_parser ${HDRS}  ${SRCS})
 
-add_executable(load_single_file src/loadSingleFileMain.cpp )
+add_executable(load_single_file src/load_single_file_main.cpp )
 
  target_link_libraries(metaroom_xml_parser
    ${catkin_LIBRARIES}
@@ -52,7 +52,7 @@ add_executable(load_single_file src/loadSingleFileMain.cpp )
    metaroom_xml_parser
  )
 
-add_executable(load_multiple_files src/loadMultipleFilesMain.cpp)
+add_executable(load_multiple_files src/load_multiple_files_main.cpp)
 
  target_link_libraries(load_multiple_files
    ${catkin_LIBRARIES}
