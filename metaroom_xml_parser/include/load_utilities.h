@@ -6,10 +6,14 @@ namespace semantic_map_load_utilties
 
 
     template <class PointType>
-    boost::shared_ptr<pcl::PointCloud<PointType>> loadMergedCloudFromSingleSweep(std::string sweep_xml_path)
+    boost::shared_ptr<pcl::PointCloud<PointType>> loadMergedCloudFromSingleSweep(std::string sweepXmlPath, bool verbose=false)
     {
         boost::shared_ptr<pcl::PointCloud<PointType>> toRet;
-        return toRet;
+
+        auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweepXmlPath, verbose);
+
+
+        return sweep.completeRoomCloud;
     }
 
 
