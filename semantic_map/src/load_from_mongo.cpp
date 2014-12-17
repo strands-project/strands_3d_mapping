@@ -25,7 +25,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    string folderPath = argv[1];
+    string folderPath = argv[1] + string("/");
 
     if (!QDir(folderPath.c_str()).exists())
     {
