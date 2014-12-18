@@ -29,6 +29,7 @@ set(HDRS
     include/simple_xml_parser.h
     include/simple_summary_parser.h
     include/load_utilities.h
+    include/load_utilities.hpp
     )
 
 set(SRCS
