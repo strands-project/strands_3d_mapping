@@ -24,6 +24,8 @@ std::vector<SimpleSummaryParser::EntityStruct> SimpleSummaryParser::getRooms()
 
 bool SimpleSummaryParser::createSummaryXML(std::string rootFolder)
 {
+    rootFolder+=std::string("/"); // just to make sure, doesn't matter if there are two /
+
     QString qrootFolder;
     if (rootFolder == "")
     {
