@@ -48,7 +48,7 @@ public:
         std::vector<image_geometry::PinholeCameraModel>  vIntermediateRoomCloudCamParams;
         std::vector<cv::Mat>                             vIntermediateRGBImages; // type CV_8UC3
         std::vector<cv::Mat>                             vIntermediateDepthImages; // type CV_16UC1
-        boost::shared_ptr<pcl::PointCloud<PointType>>                                         completeRoomCloud;
+        boost::shared_ptr<pcl::PointCloud<PointType>>    completeRoomCloud;
         std::string                                      roomWaypointId;
         std::vector<IntermediatePositionImages>          vIntermediatePositionImages;
 
@@ -87,7 +87,15 @@ public:
         return toRet;
     }
 
-    static RoomData loadRoomFromXML(const std::string& xmlFile, bool verbose = false)
+    //! Function that parses a room xml file and returns the room structure
+    /*!
+      \param xmlFile the room xml file.
+      \param xmlNodesToParse the nodes from the xml file to parse. Especially usefull when you don't want to load everything; applies to merged cloud - xml node RoomCompleteCloud, intermediate clouds - xml node RoomIntermediateCloud, and intermediate images - xml node IntermediatePosition. All the other xml nodes are parsed by default.
+             The default value for this parameter is "*", which means everything will be parsed.
+      \param verbose whether to print output when parsing intermediate clouds and intermediate images.
+      \return The room structure.
+    */
+    static RoomData loadRoomFromXML(const std::string& xmlFile, std::vector<std::string> xmlNodesToParse=std::vector<std::string>{"RoomCompleteCloud", "RoomIntermediateCloud","IntermediatePosition"},bool verbose = false)
     {
         RoomData aRoom;
 
@@ -96,7 +104,7 @@ public:
 
         if (!file.exists())
         {
-            std::cerr<<"Could not open file "<<xmlFile<<" to load room."<<std::endl;
+            ROS_ERROR("Could not open file %s to load room.",xmlFile.c_str());
             return aRoom;
         }
 
@@ -106,6 +114,7 @@ public:
 
 
         file.open(QIODevice::ReadOnly);
+        ROS_INFO_STREAM("Parsing xml file: "<<xmlFile.c_str());
 
         QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
         Eigen::Vector4f centroid(0.0,0.0,0.0,0.0);
@@ -126,7 +135,8 @@ public:
 
             if (token == QXmlStreamReader::StartElement)
             {
-                if (xmlReader->name() == "RoomCompleteCloud")
+                if ((xmlReader->name() == "RoomCompleteCloud") &&
+                    (std::find(xmlNodesToParse.begin(), xmlNodesToParse.end(), "RoomCompleteCloud") != xmlNodesToParse.end()))
                 {
                     QXmlStreamAttributes attributes = xmlReader->attributes();
                     if (attributes.hasAttribute("filename"))
@@ -157,7 +167,8 @@ public:
                     aRoom.roomWaypointId = roomWaypointId.toStdString();
                 }
 
-                if (xmlReader->name() == "RoomIntermediateCloud")
+                if ((xmlReader->name() == "RoomIntermediateCloud") &&
+                        (std::find(xmlNodesToParse.begin(), xmlNodesToParse.end(), "RoomIntermediateCloud") != xmlNodesToParse.end()))
                 {
                     IntermediateCloudData intermediateCloudData = parseRoomIntermediateCloudNode(*xmlReader, verbose);
                     image_geometry::PinholeCameraModel aCameraModel;
@@ -189,7 +200,8 @@ public:
                     }
                 }
 
-                if (xmlReader->name() == "IntermediatePosition")
+                if ((xmlReader->name() == "IntermediatePosition") &&
+                        (std::find(xmlNodesToParse.begin(), xmlNodesToParse.end(), "IntermediatePosition") != xmlNodesToParse.end()))
                 {
                     auto positionImages = parseIntermediatePositionImages(xmlReader, roomFolder.toStdString(), verbose);
 
