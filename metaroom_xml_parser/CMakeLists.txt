@@ -64,14 +64,6 @@ add_executable(load_multiple_files src/load_multiple_files_main.cpp)
    metaroom_xml_parser
  )
 
-add_executable(load_utilities   src/load_utilities_main.cpp)
-
- target_link_libraries(load_utilities
-   ${catkin_LIBRARIES}
-   ${PCL_LIBRARIES}
-   ${QT_LIBRARIES}
-   metaroom_xml_parser
- )
 
 
 ############################# INSTALL TARGETS
