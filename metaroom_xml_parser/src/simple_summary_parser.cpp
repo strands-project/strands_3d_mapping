@@ -135,16 +135,32 @@ void SimpleSummaryParser::saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString
 
     for(QString roomXmlFile : allXmls)
     {
-        xmlWriter->writeStartElement("RoomXMLFile");
-        xmlWriter->writeCharacters(roomXmlFile);
-        xmlWriter->writeEndElement();
+        // test that this xml file actually contains a semantic room / sweep
+        QFile file(roomXmlFile);
+        file.open(QIODevice::ReadOnly);
 
-        xmlWriter->writeEndElement();
-        ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
+        QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
+        QXmlStreamReader::TokenType token = xmlReader->readNext();
+        while (token != QXmlStreamReader::StartElement)
+        {
+            token = xmlReader->readNext();
+        }
 
-        EntityStruct aRoom;
-        aRoom.roomXmlFile = roomXmlFile.toStdString();
-        m_vAllRooms.push_back(aRoom);
+        if (xmlReader->name() == "SemanticRoom")
+        {
+            xmlWriter->writeStartElement("RoomXMLFile");
+            xmlWriter->writeCharacters(roomXmlFile);
+            xmlWriter->writeEndElement();
+
+            xmlWriter->writeEndElement();
+            ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
+
+            EntityStruct aRoom;
+            aRoom.roomXmlFile = roomXmlFile.toStdString();
+            m_vAllRooms.push_back(aRoom);
+        }
+
+        file.close();
     }
 
 
