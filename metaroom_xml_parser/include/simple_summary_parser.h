@@ -28,6 +28,7 @@ public:
 private:
     QString                                 m_XMLFile;
     std::vector<EntityStruct>               m_vAllRooms;
+    int                                     m_maxFolderDepth;
 
 public:
 
@@ -43,6 +44,9 @@ public:
 private:
 
     void saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString qrootFolder);
+
+    std::vector<QString> listXmlInFolder(QString qrootFolder, int depth);
+
 
 };
 

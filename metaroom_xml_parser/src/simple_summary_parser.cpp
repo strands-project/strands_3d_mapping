@@ -9,6 +9,8 @@ SimpleSummaryParser::SimpleSummaryParser(std::string xmlFile)
         m_XMLFile = QString(xmlFile.c_str());
     }
 
+    m_maxFolderDepth = 10; // expand to a maximum of 10 folders down while looking for room xml files.
+
 }
 
 SimpleSummaryParser::~SimpleSummaryParser()
@@ -73,61 +75,108 @@ void SimpleSummaryParser::saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString
 {
     xmlWriter->writeStartElement("SemanticRooms");
 
-    // parse folder structure and look for semantic objects
-    QStringList dateFolders = QDir(qrootFolder).entryList(QStringList("*"),
-                                                    QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time);
+//    // parse folder structure and look for semantic objects
+//    QStringList dateFolders = QDir(qrootFolder).entryList(QStringList("*"),
+//                                                    QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time);
 
-    for (size_t i=0; i<dateFolders.size(); i++)
+//    for (size_t i=0; i<dateFolders.size(); i++)
+//    {
+//        bool isValidDate = true;
+//        // check that this is indeed a data folder (there might be other folders)
+//        if (dateFolders[i].size() != 8 )
+//        {
+//            isValidDate = false;
+//        } else {
+//            for (size_t letter_count = 0; letter_count<dateFolders[i].size(); letter_count++)
+//            {
+//                if (!dateFolders[i].at(letter_count).isDigit())
+//                {
+//                    isValidDate = false;
+//                    break;
+//                }
+//            }
+//        }
+
+//        if (!isValidDate)
+//        {
+//            std::cout<<"Skipping folder "<<dateFolders[i].toStdString()<<" as it doesn't have the right format."<<std::endl;
+//            continue;
+//        }
+
+//        QString dateFolder = qrootFolder+dateFolders[i];
+//        QStringList patrolFolders = QDir(dateFolder).entryList(QStringList("*"),
+//                                                                QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
+//        for (size_t j=0; j<patrolFolders.size(); j++)
+//        {
+//            QString patrolFolder = dateFolder + "/" + patrolFolders[j];
+//            QStringList roomFolders = QDir(patrolFolder).entryList(QStringList("*"),
+//                                                                 QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
+//            for (size_t k=0; k<roomFolders.size(); k++)
+//            {
+
+//                // parse XML file and extract some important fields with which to populate the index.html file
+//                QString roomXmlFile = patrolFolder+"/"+roomFolders[k] + "/room.xml";
+
+//                xmlWriter->writeStartElement("RoomXMLFile");
+//                xmlWriter->writeCharacters(roomXmlFile);
+//                xmlWriter->writeEndElement();
+
+//                xmlWriter->writeEndElement();
+//                ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
+
+//                EntityStruct aRoom;
+//                aRoom.roomXmlFile = roomXmlFile.toStdString();
+//                m_vAllRooms.push_back(aRoom);
+//            }
+//        }
+//    }
+
+    std::vector<QString> allXmls = listXmlInFolder(qrootFolder,0);
+
+    for(QString roomXmlFile : allXmls)
     {
-        bool isValidDate = true;
-        // check that this is indeed a data folder (there might be other folders)
-        if (dateFolders[i].size() != 8 )
-        {
-            isValidDate = false;
-        } else {
-            for (size_t letter_count = 0; letter_count<dateFolders[i].size(); letter_count++)
-            {
-                if (!dateFolders[i].at(letter_count).isDigit())
-                {
-                    isValidDate = false;
-                    break;
-                }
-            }
-        }
+        xmlWriter->writeStartElement("RoomXMLFile");
+        xmlWriter->writeCharacters(roomXmlFile);
+        xmlWriter->writeEndElement();
 
-        if (!isValidDate)
-        {
-            std::cout<<"Skipping folder "<<dateFolders[i].toStdString()<<" as it doesn't have the right format."<<std::endl;
-            continue;
-        }
+        xmlWriter->writeEndElement();
+        ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
 
-        QString dateFolder = qrootFolder+dateFolders[i];
-        QStringList patrolFolders = QDir(dateFolder).entryList(QStringList("*"),
-                                                                QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
-        for (size_t j=0; j<patrolFolders.size(); j++)
-        {
-            QString patrolFolder = dateFolder + "/" + patrolFolders[j];
-            QStringList roomFolders = QDir(patrolFolder).entryList(QStringList("*"),
-                                                                 QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
-            for (size_t k=0; k<roomFolders.size(); k++)
-            {
-
-                // parse XML file and extract some important fields with which to populate the index.html file
-                QString roomXmlFile = patrolFolder+"/"+roomFolders[k] + "/room.xml";
-
-                xmlWriter->writeStartElement("RoomXMLFile");
-                xmlWriter->writeCharacters(roomXmlFile);
-                xmlWriter->writeEndElement();
-
-                xmlWriter->writeEndElement();
-                ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
-
-                EntityStruct aRoom;
-                aRoom.roomXmlFile = roomXmlFile.toStdString();
-                m_vAllRooms.push_back(aRoom);
-            }
-        }
+        EntityStruct aRoom;
+        aRoom.roomXmlFile = roomXmlFile.toStdString();
+        m_vAllRooms.push_back(aRoom);
     }
 
+
     xmlWriter->writeEndElement(); // SemanticRooms
+}
+
+std::vector<QString> SimpleSummaryParser::listXmlInFolder(QString qrootFolder, int depth)
+{
+    if (depth > m_maxFolderDepth)
+    {
+        return std::vector<QString>();
+    }
+
+
+    std::vector<QString> toRet;
+
+    QStringList childFolders = QDir(qrootFolder).entryList(QStringList("*"),
+                                                    QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time);
+
+    QStringList filters;
+    filters << "*.xml";
+
+    for ( QString file : QDir(qrootFolder).entryList(filters, QDir::Files) )
+    {
+        toRet.push_back(qrootFolder+file);
+    }
+
+    for(QString childFolder : childFolders)
+    {
+        std::vector<QString> childXmls = listXmlInFolder(qrootFolder+childFolder+"/", depth+1);
+        toRet.insert(toRet.end(),childXmls.begin(), childXmls.end());
+    }
+
+    return toRet;
 }
