@@ -132,12 +132,10 @@ void SimpleSummaryParser::saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString
 //    }
 
     std::vector<QString> allXmls = listXmlInFolder(qrootFolder,0);
-    ROS_INFO_STREAM("Finished expanding folders");
 
     for(QString roomXmlFile : allXmls)
     {
         // test that this xml file actually contains a semantic room / sweep
-        ROS_INFO_STREAM("Checking xml "<<roomXmlFile.toStdString());
         QFile file(roomXmlFile);
         file.open(QIODevice::ReadOnly);
 
@@ -179,7 +177,6 @@ void SimpleSummaryParser::saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString
 
 std::vector<QString> SimpleSummaryParser::listXmlInFolder(QString qrootFolder, int depth)
 {
-    ROS_INFO_STREAM("Now expanding folder "<<qrootFolder.toStdString());
     if (depth > m_maxFolderDepth)
     {
         return std::vector<QString>();
