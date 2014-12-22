@@ -44,13 +44,14 @@ public:
     {
 
         std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>                            vIntermediateRoomClouds;
-        std::vector<tf::StampedTransform>                vIntermediateRoomCloudTransforms;
-        std::vector<image_geometry::PinholeCameraModel>  vIntermediateRoomCloudCamParams;
-        std::vector<cv::Mat>                             vIntermediateRGBImages; // type CV_8UC3
-        std::vector<cv::Mat>                             vIntermediateDepthImages; // type CV_16UC1
-        boost::shared_ptr<pcl::PointCloud<PointType>>    completeRoomCloud;
-        std::string                                      roomWaypointId;
-        std::vector<IntermediatePositionImages>          vIntermediatePositionImages;
+        std::vector<tf::StampedTransform>                                                     vIntermediateRoomCloudTransforms;
+        std::vector<image_geometry::PinholeCameraModel>                                       vIntermediateRoomCloudCamParams;
+        std::vector<cv::Mat>                                                                  vIntermediateRGBImages; // type CV_8UC3
+        std::vector<cv::Mat>                                                                  vIntermediateDepthImages; // type CV_16UC1
+        boost::shared_ptr<pcl::PointCloud<PointType>>                                         completeRoomCloud;
+        boost::shared_ptr<pcl::PointCloud<PointType>>                                         dynamicClusterCloud;
+        std::string                                                                           roomWaypointId;
+        std::vector<IntermediatePositionImages>                                               vIntermediatePositionImages;
 
         RoomData(){
             completeRoomCloud = boost::shared_ptr<pcl::PointCloud<PointType>>(new pcl::PointCloud<PointType>());
@@ -95,7 +96,7 @@ public:
       \param verbose whether to print output when parsing intermediate clouds and intermediate images.
       \return The room structure.
     */
-    static RoomData loadRoomFromXML(const std::string& xmlFile, std::vector<std::string> xmlNodesToParse=std::vector<std::string>{"RoomCompleteCloud", "RoomIntermediateCloud","IntermediatePosition"},bool verbose = false)
+    static RoomData loadRoomFromXML(const std::string& xmlFile, std::vector<std::string> xmlNodesToParse=std::vector<std::string>{"RoomCompleteCloud", "RoomIntermediateCloud","IntermediatePosition","RoomDynamicClusters"},bool verbose = false)
     {
         RoomData aRoom;
 
@@ -161,6 +162,34 @@ public:
                         return aRoom;
                     }
                 }
+
+                if ((xmlReader->name() == "RoomDynamicClusters") &&
+                    (std::find(xmlNodesToParse.begin(), xmlNodesToParse.end(), "RoomDynamicClusters") != xmlNodesToParse.end()))
+                {
+                    QXmlStreamAttributes attributes = xmlReader->attributes();
+                    if (attributes.hasAttribute("filename"))
+                    {
+                        QString dynamicClustersCloudFile = attributes.value("filename").toString();
+                        int sl_index = dynamicClustersCloudFile.indexOf('/');
+                        if (sl_index == -1)
+                        {
+                            dynamicClustersCloudFile=roomFolder + "/" + dynamicClustersCloudFile;
+                        }
+
+                        if (verbose)
+                        {
+                            ROS_INFO_STREAM("Loading dynamic clusters cloud file name "<<dynamicClustersCloudFile.toStdString());
+                        }
+                        pcl::PCDReader reader;
+                        boost::shared_ptr<pcl::PointCloud<PointType>> cloud (new pcl::PointCloud<PointType>);
+                        reader.read (dynamicClustersCloudFile.toStdString(), *cloud);
+                        *aRoom.dynamicClusterCloud = *cloud;
+                    } else {
+                        ROS_ERROR("RoomDynamicClusters xml node does not have filename attribute. Aborting.");
+                        return aRoom;
+                    }
+                }
+
                 if (xmlReader->name() == "RoomStringId")
                 {
                     QString roomWaypointId = xmlReader->readElementText();
