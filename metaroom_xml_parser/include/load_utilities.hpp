@@ -226,3 +226,41 @@
         return toRet;
     }
 
+
+    /********************************************** SWEEP XML UTILITIES ****************************************************************************************/
+    template <class PointType>
+    std::vector<std::string>  getSweepXmls(std::string folderPath, bool verbose = false)
+    {
+        std::vector<std::string> toRet;
+
+        SimpleSummaryParser summary_parser;
+        summary_parser.createSummaryXML(folderPath);
+        auto sweep_xmls = summary_parser.getRooms();
+
+        for (size_t i=0; i<sweep_xmls.size(); i++)
+        {
+            toRet.push_back(sweep_xmls[i].roomXmlFile);
+        }
+
+        return toRet;
+    }
+
+    template <class PointType>
+    std::vector<std::string>  getSweepXmlsForTopologicalWaypoint(std::string folderPath, std::string waypoint, bool verbose= false)
+    {
+
+        SimpleSummaryParser summary_parser;
+        summary_parser.createSummaryXML(folderPath);
+        auto sweep_xmls = summary_parser.getRooms();
+
+        // first construct waypoint id to sweep xml map
+        std::map<std::string, std::vector<std::string>> waypointToSweepsMap;
+        for (size_t i=0; i<sweep_xmls.size(); i++)
+        {
+            auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweep_xmls[i].roomXmlFile, std::vector<std::string>(), verbose);
+            waypointToSweepsMap[sweep.roomWaypointId].push_back(sweep_xmls[i].roomXmlFile);
+        }
+
+        return waypointToSweepsMap[waypoint];
+
+    }

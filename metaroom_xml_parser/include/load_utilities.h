@@ -55,6 +55,13 @@ namespace semantic_map_load_utilties
     template <class PointType>
     std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadIntermediatePositionImagesForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose=false);
 
+    /********************************************** SWEEP XML UTILITIES ****************************************************************************************/
+    template <class PointType>
+    std::vector<std::string>  getSweepXmls(std::string folderPath, bool verbose = false);
+
+    template <class PointType>
+    std::vector<std::string>  getSweepXmlsForTopologicalWaypoint(std::string folderPath, std::string waypoint, bool verbose = false);
+
 #include "load_utilities.hpp"
 
 }
