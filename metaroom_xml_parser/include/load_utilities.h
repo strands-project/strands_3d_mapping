@@ -1,6 +1,9 @@
 #include "simple_summary_parser.h"
 #include "simple_xml_parser.h"
 
+#include <pcl/segmentation/segment_differences.h>
+#include <pcl/segmentation/extract_clusters.h>
+
 namespace semantic_map_load_utilties
 {
 
@@ -61,6 +64,17 @@ namespace semantic_map_load_utilties
 
     template <class PointType>
     std::vector<std::string>  getSweepXmlsForTopologicalWaypoint(std::string folderPath, std::string waypoint, bool verbose = false);
+
+    /********************************************** DYNAMIC CLUSTER UTILITIES ****************************************************************************************/
+    template <class PointType>
+    std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> loadDynamicClustersFromSingleSweep(std::string sweepXmlPath, bool verbose=false, double tolerance = 0.05, int min_cluster_size = 75, int max_cluster_size=50000);
+
+    template <class PointType>
+    std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadDynamicClustersFromMultipleSweeps(std::string folderPath, bool verbose=false, double tolerance = 0.05, int min_cluster_size = 75, int max_cluster_size=50000);
+
+    template <class PointType>
+    std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadDynamicClustersForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose=false, double tolerance = 0.05, int min_cluster_size = 75, int max_cluster_size=50000);
+
 
 #include "load_utilities.hpp"
 
