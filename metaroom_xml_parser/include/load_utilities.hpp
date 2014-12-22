@@ -269,6 +269,7 @@
     template <class PointType>
     std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> loadDynamicClustersFromSingleSweep(std::string sweepXmlPath, bool verbose=false, double tolerance = 0.05, int min_cluster_size = 75, int max_cluster_size=50000)
     {
+        std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> toRet;
 
         auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweepXmlPath, std::vector<std::string>{"RoomDynamicClusters"},verbose);
 
@@ -276,31 +277,36 @@
         // it would be easier to save the split clusters directly, as opposed to combined in one point clouds, but more work
         // so the combined clusters will be split again into individual clusters here
 
-        typename pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
-        tree->setInputCloud (sweep.dynamicClusterCloud);
-        std::vector<pcl::PointIndices> cluster_indices;
-        pcl::EuclideanClusterExtraction<PointType> ec;
-        ec.setClusterTolerance (tolerance);
-        ec.setMinClusterSize (min_cluster_size);
-        ec.setMaxClusterSize (max_cluster_size);
-        ec.setSearchMethod (tree);
-        ec.setInputCloud (sweep.dynamicClusterCloud);
-        ec.extract (cluster_indices);
-
-        std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> toRet;
-
-        for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+        if (sweep.dynamicClusterCloud->points.size() > 0)
         {
-            boost::shared_ptr<pcl::PointCloud<PointType>> cloud_cluster (new pcl::PointCloud<PointType>());
-            for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++)
-                cloud_cluster->points.push_back (sweep.dynamicClusterCloud->points[*pit]); //*
-            cloud_cluster->width = cloud_cluster->points.size ();
-            cloud_cluster->height = 1;
-            cloud_cluster->is_dense = true;
+            typename pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
+            tree->setInputCloud (sweep.dynamicClusterCloud);
+            std::vector<pcl::PointIndices> cluster_indices;
+            pcl::EuclideanClusterExtraction<PointType> ec;
+            ec.setClusterTolerance (tolerance);
+            ec.setMinClusterSize (min_cluster_size);
+            ec.setMaxClusterSize (max_cluster_size);
+            ec.setSearchMethod (tree);
+            ec.setInputCloud (sweep.dynamicClusterCloud);
+            ec.extract (cluster_indices);
 
 
-            toRet.push_back(cloud_cluster);
 
+            for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+            {
+                boost::shared_ptr<pcl::PointCloud<PointType>> cloud_cluster (new pcl::PointCloud<PointType>());
+                for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++)
+                    cloud_cluster->points.push_back (sweep.dynamicClusterCloud->points[*pit]); //*
+                cloud_cluster->width = cloud_cluster->points.size ();
+                cloud_cluster->height = 1;
+                cloud_cluster->is_dense = true;
+
+
+                toRet.push_back(cloud_cluster);
+
+            }
+        } else {
+            ROS_INFO_STREAM("Sweep "<<sweepXmlPath<<" doesn't have the RoomDynamicClusters node set in the xml file");
         }
 
         return toRet;

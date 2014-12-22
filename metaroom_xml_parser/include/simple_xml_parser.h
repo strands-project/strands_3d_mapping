@@ -55,6 +55,7 @@ public:
 
         RoomData(){
             completeRoomCloud = boost::shared_ptr<pcl::PointCloud<PointType>>(new pcl::PointCloud<PointType>());
+            dynamicClusterCloud = boost::shared_ptr<pcl::PointCloud<PointType>>(new pcl::PointCloud<PointType>());
         }
     };
 
