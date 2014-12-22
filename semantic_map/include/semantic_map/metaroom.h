@@ -86,7 +86,7 @@ public:
     tf::Vector3 getSensorOrigin();
     void setSensorOrigin(tf::Vector3 so);
 
-    bool    updateMetaRoom(SemanticRoom<PointType>& aRoom);
+    bool    updateMetaRoom(SemanticRoom<PointType>& aRoom, std::string savePath="");
 
     void filterClustersBasedOnDistance(std::vector<CloudPtr>& clusters, double maxDistance);
     static std::vector<CloudPtr> clusterPointCloud(CloudPtr input_cloud, double tolerance = 0.05, int min_cluster_size = 100, int max_cluster_size=100000);
