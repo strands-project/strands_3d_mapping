@@ -5,6 +5,7 @@
 #include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/segmentation/supervoxel_clustering.h>
+//#include <pcl/segmentation/impl/supervoxel_clustering.hpp>
 
 class convex_voxel_segmentation
 {
@@ -17,6 +18,7 @@ private:
     using SuperVoxelT = pcl::Supervoxel<PointT>;
 
     bool display_segmentation;
+    float voxel_resolution;
 
     //PointCloudT::Ptr getColoredVoxelCloud (pcl::SupervoxelClustering<PointT> &s) const;
 
@@ -56,7 +58,7 @@ private:
                              const std::map<size_t, size_t>& vertex_points) const;
     void local_convexity_segmentation(std::vector<PointCloudT::Ptr>& result, PointCloudT::Ptr& cloud) const;
 public:
-    void segment_objects(std::vector<PointCloudT::Ptr>& result, PointCloudT::Ptr& original) const;
+    void segment_objects(std::vector<PointCloudT::Ptr>& result, std::vector<PointCloudT::Ptr>& full_result, PointCloudT::Ptr& original) const;
     convex_voxel_segmentation(bool display_segmentation = false);
 };
 

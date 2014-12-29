@@ -11,6 +11,7 @@
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/filters/extract_indices.h>
 #include <vtkPolyLine.h>
 
 #include <boost/config.hpp>
@@ -35,7 +36,7 @@ typedef boost::graph_traits<Graph>::edge_descriptor Edge;
 typedef boost::property<boost::edge_weight_t, float> edge_weight_property;
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, boost::no_property, edge_weight_property> weighted_graph;
 
-convex_voxel_segmentation::convex_voxel_segmentation(bool display_segmentation) : display_segmentation(display_segmentation)
+convex_voxel_segmentation::convex_voxel_segmentation(bool display_segmentation) : display_segmentation(display_segmentation), voxel_resolution(0.008f)
 {
 }
 
@@ -275,7 +276,6 @@ void convex_voxel_segmentation::segment_pointcloud(PointCloudT::Ptr& cloud,
 {
     bool use_transform = false;//! pcl::console::find_switch (argc, argv, "--NT");
 
-    float voxel_resolution = 0.008f;
     float seed_resolution = 0.1f;
     float color_importance = 0.6f;
     float spatial_importance = 0.4f;
@@ -294,6 +294,7 @@ void convex_voxel_segmentation::segment_pointcloud(PointCloudT::Ptr& cloud,
     pcl::console::print_highlight ("Extracting supervoxels!\n");
     super.extract (supervoxel_clusters);
     pcl::console::print_info ("Found %d supervoxels\n", supervoxel_clusters.size ());
+    super.refineSupervoxels(3, supervoxel_clusters);
 
     super.getSupervoxelAdjacency(supervoxel_adjacency);
     voxel_centroid_cloud = super.getVoxelCentroidCloud();
@@ -355,7 +356,7 @@ std::pair<bool, float> convex_voxel_segmentation::concave_relationship(pcl::Supe
         diff.normalize();
         float concaveness = diff.dot(normalj - normali);
         if (concaveness < 0) {
-            mean_prod += 0.5*concaveness;
+            mean_prod += concaveness;
         }
         else {
             mean_prod += concaveness;
@@ -615,7 +616,7 @@ void convex_voxel_segmentation::local_convexity_segmentation(std::vector<PointCl
     }
 }
 
-void convex_voxel_segmentation::segment_objects(std::vector<PointCloudT::Ptr>& result, PointCloudT::Ptr& original) const
+void convex_voxel_segmentation::segment_objects(std::vector<PointCloudT::Ptr>& result, std::vector<PointCloudT::Ptr>& full_result, PointCloudT::Ptr& original) const
 {
     if (original->isOrganized()) {
         cout << "Is organized" << endl;
@@ -643,4 +644,25 @@ void convex_voxel_segmentation::segment_objects(std::vector<PointCloudT::Ptr>& r
     outrem.filter (*cloud_filtered);
 
     local_convexity_segmentation(result, cloud_filtered);
+
+    pcl::octree::OctreePointCloudSearch<PointT> octree(voxel_resolution);
+    octree.setInputCloud(original);
+    octree.addPointsFromInputCloud();
+
+    for (PointCloudT::Ptr& cloud : result) {
+        full_result.push_back(PointCloudT::Ptr(new PointCloudT));
+        for (PointT& p : cloud->points) {
+            pcl::PointIndices::Ptr point_idx_data(new pcl::PointIndices());
+            if(!octree.voxelSearch(p, point_idx_data->indices)) {
+                continue;
+            }
+            PointCloudT cloud_p;
+            pcl::ExtractIndices<PointT> extract;
+            extract.setInputCloud(original);
+            extract.setIndices(point_idx_data);
+            extract.setNegative(false);
+            extract.filter(cloud_p);
+            *(full_result.back()) += cloud_p;
+        }
+    }
 }

@@ -52,10 +52,11 @@ int main(int argc, char** argv) {
     transform_back(frameid, cloud);
 
     std::vector<Cloud_t::Ptr> segments;
+    std::vector<Cloud_t::Ptr> full_segments;
     convex_voxel_segmentation cvs(true);
-    cvs.segment_objects(segments, cloud);
+    cvs.segment_objects(segments, full_segments, cloud);
 
-    for (Cloud_t::Ptr& segment : segments) {
+    for (Cloud_t::Ptr& segment : full_segments) {
         // for each segment, create features
         segment_features sf;
         Eigen::VectorXf feature;
@@ -70,7 +71,7 @@ int main(int argc, char** argv) {
             std::cout << "Too flat: " << feature(1) << std::endl;
             continue;
         }
-        else if (feature(2) < 200) {
+        else if (feature(2) < 800) {
             std::cout << "Too few points: " << feature(2) << std::endl;
             continue;
         }
