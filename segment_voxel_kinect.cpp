@@ -52,17 +52,18 @@ int main(int argc, char** argv) {
     transform_back(frameid, cloud);
 
     std::vector<Cloud_t::Ptr> segments;
+    std::vector<NormalCloud_t::Ptr> segment_normals;
     std::vector<Cloud_t::Ptr> full_segments;
     convex_voxel_segmentation cvs(true);
-    cvs.segment_objects(segments, full_segments, cloud);
+    cvs.segment_objects(segments, segment_normals, full_segments, cloud);
 
-    for (Cloud_t::Ptr& segment : full_segments) {
+    for (size_t i = 0; i < full_segments.size(); ++i) {
         // for each segment, create features
         segment_features sf;
         Eigen::VectorXf feature;
         float th1 = 0.1;
         float th2 = 0.005;
-        sf.calculate_features(feature, segment);
+        sf.calculate_features(feature, segments[i], segment_normals[i], full_segments[i]);
         if (feature(0) < th1) {
             std::cout << "Too thin: " << feature(0) << std::endl;
             continue;
@@ -71,21 +72,21 @@ int main(int argc, char** argv) {
             std::cout << "Too flat: " << feature(1) << std::endl;
             continue;
         }
-        else if (feature(2) < 800) {
+        else if (feature(2) < 800) { // should do this on the downsampled segments instead
             std::cout << "Too few points: " << feature(2) << std::endl;
             continue;
         }
 
         boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
         viewer->setBackgroundColor (0, 0, 0);
-        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(segment);
-        viewer->addPointCloud<pcl::PointXYZRGB> (segment, rgb, "sample cloud");
+        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(full_segments[i]);
+        viewer->addPointCloud<pcl::PointXYZRGB> (full_segments[i], rgb, "sample cloud");
         viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
         viewer->addCoordinateSystem (1.0);
         viewer->initCameraParameters ();
         while (!viewer->wasStopped ())
         {
-            viewer->spinOnce (100);
+            viewer->spinOnce(100);
         }
     }
 

@@ -8,6 +8,8 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
+find_package(OpenCV REQUIRED)
+
 #set(VTK_DIR "PATH/TO/VTK/BUILD/DIRECTORY")
 #find_package(VTK 5.8 REQUIRED)
 #include(${VTK_USE_FILE})
@@ -17,6 +19,7 @@ add_library(segment_features segment_features.cpp)
 add_library(convex_voxel_segmentation convex_voxel_segmentation.cpp)
 
 target_link_libraries(convex_voxel_segmentation ${PCL_LIBRARIES} ${VTK_LIBRARIES})
+target_link_libraries(segment_features ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 add_executable(browse browse_scenes.cpp)
 target_link_libraries(browse ${PCL_LIBRARIES} vis_wrapper)

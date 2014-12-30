@@ -550,7 +550,7 @@ void convex_voxel_segmentation::visualize(const std::vector<std::set<size_t> >& 
     visualize_segmentation(supervoxel_clusters, supervoxel_adjacency, voxel_centroid_cloud, colored_voxel_cloud, sv_normal_cloud, remove_pairs);
 }
 
-void convex_voxel_segmentation::local_convexity_segmentation(std::vector<PointCloudT::Ptr>& result, PointCloudT::Ptr& cloud) const
+void convex_voxel_segmentation::local_convexity_segmentation(std::vector<PointCloudT::Ptr>& result, std::vector<NormalCloudT::Ptr>& segment_normals, PointCloudT::Ptr& cloud) const
 {
     std::map <uint32_t, pcl::Supervoxel<PointT>::Ptr > supervoxel_clusters;
     std::multimap<uint32_t, uint32_t> supervoxel_adjacency;
@@ -598,6 +598,7 @@ void convex_voxel_segmentation::local_convexity_segmentation(std::vector<PointCl
     std::cout << "Number of groups: " << groups.size() << std::endl;
 
     result.resize(groups.size() - 1);
+    segment_normals.resize(groups.size() - 1);
     size_t counter = 0;
     for (const std::set<size_t>& g : groups) {
         if (counter == 0) {
@@ -605,8 +606,10 @@ void convex_voxel_segmentation::local_convexity_segmentation(std::vector<PointCl
             continue;
         }
         result[counter - 1] = PointCloudT::Ptr(new PointCloudT);
+        segment_normals[counter - 1] = NormalCloudT::Ptr(new NormalCloudT);
         for (size_t m : g) {
             *result[counter - 1]  += *supervoxel_clusters.at(m)->voxels_;
+            *segment_normals[counter - 1]  += *supervoxel_clusters.at(m)->normals_;
         }
         ++counter;
     }
@@ -616,7 +619,8 @@ void convex_voxel_segmentation::local_convexity_segmentation(std::vector<PointCl
     }
 }
 
-void convex_voxel_segmentation::segment_objects(std::vector<PointCloudT::Ptr>& result, std::vector<PointCloudT::Ptr>& full_result, PointCloudT::Ptr& original) const
+void convex_voxel_segmentation::segment_objects(std::vector<PointCloudT::Ptr>& result, std::vector<NormalCloudT::Ptr>& segment_normals,
+                                                std::vector<PointCloudT::Ptr>& full_result, PointCloudT::Ptr& original) const
 {
     if (original->isOrganized()) {
         cout << "Is organized" << endl;
@@ -643,7 +647,7 @@ void convex_voxel_segmentation::segment_objects(std::vector<PointCloudT::Ptr>& r
     PointCloudT::Ptr cloud_filtered(new PointCloudT);
     outrem.filter (*cloud_filtered);
 
-    local_convexity_segmentation(result, cloud_filtered);
+    local_convexity_segmentation(result, segment_normals, cloud_filtered);
 
     pcl::octree::OctreePointCloudSearch<PointT> octree(voxel_resolution);
     octree.setInputCloud(original);

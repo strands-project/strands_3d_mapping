@@ -15,6 +15,7 @@ private:
     using PointCloudT = pcl::PointCloud<PointT>;
     using PointNT = pcl::PointNormal ;
     using PointNCloudT = pcl::PointCloud<PointNT>;
+    using NormalCloudT = pcl::PointCloud<pcl::Normal>;
     using SuperVoxelT = pcl::Supervoxel<PointT>;
 
     bool display_segmentation;
@@ -56,9 +57,9 @@ private:
                              const std::set<edge_pair>& edges,
                              const std::map<edge_pair, float>& weights,
                              const std::map<size_t, size_t>& vertex_points) const;
-    void local_convexity_segmentation(std::vector<PointCloudT::Ptr>& result, PointCloudT::Ptr& cloud) const;
+    void local_convexity_segmentation(std::vector<PointCloudT::Ptr>& result, std::vector<NormalCloudT::Ptr> &segment_normals, PointCloudT::Ptr& cloud) const;
 public:
-    void segment_objects(std::vector<PointCloudT::Ptr>& result, std::vector<PointCloudT::Ptr>& full_result, PointCloudT::Ptr& original) const;
+    void segment_objects(std::vector<PointCloudT::Ptr>& result, std::vector<NormalCloudT::Ptr> &segment_normals, std::vector<PointCloudT::Ptr>& full_result, PointCloudT::Ptr& original) const;
     convex_voxel_segmentation(bool display_segmentation = false);
 };
 

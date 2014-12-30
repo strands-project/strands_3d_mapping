@@ -13,8 +13,10 @@ private:
     using PointCloudT = pcl::PointCloud<PointT>;
     using PointNT = pcl::PointNormal ;
     using PointNCloudT = pcl::PointCloud<PointNT>;
+    using NormalCloudT = pcl::PointCloud<pcl::Normal>;
 public:
-    void calculate_features(Eigen::VectorXf &feature, PointCloudT::Ptr segment) const;
+    void calculate_features(Eigen::VectorXf &feature, PointCloudT::Ptr& segment,
+                            NormalCloudT::Ptr& segment_normals, PointCloudT::Ptr& full_segment) const;
     segment_features();
 };
 
