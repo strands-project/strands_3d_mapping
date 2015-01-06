@@ -3,12 +3,18 @@
 #include "utils.h"
 #include "convex_voxel_segmentation.h"
 #include "segment_features.h"
+#include "k_means_tree/k_means_tree.h"
 
+#define PCL_NO_PRECOMPILE
 #include <pcl/console/parse.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(pcl::Histogram<33>,
+        (float, histogram, histogram)
+)
 
 void transform_back(int frameid, Cloud_t::Ptr& cloud)
 {
@@ -57,23 +63,27 @@ int main(int argc, char** argv) {
     convex_voxel_segmentation cvs(true);
     cvs.segment_objects(segments, segment_normals, full_segments, cloud);
 
+    using PointT = pcl::Histogram<33>;
+    using CloudT = pcl::PointCloud<PointT>;
+    std::vector<CloudT::Ptr> local_features(full_segments.size());
+    std::vector<Eigen::VectorXf, Eigen::aligned_allocator<Eigen::VectorXf> > global_features(full_segments.size());
     for (size_t i = 0; i < full_segments.size(); ++i) {
         // for each segment, create features
         segment_features sf;
-        Eigen::VectorXf feature;
         float th1 = 0.1;
         float th2 = 0.005;
-        sf.calculate_features(feature, segments[i], segment_normals[i], full_segments[i]);
-        if (feature(0) < th1) {
-            std::cout << "Too thin: " << feature(0) << std::endl;
+        local_features[i] = CloudT::Ptr(new CloudT);
+        sf.calculate_features(global_features[i], local_features[i], segments[i], segment_normals[i], full_segments[i]);
+        if (global_features[i](0) < th1) {
+            std::cout << "Too thin: " << global_features[i](0) << std::endl;
             continue;
         }
-        else if (feature(1) < th2) {
-            std::cout << "Too flat: " << feature(1) << std::endl;
+        else if (global_features[i](1) < th2) {
+            std::cout << "Too flat: " << global_features[i](1) << std::endl;
             continue;
         }
-        else if (feature(2) < 800) { // should do this on the downsampled segments instead
-            std::cout << "Too few points: " << feature(2) << std::endl;
+        else if (global_features[i](2) < 800) { // should do this on the downsampled segments instead
+            std::cout << "Too few points: " << global_features[i](2) << std::endl;
             continue;
         }
 
@@ -89,5 +99,14 @@ int main(int argc, char** argv) {
             viewer->spinOnce(100);
         }
     }
+
+    CloudT::Ptr all_local_features(new CloudT);
+    for (CloudT::Ptr& c : local_features) {
+        *all_local_features += *c;
+    }
+
+    k_means_tree<pcl::Histogram<33>, 8> kmt;
+    kmt.set_input_cloud(all_local_features);
+    kmt.add_points_from_input_cloud();
 
 }

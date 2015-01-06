@@ -11,7 +11,7 @@ segment_features::segment_features()
 {
 }
 
-void segment_features::calculate_features(Eigen::VectorXf& feature, PointCloudT::Ptr& segment,
+void segment_features::calculate_features(Eigen::VectorXf& global_features, HistCloudT::Ptr &local_features, PointCloudT::Ptr& segment,
                                           NormalCloudT::Ptr& segment_normals, PointCloudT::Ptr& full_segment) const
 {
     Eigen::Matrix<float, 4, 1> centroid;
@@ -33,10 +33,10 @@ void segment_features::calculate_features(Eigen::VectorXf& feature, PointCloudT:
     /*std::cout << svd.matrixU() << std::endl;
     std::cout << svd.singularValues() << std::endl;*/
 
-    feature.resize(3);
-    feature(0) = fabs(T(1) / T(0));
-    feature(1) = fabs(T(2) / T(0));
-    feature(2) = segment->size();
+    global_features.resize(36);
+    global_features(0) = fabs(T(1) / T(0));
+    global_features(1) = fabs(T(2) / T(0));
+    global_features(2) = segment->size();
 
     Eigen::Matrix3f K;
     /*K << 1.0607072507083330e3, 0.0, 9.5635447181548398e2,
@@ -148,6 +148,13 @@ void segment_features::calculate_features(Eigen::VectorXf& feature, PointCloudT:
     fpfh.setRadiusSearch (0.03);
     // Compute the features
     fpfh.compute(*fpfhs);
+
+    local_features->resize(fpfhs->size());
+    size_t counter = 0;
+    for (pcl::FPFHSignature33 f : fpfhs->points) {
+        eigmap(local_features->at(counter)) = eigmap(f);
+        ++counter;
+    }
 
     for (PointT& p : keypoints->points) {
         Eigen::Vector3f q = K*p.getVector3fMap();

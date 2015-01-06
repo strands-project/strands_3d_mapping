@@ -6,6 +6,12 @@
 
 #include <Eigen/Dense>
 
+template<typename Point>
+Eigen::Map<Eigen::Matrix<float, 33, 1> > eigmap(Point& v)
+{
+    return Eigen::Map<Eigen::Matrix<float, 33, 1> >(v.histogram);
+}
+
 class segment_features
 {
 private:
@@ -14,8 +20,10 @@ private:
     using PointNT = pcl::PointNormal ;
     using PointNCloudT = pcl::PointCloud<PointNT>;
     using NormalCloudT = pcl::PointCloud<pcl::Normal>;
+    using HistT = pcl::Histogram<33>;
+    using HistCloudT = pcl::PointCloud<HistT>;
 public:
-    void calculate_features(Eigen::VectorXf &feature, PointCloudT::Ptr& segment,
+    void calculate_features(Eigen::VectorXf &global_features, HistCloudT::Ptr& local_features, PointCloudT::Ptr& segment,
                             NormalCloudT::Ptr& segment_normals, PointCloudT::Ptr& full_segment) const;
     segment_features();
 };

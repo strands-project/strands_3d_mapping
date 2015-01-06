@@ -3,7 +3,7 @@ project(OBJECT_DISCOVERY)
 
 add_definitions(-std=c++11 -O4)
 
-find_package(PCL 1.6 REQUIRED COMPONENTS common io search visualization surface kdtree features surface segmentation octree)
+find_package(PCL 1.6 REQUIRED COMPONENTS common io search visualization surface kdtree features surface segmentation octree filter)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
@@ -13,6 +13,10 @@ find_package(OpenCV REQUIRED)
 #set(VTK_DIR "PATH/TO/VTK/BUILD/DIRECTORY")
 #find_package(VTK 5.8 REQUIRED)
 #include(${VTK_USE_FILE})
+
+set(k_means_tree_dir /home/nbore/Workspace/k_means_tree)
+include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
+link_directories(${k_means_tree_dir}/build)
 
 add_library(vis_wrapper vis_wrapper.cpp lockable.cpp)
 add_library(segment_features segment_features.cpp)
@@ -37,7 +41,7 @@ add_executable(segment_kinect segment_scene_kinect.cpp)
 target_link_libraries(segment_kinect ${PCL_LIBRARIES} vis_wrapper)
 
 add_executable(segment_voxel_kinect segment_voxel_kinect.cpp)
-target_link_libraries(segment_voxel_kinect convex_voxel_segmentation ${PCL_LIBRARIES} ${VTK_LIBRARIES} vis_wrapper segment_features)
+target_link_libraries(segment_voxel_kinect convex_voxel_segmentation ${PCL_LIBRARIES} ${VTK_LIBRARIES} vis_wrapper segment_features k_means_tree)
 
 add_executable(annotate annotate_bag.cpp)
 target_link_libraries(annotate ${PCL_LIBRARIES} vis_wrapper)
