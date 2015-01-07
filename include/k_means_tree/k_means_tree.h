@@ -56,6 +56,8 @@ private:
     static const size_t dim = K;
     static const size_t rows = map_proxy<PointT>::rows;
 
+public:
+
     struct node {
         typedef node* ptr_type;
         ptr_type children[dim];
@@ -112,7 +114,7 @@ public:
     CloudPtrT get_cloud() { return cloud; }
 
     void add_points_from_input_cloud();
-    node* get_leaf_for_point(const PointT& point);
+    leaf* get_leaf_for_point(const PointT& point);
     void get_path_for_point(std::vector<node*>& path, const PointT &point);
     void get_cloud_for_point_at_level(CloudPtrT& nodecloud, const PointT& p, size_t level);
 

@@ -190,11 +190,12 @@ void k_means_tree<Point, K>::assign_nodes(CloudPtrT& subcloud, node** nodes, siz
 }
 
 template <typename Point, size_t K>
-typename k_means_tree<Point, K>::node* k_means_tree<Point, K>::get_leaf_for_point(const PointT& point)
+typename k_means_tree<Point, K>::leaf* k_means_tree<Point, K>::get_leaf_for_point(const PointT& point)
 {
     vector<node*> temp;
     unfold_nodes(temp, &root, point);
-    return temp.back();
+    leaf* l = static_cast<leaf*>(temp.back());
+    return l;
 }
 
 template <typename Point, size_t K>
