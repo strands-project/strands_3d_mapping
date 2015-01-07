@@ -317,8 +317,9 @@ std::pair<bool, float> convex_voxel_segmentation::concave_relationship(pcl::Supe
     Eigen::Vector3f n1 = first_supervoxel->normal_.getNormalVector3fMap();
     Eigen::Vector3f n2 = second_supervoxel->normal_.getNormalVector3fMap();
 
+    float flat_penalty = -1.0f; // -0.3f
     if (acos(fabs(n1.dot(n2))) < M_PI / 8.0) {
-        return std::pair<bool, float>(false, -0.3f);
+        return std::pair<bool, float>(false, flat_penalty);
     }
 
     float dist_threshold = 0.03;
@@ -349,7 +350,7 @@ std::pair<bool, float> convex_voxel_segmentation::concave_relationship(pcl::Supe
         Eigen::Vector3f diff = pe - it->getVector3fMap();
         Eigen::Vector3f normalj = second_normals->at(ind).getNormalVector3fMap();
         if (acos(fabs(normali.dot(normalj))) < M_PI/8.0) {
-            mean_prod += -0.3f;
+            mean_prod += flat_penalty;
             continue;
         }
         //std::cout << "Diff norm: " << diff.norm() << std::endl;
@@ -451,7 +452,7 @@ void convex_voxel_segmentation::global_segmentation(std::vector<std::set<size_t>
         total_w /= float(connected_edges[i].size());
         float w = graph_cut(new_groups, connected_edges[i], weights);
         // check the energy of the weights along the graph cut to see if it's valid
-        if (w/total_w > -20.0f) {
+        if (w/total_w > -30.0f) { // -20.0
             groups.push_back(connected_groups[i]);
             continue;
         }

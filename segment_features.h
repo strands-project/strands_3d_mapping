@@ -22,10 +22,12 @@ private:
     using NormalCloudT = pcl::PointCloud<pcl::Normal>;
     using HistT = pcl::Histogram<33>;
     using HistCloudT = pcl::PointCloud<HistT>;
+
+    bool visualize_features;
 public:
     void calculate_features(Eigen::VectorXf &global_features, HistCloudT::Ptr& local_features, PointCloudT::Ptr& segment,
                             NormalCloudT::Ptr& segment_normals, PointCloudT::Ptr& full_segment) const;
-    segment_features();
+    segment_features(bool visualize_features = false);
 };
 
 #endif // SEGMENT_FEATURES_H

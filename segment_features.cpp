@@ -7,7 +7,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-segment_features::segment_features()
+segment_features::segment_features(bool visualize_features) : visualize_features(visualize_features)
 {
 }
 
@@ -156,15 +156,17 @@ void segment_features::calculate_features(Eigen::VectorXf& global_features, Hist
         ++counter;
     }
 
-    for (PointT& p : keypoints->points) {
-        Eigen::Vector3f q = K*p.getVector3fMap();
-        int x = int(q(0)/q(2)) - *minx;
-        int y = int(q(1)/q(2)) - *miny;
-        mat.at<cv::Vec3b>(y, x)[0] = 0;
-        mat.at<cv::Vec3b>(y, x)[1] = 0;
-        mat.at<cv::Vec3b>(y, x)[2] = 255;
-    }
+    if (visualize_features) {
+        for (PointT& p : keypoints->points) {
+            Eigen::Vector3f q = K*p.getVector3fMap();
+            int x = int(q(0)/q(2)) - *minx;
+            int y = int(q(1)/q(2)) - *miny;
+            mat.at<cv::Vec3b>(y, x)[0] = 0;
+            mat.at<cv::Vec3b>(y, x)[1] = 0;
+            mat.at<cv::Vec3b>(y, x)[2] = 255;
+        }
 
-    cv::imshow("Matrix yo!", mat);
-    cv::waitKey(0);
+        cv::imshow("Matrix yo!", mat);
+        cv::waitKey(0);
+    }
 }

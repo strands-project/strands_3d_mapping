@@ -21,6 +21,7 @@ link_directories(${k_means_tree_dir}/build)
 add_library(vis_wrapper vis_wrapper.cpp lockable.cpp)
 add_library(segment_features segment_features.cpp)
 add_library(convex_voxel_segmentation convex_voxel_segmentation.cpp)
+add_library(search_tree search_tree.cpp)
 
 target_link_libraries(convex_voxel_segmentation ${PCL_LIBRARIES} ${VTK_LIBRARIES})
 target_link_libraries(segment_features ${PCL_LIBRARIES} ${OpenCV_LIBS})
