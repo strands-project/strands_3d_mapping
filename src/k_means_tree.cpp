@@ -10,5 +10,5 @@
 
 template class k_means_tree<pcl::PointXYZ, 8>;
 template class k_means_tree<pcl::PointXYZRGB, 8>;
-//template class k_means_tree<pcl::Histogram<100>, 8>;
-//template class k_means_tree<pcl::Histogram<33>, 8>;
+template class k_means_tree<pcl::Histogram<100>, 8>;
+template class k_means_tree<pcl::Histogram<33>, 8>;

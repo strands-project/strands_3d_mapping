@@ -20,7 +20,9 @@ void vocabulary_tree<Point, K>::add_points_from_input_cloud()
     }
 
     super::add_points_from_input_cloud();
+
     for (leaf* l : super::leaves) {
+        l->data = new inverted_file;
         for (int ind : l->inds) {
             int source_id = indices[ind];
             if (l->data->source_id_freqs.count(source_id) == 1) {

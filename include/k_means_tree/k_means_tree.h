@@ -115,10 +115,10 @@ public:
 
     void set_input_cloud(CloudPtrT& new_cloud)
     {
-        cloud = CloudPtrT(new CloudT);
+        /*cloud = CloudPtrT(new CloudT);
         std::vector<int> dummy;
-        pcl::removeNaNFromPointCloud(*new_cloud, *cloud, dummy);
-        //cloud = new_cloud;
+        pcl::removeNaNFromPointCloud(*new_cloud, *cloud, dummy);*/
+        cloud = new_cloud;
     }
 
     size_t size() const { return cloud->size(); }

@@ -14,7 +14,7 @@ void k_means_tree<Point, K, Data>::add_points_from_input_cloud()
     for (size_t i = 0; i < cloud->size(); ++i) {
         inds[i] = i;
     }
-    assign_nodes(cloud, root.children, 0, inds);
+    root.range = assign_nodes(cloud, root.children, 0, inds);
 }
 
 template <typename Point, size_t K, typename Data>
@@ -45,8 +45,8 @@ vector<size_t> k_means_tree<Point, K, Data>::sample_with_replacement(size_t uppe
 
     vector<size_t> result;
     for (size_t i = 0; i < dim; ++i) {
-        //result.push_back(dis(generator));
-        result.push_back(rand()%upper);
+        result.push_back(dis(generator));
+        //result.push_back(rand()%upper);
     }
 
     return result;
@@ -213,6 +213,7 @@ typename k_means_tree<Point, K, Data>::leaf* k_means_tree<Point, K, Data>::get_l
 template <typename Point, size_t K, typename Data>
 void k_means_tree<Point, K, Data>::get_path_for_point(vector<node*>& path, const PointT& point)
 {
+    path.push_back(&root); // this is needed for the distance in vocabulary_tree
     unfold_nodes(path, &root, point);
 }
 
