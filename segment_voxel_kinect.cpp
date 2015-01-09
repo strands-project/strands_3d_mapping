@@ -3,7 +3,8 @@
 #include "utils.h"
 #include "convex_voxel_segmentation.h"
 #include "segment_features.h"
-#include "k_means_tree/k_means_tree.h"
+//#include "k_means_tree/k_means_tree.h"
+#include "vocabulary_tree/vocabulary_tree.h"
 
 //#define PCL_NO_PRECOMPILE
 #include <pcl/console/parse.h>
@@ -11,6 +12,8 @@
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
+
+#include <algorithm>
 
 /*POINT_CLOUD_REGISTER_POINT_STRUCT(pcl::Histogram<33>,
         (float, histogram, histogram)
@@ -55,8 +58,8 @@ int main(int argc, char** argv) {
     std::vector<Cloud_t::Ptr> all_segments;
     size_t counter = 0;
     size_t temp = 0;
-    size_t segment_id = 191;
-    for (int sceneid = 1000; sceneid <= 1006; ++sceneid) {
+    size_t segment_id = 40;//191;
+    for (int sceneid = 1000; sceneid <= 1002; ++sceneid) {
         int frameid = sceneid - 1000;
         string pcdfile = getScenePath(sceneid);
         if(!file_exists(pcdfile)) {
@@ -130,81 +133,53 @@ int main(int argc, char** argv) {
         }
     }
 
-    k_means_tree<pcl::Histogram<33>, 8> kmt;
-    kmt.set_input_cloud(all_local_features);
+    vocabulary_tree<PointT, 8> kmt;
+    kmt.set_input_cloud(all_local_features, feature_inds);
     kmt.add_points_from_input_cloud();
 
-    std::cout << __FILE__ << ", " << __LINE__ << std::endl;
-
-    // OK, now we have some kind of representation, let's query!!!
-
-    std::cout << __FILE__ << ", " << __LINE__ << std::endl;
-    std::cout << "feature_inds: " << feature_inds.size() << std::endl;
-
-    std::vector<int> segment_inds;
+    HistCloudT::Ptr query_cloud(new HistCloudT);
     // first, find all features belonging to this segment ID?
     for (std::vector<int>::iterator i = feature_inds.begin(); i != feature_inds.end(); i = std::find(i, feature_inds.end(), segment_id)) {
         if (*i != segment_id) {
             continue;
         }
         std::cout << "*i: " << *i << std::endl;
-        segment_inds.push_back(std::distance(feature_inds.begin(), i));
+        size_t ind = std::distance(feature_inds.begin(), i);
+        query_cloud->push_back(all_local_features->at(ind));
         ++i;
     }
 
-    std::cout << __FILE__ << ", " << __LINE__ << std::endl;
+    std::vector<std::pair<int, float> > max_ind_scores;
+    kmt.top_similarities(max_ind_scores, query_cloud);
 
-    using tree_node = k_means_tree<PointT, 8>::node;
-    using tree_leaf = k_means_tree<PointT, 8>::leaf;
-    using map_pair = std::map<int, int>::value_type;
-
-    std::map<int, int> index_counts;
-    // Now, get the path for all of these features
-    for (int ind : segment_inds) {
-        PointT hist = all_local_features->at(ind);
-        std::vector<tree_node*> path;
-        std::cout << __FILE__ << ", " << __LINE__ << std::endl;
-        kmt.get_path_for_point(path, hist);
-        tree_leaf* leaf = static_cast<tree_leaf*>(path.back());
-        std::cout << __FILE__ << ", " << __LINE__ << std::endl;
-        for (int i : leaf->inds) {
-            int segment_ind = feature_inds[i];
-            if (index_counts.count(segment_ind) == 1) {
-                std::cout << __FILE__ << ", " << __LINE__ << std::endl;
-                index_counts.at(segment_ind) += 1;
-            }
-            else {
-                std::cout << __FILE__ << ", " << __LINE__ << std::endl;
-                index_counts.insert(map_pair(segment_ind, 1));
-            }
-        }
-
-        // count the index that has the most siblings in leaf nodes?
-    }
-
-    std::cout << __FILE__ << ", " << __LINE__ << std::endl;
-
-    auto iter = std::max_element(index_counts.begin(), index_counts.end(), [](const map_pair& v1, const map_pair& v2) {
-        return v1.second < v2.second;
-    });
-
-    std::cout << __FILE__ << ", " << __LINE__ << std::endl;
-
-    int max_ind = iter->first;
-    Cloud_t::Ptr max_segment = all_segments[max_ind];
-
-    std::cout << __FILE__ << ", " << __LINE__ << std::endl;
-
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-    viewer->setBackgroundColor (0, 0, 0);
-    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(max_segment);
-    viewer->addPointCloud<pcl::PointXYZRGB> (max_segment, rgb, "sample cloud");
-    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
-    viewer->addCoordinateSystem (1.0);
-    viewer->initCameraParameters ();
-    while (!viewer->wasStopped ())
+    auto comp = [](const std::pair<int, float>& v1, const std::pair<int, float>& v2)
     {
-        viewer->spinOnce(100);
+        return v1.first < v2.first;
+    };
+
+    std::cout << "Query cloud size: " << query_cloud->size() << std::endl;
+    std::cout << "Number of images: " << all_segments.size() << std::endl;
+    std::cout << "Database cloud size: " << all_local_features->size() << std::endl;
+    std::cout << "Source cloud size: " << feature_inds.size() << std::endl;
+    std::cout << "Min index: " << std::min_element(max_ind_scores.begin(), max_ind_scores.end(), comp)->first << std::endl;
+    std::cout << "Max index: " << std::max_element(max_ind_scores.begin(), max_ind_scores.end(), comp)->first << std::endl;
+
+    for (size_t i = 0; i < max_ind_scores.size(); ++i) {
+        Cloud_t::Ptr max_segment = all_segments[max_ind_scores[i].first];
+
+        std::cout << "Distance of result: " << max_ind_scores[i].second << std::endl;
+
+        boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+        viewer->setBackgroundColor (0, 0, 0);
+        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(max_segment);
+        viewer->addPointCloud<pcl::PointXYZRGB> (max_segment, rgb, "sample cloud");
+        viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
+        viewer->addCoordinateSystem (1.0);
+        viewer->initCameraParameters ();
+        while (!viewer->wasStopped ())
+        {
+            viewer->spinOnce(100);
+        }
     }
 
 }
