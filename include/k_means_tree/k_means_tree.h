@@ -46,15 +46,17 @@ struct map_proxy<const pcl::PointXYZRGB>
     using const_map_type = Eigen::Map<const Eigen::Matrix<float, rows, 1> >;
 };
 
-template <typename Point, size_t K>
+template <typename Point, size_t K, typename Data = void>
 class k_means_tree {
-private:
+protected:
 
     using PointT = Point;
     using CloudT = pcl::PointCloud<PointT>;
     using CloudPtrT = typename CloudT::Ptr;
     static const size_t dim = K;
     static const size_t rows = map_proxy<PointT>::rows;
+    using data_type = Data;
+    using leaf_range = std::pair<int, int>;
 
 public:
 
@@ -62,7 +64,9 @@ public:
         typedef node* ptr_type;
         ptr_type children[dim];
         PointT centroid;
-        bool is_leaf; // this is redundant, assert(is_leaf == (children == NULL))
+        bool is_leaf;
+        leaf_range range;
+        float weight;
         node() : is_leaf(false)
         {
             for (ptr_type& n : children) {
@@ -72,30 +76,37 @@ public:
         virtual ~node()
         {
             for (ptr_type& n : children) {
-               delete n;
+                delete n;
             }
         }
     };
 
     struct leaf : public node {
         std::vector<int> inds;
-        leaf() : node() { node::is_leaf = true; }
-        ~leaf() {}
+        data_type* data;
+        leaf() : node(), data(NULL) { node::is_leaf = true; }
+        ~leaf()
+        {
+            delete data;
+        }
     };
 
-private:
+protected:
 
     CloudPtrT cloud;
     node root;
     size_t depth;
+    std::vector<leaf*> leaves;
 
-private:
+protected:
 
     //std::vector<size_t> sample_without_replacement(size_t upper) const;
     //std::vector<size_t> sample_with_replacement(size_t upper) const;
-    void assign_nodes(CloudPtrT& subcloud, node** nodes, size_t current_depth, const std::vector<int>& subinds);
+    leaf_range assign_nodes(CloudPtrT& subcloud, node** nodes, size_t current_depth, const std::vector<int>& subinds);
     void unfold_nodes(std::vector<node*>& path, node* nodes, const PointT& p);
-    void flatten_nodes(CloudPtrT& nodecloud, node* n, const PointT& p);
+    void flatten_nodes(CloudPtrT& nodecloud, node* n);
+    void flatten_nodes_optimized(CloudPtrT& nodecloud, node* n);
+    node* get_next_node(node* n, const PointT& p);
 
 public:
 
@@ -104,10 +115,10 @@ public:
 
     void set_input_cloud(CloudPtrT& new_cloud)
     {
-        /*cloud = CloudPtrT(new CloudT);
+        cloud = CloudPtrT(new CloudT);
         std::vector<int> dummy;
-        pcl::removeNaNFromPointCloud(*new_cloud, *cloud, dummy);*/
-        cloud = new_cloud;
+        pcl::removeNaNFromPointCloud(*new_cloud, *cloud, dummy);
+        //cloud = new_cloud;
     }
 
     size_t size() const { return cloud->size(); }
@@ -117,16 +128,11 @@ public:
     leaf* get_leaf_for_point(const PointT& point);
     void get_path_for_point(std::vector<node*>& path, const PointT &point);
     void get_cloud_for_point_at_level(CloudPtrT& nodecloud, const PointT& p, size_t level);
+    void get_cloud_for_point_at_level_optimized(CloudPtrT& nodecloud, const PointT& p, size_t level);
+    size_t points_in_node(node* n);
 
-    k_means_tree(size_t depth = 5) : depth(depth)
-    {
-
-    }
-
-    virtual ~k_means_tree()
-    {
-        //delete[] root;
-    }
+    k_means_tree(size_t depth = 5) : depth(depth) {}
+    virtual ~k_means_tree() { leaves.clear(); }
 
 };
 

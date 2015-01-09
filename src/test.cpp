@@ -17,19 +17,19 @@ int main(int argc, char** argv)
     kmt3.add_points_from_input_cloud();
 
     std::vector<size_t> temp = kmt3.sample_with_replacement(kmt3.size());
-    size_t ind = temp[0];
+    size_t ind = 54588;//temp[0];
     std::cout << "ind: " << ind << std::endl;
     pcl::PointXYZRGB point = kmt3.get_cloud()->at(ind);
 
     for (size_t depth = 0; depth < 5; ++depth) {
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr nodecloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-        kmt3.get_cloud_for_point_at_level(nodecloud, point, depth);
+        kmt3.get_cloud_for_point_at_level_optimized(nodecloud, point, depth);
         std::cout << "node cloud size: " << nodecloud->size() << std::endl;
-        for (pcl::PointXYZRGB& p : nodecloud->points) {
+        /*for (pcl::PointXYZRGB& p : nodecloud->points) {
             p.r = 255;
             p.g = 0;
             p.g = 0;
-        }
+        }*/
 
         boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
         viewer->setBackgroundColor (0, 0, 0);

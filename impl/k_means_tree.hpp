@@ -7,8 +7,8 @@
 
 using namespace std;
 
-template <typename Point, size_t K>
-void k_means_tree<Point, K>::add_points_from_input_cloud()
+template <typename Point, size_t K, typename Data>
+void k_means_tree<Point, K, Data>::add_points_from_input_cloud()
 {
     vector<int> inds(cloud->size());
     for (size_t i = 0; i < cloud->size(); ++i) {
@@ -17,8 +17,8 @@ void k_means_tree<Point, K>::add_points_from_input_cloud()
     assign_nodes(cloud, root.children, 0, inds);
 }
 
-template <typename Point, size_t K>
-vector<size_t> k_means_tree<Point, K>::sample_without_replacement(size_t upper) const
+template <typename Point, size_t K, typename Data>
+vector<size_t> k_means_tree<Point, K, Data>::sample_without_replacement(size_t upper) const
 {
     random_device device;
     mt19937 generator(device());
@@ -36,8 +36,8 @@ vector<size_t> k_means_tree<Point, K>::sample_without_replacement(size_t upper) 
     return result;
 }
 
-template <typename Point, size_t K>
-vector<size_t> k_means_tree<Point, K>::sample_with_replacement(size_t upper) const
+template <typename Point, size_t K, typename Data>
+vector<size_t> k_means_tree<Point, K, Data>::sample_with_replacement(size_t upper) const
 {
     random_device device;
     mt19937 generator(device());
@@ -45,7 +45,8 @@ vector<size_t> k_means_tree<Point, K>::sample_with_replacement(size_t upper) con
 
     vector<size_t> result;
     for (size_t i = 0; i < dim; ++i) {
-        result.push_back(dis(generator));
+        //result.push_back(dis(generator));
+        result.push_back(rand()%upper);
     }
 
     return result;
@@ -101,8 +102,8 @@ typename map_proxy<pcl::PointXYZRGB>::const_map_type eig(const pcl::PointXYZRGB&
     return v.getVector3fMap();
 }
 
-template <typename Point, size_t K>
-void k_means_tree<Point, K>::assign_nodes(CloudPtrT& subcloud, node** nodes, size_t current_depth, const vector<int>& subinds)
+template <typename Point, size_t K, typename Data>
+typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::assign_nodes(CloudPtrT& subcloud, node** nodes, size_t current_depth, const vector<int>& subinds)
 {
     std::cout << "Now doing level " << current_depth << std::endl;
     std::cout << subcloud->size() << std::endl;
@@ -155,6 +156,7 @@ void k_means_tree<Point, K>::assign_nodes(CloudPtrT& subcloud, node** nodes, siz
         ++counter;
     }
 
+    leaf_range range(cloud->size(), 0);
     for (size_t i = 0; i < dim; ++i) {
         //std::cout << i << " size: " << clusters[i].size() << std::endl;
         if (current_depth == depth || clusters[i].empty()) {
@@ -164,7 +166,12 @@ void k_means_tree<Point, K>::assign_nodes(CloudPtrT& subcloud, node** nodes, siz
                 l->inds[j] = subinds[clusters[i][j]];
             }
             l->centroid = centroids[i];
+            l->range.first = leaves.size();
+            l->range.second = leaves.size()+1;
+            leaves.push_back(l);
             nodes[i] = l;
+            range.first = std::min(range.first, l->range.first);
+            range.second = std::max(range.second, l->range.second);
             continue;
         }
         node* n = new node;
@@ -176,8 +183,11 @@ void k_means_tree<Point, K>::assign_nodes(CloudPtrT& subcloud, node** nodes, siz
             childcloud->at(j) = subcloud->at(clusters[i][j]);
             childinds[j] = subinds[clusters[i][j]];
         }
-        assign_nodes(childcloud, n->children, current_depth+1, childinds);
+        leaf_range rangei = assign_nodes(childcloud, n->children, current_depth+1, childinds);
+        n->range = rangei;
         nodes[i] = n;
+        range.first = std::min(range.first, rangei.first);
+        range.second = std::max(range.second, rangei.second);
 
         /*pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
         inliers->indices = clusters[i];
@@ -187,10 +197,12 @@ void k_means_tree<Point, K>::assign_nodes(CloudPtrT& subcloud, node** nodes, siz
         extract.setNegative(false);
         extract.filter (*childcloud);*/
     }
+
+    return range;
 }
 
-template <typename Point, size_t K>
-typename k_means_tree<Point, K>::leaf* k_means_tree<Point, K>::get_leaf_for_point(const PointT& point)
+template <typename Point, size_t K, typename Data>
+typename k_means_tree<Point, K, Data>::leaf* k_means_tree<Point, K, Data>::get_leaf_for_point(const PointT& point)
 {
     vector<node*> temp;
     unfold_nodes(temp, &root, point);
@@ -198,27 +210,37 @@ typename k_means_tree<Point, K>::leaf* k_means_tree<Point, K>::get_leaf_for_poin
     return l;
 }
 
-template <typename Point, size_t K>
-void k_means_tree<Point, K>::get_path_for_point(vector<node*>& path, const PointT& point)
+template <typename Point, size_t K, typename Data>
+void k_means_tree<Point, K, Data>::get_path_for_point(vector<node*>& path, const PointT& point)
 {
     unfold_nodes(path, &root, point);
 }
 
-template <typename Point, size_t K>
-void k_means_tree<Point, K>::unfold_nodes(vector<node*>& path, node* n, const PointT& p)
+template <typename Point, size_t K, typename Data>
+typename k_means_tree<Point, K, Data>::node* k_means_tree<Point, K, Data>::get_next_node(node* n, const PointT& p)
+{
+    node** closest = std::min_element(n->children, n->children+dim, [&p](const node* q1, const node* q2) {
+        return (eig(p) - eig(q1->centroid)).norm() < (eig(p) - eig(q2->centroid)).norm();
+    });
+    return *closest;
+}
+
+template <typename Point, size_t K, typename Data>
+void k_means_tree<Point, K, Data>::unfold_nodes(vector<node*>& path, node* n, const PointT& p)
 {
     if (n->is_leaf) {
         return;
     }
-    node** closest = std::min_element(n->children, n->children+dim, [&p](const node* q1, const node* q2) {
+    /*node** closest = std::min_element(n->children, n->children+dim, [&p](const node* q1, const node* q2) {
         return (eig(p) - eig(q1->centroid)).norm() < (eig(p) - eig(q2->centroid)).norm();
-    });
-    path.push_back(*closest);
-    unfold_nodes(path, *closest, p);
+    });*/
+    node* closest = get_next_node(n, p);
+    path.push_back(closest);
+    unfold_nodes(path, closest, p);
 }
 
-template <typename Point, size_t K>
-void k_means_tree<Point, K>::flatten_nodes(CloudPtrT& nodecloud, node* n, const PointT& p)
+template <typename Point, size_t K, typename Data>
+void k_means_tree<Point, K, Data>::flatten_nodes(CloudPtrT& nodecloud, node* n)
 {
     if (n->is_leaf) {
         leaf* l = static_cast<leaf*>(n);
@@ -228,12 +250,22 @@ void k_means_tree<Point, K>::flatten_nodes(CloudPtrT& nodecloud, node* n, const 
         return;
     }
     for (node* c : n->children) {
-        flatten_nodes(nodecloud, c, p);
+        flatten_nodes(nodecloud, c);
     }
 }
 
-template <typename Point, size_t K>
-void k_means_tree<Point, K>::get_cloud_for_point_at_level(CloudPtrT& nodecloud, const PointT& p, size_t level)
+template <typename Point, size_t K, typename Data>
+void k_means_tree<Point, K, Data>::flatten_nodes_optimized(CloudPtrT& nodecloud, node* n)
+{
+    for (int i = n->range.first; i < n->range.second; ++i) {
+        for (int ind : leaves[i]->inds) {
+            nodecloud->push_back(cloud->at(ind));
+        }
+    }
+}
+
+template <typename Point, size_t K, typename Data>
+void k_means_tree<Point, K, Data>::get_cloud_for_point_at_level(CloudPtrT& nodecloud, const PointT& p, size_t level)
 {
     vector<node*> path;
     unfold_nodes(path, &root, p);
@@ -241,5 +273,30 @@ void k_means_tree<Point, K>::get_cloud_for_point_at_level(CloudPtrT& nodecloud, 
         return;
     }
     node* n = path[level];
-    flatten_nodes(nodecloud, n, p);
+    flatten_nodes(nodecloud, n);
+}
+
+template <typename Point, size_t K, typename Data>
+void k_means_tree<Point, K, Data>::get_cloud_for_point_at_level_optimized(CloudPtrT& nodecloud, const PointT& p, size_t level)
+{
+    vector<node*> path;
+    unfold_nodes(path, &root, p);
+    if (level >= path.size()) {
+        return;
+    }
+    node* n = path[level];
+    flatten_nodes_optimized(nodecloud, n);
+}
+
+template <typename Point, size_t K, typename Data>
+size_t k_means_tree<Point, K, Data>::points_in_node(node* n)
+{
+    if (n == NULL) {
+        return 0;
+    }
+    size_t nbr_points = 0;
+    for (int i = n->range.first; i < n->range.second; ++i) {
+        i += leaves[i]->inds.size(); // could use a distance transform for this instead
+    }
+    return nbr_points;
 }
