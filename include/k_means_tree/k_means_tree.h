@@ -66,7 +66,7 @@ public:
         PointT centroid;
         bool is_leaf;
         leaf_range range;
-        float weight;
+        double weight;
         node() : is_leaf(false)
         {
             for (ptr_type& n : children) {

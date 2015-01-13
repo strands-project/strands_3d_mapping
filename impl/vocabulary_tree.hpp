@@ -19,7 +19,11 @@ void vocabulary_tree<Point, K>::add_points_from_input_cloud()
         db_vector_normalizing_constants.insert(std::make_pair(i, 0));
     }
 
+    // DEBUG: Just a fix for sift features leading to overflow
     super::add_points_from_input_cloud();
+    for (PointT& p : super::cloud->points) {
+        eig(p).normalize();
+    }
 
     for (leaf* l : super::leaves) {
         l->data = new inverted_file;
@@ -61,7 +65,7 @@ void vocabulary_tree<Point, K>::source_freqs_for_node(std::map<int, int>& source
 template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::normalizing_constants_for_node(std::map<int, int>& normalizing_constants, node* n)
 {
-    auto pnorm = [](const float v) { return fabs(v); };
+    auto pnorm = [](const double v) { return fabs(v); };
 
     if (n->is_leaf) {
         int leaf_ind = n->range.first;
@@ -83,7 +87,7 @@ void vocabulary_tree<Point, K>::normalizing_constants_for_node(std::map<int, int
         }
     }
 
-    n->weight = float(normalizing_constants.size()) / N;
+    n->weight = double(normalizing_constants.size()) / N;
     for (std::pair<const int, int>& v : normalizing_constants) {
         //v.second.second += pnorm(n->weight*v.second.first);
         db_vector_normalizing_constants.at(v.first) += pnorm(n->weight*v.second);
@@ -117,25 +121,39 @@ size_t vocabulary_tree<Point, K>::points_in_node(node* n)
 template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::top_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
-    auto pnorm = [](const float v) { return fabs(v); };
+    auto pnorm = [](const double v) { return fabs(v); };
+    auto proot = [](const double v) { return fabs(v); };
 
-    std::map<node*, float> query_id_freqs;
-    float qnorm = compute_query_vector(query_id_freqs, query_cloud);
-    std::map<int, float> map_scores;
+    std::map<node*, double> query_id_freqs;
+    double qnorm = compute_query_vector(query_id_freqs, query_cloud);
+    std::map<int, double> map_scores;
 
-    for (std::pair<node* const, float>& v : query_id_freqs) {
-        float qi = v.second;
+    double qk = 1.0f;
+    double pk = 1.0f;
+    double qkr = 1.0f;
+    double pkr = 1.0f;
+
+    for (std::pair<node* const, double>& v : query_id_freqs) {
+        double qi = v.second;
         std::map<int, int> source_id_freqs;
         source_freqs_for_node(source_id_freqs, v.first);
         for (std::pair<const int, int>& u : source_id_freqs) {
-            float pi = v.first->weight*float(u.second);
-            float residual = pnorm(qi-pi)-pnorm(pi)-pnorm(qi);
+            double pi = v.first->weight*double(u.second);
+            if (normalized) {
+                qk = qnorm; // 1.0f for not normalized
+                pk = db_vector_normalizing_constants.at(u.first); // 1.0f for not normalized
+                qkr = proot(qk);
+                pkr = proot(pk);
+            }
+            qi /= qkr;
+            pi /= pkr;
+            double residual = pnorm(qi-pi)-pnorm(pi)-pnorm(qi);
             if (map_scores.count(u.first) == 1) {
                 map_scores.at(u.first) += residual;
             }
             else {
-                float dbnorm = db_vector_normalizing_constants.at(u.first);
-                map_scores.insert(std::make_pair(u.first, dbnorm+qnorm+residual));
+                double dbnorm = db_vector_normalizing_constants.at(u.first);
+                map_scores.insert(std::make_pair(u.first, double(dbnorm/pk+qnorm/qk+residual)));
             }
         }
     }
@@ -147,12 +165,15 @@ void vocabulary_tree<Point, K>::top_similarities(std::vector<cloud_idx_score>& s
     });
 
     scores.resize(nbr_results);
+
+    std::cout << "q norm: " << qnorm << std::endl;
+    std::cout << "p norm: " << db_vector_normalizing_constants.at(scores[0].first) << std::endl;
 }
 
 template <typename Point, size_t K>
-float vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, float>& query_id_freqs, CloudPtrT& query_cloud)
+double vocabulary_tree<Point, K>::compute_query_vector(std::map<node *, double> &query_id_freqs, CloudPtrT& query_cloud)
 {
-    auto pnorm = [](const float v) { return fabs(v); };
+    auto pnorm = [](const double v) { return fabs(v); };
 
     for (PointT& p : query_cloud->points) {
         std::vector<node*> path;
@@ -166,8 +187,8 @@ float vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, float>& qu
             }
         }
     }
-    float qnorm = 0.0f;
-    for (std::pair<node* const, float>& v : query_id_freqs) {
+    double qnorm = 0.0f;
+    for (std::pair<node* const, double>& v : query_id_freqs) {
         v.second = v.first->weight*v.second;
         qnorm += pnorm(v.second);
     }

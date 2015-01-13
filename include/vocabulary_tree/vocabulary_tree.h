@@ -24,18 +24,22 @@ protected:
     using typename super::PointT;
     using typename super::CloudT;
     using typename super::CloudPtrT;
-    using cloud_idx_score = std::pair<int, float>;
+
+public:
+
+    using cloud_idx_score = std::pair<int, double>;
 
 protected:
 
     std::vector<int> indices; // the source indices of the points (image ids of features)
     std::vector<int> distance_transform; // for computing m_i
-    std::map<int, float> db_vector_normalizing_constants; // normalizing constants for the p vectors
-    float N; // number of sources (images) in database
+    std::map<int, double> db_vector_normalizing_constants; // normalizing constants for the p vectors
+    double N; // number of sources (images) in database
+    const static bool normalized = false;
 
 protected:
 
-    float compute_query_vector(std::map<node*, float>& query_id_freqs, CloudPtrT& query_cloud);
+    double compute_query_vector(std::map<node*, double>& query_id_freqs, CloudPtrT& query_cloud);
     //size_t points_in_node(node* n);
     void source_freqs_for_node(std::map<int, int>& source_id_freqs, node* n) const;
     size_t nbr_sources_for_freqs(std::map<int, int>& source_id_freqs) const;
