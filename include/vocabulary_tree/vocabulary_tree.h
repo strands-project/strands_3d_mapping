@@ -35,7 +35,7 @@ protected:
     std::vector<int> distance_transform; // for computing m_i
     std::map<int, double> db_vector_normalizing_constants; // normalizing constants for the p vectors
     double N; // number of sources (images) in database
-    const static bool normalized = false;
+    static const bool normalized = true;
 
 protected:
 

@@ -21,9 +21,9 @@ void vocabulary_tree<Point, K>::add_points_from_input_cloud()
 
     // DEBUG: Just a fix for sift features leading to overflow
     super::add_points_from_input_cloud();
-    for (PointT& p : super::cloud->points) {
+    /*for (PointT& p : super::cloud->points) {
         eig(p).normalize();
-    }
+    }*/
 
     for (leaf* l : super::leaves) {
         l->data = new inverted_file;
@@ -87,9 +87,8 @@ void vocabulary_tree<Point, K>::normalizing_constants_for_node(std::map<int, int
         }
     }
 
-    n->weight = double(normalizing_constants.size()) / N;
+    n->weight = log(N / double(normalizing_constants.size()));
     for (std::pair<const int, int>& v : normalizing_constants) {
-        //v.second.second += pnorm(n->weight*v.second.first);
         db_vector_normalizing_constants.at(v.first) += pnorm(n->weight*v.second);
     }
 }
@@ -133,30 +132,53 @@ void vocabulary_tree<Point, K>::top_similarities(std::vector<cloud_idx_score>& s
     double qkr = 1.0f;
     double pkr = 1.0f;
 
+    if (normalized) {
+        qk = qnorm;
+        qkr = proot(qk);
+    }
+
+    for (PointT p : query_cloud->points) {
+        std::cout << eig(p).transpose() << std::endl;
+    }
+
+    std::cout << "Number of features: " << query_cloud->size() << std::endl;
+    std::cout << "Number of intersecting nodes: " << query_id_freqs.size() << std::endl;
     for (std::pair<node* const, double>& v : query_id_freqs) {
-        double qi = v.second;
+        if (v.first->is_leaf) {
+            std::cout << "leaf: ";
+        }
+        std::cout << "with leaves: " << (v.first->range.second-v.first->range.first) << ", occurrences: " << v.second << " " << std::endl;
+    }
+
+    int nodes_not_present = 0;
+    int counter = 0;
+    for (std::pair<node* const, double>& v : query_id_freqs) {
+        double qi = v.second/qkr;
         std::map<int, int> source_id_freqs;
         source_freqs_for_node(source_id_freqs, v.first);
+        if (source_id_freqs.count(34) == 0) {
+            std::cout << "Not present in: " << counter << " with " << source_id_freqs.size() << " leaves" << std::endl;
+            ++nodes_not_present;
+        }
         for (std::pair<const int, int>& u : source_id_freqs) {
-            double pi = v.first->weight*double(u.second);
             if (normalized) {
-                qk = qnorm; // 1.0f for not normalized
                 pk = db_vector_normalizing_constants.at(u.first); // 1.0f for not normalized
-                qkr = proot(qk);
                 pkr = proot(pk);
             }
-            qi /= qkr;
-            pi /= pkr;
+            double pi = v.first->weight*double(u.second)/pkr;
             double residual = pnorm(qi-pi)-pnorm(pi)-pnorm(qi);
             if (map_scores.count(u.first) == 1) {
                 map_scores.at(u.first) += residual;
             }
             else {
                 double dbnorm = db_vector_normalizing_constants.at(u.first);
-                map_scores.insert(std::make_pair(u.first, double(dbnorm/pk+qnorm/qk+residual)));
+                map_scores.insert(std::make_pair(u.first, dbnorm/pk+qnorm/qk+residual));
             }
         }
+        ++counter;
     }
+
+    std::cout << "34 not present in: " << nodes_not_present << " groups" << std::endl;
 
     // this could probably be optimized a bit also, quite big copy operattion
     scores.insert(scores.end(), map_scores.begin(), map_scores.end());
@@ -175,7 +197,8 @@ double vocabulary_tree<Point, K>::compute_query_vector(std::map<node *, double> 
 {
     auto pnorm = [](const double v) { return fabs(v); };
 
-    for (PointT& p : query_cloud->points) {
+    for (PointT p : query_cloud->points) {
+        //eig(p).normalize(); // normalize SIFT points
         std::vector<node*> path;
         super::get_path_for_point(path, p);
         for (node* n : path) {

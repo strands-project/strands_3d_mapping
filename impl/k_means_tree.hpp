@@ -118,9 +118,9 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
     }
 
     std::vector<int> clusters[dim];
-    size_t min_iter = 10;
+    size_t min_iter = std::max(10, int(subcloud->size()/100));
     size_t counter = 0;
-    while (counter < min_iter) {
+    while (true) {
         // compute closest centroids
         for (std::vector<int>& c : clusters) {
             c.clear();
@@ -134,6 +134,10 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
             ++ind;
         }
 
+        if (counter >= min_iter) {
+            break;
+        }
+
         // compute new centroids
         for (size_t i = 0; i < dim; ++i) {
             Eigen::Matrix<double, rows, 1> acc;
@@ -144,7 +148,7 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
                 ++nbr;
             }
             if (nbr == 0) {
-                vector<size_t> temp = sample_with_replacement(subcloud->size()); // this is a bit overkill
+                vector<size_t> temp = sample_with_replacement(subcloud->size());
                 centroids[i] = subcloud->at(temp.back());
             }
             else {
@@ -159,13 +163,17 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
     leaf_range range(cloud->size(), 0);
     for (size_t i = 0; i < dim; ++i) {
         //std::cout << i << " size: " << clusters[i].size() << std::endl;
-        if (current_depth == depth || clusters[i].empty()) {
+        if (current_depth == depth || clusters[i].size() <= 1) {
             leaf* l = new leaf;
             l->inds.resize(clusters[i].size());
             for (size_t j = 0; j < clusters[i].size(); ++j) {
                 l->inds[j] = subinds[clusters[i][j]];
             }
             l->centroid = centroids[i];
+            if (clusters[i].empty()) {
+                eig(l->centroid).setOnes();
+                eig(l->centroid) *= 1000.0f;
+            }
             l->range.first = leaves.size();
             l->range.second = leaves.size()+1;
             leaves.push_back(l);
