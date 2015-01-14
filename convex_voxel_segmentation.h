@@ -20,6 +20,7 @@ private:
 
     bool display_segmentation;
     float voxel_resolution;
+    float filter_dist;
 
     //PointCloudT::Ptr getColoredVoxelCloud (pcl::SupervoxelClustering<PointT> &s) const;
 
@@ -50,6 +51,7 @@ private:
                             pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& colored_voxel_cloud,
                             PointNCloudT::Ptr& sv_normal_cloud,
                             pcl::PointCloud<pcl::PointXYZL>::Ptr& labels) const;
+    Eigen::Vector3f compute_mean_color(PointCloudT::Ptr& cloud) const;
     std::pair<bool, float> concave_relationship(pcl::Supervoxel<PointT>::Ptr& first_supervoxel,
                                                 pcl::Supervoxel<PointT>::Ptr& second_supervoxel) const;
     void construct_new_edge_set(std::set<edge_pair>& new_edges, const std::vector<std::set<size_t> >& groups, const std::set<edge_pair>& old_edges) const;
@@ -60,7 +62,7 @@ private:
     void local_convexity_segmentation(std::vector<PointCloudT::Ptr>& result, std::vector<NormalCloudT::Ptr> &segment_normals, PointCloudT::Ptr& cloud) const;
 public:
     void segment_objects(std::vector<PointCloudT::Ptr>& result, std::vector<NormalCloudT::Ptr> &segment_normals, std::vector<PointCloudT::Ptr>& full_result, PointCloudT::Ptr& original) const;
-    convex_voxel_segmentation(bool display_segmentation = false);
+    convex_voxel_segmentation(bool display_segmentation = false, float voxel_resolution = 0.008f, float filter_dist = 0.02f);
 };
 
 #endif // CONVEX_VOXEL_SEGMENTATION_H

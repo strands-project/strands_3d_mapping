@@ -24,7 +24,7 @@ using namespace std;
 typedef typename SimpleSummaryParser::EntityStruct Entities;
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
-using HistT = pcl::Histogram<128>;
+using HistT = pcl::Histogram<131>;
 using HistCloudT = pcl::PointCloud<HistT>;
 using NormalT = pcl::Normal;
 using NormalCloudT = pcl::PointCloud<NormalT>;
@@ -122,7 +122,7 @@ void read_clouds(vector<CloudT::Ptr>& sweeps, vector<Eigen::Matrix3f, Eigen::ali
 void extract_features(vector<int>& inds, HistCloudT::Ptr& features, vector<CloudT::Ptr> segments,
                       vector<NormalCloudT::Ptr> normals, vector<CloudT::Ptr> hd_segments, const Eigen::Matrix3f& K)
 {
-    static int counter = 0;
+    int counter = 0;
     for (size_t i = 0; i < segments.size(); ++i) {
         segment_features sf(K, false);
         HistCloudT::Ptr featuresi(new HistCloudT);
@@ -188,6 +188,10 @@ int main(int argc, char** argv)
 
     for (int i : indices) cout << i << " "; cout << endl;
 
+    for (HistT& h : features->points) {
+        eig(h).normalize();
+    }
+
     vocabulary_tree<HistT, 8> vt;
     vt.set_input_cloud(features, indices);
     vt.add_points_from_input_cloud();
@@ -196,7 +200,12 @@ int main(int argc, char** argv)
     vector<index_score> scores;
 
     HistCloudT::Ptr query_cloud(new HistCloudT);
-    get_query_cloud(query_cloud, 34, segments, normals, hd_segments, intrinsics[0]);
+    //get_query_cloud(query_cloud, 34, segments, normals, hd_segments, intrinsics[0]); // 20 Drawer // 34 Blue Cup
+    for (size_t i = 0; i < features->size(); ++i) {
+        if (indices[i] == 34) {
+            query_cloud->push_back(features->at(i));
+        }
+    }
     vt.top_similarities(scores, query_cloud, 50);
 
     for (index_score s : scores) {

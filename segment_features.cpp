@@ -1,4 +1,5 @@
 #include "segment_features.h"
+#include "sift/sift.h"
 
 #include <pcl/common/centroid.h>
 #include <pcl/features/fpfh.h>
@@ -6,9 +7,16 @@
 #include <pcl/filters/extract_indices.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/features2d/features2d.hpp>
+//#include <opencv2/nonfree/features2d.hpp>
 
-segment_features::segment_features(bool visualize_features) : visualize_features(visualize_features)
+segment_features::segment_features(const Eigen::Matrix3f& K, bool visualize_features) : K(K), visualize_features(visualize_features)
 {
+}
+
+Eigen::Map<Eigen::Matrix<float, 33, 1> > fpfheig(pcl::FPFHSignature33& v)
+{
+    return Eigen::Map<Eigen::Matrix<float, 33, 1> >(v.histogram);
 }
 
 void segment_features::calculate_features(Eigen::VectorXf& global_features, HistCloudT::Ptr &local_features, PointCloudT::Ptr& segment,
@@ -33,12 +41,12 @@ void segment_features::calculate_features(Eigen::VectorXf& global_features, Hist
     /*std::cout << svd.matrixU() << std::endl;
     std::cout << svd.singularValues() << std::endl;*/
 
-    global_features.resize(36);
+    global_features.resize(3);
     global_features(0) = fabs(T(1) / T(0));
     global_features(1) = fabs(T(2) / T(0));
     global_features(2) = segment->size();
 
-    Eigen::Matrix3f K;
+    //Eigen::Matrix3f K;
     /*K << 1.0607072507083330e3, 0.0, 9.5635447181548398e2,
             0.0, 1.0586083263054650e3, 5.1897844298824486e2,
             0.0, 0.0, 1.0;
@@ -47,9 +55,10 @@ void segment_features::calculate_features(Eigen::VectorXf& global_features, Hist
             0.0, 3.6659938826108794e2, 2.0783007950245891e2,
             0.0, 0.0, 1.0;
     size_t width = 512, height = 424;*/
-    K << 0.5*1.0607072507083330e3, 0.0, 0.5*9.5635447181548398e2,
+
+    /*K << 0.5*1.0607072507083330e3, 0.0, 0.5*9.5635447181548398e2,
             0.0, 0.5*1.0586083263054650e3, 0.5*5.1897844298824486e2,
-            0.0, 0.0, 1.0;
+            0.0, 0.0, 1.0;*/
 
     std::vector<int> xs, ys;
     std::vector<cv::Vec3b> colors;
@@ -59,8 +68,8 @@ void segment_features::calculate_features(Eigen::VectorXf& global_features, Hist
 
     for (PointT& p : full_segment->points) {
         Eigen::Vector3f q = K*p.getVector3fMap();
-        int x = int(q(0)/q(2));
-        int y = int(q(1)/q(2));
+        int x = int(q(0)/q(2) + 0.5f);
+        int y = int(q(1)/q(2) + 0.5f);
         if (x >= 0 && y >= 0) {
             xs.push_back(x);
             ys.push_back(y);
@@ -86,6 +95,8 @@ void segment_features::calculate_features(Eigen::VectorXf& global_features, Hist
         int x = xs[i] - *minx;
         mat.at<cv::Vec3b>(y, x) = colors[i];
     }
+
+    // SIFT 3D KEYPOINT EXTRACTION
 
     pcl::SIFTKeypoint<PointT, pcl::PointWithScale> sift_detect;
     //pcl::KdTreeFLANN<PointT>::Ptr kdtree(new pcl::KdTreeFLANN<PointT>);
@@ -120,41 +131,76 @@ void segment_features::calculate_features(Eigen::VectorXf& global_features, Hist
         }
     }
 
+    /*std::vector<cv::KeyPoint> keypoints_1(keypoints->size());
+    size_t counter = 0;
+    for (PointT& p : keypoints->points) {
+        Eigen::Vector3f q = K*p.getVector3fMap();
+        int x = int(q(0)/q(2)) - *minx;
+        int y = int(q(1)/q(2)) - *miny;
+        keypoints_1[counter].pt = cv::Point(x, y);
+        ++counter;
+    }*/
+
+    // SIFT 3D KEYPOINT EXTRACTION
+
     std::cout << "Number of keypoints: " << keypoints->size() << std::endl;
     std::cout << "Number of indices: " << point_idx_data->indices.size() << std::endl;
 
-    /*NormalCloudT::Ptr keypoint_normals(new NormalCloudT);
-    pcl::ExtractIndices<pcl::Normal> extract;
-    extract.setInputCloud(segment_normals);
-    extract.setIndices(point_idx_data);
-    extract.setNegative(false);
-    extract.filter(*keypoint_normals);*/
+    // SIFT FEATURE DESCRIPTORS
 
-    // Create the FPFH estimation class, and pass the input dataset+normals to it
-    pcl::FPFHEstimation<PointT, pcl::Normal, pcl::FPFHSignature33> fpfh;
-    fpfh.setInputCloud(segment);
-    fpfh.setInputNormals(segment_normals);
-    fpfh.setIndices(point_idx_data);
-    // alternatively, if cloud is of tpe PointNormal, do fpfh.setInputNormals (cloud);
+    // initialize the keypoints with the above data
+    std::vector<cv::KeyPoint> keypoints_1;
+    cv::SIFT::DetectorParams detector_params;
+    detector_params.edgeThreshold = 15.0; // 10.0 default
+    detector_params.threshold = 0.04; // 0.04 default
+    cv::SiftFeatureDetector detector(detector_params);
+    //cv::StarFeatureDetector detector;
+    //cv::MserFeatureDetector detector;
+    detector.detect(mat, keypoints_1);
 
-    // Create an empty kdtree representation, and pass it to the FPFH estimation object.
-    // Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
-    pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>);
-    fpfh.setSearchMethod (tree);
-    // Output datasets
-    pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs (new pcl::PointCloud<pcl::FPFHSignature33> ());
-    // Use all neighbors in a sphere of radius 5cm
-    // IMPORTANT: the radius used here has to be larger than the radius used to estimate the surface normals!!!
-    fpfh.setRadiusSearch (0.03);
-    // Compute the features
-    fpfh.compute(*fpfhs);
+    //-- Step 2: Calculate descriptors (feature vectors)
+    cv::Mat descriptors;
+    // the length of the descriptors is 128
+    // the 3D sift keypoint detectors are probably very unreliable
+    cv::SIFT::DescriptorParams descriptor_params;
+    descriptor_params.isNormalize = true; // always true, shouldn't matter
+    descriptor_params.magnification = 3.0; // 3.0 default
+    descriptor_params.recalculateAngles = true; // true default
 
-    local_features->resize(fpfhs->size());
-    size_t counter = 0;
-    for (pcl::FPFHSignature33 f : fpfhs->points) {
-        eigmap(local_features->at(counter)) = eigmap(f);
-        ++counter;
+    cv::SiftDescriptorExtractor extractor;
+    //cv::BriefDescriptorExtractor extractor;
+    //sift.compute( img_1, keypoints_1, descriptors_1 );
+    extractor.compute(mat, keypoints_1, descriptors);
+
+    local_features->resize(descriptors.rows);
+    for (size_t j = 0; j < descriptors.rows; ++j) {
+        cv::Point2f kp = keypoints_1[j].pt;
+        int x = kp.x;
+        int y = kp.y;
+        cv::Vec3f cumc;
+        float pixels = 0;
+        for (int i = x - 10; i <= x + 10; ++i) {
+            if (i < 0 || i >= mat.cols) {
+                continue;
+            }
+            for (int j = y - 10; j <= y + 10; ++j) {
+                if( j < 0 || j >= mat.rows) {
+                    continue;
+                }
+                cumc += mat.at<cv::Vec3b>(j, i);
+                ++pixels;
+            }
+        }
+        cumc /= pixels;
+        for (size_t k = 0; k < 128; ++k) {
+            local_features->at(j).histogram[k] = descriptors.at<float>(j, k);
+        }
+        for (size_t k = 128; k < 131; ++k) {
+            local_features->at(j).histogram[k] = color_weight*cumc[k-128];
+        }
     }
+
+    // SIFT FEATURE DESCRIPTORS
 
     if (visualize_features) {
         for (PointT& p : keypoints->points) {
@@ -170,3 +216,33 @@ void segment_features::calculate_features(Eigen::VectorXf& global_features, Hist
         cv::waitKey(0);
     }
 }
+
+// FPFH FEATURE DESCRIPTORS
+
+// Create the FPFH estimation class, and pass the input dataset+normals to it
+/*pcl::FPFHEstimation<PointT, pcl::Normal, pcl::FPFHSignature33> fpfh;
+fpfh.setInputCloud(segment);
+fpfh.setInputNormals(segment_normals);
+fpfh.setIndices(point_idx_data);
+// alternatively, if cloud is of tpe PointNormal, do fpfh.setInputNormals (cloud);
+
+// Create an empty kdtree representation, and pass it to the FPFH estimation object.
+// Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
+pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>);
+fpfh.setSearchMethod (tree);
+// Output datasets
+pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs (new pcl::PointCloud<pcl::FPFHSignature33> ());
+// Use all neighbors in a sphere of radius 5cm
+// IMPORTANT: the radius used here has to be larger than the radius used to estimate the surface normals!!!
+fpfh.setRadiusSearch (0.03);
+// Compute the features
+fpfh.compute(*fpfhs);
+
+local_features->resize(fpfhs->size());
+size_t counter = 0;
+for (pcl::FPFHSignature33 f : fpfhs->points) {
+    histeig(local_features->at(counter)) = fpfheig(f);
+    ++counter;
+}*/
+
+// FPFH FEATURE DESCRIPTORS

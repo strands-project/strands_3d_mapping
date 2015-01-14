@@ -36,7 +36,8 @@ typedef boost::graph_traits<Graph>::edge_descriptor Edge;
 typedef boost::property<boost::edge_weight_t, float> edge_weight_property;
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, boost::no_property, edge_weight_property> weighted_graph;
 
-convex_voxel_segmentation::convex_voxel_segmentation(bool display_segmentation) : display_segmentation(display_segmentation), voxel_resolution(0.008f)
+convex_voxel_segmentation::convex_voxel_segmentation(bool display_segmentation, float voxel_resolution, float filter_dist) :
+    display_segmentation(display_segmentation), voxel_resolution(voxel_resolution), filter_dist(filter_dist)
 {
 }
 
@@ -294,7 +295,7 @@ void convex_voxel_segmentation::segment_pointcloud(PointCloudT::Ptr& cloud,
     pcl::console::print_highlight ("Extracting supervoxels!\n");
     super.extract (supervoxel_clusters);
     pcl::console::print_info ("Found %d supervoxels\n", supervoxel_clusters.size ());
-    super.refineSupervoxels(3, supervoxel_clusters);
+    //super.refineSupervoxels(3, supervoxel_clusters);
 
     super.getSupervoxelAdjacency(supervoxel_adjacency);
     voxel_centroid_cloud = super.getVoxelCentroidCloud();
@@ -304,6 +305,18 @@ void convex_voxel_segmentation::segment_pointcloud(PointCloudT::Ptr& cloud,
 
     //pcl::PointCloud<pcl::PointXYZL>::Ptr other_labels = super.getLabeledCloud();
     //std::cout << "Other label cloud size: " << other_labels->size() << std::endl;
+}
+
+Eigen::Vector3f convex_voxel_segmentation::compute_mean_color(PointCloudT::Ptr& cloud) const
+{
+    Eigen::Vector3f acc(0.0f, 0.0f, 0.0f);
+    for (const PointT& p : cloud->points) {
+        acc(0) += p.r;
+        acc(1) += p.g;
+        acc(2) += p.b;
+    }
+    acc.normalize();
+    return acc;
 }
 
 std::pair<bool, float> convex_voxel_segmentation::concave_relationship(pcl::Supervoxel<PointT>::Ptr& first_supervoxel,
@@ -317,12 +330,17 @@ std::pair<bool, float> convex_voxel_segmentation::concave_relationship(pcl::Supe
     Eigen::Vector3f n1 = first_supervoxel->normal_.getNormalVector3fMap();
     Eigen::Vector3f n2 = second_supervoxel->normal_.getNormalVector3fMap();
 
-    float flat_penalty = -1.0f; // -0.3f
+    Eigen::Vector3f first_color = compute_mean_color(first_supervoxel->voxels_);
+    Eigen::Vector3f second_color = compute_mean_color(second_supervoxel->voxels_);
+
+    float color_dist = -((first_color - second_color).norm() - 0.2f); // L1 would probably be better
+
+    float flat_penalty = -0.3f; // -0.3f
     if (acos(fabs(n1.dot(n2))) < M_PI / 8.0) {
         return std::pair<bool, float>(false, flat_penalty);
     }
 
-    float dist_threshold = 0.03;
+    float dist_threshold = 0.05;
 
     float mindist = std::numeric_limits<float>::infinity();
     float count = 0.0f;
@@ -371,7 +389,7 @@ std::pair<bool, float> convex_voxel_segmentation::concave_relationship(pcl::Supe
     if (mindist > 0.3*dist_threshold || mean_prod > 0.1 || count < 10) { // more likely to be convex than concave
         is_concave = true;
     }
-    return std::pair<bool, float>(is_concave, mean_prod);
+    return std::pair<bool, float>(is_concave, mean_prod);//0.5f*(mean_prod+color_dist));
 }
 
 void convex_voxel_segmentation::construct_new_edge_set(std::set<edge_pair>& new_edges, const std::vector<std::set<size_t> >& groups, const std::set<edge_pair>& old_edges) const
@@ -634,7 +652,7 @@ void convex_voxel_segmentation::segment_objects(std::vector<PointCloudT::Ptr>& r
     pcl::PassThrough<PointT> pass;
     pass.setInputCloud(original);
     pass.setFilterFieldName("z");
-    pass.setFilterLimits(0.0, 3.0);
+    pass.setFilterLimits(-3.0, 3.0); // 0.0, 0.0
     //pass.setFilterLimitsNegative (true);
     pass.filter(*cloud_constrained);
 
@@ -642,7 +660,7 @@ void convex_voxel_segmentation::segment_objects(std::vector<PointCloudT::Ptr>& r
     pcl::RadiusOutlierRemoval<PointT> outrem;
     // build the filter
     outrem.setInputCloud(cloud_constrained);
-    outrem.setRadiusSearch(0.02);
+    outrem.setRadiusSearch(filter_dist); // 0.02 // Kinect 2
     outrem.setMinNeighborsInRadius(30);
     // apply filter
     PointCloudT::Ptr cloud_filtered(new PointCloudT);
