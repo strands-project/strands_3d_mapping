@@ -7,6 +7,10 @@
 #include <pcl/filters/filter.h>
 #include <pcl/filters/impl/filter.hpp>
 
+#include <cereal/types/array.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/utility.hpp>
+
 template <typename Point>
 struct map_proxy {
     static const size_t rows = std::extent<decltype(Point::histogram)>::value;
@@ -79,6 +83,59 @@ public:
                 delete n;
             }
         }
+        template <class Archive>
+        void save(Archive& archive) const
+        {
+            archive(is_leaf);
+            archive(range);
+            archive(weight);
+            archive(centroid.histogram);
+            if (is_leaf) {
+                const leaf* l = static_cast<const leaf*>(this);
+                archive(l->inds);
+                archive(*(l->data));
+            }
+            else {
+                for (ptr_type const n : children) {
+                    archive(*n); // assuming this can't be zero
+                }
+            }
+        }
+
+        template <class Archive>
+        void load(Archive& archive)
+        {
+            // a small hack for now, could be solved by moving serialize to save/load functions
+            static bool is_root = true;
+            if (is_root) {
+                is_root = false;
+                archive(is_leaf);
+            }
+            archive(range);
+            archive(weight);
+            archive(centroid.histogram);
+            if (is_leaf) {
+                leaf* l = static_cast<leaf*>(this);
+                l->data = new data_type;
+                archive(l->inds);
+                archive(*(l->data));
+            }
+            else {
+                for (ptr_type& n : children) {
+                    bool child_is_leaf;
+                    archive(child_is_leaf);
+                    if (child_is_leaf) {
+                        leaf* l = new leaf;
+                        n = l;
+                        //leaves.push_back(l);
+                    }
+                    else {
+                        n = new node;
+                    }
+                    archive(*n); // assuming this can't be zero
+                }
+            }
+        }
     };
 
     struct leaf : public node {
@@ -107,6 +164,8 @@ protected:
     void flatten_nodes(CloudPtrT& nodecloud, node* n);
     void flatten_nodes_optimized(CloudPtrT& nodecloud, node* n);
     node* get_next_node(node* n, const PointT& p);
+    float norm_func(const PointT& p1, const PointT& p2) const;
+    void append_leaves(node* n);
 
 public:
 
@@ -130,6 +189,8 @@ public:
     void get_cloud_for_point_at_level(CloudPtrT& nodecloud, const PointT& p, size_t level);
     void get_cloud_for_point_at_level_optimized(CloudPtrT& nodecloud, const PointT& p, size_t level);
     size_t points_in_node(node* n);
+    template <class Archive> void save(Archive& archive) const;
+    template <class Archive> void load(Archive& archive);
 
     k_means_tree(size_t depth = 5) : depth(depth) {}
     virtual ~k_means_tree() { leaves.clear(); }

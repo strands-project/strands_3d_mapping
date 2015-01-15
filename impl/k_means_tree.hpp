@@ -7,6 +7,48 @@
 
 using namespace std;
 
+template <typename Point>
+typename map_proxy<Point>::map_type eig(Point& v)
+{
+    return typename map_proxy<Point>::map_type(v.histogram);
+}
+
+template <typename Point>
+typename map_proxy<Point>::const_map_type eig(const Point& v)
+{
+    return typename map_proxy<Point>::const_map_type(v.histogram);
+}
+
+template <>
+typename map_proxy<pcl::PointXYZ>::map_type eig(pcl::PointXYZ& v)
+{
+    return v.getVector3fMap();
+}
+
+template <>
+typename map_proxy<pcl::PointXYZ>::const_map_type eig(const pcl::PointXYZ& v)
+{
+    return v.getVector3fMap();
+}
+
+template <>
+typename map_proxy<pcl::PointXYZRGB>::map_type eig(pcl::PointXYZRGB& v)
+{
+    return v.getVector3fMap();
+}
+
+template <>
+typename map_proxy<pcl::PointXYZRGB>::const_map_type eig(const pcl::PointXYZRGB& v)
+{
+    return v.getVector3fMap();
+}
+
+template <typename Point, size_t K, typename Data>
+float k_means_tree<Point, K, Data>::norm_func(const PointT& p1, const PointT& p2) const
+{
+    return -eig(p1).dot(eig(p2));
+}
+
 template <typename Point, size_t K, typename Data>
 void k_means_tree<Point, K, Data>::add_points_from_input_cloud()
 {
@@ -66,42 +108,6 @@ typename k_means_tree<Point, K>::const_map_type k_means_tree<Point, K>::eig(cons
 }
 */
 
-template <typename Point>
-typename map_proxy<Point>::map_type eig(Point& v)
-{
-    return typename map_proxy<Point>::map_type(v.histogram);
-}
-
-template <typename Point>
-typename map_proxy<Point>::const_map_type eig(const Point& v)
-{
-    return typename map_proxy<Point>::const_map_type(v.histogram);
-}
-
-template <>
-typename map_proxy<pcl::PointXYZ>::map_type eig(pcl::PointXYZ& v)
-{
-    return v.getVector3fMap();
-}
-
-template <>
-typename map_proxy<pcl::PointXYZ>::const_map_type eig(const pcl::PointXYZ& v)
-{
-    return v.getVector3fMap();
-}
-
-template <>
-typename map_proxy<pcl::PointXYZRGB>::map_type eig(pcl::PointXYZRGB& v)
-{
-    return v.getVector3fMap();
-}
-
-template <>
-typename map_proxy<pcl::PointXYZRGB>::const_map_type eig(const pcl::PointXYZRGB& v)
-{
-    return v.getVector3fMap();
-}
-
 template <typename Point, size_t K, typename Data>
 typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::assign_nodes(CloudPtrT& subcloud, node** nodes, size_t current_depth, const vector<int>& subinds)
 {
@@ -109,7 +115,7 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
     std::cout << subcloud->size() << std::endl;
 
     // do k-means of the points, iteratively call this again?
-    Point centroids[dim];
+    PointT centroids[dim];
 
     // first, pick centroids at random
     vector<size_t> inds = sample_with_replacement(subcloud->size());
@@ -118,6 +124,7 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
     }
 
     std::vector<int> clusters[dim];
+    float cluster_distances[dim];
     size_t min_iter = std::max(10, int(subcloud->size()/100));
     size_t counter = 0;
     while (true) {
@@ -126,11 +133,15 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
             c.clear();
         }
         int ind = 0;
-        for (const Point& p : subcloud->points) {
-            auto closest = min_element(centroids, centroids+dim, [&p](const Point& q1, const Point& q2) {
+        for (const PointT& p : subcloud->points) {
+            for (size_t i = 0; i < dim; ++i) {
+                cluster_distances[i] = norm_func(centroids[i], p);
+            }
+            /*auto closest = min_element(centroids, centroids+dim, [&p](const PointT& q1, const PointT& q2) {
                 return (eig(p) - eig(q1)).norm() < (eig(p) - eig(q2)).norm();
-            });
-            clusters[std::distance(centroids, closest)].push_back(ind);
+            });*/
+            auto closest = min_element(cluster_distances, cluster_distances+dim);
+            clusters[std::distance(cluster_distances, closest)].push_back(ind);
             ++ind;
         }
 
@@ -228,8 +239,9 @@ void k_means_tree<Point, K, Data>::get_path_for_point(vector<node*>& path, const
 template <typename Point, size_t K, typename Data>
 typename k_means_tree<Point, K, Data>::node* k_means_tree<Point, K, Data>::get_next_node(node* n, const PointT& p)
 {
-    node** closest = std::min_element(n->children, n->children+dim, [&p](const node* q1, const node* q2) {
-        return (eig(p) - eig(q1->centroid)).norm() < (eig(p) - eig(q2->centroid)).norm();
+    node** closest = std::min_element(n->children, n->children+dim, [this, &p](const node* q1, const node* q2) {
+        return norm_func(p, q1->centroid) < norm_func(p, q2->centroid);
+        //return (eig(p) - eig(q1->centroid)).norm() < (eig(p) - eig(q2->centroid)).norm();
     });
     return *closest;
 }
@@ -308,4 +320,33 @@ size_t k_means_tree<Point, K, Data>::points_in_node(node* n)
         i += leaves[i]->inds.size(); // could use a distance transform for this instead
     }
     return nbr_points;
+}
+
+template <typename Point, size_t K, typename Data>
+void k_means_tree<Point, K, Data>::append_leaves(node* n)
+{
+    if (n->is_leaf) {
+        leaves.push_back(static_cast<leaf*>(n));
+        return;
+    }
+    for (node* c : n->children) {
+        append_leaves(c);
+    }
+}
+
+template <typename Point, size_t K, typename Data>
+template <class Archive>
+void k_means_tree<Point, K, Data>::save(Archive& archive) const
+{
+    archive(depth);
+    archive(root);
+}
+
+template <typename Point, size_t K, typename Data>
+template <class Archive>
+void k_means_tree<Point, K, Data>::load(Archive& archive)
+{
+    archive(depth);
+    archive(root);
+    append_leaves(&root);
 }

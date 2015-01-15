@@ -1,4 +1,18 @@
 #include "vocabulary_tree/vocabulary_tree.h"
+#include <cereal/types/vector.hpp>
+#include <cereal/types/map.hpp>
+
+template <typename Point, size_t K>
+double vocabulary_tree<Point, K>::pexp(const double v) const
+{
+    return fabs(v);
+}
+
+template <typename Point, size_t K>
+double vocabulary_tree<Point, K>::proot(const double v) const
+{
+    return fabs(v);
+}
 
 template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::set_input_cloud(CloudPtrT& new_cloud, std::vector<int>& new_indices)
@@ -65,8 +79,6 @@ void vocabulary_tree<Point, K>::source_freqs_for_node(std::map<int, int>& source
 template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::normalizing_constants_for_node(std::map<int, int>& normalizing_constants, node* n)
 {
-    auto pnorm = [](const double v) { return fabs(v); };
-
     if (n->is_leaf) {
         int leaf_ind = n->range.first;
         normalizing_constants = super::leaves[leaf_ind]->data->source_id_freqs;
@@ -89,7 +101,7 @@ void vocabulary_tree<Point, K>::normalizing_constants_for_node(std::map<int, int
 
     n->weight = log(N / double(normalizing_constants.size()));
     for (std::pair<const int, int>& v : normalizing_constants) {
-        db_vector_normalizing_constants.at(v.first) += pnorm(n->weight*v.second);
+        db_vector_normalizing_constants.at(v.first) += pexp(n->weight*v.second);
     }
 }
 
@@ -120,9 +132,6 @@ size_t vocabulary_tree<Point, K>::points_in_node(node* n)
 template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::top_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
-    auto pnorm = [](const double v) { return fabs(v); };
-    auto proot = [](const double v) { return fabs(v); };
-
     std::map<node*, double> query_id_freqs;
     double qnorm = compute_query_vector(query_id_freqs, query_cloud);
     std::map<int, double> map_scores;
@@ -166,7 +175,7 @@ void vocabulary_tree<Point, K>::top_similarities(std::vector<cloud_idx_score>& s
                 pkr = proot(pk);
             }
             double pi = v.first->weight*double(u.second)/pkr;
-            double residual = pnorm(qi-pi)-pnorm(pi)-pnorm(qi);
+            double residual = pexp(qi-pi)-pexp(pi)-pexp(qi);
             if (map_scores.count(u.first) == 1) {
                 map_scores.at(u.first) += residual;
             }
@@ -195,8 +204,6 @@ void vocabulary_tree<Point, K>::top_similarities(std::vector<cloud_idx_score>& s
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_query_vector(std::map<node *, double> &query_id_freqs, CloudPtrT& query_cloud)
 {
-    auto pnorm = [](const double v) { return fabs(v); };
-
     for (PointT p : query_cloud->points) {
         //eig(p).normalize(); // normalize SIFT points
         std::vector<node*> path;
@@ -213,8 +220,28 @@ double vocabulary_tree<Point, K>::compute_query_vector(std::map<node *, double> 
     double qnorm = 0.0f;
     for (std::pair<node* const, double>& v : query_id_freqs) {
         v.second = v.first->weight*v.second;
-        qnorm += pnorm(v.second);
+        qnorm += pexp(v.second);
     }
 
     return qnorm;
+}
+
+template <typename Point, size_t K>
+template <class Archive>
+void vocabulary_tree<Point, K>::save(Archive& archive) const
+{
+    super::save(archive);
+    archive(indices);
+    archive(db_vector_normalizing_constants);
+    archive(N);
+}
+
+template <typename Point, size_t K>
+template <class Archive>
+void vocabulary_tree<Point, K>::load(Archive& archive)
+{
+    super::load(archive);
+    archive(indices);
+    archive(db_vector_normalizing_constants);
+    archive(N);
 }

@@ -2,6 +2,7 @@
 #define VOCABULARY_TREE_H
 
 #include "k_means_tree/k_means_tree.h"
+#include <cereal/types/map.hpp>
 
 /*
  * k_means_tree
@@ -12,6 +13,10 @@
 
 struct inverted_file {
     std::map<int, int> source_id_freqs;
+    template <class Archive> void serialize(Archive& archive)
+    {
+        archive(source_id_freqs);
+    }
 };
 
 template <typename Point, size_t K>
@@ -32,13 +37,15 @@ public:
 protected:
 
     std::vector<int> indices; // the source indices of the points (image ids of features)
-    std::vector<int> distance_transform; // for computing m_i
+    //std::vector<int> distance_transform; // for computing m_i
     std::map<int, double> db_vector_normalizing_constants; // normalizing constants for the p vectors
     double N; // number of sources (images) in database
     static const bool normalized = true;
 
 protected:
 
+    double pexp(const double v) const;
+    double proot(const double v) const;
     double compute_query_vector(std::map<node*, double>& query_id_freqs, CloudPtrT& query_cloud);
     //size_t points_in_node(node* n);
     void source_freqs_for_node(std::map<int, int>& source_id_freqs, node* n) const;
@@ -51,6 +58,9 @@ public:
     void set_input_cloud(CloudPtrT& new_cloud, std::vector<int>& new_indices);
     void add_points_from_input_cloud();
     void top_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results = 20);
+    //template <class Archive, typename P, size_t C> friend void serialize(Archive& archive, vocabulary_tree<P, C>& vt);
+    template <class Archive> void save(Archive& archive) const;
+    template <class Archive> void load(Archive& archive);
 
 };
 
