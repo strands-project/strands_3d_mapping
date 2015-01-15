@@ -26,6 +26,8 @@ include_directories(/opt/ros/indigo/include)
 link_directories(/home/nbore/catkin_ws/devel/lib)
 link_directories(/opt/ros/indigo/lib)
 
+include_directories(include) # cereal
+
 add_library(vis_wrapper vis_wrapper.cpp lockable.cpp)
 add_library(segment_features segment_features.cpp)
 add_library(convex_voxel_segmentation convex_voxel_segmentation.cpp)

@@ -1,9 +1,10 @@
 #include <iostream>
+#include <boost/filesystem.hpp>
 
 #include "convex_voxel_segmentation.h"
 #include "segment_features.h"
-#include "k_means_tree/k_means_tree.h"
-#include "vocabulary_tree/vocabulary_tree.h"
+#include <k_means_tree/k_means_tree.h>
+#include <vocabulary_tree/vocabulary_tree.h>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -16,6 +17,7 @@
 #include "simpleSummaryParser.h"
 
 #include <tf_conversions/tf_eigen.h>
+#include "eigen_cereal.h"
 
 #define VISUALIZE false
 
@@ -75,7 +77,7 @@ void read_clouds(vector<CloudT::Ptr>& sweeps, vector<Eigen::Matrix3f, Eigen::ali
 
     cout << "Sweeps size: " << allSweeps.size() << endl;
 
-    for (size_t i = 0; i < allSweeps.size() && i < max_clouds; ++i) {
+    for (size_t i = 0; i < allSweeps.size(); ++i) {
         cout << "Parsing " << allSweeps[i].roomXmlFile << endl;
 
         roomData = simple_parser.loadRoomFromXML(allSweeps[i].roomXmlFile);
@@ -119,8 +121,8 @@ void read_clouds(vector<CloudT::Ptr>& sweeps, vector<Eigen::Matrix3f, Eigen::ali
 
 }
 
-void extract_features(vector<int>& inds, HistCloudT::Ptr& features, vector<CloudT::Ptr> segments,
-                      vector<NormalCloudT::Ptr> normals, vector<CloudT::Ptr> hd_segments, const Eigen::Matrix3f& K)
+void extract_features(vector<int>& inds, HistCloudT::Ptr& features, vector<CloudT::Ptr>& segments,
+                      vector<NormalCloudT::Ptr>& normals, vector<CloudT::Ptr>& hd_segments, const Eigen::Matrix3f& K)
 {
     int counter = 0;
     for (size_t i = 0; i < segments.size(); ++i) {
@@ -136,18 +138,99 @@ void extract_features(vector<int>& inds, HistCloudT::Ptr& features, vector<Cloud
     }
 }
 
-void get_query_cloud(HistCloudT::Ptr& query_cloud, int i, vector<CloudT::Ptr> segments,
-                     vector<NormalCloudT::Ptr> normals, vector<CloudT::Ptr> hd_segments, const Eigen::Matrix3f& K)
+void get_query_cloud(HistCloudT::Ptr& query_cloud, CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K)
 {
     segment_features sf(K, true);
     Eigen::VectorXf globalf;
-    sf.calculate_features(globalf, query_cloud, segments[i], normals[i], hd_segments[i]);
-    cout << "Segment to be queried: " << i << endl;
+    sf.calculate_features(globalf, query_cloud, segment, normal, hd_segment);
     cout << "Number of features: " << query_cloud->size() << endl;
-    visualize_cloud(hd_segments[i]);
+    visualize_cloud(hd_segment);
 }
 
-int main(int argc, char** argv)
+void write_segments(vector<CloudT::Ptr>& segments, vector<NormalCloudT::Ptr>& normals, vector<CloudT::Ptr>& hd_segments,  const Eigen::Matrix3f& K)
+{
+    boost::filesystem::path base_dir = "/home/nbore/Workspace/objectness_score/object_segments";
+    boost::filesystem::create_directory(base_dir); // may fail if already existing
+    // for each segment, create a folder indicating segment name
+    for (size_t i = 0; i < segments.size(); ++i) {
+        // save the point clouds for this segment
+        boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(i));
+        cout << "Writing directory " << sub_dir.string() << endl;
+        boost::filesystem::create_directory(sub_dir);
+        pcl::io::savePCDFileASCII(sub_dir.string() + "/segment.pcd", *segments[i]);
+        pcl::io::savePCDFileASCII(sub_dir.string() + "/normals.pcd", *normals[i]);
+        pcl::io::savePCDFileASCII(sub_dir.string() + "/hd_segment.pcd", *hd_segments[i]);
+        {
+            ofstream out(sub_dir.string() + "/K.cereal", std::ios::binary);
+            cereal::BinaryOutputArchive archive_o(out);
+            archive_o(K);
+        }
+    }
+}
+
+void read_segments(vector<CloudT::Ptr>& segments, vector<NormalCloudT::Ptr>& normals, vector<CloudT::Ptr>& hd_segments,  Eigen::Matrix3f& K, size_t max_segments)
+{
+    boost::filesystem::path base_dir = "/home/nbore/Workspace/objectness_score/object_segments";
+    for (size_t i = 0; i < max_segments; ++i) {
+        boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(i));
+        cout << "Reading directory " << sub_dir.string() << endl;
+        if (!boost::filesystem::is_directory(sub_dir)) {
+            break;
+        }
+        segments.push_back(CloudT::Ptr(new CloudT));
+        normals.push_back(NormalCloudT::Ptr(new NormalCloudT));
+        hd_segments.push_back(CloudT::Ptr(new CloudT));
+        if (pcl::io::loadPCDFile<PointT>(sub_dir.string() + "/segment.pcd", *segments[i]) == -1) exit(0);
+        if (pcl::io::loadPCDFile<NormalT>(sub_dir.string() + "/normals.pcd", *normals[i]) == -1) exit(0);
+        if (pcl::io::loadPCDFile<PointT>(sub_dir.string() + "/hd_segment.pcd", *hd_segments[i]) == -1) exit(0);
+        {
+            ifstream in(sub_dir.string() + "/K.cereal", std::ios::binary);
+            cereal::BinaryInputArchive archive_i(in);
+            archive_i(K);
+        }
+    }
+}
+
+bool read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment,  Eigen::Matrix3f& K, size_t segment_id)
+{
+    boost::filesystem::path base_dir = "/home/nbore/Workspace/objectness_score/object_segments";
+    boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(segment_id));
+    cout << "Reading directory " << sub_dir.string() << endl;
+    if (!boost::filesystem::is_directory(sub_dir)) {
+        return false;
+    }
+    if (pcl::io::loadPCDFile<PointT>(sub_dir.string() + "/segment.pcd", *segment) == -1) exit(0);
+    if (pcl::io::loadPCDFile<NormalT>(sub_dir.string() + "/normals.pcd", *normal) == -1) exit(0);
+    if (pcl::io::loadPCDFile<PointT>(sub_dir.string() + "/hd_segment.pcd", *hd_segment) == -1) exit(0);
+    {
+        ifstream in(sub_dir.string() + "/K.cereal", std::ios::binary);
+        cereal::BinaryInputArchive archive_i(in);
+        archive_i(K);
+    }
+    return true;
+}
+
+void write_vocabulary(vocabulary_tree<HistT, 8>& vt)
+{
+    boost::filesystem::path base_dir = "/home/nbore/Workspace/objectness_score/object_segments";
+    boost::filesystem::create_directory(base_dir);
+    std::string vocabulary_file = base_dir.string() + "/vocabulary.cereal";
+    ofstream out(vocabulary_file, std::ios::binary);
+    cereal::BinaryOutputArchive archive_o(out);
+    archive_o(vt);
+}
+
+void read_vocabulary(vocabulary_tree<HistT, 8>& vt)
+{
+    boost::filesystem::path base_dir = "/home/nbore/Workspace/objectness_score/object_segments";
+    std::string vocabulary_file = base_dir.string() + "/vocabulary.cereal";
+
+    ifstream in(vocabulary_file, std::ios::binary);
+    cereal::BinaryInputArchive archive_i(in);
+    archive_i(vt);
+}
+
+void compute_segments()
 {
     vector<CloudT::Ptr> sweeps;
     vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> > intrinsics;
@@ -156,14 +239,14 @@ int main(int argc, char** argv)
     vector<CloudT::Ptr> segments;
     vector<NormalCloudT::Ptr> normals;
     vector<CloudT::Ptr> hd_segments;
-    vector<int> start_inds;
+    //vector<int> start_inds;
 
     size_t max_segments = 5;
     size_t counter = 0;
     for (CloudT::Ptr cloud : sweeps) {
-        if (counter >= max_segments) {
+        /*if (counter >= max_segments) {
             break;
-        }
+        }*/
 
         if (VISUALIZE) {
             visualize_cloud(cloud);
@@ -174,7 +257,7 @@ int main(int argc, char** argv)
         vector<CloudT::Ptr> hd_segmentsi;
         cvs.segment_objects(segmentsi, normalsi, hd_segmentsi, cloud);
 
-        start_inds.push_back(segments.size());
+        //start_inds.push_back(segments.size());
         segments.insert(segments.end(), segmentsi.begin(), segmentsi.end());
         normals.insert(normals.end(), normalsi.begin(), normalsi.end());
         hd_segments.insert(hd_segments.end(), hd_segmentsi.begin(), hd_segmentsi.end());
@@ -182,9 +265,29 @@ int main(int argc, char** argv)
         ++counter;
     }
 
+    write_segments(segments, normals, hd_segments,  intrinsics[0]);
+}
+
+void process_segments()
+{
+    vector<CloudT::Ptr> segments;
+    vector<NormalCloudT::Ptr> normals;
+    vector<CloudT::Ptr> hd_segments;
+    Eigen::Matrix3f K;
+
+    read_segments(segments, normals, hd_segments, K, 200);
+
+    cout << K << endl;
+    cout << segments.size() << endl;
+    cout << hd_segments.size() << endl;
+    cout << normals.size() << endl;
+    cout << segments[0]->size() << endl;
+    cout << hd_segments[0]->size() << endl;
+    cout << normals[0]->size() << endl;
+
     HistCloudT::Ptr features(new HistCloudT);
     vector<int> indices;
-    extract_features(indices, features, segments, normals, hd_segments, intrinsics[0]);
+    extract_features(indices, features, segments, normals, hd_segments, K);
 
     for (int i : indices) cout << i << " "; cout << endl;
 
@@ -196,22 +299,51 @@ int main(int argc, char** argv)
     vt.set_input_cloud(features, indices);
     vt.add_points_from_input_cloud();
 
-    using index_score = vocabulary_tree<HistT, 8>::cloud_idx_score;
-    vector<index_score> scores;
+    write_vocabulary(vt);
+}
 
+void query_vocabulary(size_t query_ind)
+{
+    using index_score = vocabulary_tree<HistT, 8>::cloud_idx_score;
+
+    vocabulary_tree<HistT, 8> vt;
     HistCloudT::Ptr query_cloud(new HistCloudT);
-    //get_query_cloud(query_cloud, 34, segments, normals, hd_segments, intrinsics[0]); // 20 Drawer // 34 Blue Cup
-    for (size_t i = 0; i < features->size(); ++i) {
-        if (indices[i] == 34) {
-            query_cloud->push_back(features->at(i));
-        }
+    CloudT::Ptr segment(new CloudT);
+    NormalCloudT::Ptr normal(new NormalCloudT);
+    CloudT::Ptr hd_segment(new CloudT);
+    Eigen::Matrix3f K;
+
+    read_vocabulary(vt);
+
+    cout << "Querying segment nbr: " << query_ind << endl;
+    if(!read_segment(segment, normal, hd_segment, K, query_ind)) { // 20 Drawer // 34 Blue Cup
+        cout << "Error reading segment!" << endl;
+        exit(0);
     }
+    get_query_cloud(query_cloud, segment, normal, hd_segment, K);
+
+    vector<index_score> scores;
     vt.top_similarities(scores, query_cloud, 50);
 
     for (index_score s : scores) {
         cout << "Index: " << s.first << " with score: " << s.second << endl;
-        visualize_cloud(hd_segments[s.first]);
+        if(!read_segment(segment, normal, hd_segment, K, s.first)) {
+            cout << "Error reading segment!" << endl;
+            exit(0);
+        }
+        visualize_cloud(hd_segment);
     }
+}
+
+int main(int argc, char** argv)
+{
+    int i = 34;
+    if (argc >= 2) {
+        i = atoi(argv[1]);
+    }
+    //compute_segments();
+    //process_segments();
+    query_vocabulary(i);
 
     return 0;
 }
