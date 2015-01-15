@@ -125,7 +125,7 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
 
     std::vector<int> clusters[dim];
     float cluster_distances[dim];
-    size_t min_iter = std::max(10, int(subcloud->size()/100));
+    size_t min_iter = std::max(50, int(subcloud->size()/1000));
     size_t counter = 0;
     while (true) {
         // compute closest centroids
@@ -181,10 +181,9 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
                 l->inds[j] = subinds[clusters[i][j]];
             }
             l->centroid = centroids[i];
-            if (clusters[i].empty()) {
-                eig(l->centroid).setOnes();
-                eig(l->centroid) *= 1000.0f;
-            }
+            /*if (clusters[i].empty()) {
+                eig(l->centroid).setZeros();
+            }*/
             l->range.first = leaves.size();
             l->range.second = leaves.size()+1;
             leaves.push_back(l);
