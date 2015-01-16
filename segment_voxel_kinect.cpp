@@ -49,17 +49,23 @@ int main(int argc, char** argv) {
     int sceneid= atoi(argv[1]);
     int frameid = atoi(argv[1]+2);*/
 
-    using PointT = pcl::Histogram<33>;
-    using HistCloudT = pcl::PointCloud<PointT>;
-    using CloudT = pcl::PointCloud<pcl::PointXYZRGB>;
+    using HistT = pcl::Histogram<131>;
+    using HistCloudT = pcl::PointCloud<HistT>;
+    using PointT = pcl::PointXYZRGB;
+    using CloudT = pcl::PointCloud<PointT>;
+
+    Eigen::Matrix3f K;
+    K << 0.5*1.0607072507083330e3, 0.0, 0.5*9.5635447181548398e2,
+                0.0, 0.5*1.0586083263054650e3, 0.5*5.1897844298824486e2,
+                0.0, 0.0, 1.0;
 
     std::vector<int> feature_inds;
     HistCloudT::Ptr all_local_features(new HistCloudT);
-    std::vector<Cloud_t::Ptr> all_segments;
+    std::vector<CloudT::Ptr> all_segments;
     size_t counter = 0;
     size_t temp = 0;
-    size_t segment_id = 40;//191;
-    for (int sceneid = 1000; sceneid <= 1002; ++sceneid) {
+    size_t segment_id = 90;
+    for (int sceneid = 1000; sceneid <= 1009; ++sceneid) {
         int frameid = sceneid - 1000;
         string pcdfile = getScenePath(sceneid);
         if(!file_exists(pcdfile)) {
@@ -67,15 +73,15 @@ int main(int argc, char** argv) {
             return(0);
         }
 
-        Cloud_t::Ptr cloud(new Cloud_t);
+        CloudT::Ptr cloud(new CloudT);
         cout << "Loading file " << pcdfile << endl;
         pcl::io::loadPCDFile(pcdfile, *cloud);
         transform_back(frameid, cloud);
 
-        std::vector<Cloud_t::Ptr> segments;
+        std::vector<CloudT::Ptr> segments;
         std::vector<NormalCloud_t::Ptr> segment_normals;
-        std::vector<Cloud_t::Ptr> full_segments;
-        convex_voxel_segmentation cvs(false);
+        std::vector<CloudT::Ptr> full_segments;
+        convex_voxel_segmentation cvs(true, 0.008);
         cvs.segment_objects(segments, segment_normals, full_segments, cloud);
 
         std::vector<HistCloudT::Ptr> local_features(full_segments.size());
@@ -83,17 +89,23 @@ int main(int argc, char** argv) {
         for (size_t i = 0; i < full_segments.size(); ++i) {
             all_segments.push_back(full_segments[i]);
             // for each segment, create features
-            segment_features sf(false);
+            segment_features sf(K, false);
             float th1 = 0.1;
             float th2 = 0.005;
             local_features[i] = HistCloudT::Ptr(new HistCloudT);
             // let's save all features to begin with
             sf.calculate_features(global_features[i], local_features[i], segments[i], segment_normals[i], full_segments[i]);
+            for (HistT& h : local_features[i]->points) {
+                for (float& v : h.histogram) {
+                    std::cout << v << ", ";
+                }
+                std::cout << std::endl;
+            }
             if (temp == segment_id) {
                 boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
                 viewer->setBackgroundColor (0, 0, 0);
-                pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(full_segments[i]);
-                viewer->addPointCloud<pcl::PointXYZRGB> (full_segments[i], rgb, "sample cloud");
+                pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(full_segments[i]);
+                viewer->addPointCloud<PointT> (full_segments[i], rgb, "sample cloud");
                 viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
                 viewer->addCoordinateSystem (1.0);
                 viewer->initCameraParameters ();
@@ -133,7 +145,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    vocabulary_tree<PointT, 8> kmt;
+    vocabulary_tree<HistT, 8> kmt;
     kmt.set_input_cloud(all_local_features, feature_inds);
     kmt.add_points_from_input_cloud();
 
@@ -149,10 +161,11 @@ int main(int argc, char** argv) {
         ++i;
     }
 
-    std::vector<std::pair<int, float> > max_ind_scores;
+    using index_score = vocabulary_tree<HistT, 8>::cloud_idx_score;
+    std::vector<index_score> max_ind_scores;
     kmt.top_similarities(max_ind_scores, query_cloud);
 
-    auto comp = [](const std::pair<int, float>& v1, const std::pair<int, float>& v2)
+    auto comp = [](const index_score& v1, const index_score& v2)
     {
         return v1.first < v2.first;
     };
@@ -165,14 +178,14 @@ int main(int argc, char** argv) {
     std::cout << "Max index: " << std::max_element(max_ind_scores.begin(), max_ind_scores.end(), comp)->first << std::endl;
 
     for (size_t i = 0; i < max_ind_scores.size(); ++i) {
-        Cloud_t::Ptr max_segment = all_segments[max_ind_scores[i].first];
+        CloudT::Ptr max_segment = all_segments[max_ind_scores[i].first];
 
         std::cout << "Distance of result: " << max_ind_scores[i].second << std::endl;
 
         boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
         viewer->setBackgroundColor (0, 0, 0);
-        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(max_segment);
-        viewer->addPointCloud<pcl::PointXYZRGB> (max_segment, rgb, "sample cloud");
+        pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(max_segment);
+        viewer->addPointCloud<PointT> (max_segment, rgb, "sample cloud");
         viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
         viewer->addCoordinateSystem (1.0);
         viewer->initCameraParameters ();

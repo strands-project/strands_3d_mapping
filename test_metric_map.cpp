@@ -3,6 +3,7 @@
 
 #include "convex_voxel_segmentation.h"
 #include "segment_features.h"
+#include "register_objects.h"
 #include <k_means_tree/k_means_tree.h>
 #include <vocabulary_tree/vocabulary_tree.h>
 
@@ -171,7 +172,7 @@ void write_segments(vector<CloudT::Ptr>& segments, vector<NormalCloudT::Ptr>& no
 void read_segments(vector<CloudT::Ptr>& segments, vector<NormalCloudT::Ptr>& normals, vector<CloudT::Ptr>& hd_segments,  Eigen::Matrix3f& K, size_t max_segments)
 {
     boost::filesystem::path base_dir = "/home/nbore/Workspace/objectness_score/object_segments";
-    for (size_t i = 0; i < max_segments; ++i) {
+    for (size_t i = 0; i < max_segments; ++i) { // i < max_segments
         boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(i));
         cout << "Reading directory " << sub_dir.string() << endl;
         if (!boost::filesystem::is_directory(sub_dir)) {
@@ -186,7 +187,7 @@ void read_segments(vector<CloudT::Ptr>& segments, vector<NormalCloudT::Ptr>& nor
         {
             ifstream in(sub_dir.string() + "/K.cereal", std::ios::binary);
             cereal::BinaryInputArchive archive_i(in);
-            archive_i(K);
+            archive_i(K); // Is reading of the K matrix slowing this down?
         }
     }
 }
@@ -228,6 +229,14 @@ void read_vocabulary(vocabulary_tree<HistT, 8>& vt)
     ifstream in(vocabulary_file, std::ios::binary);
     cereal::BinaryInputArchive archive_i(in);
     archive_i(vt);
+}
+
+float calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,
+                           CloudT::Ptr& cloud2, const Eigen::Matrix3f& K2)
+{
+    register_objects ro;
+    ro.set_input_clouds(cloud1, K1, cloud2, K2);
+    ro.do_registration();
 }
 
 void compute_segments()
@@ -309,18 +318,40 @@ void query_vocabulary(size_t query_ind)
     vocabulary_tree<HistT, 8> vt;
     HistCloudT::Ptr query_cloud(new HistCloudT);
     CloudT::Ptr segment(new CloudT);
+    CloudT::Ptr query_segment(new CloudT);
     NormalCloudT::Ptr normal(new NormalCloudT);
     CloudT::Ptr hd_segment(new CloudT);
-    Eigen::Matrix3f K;
+    Eigen::Matrix3f K, query_K;
+
+#if 0
+    {
+        vector<CloudT::Ptr> segments;
+        vector<NormalCloudT::Ptr> normals;
+        vector<CloudT::Ptr> hd_segments;
+
+        read_segments(segments, normals, hd_segments, K, 200);
+        HistCloudT::Ptr features(new HistCloudT);
+        vector<int> indices;
+        extract_features(indices, features, segments, normals, hd_segments, K);
+        for (HistT& h : features->points) {
+            eig(h).normalize();
+        }
+        vt.set_input_cloud(features, indices);
+        vt.add_points_from_input_cloud();
+    }
+#endif
 
     read_vocabulary(vt);
 
     cout << "Querying segment nbr: " << query_ind << endl;
-    if(!read_segment(segment, normal, hd_segment, K, query_ind)) { // 20 Drawer // 34 Blue Cup
+    if(!read_segment(segment, normal, query_segment, query_K, query_ind)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
         cout << "Error reading segment!" << endl;
         exit(0);
     }
-    get_query_cloud(query_cloud, segment, normal, hd_segment, K);
+    get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
+    for (HistT& h : query_cloud->points) {
+        eig(h).normalize();
+    }
 
     vector<index_score> scores;
     vt.top_similarities(scores, query_cloud, 50);
@@ -331,6 +362,7 @@ void query_vocabulary(size_t query_ind)
             cout << "Error reading segment!" << endl;
             exit(0);
         }
+        calculate_similarity(query_segment, query_K, hd_segment, K);
         visualize_cloud(hd_segment);
     }
 }
