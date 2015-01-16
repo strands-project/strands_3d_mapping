@@ -115,17 +115,20 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
     std::cout << subcloud->size() << std::endl;
 
     // do k-means of the points, iteratively call this again?
-    PointT centroids[dim];
+    //PointT centroids[dim];
+    Eigen::Matrix<float, rows, dim> centroids;
+    Eigen::Matrix<float, 1, dim> distances;
 
     // first, pick centroids at random
     vector<size_t> inds = sample_with_replacement(subcloud->size());
     for (size_t i = 0; i < dim; ++i) {
-        centroids[i] = subcloud->points[inds[i]];
+        //centroids[i] = subcloud->points[inds[i]];
+        centroids.col(i) = eig(subcloud->points[inds[i]]);
     }
 
     std::vector<int> clusters[dim];
-    float cluster_distances[dim];
-    size_t min_iter = std::max(50, int(subcloud->size()/1000));
+    //float cluster_distances[dim];
+    size_t min_iter = std::max(50, int(subcloud->size()/100));
     size_t counter = 0;
     while (true) {
         // compute closest centroids
@@ -134,14 +137,17 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
         }
         int ind = 0;
         for (const PointT& p : subcloud->points) {
-            for (size_t i = 0; i < dim; ++i) {
+            /*for (size_t i = 0; i < dim; ++i) {
                 cluster_distances[i] = norm_func(centroids[i], p);
             }
-            /*auto closest = min_element(centroids, centroids+dim, [&p](const PointT& q1, const PointT& q2) {
-                return (eig(p) - eig(q1)).norm() < (eig(p) - eig(q2)).norm();
-            });*/
             auto closest = min_element(cluster_distances, cluster_distances+dim);
             clusters[std::distance(cluster_distances, closest)].push_back(ind);
+            */
+            int closest;
+            // Wrap these two calls with some nice inlining
+            distances = eig(p).transpose()*centroids;
+            distances.maxCoeff(&closest);
+            clusters[closest].push_back(ind);
             ++ind;
         }
 
@@ -160,11 +166,13 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
             }
             if (nbr == 0) {
                 vector<size_t> temp = sample_with_replacement(subcloud->size());
-                centroids[i] = subcloud->at(temp.back());
+                //centroids[i] = subcloud->at(temp.back());
+                centroids.col(i) = eig(subcloud->at(temp.back()));
             }
             else {
                 acc *= 1.0/double(nbr);
-                eig(centroids[i]) = acc.template cast<float>();
+                //eig(centroids[i]) = acc.template cast<float>();
+                centroids.col(i) = acc.template cast<float>();
             }
         }
 
@@ -180,7 +188,9 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
             for (size_t j = 0; j < clusters[i].size(); ++j) {
                 l->inds[j] = subinds[clusters[i][j]];
             }
-            l->centroid = centroids[i];
+            //l->centroid = centroids[i];
+            eig(l->centroid) = centroids.col(i);
+
             /*if (clusters[i].empty()) {
                 eig(l->centroid).setZeros();
             }*/
@@ -193,7 +203,8 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
             continue;
         }
         node* n = new node;
-        n->centroid = centroids[i];
+        //n->centroid = centroids[i];
+        eig(n->centroid) = centroids.col(i);
         CloudPtrT childcloud(new CloudT);
         childcloud->resize(clusters[i].size());
         vector<int> childinds(clusters[i].size());
@@ -218,6 +229,121 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
 
     return range;
 }
+
+#if 0
+template <typename Point, size_t K, typename Data>
+typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::assign_nodes(CloudPtrT& subcloud, node** nodes, size_t current_depth, const vector<int>& subinds)
+{
+    std::cout << "Now doing level " << current_depth << std::endl;
+    std::cout << subcloud->size() << std::endl;
+
+    // do k-means of the points, iteratively call this again?
+    //PointT centroids[dim];
+    Eigen::Matrix<float, rows, Eigen::Dynamic> points;
+    Eigen::Matrix<float, dim, rows> centroids;
+    Eigen::Matrix<float, dim, Eigen::Dynamic> distances;
+    Eigen::Matrix<int, 1, Eigen::Dynamic> closest;
+    points.resize(rows, subcloud->size());
+    distances.resize(dim, subcloud->size());
+    closest.resize(subcloud->size());
+
+    // first, pick centroids at random
+    vector<size_t> inds = sample_with_replacement(subcloud->size());
+    for (size_t i = 0; i < dim; ++i) {
+        centroids.row(i) = eig(subcloud->points[inds[i]]);
+    }
+
+    size_t counter = 0;
+    for (const PointT& p : subcloud->points) {
+        points.col(counter) = eig(p);
+        ++counter;
+    }
+
+    //float cluster_distances[dim];
+    size_t min_iter = std::max(50, int(subcloud->size()/100));
+    counter = 0;
+    while (true) {
+        // compute closest centroids
+        distances = centroids*points;
+        for (size_t i = 0; i < distances.cols(); ++i) {
+            distances.col(i).maxCoeff(&closest(i));
+        }
+
+        if (counter >= min_iter) {
+            break;
+        }
+
+        // compute new centroids
+        centroids.setZero();
+        size_t normalizations[dim] = {};
+        for (size_t i = 0; i < closest.cols(); ++i) {
+            centroids.row(closest(i)) += points.row(i);
+            normalizations[closest(i)] += 1;
+        }
+        for (size_t i = 0; i < dim; ++i) {
+            if (normalizations[i] == 0) {
+                vector<size_t> temp = sample_with_replacement(subcloud->size());
+                centroids.row(i) = points.row(temp.back());
+            }
+            else {
+                centroids.row(i) *= 1.0f/float(normalizations[i]);
+            }
+        }
+
+        ++counter;
+    }
+
+    std::vector<int> clusters[dim];
+    for (int i = 0; i < closest.cols(); ++i) {
+        clusters[closest(i)].push_back(i);
+    }
+
+    leaf_range range(cloud->size(), 0);
+    for (size_t i = 0; i < dim; ++i) {
+        //std::cout << i << " size: " << clusters[i].size() << std::endl;
+        if (current_depth == depth || clusters[i].size() <= 1) {
+            leaf* l = new leaf;
+            l->inds.resize(clusters[i].size());
+            for (size_t j = 0; j < clusters[i].size(); ++j) {
+                l->inds[j] = subinds[clusters[i][j]];
+            }
+            eig(l->centroid) = centroids.row(i);
+            l->range.first = leaves.size();
+            l->range.second = leaves.size()+1;
+            leaves.push_back(l);
+            nodes[i] = l;
+            range.first = std::min(range.first, l->range.first);
+            range.second = std::max(range.second, l->range.second);
+            continue;
+        }
+        node* n = new node;
+        //n->centroid = centroids[i];
+        eig(n->centroid) = centroids.row(i);
+        CloudPtrT childcloud(new CloudT);
+        childcloud->resize(clusters[i].size());
+        vector<int> childinds(clusters[i].size());
+        for (size_t j = 0; j < clusters[i].size(); ++j) {
+            childcloud->at(j) = subcloud->at(clusters[i][j]);
+            childinds[j] = subinds[clusters[i][j]];
+        }
+        leaf_range rangei = assign_nodes(childcloud, n->children, current_depth+1, childinds);
+        n->range = rangei;
+        nodes[i] = n;
+        range.first = std::min(range.first, rangei.first);
+        range.second = std::max(range.second, rangei.second);
+
+        /*pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+        inliers->indices = clusters[i];
+        pcl::ExtractIndices<PointT> extract;
+        extract.setInputCloud(subcloud);
+        extract.setIndices(inliers);
+        extract.setNegative(false);
+        extract.filter (*childcloud);*/
+    }
+
+    return range;
+}
+#endif
 
 template <typename Point, size_t K, typename Data>
 typename k_means_tree<Point, K, Data>::leaf* k_means_tree<Point, K, Data>::get_leaf_for_point(const PointT& point)
