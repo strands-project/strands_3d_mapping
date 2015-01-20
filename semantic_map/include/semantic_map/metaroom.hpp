@@ -195,7 +195,7 @@ void MetaRoom<PointType>::setSensorOrigin(tf::Vector3 so)
 }
 
 template <class PointType>
-bool    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std::string savePath)
+MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std::string savePath)
 {
     // check if meta room is initialized
     if (!this->m_CompleteRoomCloudLoaded && this->m_CompleteRoomCloudFilename == "")
@@ -245,7 +245,11 @@ bool    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std:
         parser.saveRoomAsXML(aRoom);
 
 
-        return true;
+        MetaRoomUpdateIteration<PointType> updateIteration;
+        updateIteration.roomLogName = aRoom.getRoomLogName();
+        updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
+        updateIteration.metaRoomInteriorCloud = this->getInteriorRoomCloud();
+        return updateIteration;
     }
 
     // update with semantic room
@@ -257,7 +261,12 @@ bool    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std:
     {
         // this room is not a match for this metaroom
         ROS_INFO_STREAM("Cannot update metaroom with this room instance. Metaroom centroid: "<<this->getCentroid()<<" Room centroid: "<<aRoom.getCentroid());
-        return false;
+
+        MetaRoomUpdateIteration<PointType> updateIteration;
+        updateIteration.roomLogName = aRoom.getRoomLogName();
+        updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
+        updateIteration.metaRoomInteriorCloud = this->getInteriorRoomCloud();
+        return updateIteration;
     }
 
 
@@ -306,7 +315,11 @@ bool    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std:
     if (!m_bUpdateMetaroom)
     {
         // stop here, don't update the metaroom with the room observation
-        return true;
+        MetaRoomUpdateIteration<PointType> updateIteration;
+        updateIteration.roomLogName = aRoom.getRoomLogName();
+        updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
+        updateIteration.metaRoomInteriorCloud = this->getInteriorRoomCloud();
+        return updateIteration;
     }
 
     // compute differences between the two (aligned) points clouds
@@ -407,23 +420,24 @@ bool    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std:
 
         this->setInteriorRoomCloud(updatedMetaRoomCloud);
 
+        MetaRoomUpdateIteration<PointType> updateIteration;
+        updateIteration.roomLogName = aRoom.getRoomLogName();
+        updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
+        updateIteration.setDifferenceMetaRoomToRoom(differenceMetaRoomToRoomFiltered);
+        updateIteration.setDifferenceRoomToMetaRoom(differenceRoomToMetaRoomFiltered);
+        updateIteration.setClustersToBeAdded(occlusions.toBeAdded);
+        updateIteration.setClustersToBeRemoved(occlusions.toBeRemoved);
+        updateIteration.setMetaRoomInteriorCloud(updatedMetaRoomCloud);
+
         if (m_bSaveIntermediateSteps)
         {
-            if ((differenceMetaRoomToRoomFiltered->points.size()!=0) && (differenceRoomToMetaRoomFiltered->points.size() != 0))
+//            if ((differenceMetaRoomToRoomFiltered->points.size()!=0) && (differenceRoomToMetaRoomFiltered->points.size() != 0))
             {
-                MetaRoomUpdateIteration<PointType> updateIteration;
-                updateIteration.roomLogName = aRoom.getRoomLogName();
-                updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
-                updateIteration.setDifferenceMetaRoomToRoom(differenceMetaRoomToRoomFiltered);
-                updateIteration.setDifferenceRoomToMetaRoom(differenceRoomToMetaRoomFiltered);
-//                updateIteration.setClustersToBeAdded(cloudToBeAdded);
-//                updateIteration.setClustersToBeRemoved(allClusters);
-                updateIteration.setClustersToBeAdded(occlusions.toBeAdded);
-                updateIteration.setClustersToBeRemoved(occlusions.toBeRemoved);
-                updateIteration.setMetaRoomInteriorCloud(updatedMetaRoomCloud);
                 m_MetaRoomUpdateIterations.push_back(updateIteration);
             }
         }
+
+        return updateIteration;
 
     }
 
