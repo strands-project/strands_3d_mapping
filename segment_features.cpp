@@ -33,7 +33,7 @@ void segment_features::calculate_features(Eigen::VectorXf& global_features, Hist
     //std::cout << es.eigenvalues() << std::endl;
 
     Eigen::JacobiSVD<Eigen::Matrix3f> svd;
-    svd.compute(covariance_matrix, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    svd.compute(covariance_matrix);//, Eigen::ComputeThinU | Eigen::ComputeThinV);
     //Eigen::Vector3f T = svd.singularValues().array().abs();//(svd.matrixU()*svd.singularValues()).array().abs();
     Eigen::Vector3f T = es.eigenvalues().array().abs();
     std::sort(T.data(), T.data() + T.size(), [](float f1, float f2) { return f1 > f2; });

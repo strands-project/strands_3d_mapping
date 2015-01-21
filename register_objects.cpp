@@ -9,6 +9,10 @@
 #include <pcl/octree/octree_search.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/registration/ia_ransac.h>
+#include <pcl/registration/correspondence_estimation.h> // backprojection could be interesting also
+#include <pcl/features/fpfh_omp.h>
+#include <pcl/features/normal_3d_omp.h>
 
 using namespace std;
 
@@ -114,15 +118,72 @@ void register_objects::calculate_features_for_image(cv::Mat& descriptors, std::v
     }
 }
 
+void register_objects::initial_alignment()
+{
+    auto compute_fpfhs = [] (CloudPtrT& cloud)
+    {
+        pcl::NormalEstimationOMP<PointT, NormalT> ne;
+        ne.setInputCloud(cloud);
+        pcl::search::KdTree<PointT>::Ptr fpfh_tree(new pcl::search::KdTree<PointT>);
+        ne.setSearchMethod(fpfh_tree);
+        NormalCloudPtrT normals(new NormalCloudT);
+        ne.setRadiusSearch(0.03);
+        ne.compute(*normals);
+
+        pcl::FPFHEstimation<PointT, NormalT> fe;
+        fe.setInputCloud(cloud);
+        fe.setInputNormals(normals);
+        pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs(new pcl::PointCloud<pcl::FPFHSignature33>);
+        fe.setRadiusSearch(0.05);
+        fe.compute(*fpfhs);
+
+        return fpfhs;
+    };
+
+    pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs1 = compute_fpfhs(c1);
+    pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs2 = compute_fpfhs(c2);
+
+    pcl::registration::CorrespondenceEstimation<pcl::FPFHSignature33, pcl::FPFHSignature33> ce;
+    pcl::CorrespondencesPtr correspondences(new pcl::Correspondences);
+    ce.setInputSource(fpfhs1);
+    ce.setInputTarget(fpfhs2);
+    //ce.setSearchMethodSource();
+    //ce.setSearchMethodTarget();
+    ce.determineCorrespondences(*correspondences);
+
+    pcl::registration::CorrespondenceRejectorSampleConsensus<PointT> cr;
+    pcl::Correspondences sac_correspondences;
+    cr.setInputSource(c1);
+    cr.setInputTarget(c2);
+    cr.setInputCorrespondences(correspondences);
+    cr.setInlierThreshold(0.02);
+    cr.setMaximumIterations(10000);
+    cr.getCorrespondences(sac_correspondences);
+    T = cr.getBestTransformation();
+
+    pcl::registration::TransformationEstimationSVD<PointT, PointT> trans_est;
+    trans_est.estimateRigidTransformation(*c1, *c2, sac_correspondences, T);
+
+    if (sac_correspondences.empty()) { // No samples could be selected
+        cout << "Still can't find any transformation" << endl;
+    }
+    else {
+        cout << "Found a nice transformation!" << endl;
+    }
+
+}
+
 void register_objects::do_registration()
 {
+    // have something that directly checks if the size difference is too big etc
+
     cv::Mat image1, image2, depth1, depth2;
     int x1, y1, x2, y2;
     tie(x1, y1) = calculate_image_for_cloud(image1, depth1, c1, k1);
     tie(x2, y2) = calculate_image_for_cloud(image2, depth2, c2, k2);
     cv::Mat descriptors1, descriptors2;
-    CloudPtrT cloud1(new CloudT);
-    CloudPtrT cloud2(new CloudT);
+    CloudPtrT cloud1(new CloudT); // cloud corresponding to keypoints1
+    CloudPtrT cloud2(new CloudT); // cloud corresponding to keypoints2
     std::vector<cv::KeyPoint> keypoints1, keypoints2;
     calculate_features_for_image(descriptors1, keypoints1, cloud1, image1, depth1, x1, y1, k1);
     calculate_features_for_image(descriptors2, keypoints2, cloud2, image2, depth2, x2, y2, k2);
@@ -145,7 +206,7 @@ void register_objects::do_registration()
         pcl::Correspondence c;
         c.index_match = m.trainIdx;
         c.index_query = m.queryIdx;
-        c.distance = 0.0f;
+        c.distance = m.distance;
         correspondences->push_back(c);
     }
 
@@ -162,6 +223,11 @@ void register_objects::do_registration()
 
     pcl::registration::TransformationEstimationSVD<PointT, PointT> trans_est;
     trans_est.estimateRigidTransformation(*cloud1, *cloud2, sac_correspondences, T);
+
+    if (sac_correspondences.empty() || correspondences->size() == sac_correspondences.size()) { // No samples could be selected
+        // alternative way of estimating the transformation that doesn't depend as heavily on keypoints
+        initial_alignment();
+    }
 
     cout << "Estimated transformation: " << endl;
     cout << T << endl;
@@ -202,11 +268,15 @@ double register_objects::get_match_score()
         vector<int> indices;
         vector<float> distances;
         kdtree.nearestKSearchT(p, 1, indices, distances);
+        if (distances.empty() || distances.empty()) {
+            cout << "Distances empty, wtf??" << endl;
+            exit(0);
+        }
         float dist = distances[0];
         if (dist > 0.1) {
             continue;
         }
-        PointT q = c2->at(indices[0]);
+        PointT q = c1->at(indices[0]);
         // compare distance and color
         Eigen::Vector3d pc(p.r, p.g, p.b);
         Eigen::Vector3d qc(q.r, q.g, q.b);
@@ -226,9 +296,4 @@ double register_objects::get_match_score()
 void register_objects::get_transformation(Eigen::Matrix4f& trans)
 {
     trans = T;
-}
-
-float register_objects::get_similarity_measure()
-{
-
 }

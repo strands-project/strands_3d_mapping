@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
-project(OBJECT_DISCOVERY)
+project(object_3d_retrieval)
 
 add_definitions(-std=c++11 -O4)
 
@@ -28,44 +28,22 @@ link_directories(/opt/ros/indigo/lib)
 
 include_directories(include) # cereal
 
-add_library(vis_wrapper vis_wrapper.cpp lockable.cpp)
 add_library(segment_features segment_features.cpp)
 add_library(convex_voxel_segmentation convex_voxel_segmentation.cpp)
-add_library(search_tree search_tree.cpp)
 add_library(sift sift/sift.cpp sift/sift.h)
 add_library(register_objects register_objects.cpp register_objects.h)
+add_library(train_metric train_metric.cpp train_metric.h)
 
 target_link_libraries(convex_voxel_segmentation ${PCL_LIBRARIES} ${VTK_LIBRARIES})
 target_link_libraries(sift ${OpenCV_LIBS})
 target_link_libraries(segment_features sift ${PCL_LIBRARIES} ${OpenCV_LIBS})
-target_link_libraries(register_objects ${PCL_LIBRARIES})
-
-add_executable(browse browse_scenes.cpp)
-target_link_libraries(browse ${PCL_LIBRARIES} vis_wrapper)
-
-add_executable(browse_kinect browse_scenes_kinect.cpp)
-target_link_libraries(browse_kinect ${PCL_LIBRARIES} vis_wrapper)
-
-add_executable(pcd_to_mesh pcd_to_mesh.cpp)
-target_link_libraries(pcd_to_mesh ${PCL_LIBRARIES} vis_wrapper)
-
-add_executable(segment segment_scene.cpp)
-target_link_libraries(segment ${PCL_LIBRARIES} vis_wrapper)
-
-add_executable(segment_kinect segment_scene_kinect.cpp)
-target_link_libraries(segment_kinect ${PCL_LIBRARIES} vis_wrapper)
-
-add_executable(segment_voxel_kinect segment_voxel_kinect.cpp)
-target_link_libraries(segment_voxel_kinect convex_voxel_segmentation ${PCL_LIBRARIES} ${VTK_LIBRARIES} vis_wrapper segment_features k_means_tree vocabulary_tree)
+target_link_libraries(register_objects sift ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 add_executable(test_metric_map test_metric_map.cpp)
 target_link_libraries(test_metric_map convex_voxel_segmentation segment_features k_means_tree vocabulary_tree register_objects metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(annotate annotate_bag.cpp)
-target_link_libraries(annotate ${PCL_LIBRARIES} vis_wrapper)
-
-add_executable(cooccurrence cooccurrence.cpp)
-target_link_libraries(cooccurrence ${PCL_LIBRARIES} vis_wrapper)
+add_executable(test_registration test_registration.cpp)
+target_link_libraries(test_registration register_objects ${PCL_LIBRARIES})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
 
