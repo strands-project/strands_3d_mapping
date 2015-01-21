@@ -408,22 +408,6 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
 
         //        ROS_INFO_STREAM("Metaroom update. Points removed: "<<pointsRemoved<<"   Points added: "<<pointsAdded);
 
-        OcclusionChecker<PointType> occlusionChecker;
-        occlusionChecker.setSensorOrigin(m_SensorOrigin);
-        typename OcclusionChecker<PointType>::occluded_points occlusions;
-        occlusions = occlusionChecker.checkOcclusions(differenceMetaRoomToRoom,differenceRoomToMetaRoom, 720 );
-
-        CloudPtr updatedMetaRoomCloud(new Cloud());
-        segment.setInputCloud(this->getInteriorRoomCloud());
-        segment.setTargetCloud(occlusions.toBeRemoved);
-        segment.segment(*updatedMetaRoomCloud);
-        if (occlusions.toBeAdded->points.size()){
-            *updatedMetaRoomCloud += *occlusions.toBeAdded;
-        }
-        ROS_INFO_STREAM("Metaroom update. Points removed: "<<occlusions.toBeRemoved->points.size()<<"   Points added: "<<occlusions.toBeAdded->points.size());
-
-        this->setInteriorRoomCloud(updatedMetaRoomCloud);
-
         MetaRoomUpdateIteration<PointType> updateIteration;
         updateIteration.roomLogName = aRoom.getRoomLogName();
         updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
@@ -435,20 +419,45 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         updateIteration.setDifferenceRoomToMetaRoom(differenceRoomToMetaRoomFiltered);
         }
 
-        if (occlusions.toBeAdded->points.size() != 0) {
-        updateIteration.setClustersToBeAdded(occlusions.toBeAdded);
-        }
-        if (occlusions.toBeRemoved->points.size() != 0) {
-        updateIteration.setClustersToBeRemoved(occlusions.toBeRemoved);
-        }
-        updateIteration.setMetaRoomInteriorCloud(updatedMetaRoomCloud);
 
-        if (m_bSaveIntermediateSteps)
+        OcclusionChecker<PointType> occlusionChecker;
+        occlusionChecker.setSensorOrigin(m_SensorOrigin);
+        typename OcclusionChecker<PointType>::occluded_points occlusions;
+        occlusions = occlusionChecker.checkOcclusions(differenceMetaRoomToRoom,differenceRoomToMetaRoom, 720 );
+
+        if ((occlusions.toBeRemoved->points.size() > 0.1*this->getInteriorRoomCloud()->points.size()) ||
+                (occlusions.toBeAdded->points.size() > 0.1*this->getInteriorRoomCloud()->points.size()))
         {
-                m_MetaRoomUpdateIterations.push_back(updateIteration);
-        }
+            ROS_INFO_STREAM("Metaroom update. Points removed: "<<occlusions.toBeRemoved->points.size()<<"   Points added: "<<occlusions.toBeAdded->points.size()<<" Skipping this observations as it would add/remove too many points. Something may have gone wrong.");
+            this->setInteriorRoomCloud(this->getInteriorRoomCloud());
+            return updateIteration;
+        } else {
+            CloudPtr updatedMetaRoomCloud(new Cloud());
+            segment.setInputCloud(this->getInteriorRoomCloud());
+            segment.setTargetCloud(occlusions.toBeRemoved);
+            segment.segment(*updatedMetaRoomCloud);
+            if (occlusions.toBeAdded->points.size()){
+                *updatedMetaRoomCloud += *occlusions.toBeAdded;
+            }
+            ROS_INFO_STREAM("Metaroom update. Points removed: "<<occlusions.toBeRemoved->points.size()<<"   Points added: "<<occlusions.toBeAdded->points.size());
 
-        return updateIteration;
+            this->setInteriorRoomCloud(updatedMetaRoomCloud);
+
+            if (occlusions.toBeAdded->points.size() != 0) {
+            updateIteration.setClustersToBeAdded(occlusions.toBeAdded);
+            }
+            if (occlusions.toBeRemoved->points.size() != 0) {
+            updateIteration.setClustersToBeRemoved(occlusions.toBeRemoved);
+            }
+            updateIteration.setMetaRoomInteriorCloud(updatedMetaRoomCloud);
+
+            if (m_bSaveIntermediateSteps)
+            {
+                    m_MetaRoomUpdateIterations.push_back(updateIteration);
+            }
+
+            return updateIteration;
+        }
 
     }
 
