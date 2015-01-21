@@ -1,4 +1,4 @@
-#include "register_objects.h"
+#include "object_3d_retrieval/register_objects.h"
 #include "sift/sift.h"
 
 #include <opencv2/highgui/highgui.hpp>

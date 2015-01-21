@@ -1,4 +1,4 @@
-#include "register_objects.h"
+#include "object_3d_retrieval/register_objects.h"
 #include <iostream>
 #include <pcl/io/pcd_io.h>
 

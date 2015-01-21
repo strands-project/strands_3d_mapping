@@ -26,23 +26,24 @@ include_directories(/opt/ros/indigo/include)
 link_directories(/home/nbore/catkin_ws/devel/lib)
 link_directories(/opt/ros/indigo/lib)
 
-include_directories(include) # cereal
+include_directories(include) # cereal, object_3d_retrieval
+set(include_dir include/${PROJECT_NAME})
 
-add_library(segment_features segment_features.cpp)
-add_library(convex_voxel_segmentation convex_voxel_segmentation.cpp)
-add_library(sift sift/sift.cpp sift/sift.h)
-add_library(register_objects register_objects.cpp register_objects.h)
-add_library(train_metric train_metric.cpp train_metric.h)
+add_library(segment_features src/segment_features.cpp ${include_dir}/segment_features.h)
+add_library(convex_voxel_segmentation src/convex_voxel_segmentation.cpp ${include_dir}/convex_voxel_segmentation.h)
+add_library(sift include/sift/sift.cpp include/sift/sift.h)
+add_library(register_objects src/register_objects.cpp ${include_dir}/register_objects.h)
+add_library(train_metric src/train_metric.cpp ${include_dir}/train_metric.h)
 
 target_link_libraries(convex_voxel_segmentation ${PCL_LIBRARIES} ${VTK_LIBRARIES})
 target_link_libraries(sift ${OpenCV_LIBS})
 target_link_libraries(segment_features sift ${PCL_LIBRARIES} ${OpenCV_LIBS})
 target_link_libraries(register_objects sift ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
-add_executable(test_metric_map test_metric_map.cpp)
+add_executable(test_metric_map src/test_metric_map.cpp)
 target_link_libraries(test_metric_map convex_voxel_segmentation segment_features k_means_tree vocabulary_tree register_objects metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(test_registration test_registration.cpp)
+add_executable(test_registration src/test_registration.cpp)
 target_link_libraries(test_registration register_objects ${PCL_LIBRARIES})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")

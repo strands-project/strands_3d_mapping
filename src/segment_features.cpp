@@ -1,4 +1,4 @@
-#include "segment_features.h"
+#include "object_3d_retrieval/segment_features.h"
 #include "sift/sift.h"
 
 #include <pcl/common/centroid.h>

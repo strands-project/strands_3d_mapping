@@ -1,4 +1,4 @@
-#include "convex_voxel_segmentation.h"
+#include "object_3d_retrieval/convex_voxel_segmentation.h"
 
 #include <stdio.h>
 #include <stdlib.h>

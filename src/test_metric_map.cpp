@@ -1,9 +1,9 @@
 #include <iostream>
 #include <boost/filesystem.hpp>
 
-#include "convex_voxel_segmentation.h"
-#include "segment_features.h"
-#include "register_objects.h"
+#include "object_3d_retrieval/convex_voxel_segmentation.h"
+#include "object_3d_retrieval/segment_features.h"
+#include "object_3d_retrieval/register_objects.h"
 #include <k_means_tree/k_means_tree.h>
 #include <vocabulary_tree/vocabulary_tree.h>
 
@@ -18,7 +18,7 @@
 #include "simpleSummaryParser.h"
 
 #include <tf_conversions/tf_eigen.h>
-#include "eigen_cereal.h"
+#include "eigen_cereal/eigen_cereal.h"
 
 #define VISUALIZE false
 
