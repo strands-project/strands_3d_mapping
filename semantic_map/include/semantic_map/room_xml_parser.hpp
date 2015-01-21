@@ -156,7 +156,7 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
     if (aRoom.getInteriorRoomCloudLoaded()) // only save the cloud file if it's been loaded
     {
         QFile file(interiorCloudFilename);
-        if (!file.exists())
+//        if (!file.exists())
         {
             if (aRoom.getInteriorRoomCloud()->points.size()>0)
             {

@@ -280,7 +280,8 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         CloudPtr roomCloud = aRoom.getCompleteRoomCloud();
 
         CloudPtr transformedRoomCloud(new Cloud);
-        transformedRoomCloud = NdtRegistration<PointType>::registerClouds(roomCloud, this->getCompleteRoomCloud(),finalTransform);
+//        transformedRoomCloud = NdtRegistration<PointType>::registerClouds(roomCloud, this->getCompleteRoomCloud(),finalTransform);
+        transformedRoomCloud = NdtRegistration<PointType>::registerClouds(roomCloud, this->getInteriorRoomCloud(),finalTransform);
 
         ROS_INFO_STREAM("Room alignment complete.");
 
@@ -290,6 +291,7 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         aRoom.setDeNoisedRoomCloud(roomDownsampledCloud);
 
         aRoom.setRoomTransform(finalTransform);
+        std::cout<<"Final transform "<<finalTransform<<std::endl;
 
         // Update room XML file to reflect new transformation, and new point clouds
         ROS_INFO_STREAM("Updating room xml with new transform to metaroom.");
@@ -415,7 +417,9 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         segment.setInputCloud(this->getInteriorRoomCloud());
         segment.setTargetCloud(occlusions.toBeRemoved);
         segment.segment(*updatedMetaRoomCloud);
-        *updatedMetaRoomCloud += *occlusions.toBeAdded;
+        if (occlusions.toBeAdded->points.size()){
+            *updatedMetaRoomCloud += *occlusions.toBeAdded;
+        }
         ROS_INFO_STREAM("Metaroom update. Points removed: "<<occlusions.toBeRemoved->points.size()<<"   Points added: "<<occlusions.toBeAdded->points.size());
 
         this->setInteriorRoomCloud(updatedMetaRoomCloud);
@@ -423,18 +427,25 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         MetaRoomUpdateIteration<PointType> updateIteration;
         updateIteration.roomLogName = aRoom.getRoomLogName();
         updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
+        if (differenceMetaRoomToRoomFiltered->points.size()!=0) {
         updateIteration.setDifferenceMetaRoomToRoom(differenceMetaRoomToRoomFiltered);
+        }
+
+        if (differenceRoomToMetaRoomFiltered->points.size() != 0) {
         updateIteration.setDifferenceRoomToMetaRoom(differenceRoomToMetaRoomFiltered);
+        }
+
+        if (occlusions.toBeAdded->points.size() != 0) {
         updateIteration.setClustersToBeAdded(occlusions.toBeAdded);
+        }
+        if (occlusions.toBeRemoved->points.size() != 0) {
         updateIteration.setClustersToBeRemoved(occlusions.toBeRemoved);
+        }
         updateIteration.setMetaRoomInteriorCloud(updatedMetaRoomCloud);
 
         if (m_bSaveIntermediateSteps)
         {
-//            if ((differenceMetaRoomToRoomFiltered->points.size()!=0) && (differenceRoomToMetaRoomFiltered->points.size() != 0))
-            {
                 m_MetaRoomUpdateIterations.push_back(updateIteration);
-            }
         }
 
         return updateIteration;
