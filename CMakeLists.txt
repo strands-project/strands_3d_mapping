@@ -33,18 +33,22 @@ add_library(segment_features src/segment_features.cpp ${include_dir}/segment_fea
 add_library(convex_voxel_segmentation src/convex_voxel_segmentation.cpp ${include_dir}/convex_voxel_segmentation.h)
 add_library(sift include/sift/sift.cpp include/sift/sift.h)
 add_library(register_objects src/register_objects.cpp ${include_dir}/register_objects.h)
-add_library(train_metric src/train_metric.cpp ${include_dir}/train_metric.h)
+add_library(object_retrieval src/object_retrieval.cpp ${include_dir}/object_retrieval.h)
+#add_library(train_metric src/train_metric.cpp ${include_dir}/train_metric.h)
 
 target_link_libraries(convex_voxel_segmentation ${PCL_LIBRARIES} ${VTK_LIBRARIES})
 target_link_libraries(sift ${OpenCV_LIBS})
 target_link_libraries(segment_features sift ${PCL_LIBRARIES} ${OpenCV_LIBS})
 target_link_libraries(register_objects sift ${OpenCV_LIBS} ${PCL_LIBRARIES})
+target_link_libraries(object_retrieval convex_voxel_segmentation segment_features vocabulary_tree register_objects ${PCL_LIBRARIES})
 
 add_executable(test_metric_map src/test_metric_map.cpp)
-target_link_libraries(test_metric_map convex_voxel_segmentation segment_features k_means_tree vocabulary_tree register_objects metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(test_metric_map object_retrieval metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_registration src/test_registration.cpp)
 target_link_libraries(test_registration register_objects ${PCL_LIBRARIES})
+
+add_executable(test_rgbd_dataset src/test_rgbd_dataset.cpp)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
 

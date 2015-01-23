@@ -1,0 +1,42 @@
+#ifndef OBJECT_RETRIEVAL_H
+#define OBJECT_RETRIEVAL_H
+
+#include <vocabulary_tree/vocabulary_tree.h>
+
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <string>
+
+class object_retrieval
+{
+public:
+    using PointT = pcl::PointXYZRGB;
+    using CloudT = pcl::PointCloud<PointT>;
+    using HistT = pcl::Histogram<131>;
+    using HistCloudT = pcl::PointCloud<HistT>;
+    using NormalT = pcl::Normal;
+    using NormalCloudT = pcl::PointCloud<NormalT>;
+
+    std::string segment_path;
+
+    void visualize_cloud(CloudT::Ptr& cloud);
+    //void subsample_cloud(CloudT::Ptr& cloud_in, CloudT::Ptr& cloud_out);
+    //void translate_cloud(CloudT::Ptr& cloud, const Eigen::Vector3f& offset);
+    void extract_features(std::vector<int>& inds, HistCloudT::Ptr& features, std::vector<CloudT::Ptr>& segments,
+                          std::vector<NormalCloudT::Ptr>& normals, std::vector<CloudT::Ptr>& hd_segments, const Eigen::Matrix3f& K);
+    void get_query_cloud(HistCloudT::Ptr& query_cloud, CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K);
+    void write_segments(std::vector<CloudT::Ptr>& segments, std::vector<NormalCloudT::Ptr>& normals, std::vector<CloudT::Ptr>& hd_segments,  const Eigen::Matrix3f& K);
+    void read_segments(std::vector<CloudT::Ptr>& segments, std::vector<NormalCloudT::Ptr>& normals, std::vector<CloudT::Ptr>& hd_segments,  Eigen::Matrix3f& K, size_t max_segments);
+    bool read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment,  Eigen::Matrix3f& K, size_t segment_id);
+    void write_vocabulary(vocabulary_tree<HistT, 8>& vt);
+    void read_vocabulary(vocabulary_tree<HistT, 8>& vt);
+    float calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,
+                               CloudT::Ptr& cloud2, const Eigen::Matrix3f& K2);
+    void compute_segments(std::vector<CloudT::Ptr>& sweeps, std::vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics);
+    void process_segments();
+    void query_vocabulary(size_t query_ind);
+
+    object_retrieval(const std::string& segment_path);
+};
+
+#endif // OBJECT_RETRIEVAL_H
