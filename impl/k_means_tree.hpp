@@ -20,28 +20,16 @@ typename map_proxy<Point>::const_map_type eig(const Point& v)
 }
 
 template <>
-typename map_proxy<pcl::PointXYZ>::map_type eig(pcl::PointXYZ& v)
-{
-    return v.getVector3fMap();
-}
+typename map_proxy<pcl::PointXYZ>::map_type eig(pcl::PointXYZ& v);
 
 template <>
-typename map_proxy<pcl::PointXYZ>::const_map_type eig(const pcl::PointXYZ& v)
-{
-    return v.getVector3fMap();
-}
+typename map_proxy<pcl::PointXYZ>::const_map_type eig(const pcl::PointXYZ& v);
 
 template <>
-typename map_proxy<pcl::PointXYZRGB>::map_type eig(pcl::PointXYZRGB& v)
-{
-    return v.getVector3fMap();
-}
+typename map_proxy<pcl::PointXYZRGB>::map_type eig(pcl::PointXYZRGB& v);
 
 template <>
-typename map_proxy<pcl::PointXYZRGB>::const_map_type eig(const pcl::PointXYZRGB& v)
-{
-    return v.getVector3fMap();
-}
+typename map_proxy<pcl::PointXYZRGB>::const_map_type eig(const pcl::PointXYZRGB& v);
 
 template <typename Point, size_t K, typename Data>
 float k_means_tree<Point, K, Data>::norm_func(const PointT& p1, const PointT& p2) const
