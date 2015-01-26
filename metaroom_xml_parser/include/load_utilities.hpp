@@ -350,7 +350,7 @@
 
          for (size_t i=0; i<sweepsAtWaypoint.size(); i++)
          {
-            toRet.push_back(loadDynamicClustersFromSingleSweep<PointType>(sweep_xmls[i].roomXmlFile, verbose, tolerance, min_cluster_size, max_cluster_size));
+            toRet.push_back(loadDynamicClustersFromSingleSweep<PointType>(sweepsAtWaypoint[i], verbose, tolerance, min_cluster_size, max_cluster_size));
          }
 
          return toRet;
