@@ -19,6 +19,7 @@ typename map_proxy<Point>::const_map_type eig(const Point& v)
     return typename map_proxy<Point>::const_map_type(v.histogram);
 }
 
+// it would actually be possible to have the definition here if they were just inlined
 template <>
 typename map_proxy<pcl::PointXYZ>::map_type eig(pcl::PointXYZ& v);
 

@@ -55,6 +55,7 @@ protected:
 
 public:
 
+    bool empty() const { return indices.empty(); }
     void set_input_cloud(CloudPtrT& new_cloud, std::vector<int>& new_indices);
     void add_points_from_input_cloud();
     void top_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results = 20);
