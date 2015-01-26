@@ -25,6 +25,8 @@ using HistCloudT = pcl::PointCloud<HistT>;
 using NormalT = pcl::Normal;
 using NormalCloudT = pcl::PointCloud<NormalT>;
 
+using index_score = object_retrieval::index_score;
+
 void subsample_cloud(CloudT::Ptr& cloud_in, CloudT::Ptr& cloud_out)
 {
     // Create the filtering object
@@ -41,7 +43,7 @@ void translate_cloud(CloudT::Ptr& cloud, const Eigen::Vector3f& offset)
     }
 }
 
-void read_clouds(vector<CloudT::Ptr>& sweeps, vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, size_t max_clouds = 20)
+void read_clouds(vector<CloudT::Ptr>& sweeps, vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files, size_t max_clouds = 20)
 {
     //string folderPath = argv[1];
     string folderPath = "/home/nbore/Data/semantic_map/";
@@ -76,6 +78,7 @@ void read_clouds(vector<CloudT::Ptr>& sweeps, vector<Eigen::Matrix3f, Eigen::ali
         for (size_t j = 0; j < roomData.vIntermediateRoomClouds.size(); ++j) {
             cout << "Intermediate cloud size " << roomData.vIntermediateRoomClouds[j]->points.size() << endl;
             cout << "Fx: "<<roomData.vIntermediateRoomCloudCamParams[j].fx() << " Fy: "<<roomData.vIntermediateRoomCloudCamParams[j].fy() << endl;
+            files.push_back(allSweeps[i].roomXmlFile + " " + to_string(j));
             intrinsics.push_back(K);
             sweeps.push_back(roomData.vIntermediateRoomClouds[j]);
             continue;
@@ -111,10 +114,13 @@ int main(int argc, char** argv)
     object_retrieval obr("/home/nbore/Workspace/objectness_score/object_segments");
     vector<CloudT::Ptr> sweeps;
     vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> > intrinsics;
-    //read_clouds(sweeps, intrinsics);
-    //obr.compute_segments(sweeps, intrinsics);
+    vector<string> files;
+    //read_clouds(sweeps, intrinsics, files);
+    //obr.compute_segments(sweeps, intrinsics, files);
     //obr.process_segments();
-    obr.query_vocabulary(i);
+
+    vector<index_score> scores;
+    obr.query_vocabulary(scores, i, 50);
 
     return 0;
 }

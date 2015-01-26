@@ -342,6 +342,10 @@ std::pair<bool, float> convex_voxel_segmentation::concave_relationship(pcl::Supe
 
     float dist_threshold = 0.05;
 
+    // TODO: seriously, use kd trees for this!!!
+    pcl::KdTreeFLANN<PointT> kdtree;
+    kdtree.setInputCloud(second_voxels);
+
     float mindist = std::numeric_limits<float>::infinity();
     float count = 0.0f;
     float mean_prod = 0.0f;
@@ -350,13 +354,20 @@ std::pair<bool, float> convex_voxel_segmentation::concave_relationship(pcl::Supe
         Eigen::Vector3f normali = first_normals->at(i).getNormalVector3fMap();
         Eigen::Vector3f pe = point.getVector3fMap();
         // find closest point in the other voxel
-        PointCloudT::iterator it = std::min_element(second_voxels->begin(), second_voxels->end(),
+        /*PointCloudT::iterator it = std::min_element(second_voxels->begin(), second_voxels->end(),
                                                                 [&](const PointT& p1, const PointT& p2)
         {
             return (pe - p1.getVector3fMap()).norm() < (pe - p2.getVector3fMap()).norm();
         });
 
-        float dist = (pe - it->getVector3fMap()).norm();
+        float dist = (pe - it->getVector3fMap()).norm();*/
+        std::vector<int> indices;
+        std::vector<float> distances;
+        kdtree.nearestKSearchT(point, 1, indices, distances);
+        if (distances.empty()) {
+            continue;
+        }
+        float dist = distances[0];
         if (dist > dist_threshold) {
             continue;
         }
@@ -364,8 +375,10 @@ std::pair<bool, float> convex_voxel_segmentation::concave_relationship(pcl::Supe
             mindist = dist;
         }
         count += 1.0f;
-        size_t ind = std::distance(second_voxels->begin(), it);
-        Eigen::Vector3f diff = pe - it->getVector3fMap();
+        //size_t ind = std::distance(second_voxels->begin(), it);
+        size_t ind = indices[0];
+        //Eigen::Vector3f diff = pe - it->getVector3fMap();
+        Eigen::Vector3f diff = pe - second_voxels->at(ind).getVector3fMap();
         Eigen::Vector3f normalj = second_normals->at(ind).getNormalVector3fMap();
         if (acos(fabs(normali.dot(normalj))) < M_PI/8.0) {
             mean_prod += flat_penalty;
@@ -597,7 +610,7 @@ void convex_voxel_segmentation::local_convexity_segmentation(std::vector<PointCl
             pcl::Supervoxel<PointT>::Ptr first_supervoxel = supervoxel_clusters.at (label_itr->first);
             pcl::Supervoxel<PointT>::Ptr second_supervoxel = supervoxel_clusters.at (adjacent_itr->second);
             edge_pairs.insert(edge_pair(label_itr->first, adjacent_itr->second));
-            edge_pairs.insert(edge_pair(adjacent_itr->second, label_itr->first));
+            edge_pairs.insert(edge_pair(adjacent_itr->second, label_itr->first)); // TODO: investigate if this is really needed
 
             bool is_concave;
             float weight;

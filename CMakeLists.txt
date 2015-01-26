@@ -49,6 +49,10 @@ add_executable(test_registration src/test_registration.cpp)
 target_link_libraries(test_registration register_objects ${PCL_LIBRARIES})
 
 add_executable(test_rgbd_dataset src/test_rgbd_dataset.cpp)
+target_link_libraries(test_rgbd_dataset object_retrieval ${OpenCV_LIBS} ${PCL_LIBRARIES})
+
+add_executable(test_validate_rgbd src/test_validate_rgbd.cpp)
+target_link_libraries(test_validate_rgbd object_retrieval ${PCL_LIBRARIES})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
 

@@ -75,34 +75,42 @@ void object_retrieval::get_query_cloud(HistCloudT::Ptr& query_cloud, CloudT::Ptr
     Eigen::VectorXf globalf;
     sf.calculate_features(globalf, query_cloud, segment, normal, hd_segment);
     cout << "Number of features: " << query_cloud->size() << endl;
-    visualize_cloud(hd_segment);
+    //visualize_cloud(hd_segment);
 }
 
-void object_retrieval::write_segments(vector<CloudT::Ptr>& segments, vector<NormalCloudT::Ptr>& normals, vector<CloudT::Ptr>& hd_segments,  const Eigen::Matrix3f& K)
+size_t object_retrieval::write_segments(vector<CloudT::Ptr>& segments, vector<NormalCloudT::Ptr>& normals, vector<CloudT::Ptr>& hd_segments,  const Eigen::Matrix3f& K, vector<string>& files, size_t istart)
 {
     boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
     boost::filesystem::create_directory(base_dir); // may fail if already existing
     // for each segment, create a folder indicating segment name
-    for (size_t i = 0; i < segments.size(); ++i) {
+    size_t i;
+    for (i = istart; i < istart+segments.size(); ++i) {
         // save the point clouds for this segment
+        size_t j = i - istart;
         boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(i));
         cout << "Writing directory " << sub_dir.string() << endl;
         boost::filesystem::create_directory(sub_dir);
-        pcl::io::savePCDFileASCII(sub_dir.string() + "/segment.pcd", *segments[i]);
-        pcl::io::savePCDFileASCII(sub_dir.string() + "/normals.pcd", *normals[i]);
-        pcl::io::savePCDFileASCII(sub_dir.string() + "/hd_segment.pcd", *hd_segments[i]);
+        pcl::io::savePCDFileASCII(sub_dir.string() + "/segment.pcd", *segments[j]);
+        pcl::io::savePCDFileASCII(sub_dir.string() + "/normals.pcd", *normals[j]);
+        pcl::io::savePCDFileASCII(sub_dir.string() + "/hd_segment.pcd", *hd_segments[j]);
         {
             ofstream out(sub_dir.string() + "/K.cereal", std::ios::binary);
             cereal::BinaryOutputArchive archive_o(out);
             archive_o(K);
         }
+        ofstream f;
+        f.open(sub_dir.string() + "/metadata.txt");
+        f << files[j] << '\n';
+        f.close();
     }
+    return i;
 }
 
-void object_retrieval::read_segments(vector<CloudT::Ptr>& segments, vector<NormalCloudT::Ptr>& normals, vector<CloudT::Ptr>& hd_segments,  Eigen::Matrix3f& K, size_t max_segments)
+void object_retrieval::read_segments(vector<CloudT::Ptr>& segments, vector<NormalCloudT::Ptr>& normals,
+                                     vector<CloudT::Ptr>& hd_segments, Eigen::Matrix3f& K, size_t max_segments)
 {
     boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
-    for (size_t i = 0; i < max_segments; ++i) { // i < max_segments
+    for (size_t i = 0; ; ++i) { // i < max_segments
         boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(i));
         cout << "Reading directory " << sub_dir.string() << endl;
         if (!boost::filesystem::is_directory(sub_dir)) {
@@ -122,7 +130,8 @@ void object_retrieval::read_segments(vector<CloudT::Ptr>& segments, vector<Norma
     }
 }
 
-bool object_retrieval::read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment,  Eigen::Matrix3f& K, size_t segment_id)
+bool object_retrieval::read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment,
+                                    Eigen::Matrix3f& K, string& metadata, size_t segment_id)
 {
     boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
     boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(segment_id));
@@ -138,6 +147,10 @@ bool object_retrieval::read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& nor
         cereal::BinaryInputArchive archive_i(in);
         archive_i(K);
     }
+    ifstream f;
+    f.open(sub_dir.string() + "/metadata.txt");
+    f >> metadata;
+    f.close();
     return true;
 }
 
@@ -155,10 +168,17 @@ void object_retrieval::read_vocabulary(vocabulary_tree<HistT, 8>& vt)
 {
     boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
     std::string vocabulary_file = base_dir.string() + "/vocabulary.cereal";
-
-    ifstream in(vocabulary_file, std::ios::binary);
-    cereal::BinaryInputArchive archive_i(in);
-    archive_i(vt);
+    {
+        cout << __FILE__ << ", " << __LINE__ << endl;
+        ifstream in(vocabulary_file, std::ios::binary);
+        cout << __FILE__ << ", " << __LINE__ << endl;
+        cereal::BinaryInputArchive archive_i(in);
+        cout << __FILE__ << ", " << __LINE__ << endl;
+        archive_i(vt);
+        cout << __FILE__ << ", " << __LINE__ << endl;
+        in.close();
+        cout << __FILE__ << ", " << __LINE__ << endl;
+    }
 }
 
 float object_retrieval::calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,
@@ -171,19 +191,20 @@ float object_retrieval::calculate_similarity(CloudT::Ptr& cloud1, const Eigen::M
 }
 
 //void object_retrieval::compute_segments()
-void object_retrieval::compute_segments(vector<CloudT::Ptr>& sweeps, vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics)
+void object_retrieval::compute_segments(vector<CloudT::Ptr>& sweeps, vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files)
 {
     //vector<CloudT::Ptr> sweeps;
     //vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> > intrinsics;
     //read_clouds(sweeps, intrinsics, 3);
 
-    vector<CloudT::Ptr> segments;
-    vector<NormalCloudT::Ptr> normals;
-    vector<CloudT::Ptr> hd_segments;
-    //vector<int> start_inds;
+    //vector<CloudT::Ptr> segments;
+    //vector<NormalCloudT::Ptr> normals;
+    //vector<CloudT::Ptr> hd_segments;
+    //vector<string> segment_files;
 
-    size_t max_segments = 5;
+    //size_t max_segments = 5;
     size_t counter = 0;
+    size_t i = 0;
     for (CloudT::Ptr cloud : sweeps) {
         /*if (counter >= max_segments) {
             break;
@@ -196,17 +217,23 @@ void object_retrieval::compute_segments(vector<CloudT::Ptr>& sweeps, vector<Eige
         vector<CloudT::Ptr> segmentsi;
         vector<NormalCloudT::Ptr> normalsi;
         vector<CloudT::Ptr> hd_segmentsi;
+        vector<string> filesi;
         cvs.segment_objects(segmentsi, normalsi, hd_segmentsi, cloud);
 
-        //start_inds.push_back(segments.size());
-        segments.insert(segments.end(), segmentsi.begin(), segmentsi.end());
-        normals.insert(normals.end(), normalsi.begin(), normalsi.end());
-        hd_segments.insert(hd_segments.end(), hd_segmentsi.begin(), hd_segmentsi.end());
+        //segments.insert(segments.end(), segmentsi.begin(), segmentsi.end());
+        //normals.insert(normals.end(), normalsi.begin(), normalsi.end());
+        //hd_segments.insert(hd_segments.end(), hd_segmentsi.begin(), hd_segmentsi.end());
 
+        for (size_t j = 0; j < segmentsi.size(); ++j) {
+            //segment_files.push_back(files[counter]);
+            filesi.push_back(files[counter]);
+        }
         ++counter;
+
+        i = write_segments(segmentsi, normalsi, hd_segmentsi,  intrinsics[0], filesi, i);
     }
 
-    write_segments(segments, normals, hd_segments,  intrinsics[0]);
+    //write_segments(segments, normals, hd_segments,  intrinsics[0], segment_files);
 }
 
 void object_retrieval::process_segments()
@@ -243,17 +270,16 @@ void object_retrieval::process_segments()
     write_vocabulary(vt);
 }
 
-void object_retrieval::query_vocabulary(size_t query_ind)
+void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query)
 {
-    using index_score = vocabulary_tree<HistT, 8>::cloud_idx_score;
-
-    vocabulary_tree<HistT, 8> vt;
+    //vocabulary_tree<HistT, 8> vt;
     HistCloudT::Ptr query_cloud(new HistCloudT);
     CloudT::Ptr segment(new CloudT);
     CloudT::Ptr query_segment(new CloudT);
     NormalCloudT::Ptr normal(new NormalCloudT);
     CloudT::Ptr hd_segment(new CloudT);
     Eigen::Matrix3f K, query_K;
+    string metadata;
 
 #if 0
     {
@@ -273,10 +299,14 @@ void object_retrieval::query_vocabulary(size_t query_ind)
     }
 #endif
 
-    read_vocabulary(vt);
+    cout << __FILE__ << ", " << __LINE__ << endl;
+    if (vt.empty()) {
+        read_vocabulary(vt);
+    }
+    cout << __FILE__ << ", " << __LINE__ << endl;
 
     cout << "Querying segment nbr: " << query_ind << endl;
-    if(!read_segment(segment, normal, query_segment, query_K, query_ind)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
+    if(!read_segment(segment, normal, query_segment, query_K, metadata, query_ind)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
         cout << "Error reading segment!" << endl;
         exit(0);
     }
@@ -285,17 +315,18 @@ void object_retrieval::query_vocabulary(size_t query_ind)
         eig(h).normalize();
     }
 
-    vector<index_score> scores;
-    vt.top_similarities(scores, query_cloud, 50);
+    //vector<index_score> scores;
+    vt.top_similarities(scores, query_cloud, nbr_query);
 
-    for (index_score s : scores) {
+    // don't register right now
+    /*for (index_score s : scores) {
         cout << "Index: " << s.first << " with score: " << s.second << endl;
-        if (!read_segment(segment, normal, hd_segment, K, s.first)) {
+        if (!read_segment(segment, normal, hd_segment, K, metadata, s.first)) {
             cout << "Error reading segment!" << endl;
             exit(0);
         }
         float similarity = calculate_similarity(query_segment, query_K, hd_segment, K);
         cout << "Shape similarity: " << similarity << endl;
         //visualize_cloud(hd_segment);
-    }
+    }*/
 }

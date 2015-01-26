@@ -14,6 +14,8 @@
 #include <pcl/features/fpfh_omp.h>
 #include <pcl/features/normal_3d_omp.h>
 
+#define VISUALIZE false
+
 using namespace std;
 
 register_objects::register_objects()
@@ -194,11 +196,13 @@ void register_objects::do_registration()
     vector<cv::DMatch> matches;
     matcher.match(descriptors1, descriptors2, matches); // query / train
 
-    cv::namedWindow("matches", 1);
-    cv::Mat img_matches;
-    cv::drawMatches(image1, keypoints1, image2, keypoints2, matches, img_matches);
-    cv::imshow("matches", img_matches);
-    cv::waitKey(0);
+    if (VISUALIZE) {
+        cv::namedWindow("matches", 1);
+        cv::Mat img_matches;
+        cv::drawMatches(image1, keypoints1, image2, keypoints2, matches, img_matches);
+        cv::imshow("matches", img_matches);
+        cv::waitKey(0);
+    }
 
     pcl::CorrespondencesPtr correspondences(new pcl::Correspondences);
     // do ransac on all the matches to find the transformation
@@ -235,18 +239,20 @@ void register_objects::do_registration()
     CloudT::Ptr new_cloud(new CloudT);
     pcl::transformPointCloud(*c1, *new_cloud, T);
 
-    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-    viewer->setBackgroundColor(0, 0, 0);
-    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb1(c2);
-    viewer->addPointCloud<PointT>(c2, rgb1, "cloud1");
-    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "cloud1");
-    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb2(new_cloud);
-    viewer->addPointCloud<PointT>(new_cloud, rgb2, "cloud2");
-    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "cloud2");
-    viewer->addCoordinateSystem(1.0);
-    viewer->initCameraParameters();
-    while (!viewer->wasStopped()) {
-        viewer->spinOnce(100);
+    if (VISUALIZE) {
+        boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+        viewer->setBackgroundColor(0, 0, 0);
+        pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb1(c2);
+        viewer->addPointCloud<PointT>(c2, rgb1, "cloud1");
+        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "cloud1");
+        pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb2(new_cloud);
+        viewer->addPointCloud<PointT>(new_cloud, rgb2, "cloud2");
+        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "cloud2");
+        viewer->addCoordinateSystem(1.0);
+        viewer->initCameraParameters();
+        while (!viewer->wasStopped()) {
+            viewer->spinOnce(100);
+        }
     }
 
 }
