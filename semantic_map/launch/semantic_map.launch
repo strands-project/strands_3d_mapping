@@ -2,7 +2,7 @@
 
   <arg name="save_intermediate"           default="false" />
   <arg name="log_to_db"           	  default="false" />
-  <arg name="update_metaroom"             default="false" />
+  <arg name="update_metaroom"             default="true" />
   <arg name="machine"   	default="localhost" />
   <arg name="user"   	default="" />
  
