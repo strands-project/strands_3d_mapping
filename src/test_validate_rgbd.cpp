@@ -98,7 +98,7 @@ void print_annotations(bboxes& bb)
 
 void get_test_segments(vector<size_t>& indices)
 {
-    for (size_t i = 0; i < 12000; i += 100) {
+    for (size_t i = 0; i < 12000; i += 50) {
         indices.push_back(i);
     }
 }

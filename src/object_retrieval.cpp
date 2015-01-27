@@ -13,6 +13,8 @@
 #include <pcl/filters/voxel_grid.h>
 
 #include "eigen_cereal/eigen_cereal.h"
+#include <cereal/types/vector.hpp>
+#include <cereal/types/array.hpp>
 
 #define VISUALIZE false
 
@@ -36,22 +38,6 @@ void object_retrieval::visualize_cloud(CloudT::Ptr& cloud)
     }
 }
 
-/*void object_retrieval::subsample_cloud(CloudT::Ptr& cloud_in, CloudT::Ptr& cloud_out)
-{
-    // Create the filtering object
-    pcl::VoxelGrid<PointT> sor;
-    sor.setInputCloud(cloud_in);
-    sor.setLeafSize(0.01f, 0.01f, 0.01f);
-    sor.filter(*cloud_out);
-}
-
-void object_retrieval::translate_cloud(CloudT::Ptr& cloud, const Eigen::Vector3f& offset)
-{
-    for (PointT& p : cloud->points) {
-        p.getVector3fMap() += offset;
-    }
-}*/
-
 void object_retrieval::extract_features(vector<int>& inds, HistCloudT::Ptr& features, vector<CloudT::Ptr>& segments,
                       vector<NormalCloudT::Ptr>& normals, vector<CloudT::Ptr>& hd_segments, const Eigen::Matrix3f& K)
 {
@@ -71,7 +57,7 @@ void object_retrieval::extract_features(vector<int>& inds, HistCloudT::Ptr& feat
 
 void object_retrieval::get_query_cloud(HistCloudT::Ptr& query_cloud, CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K)
 {
-    segment_features sf(K, true);
+    segment_features sf(K, false);
     Eigen::VectorXf globalf;
     sf.calculate_features(globalf, query_cloud, segment, normal, hd_segment);
     cout << "Number of features: " << query_cloud->size() << endl;
@@ -90,9 +76,9 @@ size_t object_retrieval::write_segments(vector<CloudT::Ptr>& segments, vector<No
         boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(i));
         cout << "Writing directory " << sub_dir.string() << endl;
         boost::filesystem::create_directory(sub_dir);
-        pcl::io::savePCDFileASCII(sub_dir.string() + "/segment.pcd", *segments[j]);
-        pcl::io::savePCDFileASCII(sub_dir.string() + "/normals.pcd", *normals[j]);
-        pcl::io::savePCDFileASCII(sub_dir.string() + "/hd_segment.pcd", *hd_segments[j]);
+        pcl::io::savePCDFileBinary(sub_dir.string() + "/segment.pcd", *segments[j]);
+        pcl::io::savePCDFileBinary(sub_dir.string() + "/normals.pcd", *normals[j]);
+        pcl::io::savePCDFileBinary(sub_dir.string() + "/hd_segment.pcd", *hd_segments[j]);
         {
             ofstream out(sub_dir.string() + "/K.cereal", std::ios::binary);
             cereal::BinaryOutputArchive archive_o(out);
@@ -238,24 +224,27 @@ void object_retrieval::compute_segments(vector<CloudT::Ptr>& sweeps, vector<Eige
 
 void object_retrieval::process_segments()
 {
-    vector<CloudT::Ptr> segments;
-    vector<NormalCloudT::Ptr> normals;
-    vector<CloudT::Ptr> hd_segments;
-    Eigen::Matrix3f K;
-
-    read_segments(segments, normals, hd_segments, K, 200);
-
-    cout << K << endl;
-    cout << segments.size() << endl;
-    cout << hd_segments.size() << endl;
-    cout << normals.size() << endl;
-    cout << segments[0]->size() << endl;
-    cout << hd_segments[0]->size() << endl;
-    cout << normals[0]->size() << endl;
-
     HistCloudT::Ptr features(new HistCloudT);
     vector<int> indices;
-    extract_features(indices, features, segments, normals, hd_segments, K);
+    if (!load_features(features, indices)) {
+        vector<CloudT::Ptr> segments;
+        vector<NormalCloudT::Ptr> normals;
+        vector<CloudT::Ptr> hd_segments;
+        Eigen::Matrix3f K;
+
+        read_segments(segments, normals, hd_segments, K, 200);
+
+        cout << K << endl;
+        cout << segments.size() << endl;
+        cout << hd_segments.size() << endl;
+        cout << normals.size() << endl;
+        cout << segments[0]->size() << endl;
+        cout << hd_segments[0]->size() << endl;
+        cout << normals[0]->size() << endl;
+
+        extract_features(indices, features, segments, normals, hd_segments, K);
+        save_features(features, indices);
+    }
 
     for (int i : indices) cout << i << " "; cout << endl;
 
@@ -263,11 +252,11 @@ void object_retrieval::process_segments()
         eig(h).normalize();
     }
 
-    vocabulary_tree<HistT, 8> vt;
-    vt.set_input_cloud(features, indices);
-    vt.add_points_from_input_cloud();
+    vocabulary_tree<HistT, 8> vt1;
+    vt1.set_input_cloud(features, indices);
+    vt1.add_points_from_input_cloud();
 
-    write_vocabulary(vt);
+    write_vocabulary(vt1);
 }
 
 void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query)
@@ -329,4 +318,43 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
         cout << "Shape similarity: " << similarity << endl;
         //visualize_cloud(hd_segment);
     }*/
+}
+
+/*template <class Archive>
+void serialize(Archive& archive, object_retrieval::HistT& m)
+{
+    archive(m.histogram);
+}*/
+
+POINT_CLOUD_REGISTER_POINT_STRUCT (Histogram<131>,
+                                   (float[131], histogram, histogram)
+)
+
+void object_retrieval::save_features(HistCloudT::Ptr& features, std::vector<int>& indices)
+{
+    boost::filesystem::path base_dir = segment_path;
+    std::string features_file = base_dir.string() + "/features.pcd";
+    std::string indices_file = base_dir.string() + "/indices.cereal";
+    {
+        ofstream out(indices_file, std::ios::binary);
+        cereal::BinaryOutputArchive archive_o(out);
+        archive_o(indices);
+    }
+    pcl::io::savePCDFileBinary(features_file, *features);
+}
+
+bool object_retrieval::load_features(HistCloudT::Ptr& features, std::vector<int>& indices)
+{
+    boost::filesystem::path base_dir = segment_path;
+    boost::filesystem::path features_file = base_dir / "features.pcd";
+    if (!boost::filesystem::is_regular_file(features_file)) {
+        return false;
+    }
+    std::string indices_file = base_dir.string() + "/indices.cereal";
+    {
+        ifstream in(indices_file, std::ios::binary);
+        cereal::BinaryInputArchive archive_i(in);
+        archive_i(indices);
+    }
+    return (pcl::io::loadPCDFile<HistT>(features_file.string(), *features) != -1);
 }

@@ -22,8 +22,6 @@ public:
     vocabulary_tree<HistT, 8> vt;
 
     void visualize_cloud(CloudT::Ptr& cloud);
-    //void subsample_cloud(CloudT::Ptr& cloud_in, CloudT::Ptr& cloud_out);
-    //void translate_cloud(CloudT::Ptr& cloud, const Eigen::Vector3f& offset);
     void extract_features(std::vector<int>& inds, HistCloudT::Ptr& features, std::vector<CloudT::Ptr>& segments,
                           std::vector<NormalCloudT::Ptr>& normals, std::vector<CloudT::Ptr>& hd_segments, const Eigen::Matrix3f& K);
     void get_query_cloud(HistCloudT::Ptr& query_cloud, CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K);
@@ -37,6 +35,9 @@ public:
     void compute_segments(std::vector<CloudT::Ptr>& sweeps, std::vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files);
     void process_segments();
     void query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query);
+
+    void save_features(HistCloudT::Ptr& features, std::vector<int>& indices);
+    bool load_features(HistCloudT::Ptr& features, std::vector<int>& indices);
 
     object_retrieval(const std::string& segment_path);
 };

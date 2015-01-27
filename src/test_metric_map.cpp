@@ -1,4 +1,6 @@
 #include <iostream>
+#include <chrono>
+#include <ctime>
 #include <boost/filesystem.hpp>
 
 #include "object_3d_retrieval/object_retrieval.h"
@@ -117,7 +119,13 @@ int main(int argc, char** argv)
     vector<string> files;
     //read_clouds(sweeps, intrinsics, files);
     //obr.compute_segments(sweeps, intrinsics, files);
+
+    chrono::time_point<std::chrono::system_clock> start, end;
+    start = chrono::system_clock::now();
     //obr.process_segments();
+    end = chrono::system_clock::now();
+    chrono::duration<double> elapsed_seconds = end-start;
+    cout << "Vocabulary creation took " << elapsed_seconds.count() << " seconds" << endl;
 
     vector<index_score> scores;
     obr.query_vocabulary(scores, i, 50);
