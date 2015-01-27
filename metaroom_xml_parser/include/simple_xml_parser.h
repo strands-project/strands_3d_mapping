@@ -23,9 +23,6 @@ template <class PointType>
 class SimpleXMLParser {
 public:
 
-//    typedef pcl::PointCloud<PointType> Cloud;
-//    typedef typename Cloud::Ptr CloudPtr;
-
 
     struct IntermediateCloudData{
         std::string                     filename;
@@ -43,21 +40,22 @@ public:
         image_geometry::PinholeCameraModel  intermediateDepthCamParams;
     };
 
-//    template <class PointType>
     struct RoomData
     {
 
         std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>                            vIntermediateRoomClouds;
-        std::vector<tf::StampedTransform>                vIntermediateRoomCloudTransforms;
-        std::vector<image_geometry::PinholeCameraModel>  vIntermediateRoomCloudCamParams;
-        std::vector<cv::Mat>                             vIntermediateRGBImages; // type CV_8UC3
-        std::vector<cv::Mat>                             vIntermediateDepthImages; // type CV_16UC1
+        std::vector<tf::StampedTransform>                                                     vIntermediateRoomCloudTransforms;
+        std::vector<image_geometry::PinholeCameraModel>                                       vIntermediateRoomCloudCamParams;
+        std::vector<cv::Mat>                                                                  vIntermediateRGBImages; // type CV_8UC3
+        std::vector<cv::Mat>                                                                  vIntermediateDepthImages; // type CV_16UC1
         boost::shared_ptr<pcl::PointCloud<PointType>>                                         completeRoomCloud;
-        std::string                                      roomWaypointId;
-        std::vector<IntermediatePositionImages>          vIntermediatePositionImages;
+        boost::shared_ptr<pcl::PointCloud<PointType>>                                         dynamicClusterCloud;
+        std::string                                                                           roomWaypointId;
+        std::vector<IntermediatePositionImages>                                               vIntermediatePositionImages;
 
         RoomData(){
             completeRoomCloud = boost::shared_ptr<pcl::PointCloud<PointType>>(new pcl::PointCloud<PointType>());
+            dynamicClusterCloud = boost::shared_ptr<pcl::PointCloud<PointType>>(new pcl::PointCloud<PointType>());
         }
     };
 
@@ -69,7 +67,6 @@ public:
     {}
 
 
-//    template <class PointType>
     static std::pair<cv::Mat, cv::Mat> createRGBandDepthFromPC(boost::shared_ptr<pcl::PointCloud<PointType>> cloud)
     {
         std::pair<cv::Mat, cv::Mat> toRet;
@@ -92,8 +89,15 @@ public:
         return toRet;
     }
 
-//    template <class PointType>
-    static RoomData loadRoomFromXML(const std::string& xmlFile)
+    //! Function that parses a room xml file and returns the room structure
+    /*!
+      \param xmlFile the room xml file.
+      \param xmlNodesToParse the nodes from the xml file to parse. Especially usefull when you don't want to load everything; applies to merged cloud - xml node RoomCompleteCloud, intermediate clouds - xml node RoomIntermediateCloud, and intermediate images - xml node IntermediatePosition. All the other xml nodes are parsed by default.
+             The default value for this parameter is "*", which means everything will be parsed.
+      \param verbose whether to print output when parsing intermediate clouds and intermediate images.
+      \return The room structure.
+    */
+    static RoomData loadRoomFromXML(const std::string& xmlFile, std::vector<std::string> xmlNodesToParse=std::vector<std::string>{"RoomCompleteCloud", "RoomIntermediateCloud","IntermediatePosition","RoomDynamicClusters"},bool verbose = false)
     {
         RoomData aRoom;
 
@@ -102,7 +106,7 @@ public:
 
         if (!file.exists())
         {
-            std::cerr<<"Could not open file "<<xmlFile<<" to load room."<<std::endl;
+            ROS_ERROR("Could not open file %s to load room.",xmlFile.c_str());
             return aRoom;
         }
 
@@ -112,6 +116,7 @@ public:
 
 
         file.open(QIODevice::ReadOnly);
+        ROS_INFO_STREAM("Parsing xml file: "<<xmlFile.c_str());
 
         QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
         Eigen::Vector4f centroid(0.0,0.0,0.0,0.0);
@@ -124,7 +129,7 @@ public:
 
             if (xmlReader->hasError())
             {
-                std::cout << "XML error: " << xmlReader->errorString().toStdString() << std::endl;
+                ROS_ERROR("XML error: %s",xmlReader->errorString().toStdString().c_str());
                 return aRoom;
             }
 
@@ -132,7 +137,8 @@ public:
 
             if (token == QXmlStreamReader::StartElement)
             {
-                if (xmlReader->name() == "RoomCompleteCloud")
+                if ((xmlReader->name() == "RoomCompleteCloud") &&
+                    (std::find(xmlNodesToParse.begin(), xmlNodesToParse.end(), "RoomCompleteCloud") != xmlNodesToParse.end()))
                 {
                     QXmlStreamAttributes attributes = xmlReader->attributes();
                     if (attributes.hasAttribute("filename"))
@@ -144,25 +150,57 @@ public:
                             roomCompleteCloudFile=roomFolder + "/" + roomCompleteCloudFile;
                         }
 
-                        std::cout<<"Loading complete cloud file name "<<roomCompleteCloudFile.toStdString()<<std::endl;
+                        if (verbose)
+                        {
+                            ROS_INFO_STREAM("Loading complete cloud file name "<<roomCompleteCloudFile.toStdString());
+                        }
                         pcl::PCDReader reader;
                         boost::shared_ptr<pcl::PointCloud<PointType>> cloud (new pcl::PointCloud<PointType>);
                         reader.read (roomCompleteCloudFile.toStdString(), *cloud);
                         *aRoom.completeRoomCloud = *cloud;
                     } else {
-                        std::cerr<<"RoomCompleteCloud xml node does not have filename attribute. Aborting."<<std::endl;
+                        ROS_ERROR("RoomCompleteCloud xml node does not have filename attribute. Aborting.");
                         return aRoom;
                     }
                 }
+
+                if ((xmlReader->name() == "RoomDynamicClusters") &&
+                    (std::find(xmlNodesToParse.begin(), xmlNodesToParse.end(), "RoomDynamicClusters") != xmlNodesToParse.end()))
+                {
+                    QXmlStreamAttributes attributes = xmlReader->attributes();
+                    if (attributes.hasAttribute("filename"))
+                    {
+                        QString dynamicClustersCloudFile = attributes.value("filename").toString();
+                        int sl_index = dynamicClustersCloudFile.indexOf('/');
+                        if (sl_index == -1)
+                        {
+                            dynamicClustersCloudFile=roomFolder + "/" + dynamicClustersCloudFile;
+                        }
+
+                        if (verbose)
+                        {
+                            ROS_INFO_STREAM("Loading dynamic clusters cloud file name "<<dynamicClustersCloudFile.toStdString());
+                        }
+                        pcl::PCDReader reader;
+                        boost::shared_ptr<pcl::PointCloud<PointType>> cloud (new pcl::PointCloud<PointType>);
+                        reader.read (dynamicClustersCloudFile.toStdString(), *cloud);
+                        *aRoom.dynamicClusterCloud = *cloud;
+                    } else {
+                        ROS_ERROR("RoomDynamicClusters xml node does not have filename attribute. Aborting.");
+                        return aRoom;
+                    }
+                }
+
                 if (xmlReader->name() == "RoomStringId")
                 {
                     QString roomWaypointId = xmlReader->readElementText();
                     aRoom.roomWaypointId = roomWaypointId.toStdString();
                 }
 
-                if (xmlReader->name() == "RoomIntermediateCloud")
+                if ((xmlReader->name() == "RoomIntermediateCloud") &&
+                        (std::find(xmlNodesToParse.begin(), xmlNodesToParse.end(), "RoomIntermediateCloud") != xmlNodesToParse.end()))
                 {
-                    IntermediateCloudData intermediateCloudData = parseRoomIntermediateCloudNode(*xmlReader);
+                    IntermediateCloudData intermediateCloudData = parseRoomIntermediateCloudNode(*xmlReader, verbose);
                     image_geometry::PinholeCameraModel aCameraModel;
                     aCameraModel.fromCameraInfo(intermediateCloudData.camInfo);
 
@@ -176,7 +214,10 @@ public:
                     std::ifstream file(cloudFileName.toStdString().c_str());
                     if (file)
                     {
-                        std::cout<<"Loading intermediate cloud file name "<<cloudFileName.toStdString()<<std::endl;
+                        if (verbose)
+                        {
+                            ROS_INFO_STREAM("Loading intermediate cloud file name "<<cloudFileName.toStdString());
+                        }
                         pcl::PCDReader reader;
                         boost::shared_ptr<pcl::PointCloud<PointType>> cloud (new pcl::PointCloud<PointType>);
                         reader.read (cloudFileName.toStdString(), *cloud);
@@ -189,9 +230,10 @@ public:
                     }
                 }
 
-                if (xmlReader->name() == "IntermediatePosition")
+                if ((xmlReader->name() == "IntermediatePosition") &&
+                        (std::find(xmlNodesToParse.begin(), xmlNodesToParse.end(), "IntermediatePosition") != xmlNodesToParse.end()))
                 {
-                    auto positionImages = parseIntermediatePositionImages(xmlReader, roomFolder.toStdString());
+                    auto positionImages = parseIntermediatePositionImages(xmlReader, roomFolder.toStdString(), verbose);
 
                     aRoom.vIntermediatePositionImages.push_back(positionImages);
                 }
@@ -206,7 +248,7 @@ public:
 
 private:
 
-    static IntermediateCloudData parseRoomIntermediateCloudNode(QXmlStreamReader& xmlReader)
+    static IntermediateCloudData parseRoomIntermediateCloudNode(QXmlStreamReader& xmlReader, bool verbose = false)
     {
         tf::StampedTransform transform;
         geometry_msgs::TransformStamped tfmsg;
@@ -219,7 +261,7 @@ private:
 
         if (xmlReader.name()!="RoomIntermediateCloud")
         {
-            std::cerr<<"Cannot parse RoomIntermediateCloud node, it has a different name: "<<xmlReader.name().toString().toStdString()<<std::endl;
+            ROS_ERROR("Cannot parse RoomIntermediateCloud node, it has a different name: %s",xmlReader.name().toString().toStdString().c_str());
         }
         QXmlStreamAttributes attributes = xmlReader.attributes();
         if (attributes.hasAttribute("filename"))
@@ -230,7 +272,7 @@ private:
             //            reader.read (roomIntermediateCloudFile.toStdString(), *toRet.first);
 
         } else {
-            std::cerr<<"RoomIntermediateCloud xml node does not have filename attribute. Aborting."<<std::endl;
+            ROS_ERROR("RoomIntermediateCloud xml node does not have filename attribute. Aborting.");
             return structToRet;
         }
         QXmlStreamReader::TokenType token = xmlReader.readNext();
@@ -437,7 +479,7 @@ private:
         return structToRet;
     }
 
-    static IntermediatePositionImages parseIntermediatePositionImages(QXmlStreamReader* xmlReader, std::string roomFolder)
+    static IntermediatePositionImages parseIntermediatePositionImages(QXmlStreamReader* xmlReader, std::string roomFolder, bool verbose = false)
     {
 
         static int intermediatePoisitionCounter = 0;
@@ -473,7 +515,10 @@ private:
         {
             std::stringstream ss; ss<<roomFolder;ss<<"/rgb_image"; ss<<"_"<<std::setfill('0')<<std::setw(4)<<intermediatePoisitionCounter<<"_"<<std::setfill('0')<<std::setw(4)<<i<<".png";
             cv::Mat image = cv::imread(ss.str().c_str(), CV_LOAD_IMAGE_COLOR);
-            ROS_INFO_STREAM("Loading intermediate image: "<<ss.str().c_str());
+            if (verbose)
+            {
+                ROS_INFO_STREAM("Loading intermediate image: "<<ss.str().c_str());
+            }
             toRet.vIntermediateRGBImages.push_back(image);
         };
 
@@ -481,7 +526,10 @@ private:
         {
             std::stringstream ss; ss<<roomFolder;ss<<"/depth_image"; ss<<"_"<<std::setfill('0')<<std::setw(4)<<intermediatePoisitionCounter<<"_"<<std::setfill('0')<<std::setw(4)<<i<<".png";
             cv::Mat image = cv::imread(ss.str().c_str(), CV_LOAD_IMAGE_ANYDEPTH);
-            ROS_INFO_STREAM("Loading intermediate image: "<<ss.str().c_str());
+            if (verbose)
+            {
+                ROS_INFO_STREAM("Loading intermediate image: "<<ss.str().c_str());
+            }
             toRet.vIntermediateDepthImages.push_back(image);
         };
 
@@ -525,7 +573,7 @@ private:
     // Reads in a image_geometry::PinholeCameraModel from the current xml node
     // Does not advance the xml reader!!
 
-    static image_geometry::PinholeCameraModel readCamParamsFromXml(QXmlStreamReader* xmlReader, std::string nodeName, bool& errorReading)
+    static image_geometry::PinholeCameraModel readCamParamsFromXml(QXmlStreamReader* xmlReader, std::string nodeName, bool& errorReading, bool verbose = false)
     {
         image_geometry::PinholeCameraModel toRet;
         sensor_msgs::CameraInfo camInfo;
@@ -669,7 +717,7 @@ private:
     // Reads in a TfStampedTransform from the current xml node
     // Does not advance the xml reader!!
 
-    static tf::StampedTransform readTfStampedTransformFromXml(QXmlStreamReader* xmlReader, std::string nodeName, bool& errorReading)
+    static tf::StampedTransform readTfStampedTransformFromXml(QXmlStreamReader* xmlReader, std::string nodeName, bool& errorReading, bool verbose = false)
     {
 
         geometry_msgs::TransformStamped tfmsg;
@@ -787,7 +835,6 @@ private:
 
         if (!errorReading)
         {
-//            ROS_INFO_STREAM("No error while parsing node "<<xmlReader->name().toString().toStdString()<<"  constructing tf object ");
             tf::transformStampedMsgToTF(tfmsg, transform);
         }
 
