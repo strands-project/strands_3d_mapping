@@ -166,6 +166,8 @@ protected:
     node* get_next_node(node* n, const PointT& p);
     float norm_func(const PointT& p1, const PointT& p2) const;
     void append_leaves(node* n);
+    bool compare_centroids(const Eigen::Matrix<float, rows, dim>& centroids,
+                           const Eigen::Matrix<float, rows, dim>& last_centroids) const;
 
 public:
 

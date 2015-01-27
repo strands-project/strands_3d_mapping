@@ -98,6 +98,13 @@ typename k_means_tree<Point, K>::const_map_type k_means_tree<Point, K>::eig(cons
 */
 
 template <typename Point, size_t K, typename Data>
+bool k_means_tree<Point, K, Data>::compare_centroids(const Eigen::Matrix<float, rows, dim>& centroids,
+                                                     const Eigen::Matrix<float, rows, dim>& last_centroids) const
+{
+    return centroids.isApprox(last_centroids, 1e-30f);
+}
+
+template <typename Point, size_t K, typename Data>
 typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::assign_nodes(CloudPtrT& subcloud, node** nodes, size_t current_depth, const vector<int>& subinds)
 {
     std::cout << "Now doing level " << current_depth << std::endl;
@@ -106,6 +113,7 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
     // do k-means of the points, iteratively call this again?
     //PointT centroids[dim];
     Eigen::Matrix<float, rows, dim> centroids;
+    Eigen::Matrix<float, rows, dim> last_centroids;
     Eigen::Matrix<float, 1, dim> distances;
 
     // first, pick centroids at random
@@ -114,18 +122,26 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
         //centroids[i] = subcloud->points[inds[i]];
         centroids.col(i) = eig(subcloud->points[inds[i]]);
     }
+    last_centroids.setZero();
+
+    // if there are no more than 1000 points, continue as normal,
+    // otherwise decrease to about a 1000 points then double with every iteration
+    int skip = std::max(1 << int(log2(double(subcloud->size())/1000.0)), 1);
 
     std::vector<int> clusters[dim];
     //float cluster_distances[dim];
     size_t min_iter = std::max(50, int(subcloud->size()/100));
     size_t counter = 0;
+    PointT p;
     while (true) {
         // compute closest centroids
         for (std::vector<int>& c : clusters) {
             c.clear();
         }
-        int ind = 0;
-        for (const PointT& p : subcloud->points) {
+        //int ind = 0;
+        //for (const PointT& p : subcloud->points) {
+        for (int ind = 0; ind < subcloud->size(); ind += skip) {
+            p = subcloud->at(ind);
             /*for (size_t i = 0; i < dim; ++i) {
                 cluster_distances[i] = norm_func(centroids[i], p);
             }
@@ -137,13 +153,14 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
             distances = eig(p).transpose()*centroids;
             distances.maxCoeff(&closest);
             clusters[closest].push_back(ind);
-            ++ind;
+            //++ind;
         }
 
-        if (counter >= min_iter) {
+        if (skip == 1 && (counter >= min_iter || compare_centroids(centroids, last_centroids))) {
             break;
         }
 
+        last_centroids = centroids;
         // compute new centroids
         for (size_t i = 0; i < dim; ++i) {
             Eigen::Matrix<double, rows, 1> acc;
@@ -165,6 +182,7 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
             }
         }
 
+        skip = std::max(skip/2, 1);
         ++counter;
     }
 
