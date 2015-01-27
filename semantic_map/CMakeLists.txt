@@ -40,7 +40,7 @@ generate_messages(
 
 catkin_package(
    INCLUDE_DIRS include
-   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge
+   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge mongodb_store
 )
 
 include_directories(include
@@ -61,6 +61,7 @@ set(HDRS
     include/semantic_map/semantic_map_summary_parser.h
     include/semantic_map/occlusion_checker.h
     include/semantic_map/ndt_registration.h
+    include/semantic_map/mongodb_interface.h
 )
 
 set(HDRS_IMPL
@@ -82,12 +83,14 @@ set(SRCS
     src/semantic_map_summary_parser.cpp
     src/occlusion_checker.cpp
     src/ndt_registration.cpp
+    src/mongodb_interface.cpp
 )
 
 add_library(semantic_map ${HDRS} ${HDRS_IMPL} ${SRCS})
 add_executable(semantic_map_node include/semantic_map/semantic_map_node.h src/semantic_map_node.cpp src/semantic_map_main.cpp)
 
 add_executable(load_from_mongo src/load_from_mongo.cpp)
+add_executable(add_to_mongo src/add_to_mongo.cpp)
 
 add_dependencies(semantic_map semantic_map_generate_messages_cpp primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
 add_dependencies(semantic_map_node semantic_map_generate_messages_cpp primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
@@ -104,6 +107,14 @@ add_dependencies(semantic_map_node semantic_map_generate_messages_cpp primitive_
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}
    ${Boost_LIBRARIES}
+  )
+
+ target_link_libraries(add_to_mongo
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+   ${Boost_LIBRARIES}
+   semantic_map
   )
 
 

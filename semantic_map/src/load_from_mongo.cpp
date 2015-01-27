@@ -25,7 +25,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    string folderPath = argv[1];
+    string folderPath = argv[1] + string("/");
 
     if (!QDir(folderPath.c_str()).exists())
     {
@@ -109,7 +109,10 @@ int main(int argc, char** argv)
                         stringstream cloud_ss; cloud_ss << "intermediate_cloud"<<std::setfill('0')<<std::setw(4)<<j<<".pcd";
                         QString cloud_name = full_room + "/"+QString(cloud_ss.str().c_str());
 
-                        pcl::io::savePCDFileBinary(cloud_name.toStdString(), *databaseCloud);
+                        if (databaseCloud->points.size()>0)
+                        {
+                            pcl::io::savePCDFileBinary(cloud_name.toStdString(), *databaseCloud);
+                        }
                     } else {
                       ROS_WARN_STREAM("Found multiple matches for element named "<<ss.str());
                     }
@@ -132,7 +135,17 @@ int main(int argc, char** argv)
                         CloudPtr databaseCloud(new Cloud());
                         pcl::fromROSMsg(*results[0],*databaseCloud);
                         QString cloud_name = full_room + "/"+QString("complete_cloud.pcd");
-                        pcl::io::savePCDFileBinary(cloud_name.toStdString(), *databaseCloud);
+
+                        try {
+                        if (databaseCloud->points.size()>0)
+                        {
+                            pcl::io::savePCDFileBinary(cloud_name.toStdString(), *databaseCloud);
+                        }
+                        } catch (...)
+                        {
+
+                        }
+
                     } else {
                         ROS_WARN_STREAM("Found multiple matches for element named "<<ss.str());
                     }
