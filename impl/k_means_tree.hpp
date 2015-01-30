@@ -101,7 +101,7 @@ template <typename Point, size_t K, typename Data>
 bool k_means_tree<Point, K, Data>::compare_centroids(const Eigen::Matrix<float, rows, dim>& centroids,
                                                      const Eigen::Matrix<float, rows, dim>& last_centroids) const
 {
-    return centroids.isApprox(last_centroids, 1e-30f);
+    return centroids.isApprox(last_centroids, 1e-30f);//1e-30f);
 }
 
 template <typename Point, size_t K, typename Data>

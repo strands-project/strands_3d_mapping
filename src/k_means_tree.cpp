@@ -13,6 +13,7 @@ template class k_means_tree<pcl::PointXYZRGB, 8>;
 template class k_means_tree<pcl::Histogram<100>, 8>;
 template class k_means_tree<pcl::Histogram<33>, 8>;
 template class k_means_tree<pcl::Histogram<128>, 8>;
+template class k_means_tree<pcl::Histogram<1344>, 8>;
 
 template <>
 typename map_proxy<pcl::PointXYZ>::map_type eig(pcl::PointXYZ& v)

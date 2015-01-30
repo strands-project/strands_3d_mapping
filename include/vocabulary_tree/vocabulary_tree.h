@@ -52,6 +52,8 @@ protected:
     size_t nbr_sources_for_freqs(std::map<int, int>& source_id_freqs) const;
     void normalizing_constants_for_node(std::map<int, int>& normalizing_constants, node* n);
     void compute_normalizing_constants(); // this also computes the weights
+    void pyramid_match_weights_for_node(node* n);
+    void pyramid_match_score_for_node(std::map<int, double>& scores, std::map<int, int>& source_id_freqs, node* n, const PointT& p);
 
 public:
 
@@ -59,6 +61,8 @@ public:
     void set_input_cloud(CloudPtrT& new_cloud, std::vector<int>& new_indices);
     void add_points_from_input_cloud();
     void top_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results = 20);
+    void compute_pyramid_match_weights();
+    void top_pyramid_match_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results);
     //template <class Archive, typename P, size_t C> friend void serialize(Archive& archive, vocabulary_tree<P, C>& vt);
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);
