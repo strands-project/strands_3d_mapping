@@ -10,9 +10,12 @@
 class object_retrieval
 {
 public:
+    //const int N = 131;
+    static const int N = 1344;
+
     using PointT = pcl::PointXYZRGB;
     using CloudT = pcl::PointCloud<PointT>;
-    using HistT = pcl::Histogram<131>;
+    using HistT = pcl::Histogram<N>;
     using HistCloudT = pcl::PointCloud<HistT>;
     using NormalT = pcl::Normal;
     using NormalCloudT = pcl::PointCloud<NormalT>;
@@ -32,9 +35,9 @@ public:
     void read_vocabulary(vocabulary_tree<HistT, 8>& vt);
     float calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,
                                CloudT::Ptr& cloud2, const Eigen::Matrix3f& K2);
-    void compute_segments(std::vector<CloudT::Ptr>& sweeps, std::vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files);
+    size_t compute_segments(std::vector<CloudT::Ptr>& sweeps, std::vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files, size_t i = 0);
     void process_segments();
-    void query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query);
+    void query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query = false);
 
     void save_features(HistCloudT::Ptr& features, std::vector<int>& indices);
     bool load_features(HistCloudT::Ptr& features, std::vector<int>& indices);

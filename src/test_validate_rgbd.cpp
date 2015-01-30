@@ -228,7 +228,7 @@ int main(int argc, char** argv)
 
         // query for similar objects
         vector<index_score> scores;
-        obr.query_vocabulary(scores, i, 20);
+        obr.query_vocabulary(scores, i, 20, false);
 
         // read necessary information
         vector<CloudT::Ptr> segments;

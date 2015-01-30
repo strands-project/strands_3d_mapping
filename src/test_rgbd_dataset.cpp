@@ -18,6 +18,7 @@ using HistT = pcl::Histogram<131>;
 using HistCloudT = pcl::PointCloud<HistT>;
 using NormalT = pcl::Normal;
 using NormalCloudT = pcl::PointCloud<NormalT>;
+using index_score = object_retrieval::index_score;
 
 // RGB-D camera constants
 //center = [320 240];
@@ -123,7 +124,8 @@ int main(int argc, char** argv)
     object_retrieval obr("/home/nbore/Data/rgbd-scenes/object_segments");
     //obr.compute_segments(clouds, intrinsics, files);
     obr.process_segments();
-    //obr.query_vocabulary(34);
+    vector<index_score> scores;
+    //obr.query_vocabulary(scores, 34, 20, true);
 
     return 0;
 }

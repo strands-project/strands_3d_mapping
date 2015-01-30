@@ -3,7 +3,7 @@ project(object_3d_retrieval)
 
 add_definitions(-std=c++11 -O4)
 
-find_package(PCL 1.6 REQUIRED COMPONENTS common io search visualization surface kdtree features surface segmentation octree filter)
+find_package(PCL 1.6 REQUIRED COMPONENTS common io search visualization surface kdtree features surface segmentation octree filter keypoints)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
@@ -53,6 +53,9 @@ target_link_libraries(test_rgbd_dataset object_retrieval ${OpenCV_LIBS} ${PCL_LI
 
 add_executable(test_validate_rgbd src/test_validate_rgbd.cpp)
 target_link_libraries(test_validate_rgbd object_retrieval ${PCL_LIBRARIES})
+
+add_executable(test_instances src/test_instances.cpp)
+target_link_libraries(test_instances object_retrieval metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
 

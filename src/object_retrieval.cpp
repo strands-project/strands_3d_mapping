@@ -177,7 +177,7 @@ float object_retrieval::calculate_similarity(CloudT::Ptr& cloud1, const Eigen::M
 }
 
 //void object_retrieval::compute_segments()
-void object_retrieval::compute_segments(vector<CloudT::Ptr>& sweeps, vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files)
+size_t object_retrieval::compute_segments(vector<CloudT::Ptr>& sweeps, vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files, size_t i)
 {
     //vector<CloudT::Ptr> sweeps;
     //vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> > intrinsics;
@@ -190,7 +190,7 @@ void object_retrieval::compute_segments(vector<CloudT::Ptr>& sweeps, vector<Eige
 
     //size_t max_segments = 5;
     size_t counter = 0;
-    size_t i = 0;
+    //size_t i = 0;
     for (CloudT::Ptr cloud : sweeps) {
         /*if (counter >= max_segments) {
             break;
@@ -220,6 +220,7 @@ void object_retrieval::compute_segments(vector<CloudT::Ptr>& sweeps, vector<Eige
     }
 
     //write_segments(segments, normals, hd_segments,  intrinsics[0], segment_files);
+    return i;
 }
 
 void object_retrieval::process_segments()
@@ -259,8 +260,11 @@ void object_retrieval::process_segments()
     write_vocabulary(vt1);
 }
 
-void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query)
+void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query)
 {
+    static HistCloudT::Ptr features(new HistCloudT);
+    static vector<int> indices;
+
     //vocabulary_tree<HistT, 8> vt;
     HistCloudT::Ptr query_cloud(new HistCloudT);
     CloudT::Ptr segment(new CloudT);
@@ -304,8 +308,31 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
         eig(h).normalize();
     }
 
+    if (true) {
+        if (indices.empty() || features->empty()) {
+            if (!load_features(features, indices)) {
+                exit(0);
+            }
+        }
+        vt.set_input_cloud(features, indices);
+        vt.compute_pyramid_match_weights();
+        vt.top_pyramid_match_similarities(scores, query_cloud, nbr_query);
+        return;
+    }
+
     //vector<index_score> scores;
     vt.top_similarities(scores, query_cloud, nbr_query);
+
+    if (visualize_query) {
+        for (index_score s : scores) {
+            cout << "Index: " << s.first << " with score: " << s.second << endl;
+            if (!read_segment(segment, normal, hd_segment, K, metadata, s.first)) {
+                cout << "Error reading segment!" << endl;
+                exit(0);
+            }
+            visualize_cloud(hd_segment);
+        }
+    }
 
     // don't register right now
     /*for (index_score s : scores) {
@@ -314,9 +341,9 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
             cout << "Error reading segment!" << endl;
             exit(0);
         }
-        float similarity = calculate_similarity(query_segment, query_K, hd_segment, K);
-        cout << "Shape similarity: " << similarity << endl;
-        //visualize_cloud(hd_segment);
+        //float similarity = calculate_similarity(query_segment, query_K, hd_segment, K);
+        //cout << "Shape similarity: " << similarity << endl;
+        visualize_cloud(hd_segment);
     }*/
 }
 
@@ -326,8 +353,8 @@ void serialize(Archive& archive, object_retrieval::HistT& m)
     archive(m.histogram);
 }*/
 
-POINT_CLOUD_REGISTER_POINT_STRUCT (Histogram<131>,
-                                   (float[131], histogram, histogram)
+POINT_CLOUD_REGISTER_POINT_STRUCT (object_retrieval::HistT,
+                                   (float[object_retrieval::N], histogram, histogram)
 )
 
 void object_retrieval::save_features(HistCloudT::Ptr& features, std::vector<int>& indices)
