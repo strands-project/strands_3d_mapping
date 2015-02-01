@@ -181,13 +181,21 @@ void get_room_from_xml(vector<CloudT::Ptr>& clouds,
 
 int main(int argc, char** argv)
 {
+    //int i = 12022; // cereal box
+    //int i = 2966; // graphics box
+    //int i = 4855; // kinect box
+    int i = 1498; // paper clips box
+    if (argc >= 2) {
+        i = atoi(argv[1]);
+    }
+
     using entity = SimpleSummaryParser::EntityStruct;
     string root_path = "/home/nbore/Data/Instances/";
     string segments_path = root_path + "object_segments";
     vector<entity> entities;
-    get_rooms(entities, root_path);
+    //get_rooms(entities, root_path);
     object_retrieval obr(segments_path);
-    int counter;
+    /*int counter;
     size_t current_save = 0;
     for (entity room : entities) {
         vector<CloudT::Ptr> clouds;
@@ -203,5 +211,11 @@ int main(int argc, char** argv)
 
         current_save = obr.compute_segments(clouds, intrinsics, files, current_save);
         ++counter;
-    }
+    }*/
+
+    //obr.process_segments_incremental();
+    //obr.train_vocabulary_incremental(5000);
+
+    vector<index_score> scores;
+    obr.query_vocabulary(scores, i, 50, true);
 }

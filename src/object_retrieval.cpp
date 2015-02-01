@@ -55,6 +55,23 @@ void object_retrieval::extract_features(vector<int>& inds, HistCloudT::Ptr& feat
     }
 }
 
+void object_retrieval::extract_feature(vector<int>& inds, HistCloudT::Ptr& feature, CloudT::Ptr& segment,
+                                       NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, const Eigen::Matrix3f& K, int ind)
+{
+    //int counter = 0;
+    //for (size_t i = 0; i < segments.size(); ++i) {
+    segment_features sf(K, false);
+    //HistCloudT::Ptr featuresi(new HistCloudT);
+    Eigen::VectorXf globalf;
+    sf.calculate_features(globalf, feature, segment, normal, hd_segment);
+    for (size_t j = 0; j < feature->size(); ++j) {
+        inds.push_back(ind);
+    }
+    //features->insert(features->end(), featuresi->begin(), featuresi->end());
+    //++counter;
+    //}
+}
+
 void object_retrieval::get_query_cloud(HistCloudT::Ptr& query_cloud, CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K)
 {
     segment_features sf(K, false);
@@ -102,17 +119,23 @@ void object_retrieval::read_segments(vector<CloudT::Ptr>& segments, vector<Norma
         if (!boost::filesystem::is_directory(sub_dir)) {
             break;
         }
+        //cout << __FILE__ << ", " << __LINE__ << endl;
         segments.push_back(CloudT::Ptr(new CloudT));
+        //cout << __FILE__ << ", " << __LINE__ << endl;
         normals.push_back(NormalCloudT::Ptr(new NormalCloudT));
+        //cout << __FILE__ << ", " << __LINE__ << endl;
         hd_segments.push_back(CloudT::Ptr(new CloudT));
         if (pcl::io::loadPCDFile<PointT>(sub_dir.string() + "/segment.pcd", *segments[i]) == -1) exit(0);
+        //cout << __FILE__ << ", " << __LINE__ << endl;
         if (pcl::io::loadPCDFile<NormalT>(sub_dir.string() + "/normals.pcd", *normals[i]) == -1) exit(0);
+        //cout << __FILE__ << ", " << __LINE__ << endl;
         if (pcl::io::loadPCDFile<PointT>(sub_dir.string() + "/hd_segment.pcd", *hd_segments[i]) == -1) exit(0);
         {
             ifstream in(sub_dir.string() + "/K.cereal", std::ios::binary);
             cereal::BinaryInputArchive archive_i(in);
             archive_i(K); // Is reading of the K matrix slowing this down?
         }
+        //cout << __FILE__ << ", " << __LINE__ << endl;
     }
 }
 
@@ -260,6 +283,101 @@ void object_retrieval::process_segments()
     write_vocabulary(vt1);
 }
 
+void object_retrieval::process_segments_incremental()
+{
+    //HistCloudT::Ptr features(new HistCloudT);
+    //vector<int> indices;
+
+    //if (!load_features(features, indices)) {
+
+        for (size_t i = 15139; ; ++i) { // remember to put this back to zero
+            CloudT::Ptr segment(new CloudT);
+            NormalCloudT::Ptr normal(new NormalCloudT);
+            CloudT::Ptr hd_segment(new CloudT);
+            Eigen::Matrix3f K;
+            string metadata;
+            if (!read_segment(segment, normal, hd_segment, K, metadata, i)) {
+                break;
+            }
+
+            HistCloudT::Ptr features_i(new HistCloudT);
+            vector<int> indices_i;
+            extract_feature(indices_i, features_i, segment, normal, hd_segment, K, i);
+
+            //features->insert(features->end(), features_i->begin(), features_i->end());
+            //indices.insert(indices.end(), indices_i.begin(), indices_i.end());
+
+            save_features_for_segment(features_i, i);
+        }
+
+        //save_features(features, indices);
+    //}
+
+    /*for (int i : indices) cout << i << " "; cout << endl;
+
+    for (HistT& h : features->points) {
+        eig(h).normalize();
+    }
+
+    vocabulary_tree<HistT, 8> vt1;
+    vt1.set_input_cloud(features, indices);
+    vt1.add_points_from_input_cloud();
+
+    write_vocabulary(vt1);*/
+}
+
+void object_retrieval::train_vocabulary_incremental(int max_segments)
+{
+
+    vocabulary_tree<HistT, 8> vt1;
+    size_t counter = 0;
+    bool are_done = false;
+
+    {
+        HistCloudT::Ptr features(new HistCloudT);
+        vector<int> indices;
+
+        for (size_t i = 0; i < max_segments; ++i) {
+             HistCloudT::Ptr features_i(new HistCloudT);
+             if (!load_features_for_segment(features_i, counter)) {
+                 are_done = true;
+                 break;
+             }
+             features->insert(features->end(), features_i->begin(), features_i->end());
+             for (size_t j = 0; j < features_i->size(); ++j) {
+                 indices.push_back(counter);
+             }
+             ++counter;
+        }
+
+        vt1.set_input_cloud(features, indices);
+        vt1.add_points_from_input_cloud();
+    }
+
+
+    while (!are_done) {
+        HistCloudT::Ptr features(new HistCloudT);
+        vector<int> indices;
+
+        for (size_t i = 0; i < max_segments; ++i) {
+            HistCloudT::Ptr features_i(new HistCloudT);
+            if (!load_features_for_segment(features_i, counter)) {
+                are_done = true;
+                break;
+            }
+            features->insert(features->end(), features_i->begin(), features_i->end());
+            for (size_t j = 0; j < features_i->size(); ++j) {
+                indices.push_back(counter);
+            }
+            ++counter;
+        }
+
+        vt1.append_cloud(features, indices, false);
+    }
+
+    write_vocabulary(vt1);
+}
+
 void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query)
 {
     static HistCloudT::Ptr features(new HistCloudT);
@@ -308,7 +426,7 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
         eig(h).normalize();
     }
 
-    if (true) {
+    /*if (true) {
         if (indices.empty() || features->empty()) {
             if (!load_features(features, indices)) {
                 exit(0);
@@ -318,7 +436,7 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
         vt.compute_pyramid_match_weights();
         vt.top_pyramid_match_similarities(scores, query_cloud, nbr_query);
         return;
-    }
+    }*/
 
     //vector<index_score> scores;
     vt.top_similarities(scores, query_cloud, nbr_query);
@@ -384,4 +502,25 @@ bool object_retrieval::load_features(HistCloudT::Ptr& features, std::vector<int>
         archive_i(indices);
     }
     return (pcl::io::loadPCDFile<HistT>(features_file.string(), *features) != -1);
+}
+
+void object_retrieval::save_features_for_segment(HistCloudT::Ptr& features, int i)
+{
+    if (features->empty()) {
+        HistT p;
+        for (size_t j = 0; j < N; ++j) {
+            p.histogram[j] = std::numeric_limits<float>::quiet_NaN();
+        }
+        features->push_back(p);
+    }
+    boost::filesystem::path base_dir = segment_path;
+    std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/features.pcd";
+    pcl::io::savePCDFileBinary(features_file, *features);
+}
+
+bool object_retrieval::load_features_for_segment(HistCloudT::Ptr& features, int i)
+{
+    boost::filesystem::path base_dir = segment_path;
+    std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/features.pcd";
+    return (pcl::io::loadPCDFile<HistT>(features_file, *features) != -1);
 }

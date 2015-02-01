@@ -27,6 +27,8 @@ public:
     void visualize_cloud(CloudT::Ptr& cloud);
     void extract_features(std::vector<int>& inds, HistCloudT::Ptr& features, std::vector<CloudT::Ptr>& segments,
                           std::vector<NormalCloudT::Ptr>& normals, std::vector<CloudT::Ptr>& hd_segments, const Eigen::Matrix3f& K);
+    void extract_feature(vector<int>& inds, HistCloudT::Ptr& feature, CloudT::Ptr& segment,
+                         NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, const Eigen::Matrix3f& K, int ind);
     void get_query_cloud(HistCloudT::Ptr& query_cloud, CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K);
     size_t write_segments(std::vector<CloudT::Ptr>& segments, std::vector<NormalCloudT::Ptr>& normals, std::vector<CloudT::Ptr>& hd_segments,  const Eigen::Matrix3f& K, vector<string>& files, size_t istart);
     void read_segments(std::vector<CloudT::Ptr>& segments, std::vector<NormalCloudT::Ptr>& normals, std::vector<CloudT::Ptr>& hd_segments,  Eigen::Matrix3f& K, size_t max_segments);
@@ -37,10 +39,14 @@ public:
                                CloudT::Ptr& cloud2, const Eigen::Matrix3f& K2);
     size_t compute_segments(std::vector<CloudT::Ptr>& sweeps, std::vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files, size_t i = 0);
     void process_segments();
+    void process_segments_incremental();
+    void train_vocabulary_incremental(int max_segments);
     void query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query = false);
 
     void save_features(HistCloudT::Ptr& features, std::vector<int>& indices);
     bool load_features(HistCloudT::Ptr& features, std::vector<int>& indices);
+    void save_features_for_segment(HistCloudT::Ptr& features, int i);
+    bool load_features_for_segment(HistCloudT::Ptr& features, int i);
 
     object_retrieval(const std::string& segment_path);
 };
