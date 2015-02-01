@@ -154,6 +154,7 @@ protected:
     node root;
     size_t depth;
     std::vector<leaf*> leaves;
+    size_t inserted_points;
 
 protected:
 
@@ -168,6 +169,7 @@ protected:
     void append_leaves(node* n);
     bool compare_centroids(const Eigen::Matrix<float, rows, dim>& centroids,
                            const Eigen::Matrix<float, rows, dim>& last_centroids) const;
+    void assign_extra(CloudPtrT& subcloud, node *n, const std::vector<int>& subinds);
 
 public:
 
@@ -181,6 +183,7 @@ public:
         pcl::removeNaNFromPointCloud(*new_cloud, *cloud, dummy);*/
         cloud = new_cloud;
     }
+    void append_cloud(CloudPtrT& extra_cloud, bool store_points = true);
 
     size_t size() const { return cloud->size(); }
     CloudPtrT get_cloud() { return cloud; }
@@ -194,7 +197,7 @@ public:
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);
 
-    k_means_tree(size_t depth = 5) : depth(depth) {}
+    k_means_tree(size_t depth = 5) : depth(depth), inserted_points(0) {}
     virtual ~k_means_tree() { leaves.clear(); }
 
 };

@@ -47,6 +47,25 @@ void vocabulary_tree<Point, K>::set_input_cloud(CloudPtrT& new_cloud, std::vecto
 }
 
 template <typename Point, size_t K>
+void vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vector<int>& extra_indices, bool store_points)
+{
+    Eigen::Matrix<float, super::rows, 1> p;
+    CloudPtrT temp_cloud(new CloudT);
+    temp_cloud->reserve(extra_cloud->size());
+    indices.reserve(indices.size()+extra_indices.size());
+    for (size_t i = 0; i < extra_cloud->size(); ++i) {
+        p = eig(extra_cloud->at(i));
+        if (std::find_if(p.data(), p.data()+super::rows, [] (float f) {
+            return std::isnan(f);
+        }) == p.data()+super::rows) {
+            temp_cloud->push_back(extra_cloud->at(i));
+            indices.push_back(extra_indices[i]);
+        }
+    }
+    super::append_cloud(temp_cloud, store_points);
+}
+
+template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::add_points_from_input_cloud()
 {
     // speed this up if possible!

@@ -46,6 +46,64 @@ void k_means_tree<Point, K, Data>::add_points_from_input_cloud()
         inds[i] = i;
     }
     root.range = assign_nodes(cloud, root.children, 0, inds);
+    inserted_points = cloud->size();
+}
+
+template <typename Point, size_t K, typename Data>
+void k_means_tree<Point, K, Data>::append_cloud(CloudPtrT& extra_cloud, bool store_points)
+{
+    vector<int> inds(extra_cloud->size());
+    for (size_t i = 0; i < extra_cloud->size(); ++i) {
+        inds[i] = inserted_points + i;
+    }
+    if (store_points) {
+        cloud->insert(cloud->end(), extra_cloud->begin(), extra_cloud->end());
+    }
+    assign_extra(extra_cloud, &root, inds);
+    inserted_points += extra_cloud->size();
+}
+
+template <typename Point, size_t K, typename Data>
+void k_means_tree<Point, K, Data>::assign_extra(CloudPtrT& subcloud, node* n, const vector<int>& subinds)
+{
+    std::cout << subcloud->size() << std::endl;
+
+    Eigen::Matrix<float, rows, dim> centroids;
+    Eigen::Matrix<float, 1, dim> distances;
+    for (size_t i = 0; i < dim; ++i) {
+        centroids.col(i) = eig(n->children[i]->centroid);
+    }
+
+    std::vector<int> clusters[dim];
+
+    PointT p;
+    for (int ind = 0; ind < subcloud->size(); ++ind) {
+        p = subcloud->at(ind);
+        int closest;
+        distances = eig(p).transpose()*centroids;
+        distances.maxCoeff(&closest);
+        clusters[closest].push_back(ind);
+    }
+
+    for (size_t i = 0; i < dim; ++i) {
+        node* c = n->children[i];
+        if (c->is_leaf) {
+            leaf* l = static_cast<leaf*>(c);
+            l->inds.reserve(l->inds.size() + clusters[i].size());
+            for (size_t j = 0; j < clusters[i].size(); ++j) {
+                l->inds.push_back(subinds[clusters[i][j]]);
+            }
+            continue;
+        }
+        CloudPtrT childcloud(new CloudT);
+        childcloud->resize(clusters[i].size());
+        vector<int> childinds(clusters[i].size());
+        for (size_t j = 0; j < clusters[i].size(); ++j) {
+            childcloud->at(j) = subcloud->at(clusters[i][j]);
+            childinds[j] = subinds[clusters[i][j]];
+        }
+        assign_extra(childcloud, c, childinds);
+    }
 }
 
 template <typename Point, size_t K, typename Data>
