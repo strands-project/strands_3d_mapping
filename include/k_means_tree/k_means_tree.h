@@ -185,7 +185,7 @@ public:
     }
     void append_cloud(CloudPtrT& extra_cloud, bool store_points = true);
 
-    size_t size() const { return cloud->size(); }
+    size_t size() const { return inserted_points; }
     CloudPtrT get_cloud() { return cloud; }
 
     void add_points_from_input_cloud();

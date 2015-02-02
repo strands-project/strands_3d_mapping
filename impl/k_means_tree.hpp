@@ -529,6 +529,7 @@ template <class Archive>
 void k_means_tree<Point, K, Data>::save(Archive& archive) const
 {
     archive(depth);
+    archive(inserted_points);
     archive(root);
 }
 
@@ -537,6 +538,7 @@ template <class Archive>
 void k_means_tree<Point, K, Data>::load(Archive& archive)
 {
     archive(depth);
+    archive(inserted_points); // this will not work for older file types
     archive(root);
     append_leaves(&root);
 }

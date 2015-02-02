@@ -12,7 +12,7 @@
  */
 
 struct inverted_file {
-    std::map<int, int> source_id_freqs;
+    std::map<int, int> source_id_freqs; // change this to uint32_t, uint32_t
     template <class Archive> void serialize(Archive& archive)
     {
         archive(source_id_freqs);
@@ -36,7 +36,7 @@ public:
 
 protected:
 
-    std::vector<int> indices; // the source indices of the points (image ids of features)
+    std::vector<int> indices; // the source indices of the points (image ids of features), change this to uint32_t
     //std::vector<int> distance_transform; // for computing m_i
     std::map<int, double> db_vector_normalizing_constants; // normalizing constants for the p vectors
     double N; // number of sources (images) in database
