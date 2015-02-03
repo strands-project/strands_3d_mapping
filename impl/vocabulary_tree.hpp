@@ -63,6 +63,31 @@ void vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vector<int>
         }
     }
     super::append_cloud(temp_cloud, store_points);
+
+    for (leaf* l : super::leaves) {
+        l->data->source_id_freqs.clear();
+        for (int ind : l->inds) {
+            int source_id = indices[ind];
+            if (l->data->source_id_freqs.count(source_id) == 1) {
+                l->data->source_id_freqs.at(source_id) += 1;
+            }
+            else {
+                l->data->source_id_freqs.insert(std::make_pair(source_id, int(1)));
+            }
+        }
+    }
+
+    // maybe put this code directly in compute_normalizing_constants
+    db_vector_normalizing_constants.clear();
+    std::vector<int> temp = indices;
+    std::unique(temp.begin(), temp.end());
+    N = temp.size();
+    for (int i : temp) {
+        db_vector_normalizing_constants.insert(std::make_pair(i, 0));
+    }
+
+    // we really only need to compute them for the new indices
+    compute_normalizing_constants();
 }
 
 template <typename Point, size_t K>
@@ -189,29 +214,29 @@ void vocabulary_tree<Point, K>::top_similarities(std::vector<cloud_idx_score>& s
         qkr = proot(qk);
     }
 
-    for (PointT p : query_cloud->points) {
+    /*for (PointT p : query_cloud->points) {
         std::cout << eig(p).transpose() << std::endl;
-    }
+    }*/
 
-    std::cout << "Number of features: " << query_cloud->size() << std::endl;
-    std::cout << "Number of intersecting nodes: " << query_id_freqs.size() << std::endl;
-    for (std::pair<node* const, double>& v : query_id_freqs) {
+    //std::cout << "Number of features: " << query_cloud->size() << std::endl;
+    //std::cout << "Number of intersecting nodes: " << query_id_freqs.size() << std::endl;
+    /*for (std::pair<node* const, double>& v : query_id_freqs) {
         if (v.first->is_leaf) {
             std::cout << "leaf: ";
         }
         std::cout << "with leaves: " << (v.first->range.second-v.first->range.first) << ", occurrences: " << v.second << " " << std::endl;
-    }
+    }*/
 
-    int nodes_not_present = 0;
+    //int nodes_not_present = 0;
     int counter = 0;
     for (std::pair<node* const, double>& v : query_id_freqs) {
         double qi = v.second/qkr;
         std::map<int, int> source_id_freqs;
         source_freqs_for_node(source_id_freqs, v.first);
-        if (source_id_freqs.count(34) == 0) {
+        /*if (source_id_freqs.count(34) == 0) {
             std::cout << "Not present in: " << counter << " with " << source_id_freqs.size() << " leaves" << std::endl;
             ++nodes_not_present;
-        }
+        }*/
         for (std::pair<const int, int>& u : source_id_freqs) {
             if (normalized) {
                 pk = db_vector_normalizing_constants.at(u.first); // 1.0f for not normalized
@@ -230,7 +255,7 @@ void vocabulary_tree<Point, K>::top_similarities(std::vector<cloud_idx_score>& s
         ++counter;
     }
 
-    std::cout << "34 not present in: " << nodes_not_present << " groups" << std::endl;
+    //std::cout << "34 not present in: " << nodes_not_present << " groups" << std::endl;
 
     // this could probably be optimized a bit also, quite big copy operattion
     scores.insert(scores.end(), map_scores.begin(), map_scores.end());
@@ -240,8 +265,8 @@ void vocabulary_tree<Point, K>::top_similarities(std::vector<cloud_idx_score>& s
 
     scores.resize(nbr_results);
 
-    std::cout << "q norm: " << qnorm << std::endl;
-    std::cout << "p norm: " << db_vector_normalizing_constants.at(scores[0].first) << std::endl;
+    //std::cout << "q norm: " << qnorm << std::endl;
+    //std::cout << "p norm: " << db_vector_normalizing_constants.at(scores[0].first) << std::endl;
 }
 
 template <typename Point, size_t K>

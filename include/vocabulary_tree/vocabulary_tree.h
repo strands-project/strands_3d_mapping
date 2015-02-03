@@ -58,6 +58,7 @@ protected:
 public:
 
     bool empty() const { return indices.empty(); }
+    int max_ind() const { return *(std::max_element(indices.begin(), indices.end())) + 1; }
     void set_input_cloud(CloudPtrT& new_cloud, std::vector<int>& new_indices);
     void append_cloud(CloudPtrT& extra_cloud, std::vector<int>& extra_indices, bool store_points = true);
     void add_points_from_input_cloud();
