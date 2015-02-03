@@ -169,7 +169,7 @@ public:
                         if (!clusterAdded)
                         {
                             // only add this cluster if it's occluded by a large enough cluster
-                            if ((*metaRoomClusterIterator)->points.size() > 0.5 * differenceRoomToMetaRoomClusters[i]->points.size())
+//                            if ((*metaRoomClusterIterator)->points.size() > 0.5 * differenceRoomToMetaRoomClusters[i]->points.size())
                             {
 //                                ROS_INFO_STREAM("Found a cluster that needs to be added to the metaroom, no points "<<differenceRoomToMetaRoomClusters[i]->points.size());
                                 toBeAdded.push_back(differenceRoomToMetaRoomClusters[i]);                                

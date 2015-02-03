@@ -366,47 +366,50 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         *differenceRoomToMetaRoomFiltered = *differenceRoomToMetaRoom;
         *differenceMetaRoomToRoomFiltered = *differenceMetaRoomToRoom;
 
+        CloudPtr toBeAdded(new Cloud());
+        CloudPtr toBeRemoved(new Cloud());
+
         // Cluster objects
-//        std::vector<CloudPtr> vDifferenceMetaRoomToRoomClusters = this->clusterPointCloud(differenceMetaRoomToRoomFiltered,0.05,65,100000);
-//        std::vector<CloudPtr> vDifferenceRoomToMetaRoomClusters = this->clusterPointCloud(differenceRoomToMetaRoomFiltered,0.05,65,100000);
+        std::vector<CloudPtr> vDifferenceMetaRoomToRoomClusters = this->clusterPointCloud(differenceMetaRoomToRoomFiltered,0.05,65,100000);
+        std::vector<CloudPtr> vDifferenceRoomToMetaRoomClusters = this->clusterPointCloud(differenceRoomToMetaRoomFiltered,0.05,65,100000);
 
 
-//        // filter clusters based on distance
+        // filter clusters based on distance
 //        double maxDistance = 3.0; // max of 3 meters
 //        this->filterClustersBasedOnDistance(vDifferenceRoomToMetaRoomClusters, maxDistance);
 //        this->filterClustersBasedOnDistance(vDifferenceMetaRoomToRoomClusters, maxDistance);
 
-//        // check cluster occlusions
+        // check cluster occlusions
 //        OcclusionChecker<PointType> occlusionChecker;
 //        occlusionChecker.setSensorOrigin(m_SensorOrigin);
-//        std::vector<CloudPtr> clustersToBeAdded = occlusionChecker.checkOcclusions(vDifferenceMetaRoomToRoomClusters, vDifferenceRoomToMetaRoomClusters);
+//        std::vector<CloudPtr> clustersToBeAdded = occlusionChecker.checkOcclusions(vDifferenceMetaRoomToRoomClusters, vDifferenceRoomToMetaRoomClusters, 720);
 //        ROS_INFO_STREAM("Finished checking occlusions.");
 
 //        // add all the clusters together for subtraction
 //        int pointsAdded =0, pointsRemoved = 0;
-//        CloudPtr allClusters(new Cloud());
+
 //        for (size_t i=0; i<vDifferenceMetaRoomToRoomClusters.size();i++)
 //        {
-//            *allClusters += *vDifferenceMetaRoomToRoomClusters[i];
+//            *toBeRemoved += *vDifferenceMetaRoomToRoomClusters[i];
 //            pointsRemoved += vDifferenceMetaRoomToRoomClusters[i]->points.size();
 //        }
 
 //        // update metaroom by subracting the difference to the room
 //        CloudPtr updatedMetaRoomCloud(new Cloud());
 //        segment.setInputCloud(this->getInteriorRoomCloud());
-//        segment.setTargetCloud(allClusters);
+//        segment.setTargetCloud(toBeRemoved);
 //        segment.segment(*updatedMetaRoomCloud);
 
-//        CloudPtr cloudToBeAdded(new Cloud());
+
 //        // add ocluded clusters from the room
 //        for (size_t i=0; i<clustersToBeAdded.size(); i++)
 //        {
-//            *cloudToBeAdded += *clustersToBeAdded[i];
+//            *toBeAdded += *clustersToBeAdded[i];
 //            pointsAdded += clustersToBeAdded[i]->points.size();
 //        }
-//        *updatedMetaRoomCloud += *cloudToBeAdded;
+//        *updatedMetaRoomCloud += *toBeAdded;
 
-        //        ROS_INFO_STREAM("Metaroom update. Points removed: "<<pointsRemoved<<"   Points added: "<<pointsAdded);
+//        ROS_INFO_STREAM("Metaroom update. Points removed: "<<pointsRemoved<<"   Points added: "<<pointsAdded);
 
         MetaRoomUpdateIteration<PointType> updateIteration;
         updateIteration.roomLogName = aRoom.getRoomLogName();
@@ -419,35 +422,60 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         updateIteration.setDifferenceRoomToMetaRoom(differenceRoomToMetaRoomFiltered);
         }
 
+//        // Combine clusters into difference point cloud
+//        CloudPtr combinedDifferenceMRtoR(new Cloud());
+//        CloudPtr combinedDifferenceRtoMR(new Cloud());
+//        for (size_t i=0; i<vDifferenceMetaRoomToRoomClusters.size();i++)
+//        {
+//            *combinedDifferenceMRtoR += *vDifferenceMetaRoomToRoomClusters[i];
+//        }
+//        for (size_t i=0; i<vDifferenceRoomToMetaRoomClusters.size();i++)
+//        {
+//            *combinedDifferenceRtoMR += *vDifferenceRoomToMetaRoomClusters[i];
+//        }
 
         OcclusionChecker<PointType> occlusionChecker;
         occlusionChecker.setSensorOrigin(m_SensorOrigin);
         typename OcclusionChecker<PointType>::occluded_points occlusions;
         occlusions = occlusionChecker.checkOcclusions(differenceMetaRoomToRoom,differenceRoomToMetaRoom, 720 );
+//        occlusions = occlusionChecker.checkOcclusions(combinedDifferenceMRtoR,combinedDifferenceRtoMR, 720 );
+        *toBeAdded = *occlusions.toBeAdded;
+        *toBeRemoved = *occlusions.toBeRemoved;
 
-        if ((occlusions.toBeRemoved->points.size() > 0.1*this->getInteriorRoomCloud()->points.size()) ||
-                (occlusions.toBeAdded->points.size() > 0.1*this->getInteriorRoomCloud()->points.size()))
+//        if ((toBeRemoved->points.size() > 0.1*this->getInteriorRoomCloud()->points.size()) ||
+//                (toBeAdded->points.size() > 0.1*this->getInteriorRoomCloud()->points.size()))
+//        {
+//            ROS_INFO_STREAM("Metaroom update. Points removed: "<<toBeRemoved->points.size()<<"   Points added: "<<toBeAdded->points.size()<<" Skipping this observations as it would add/remove too many points. Something may have gone wrong.");
+//            this->setInteriorRoomCloud(this->getInteriorRoomCloud());
+//            return updateIteration;
+//        } else
         {
-            ROS_INFO_STREAM("Metaroom update. Points removed: "<<occlusions.toBeRemoved->points.size()<<"   Points added: "<<occlusions.toBeAdded->points.size()<<" Skipping this observations as it would add/remove too many points. Something may have gone wrong.");
-            this->setInteriorRoomCloud(this->getInteriorRoomCloud());
-            return updateIteration;
-        } else {
             CloudPtr updatedMetaRoomCloud(new Cloud());
             segment.setInputCloud(this->getInteriorRoomCloud());
-            segment.setTargetCloud(occlusions.toBeRemoved);
+            segment.setTargetCloud(toBeRemoved);
             segment.segment(*updatedMetaRoomCloud);
-            if (occlusions.toBeAdded->points.size()){
-                *updatedMetaRoomCloud += *occlusions.toBeAdded;
+            if (toBeAdded->points.size()){
+                *updatedMetaRoomCloud += *toBeAdded;
             }
-            ROS_INFO_STREAM("Metaroom update. Points removed: "<<occlusions.toBeRemoved->points.size()<<"   Points added: "<<occlusions.toBeAdded->points.size());
+//            ROS_INFO_STREAM("Metaroom update. Points removed: "<<toBeRemoved->points.size()<<"   Points added: "<<toBeAdded->points.size());
+//            {
+//                // apply a statistical noise removal filter
+//                CloudPtr updatedMetaRoomCloudFiltered(new Cloud());
+//                pcl::StatisticalOutlierRemoval<PointType> sor;
+//                sor.setInputCloud (updatedMetaRoomCloud);
+//                sor.setMeanK (50);
+//                sor.setStddevMulThresh (10);
+//                sor.filter (*updatedMetaRoomCloudFiltered);
+//                *updatedMetaRoomCloud = *updatedMetaRoomCloudFiltered;
+//            }
 
             this->setInteriorRoomCloud(updatedMetaRoomCloud);
 
-            if (occlusions.toBeAdded->points.size() != 0) {
-            updateIteration.setClustersToBeAdded(occlusions.toBeAdded);
+            if (toBeAdded->points.size() != 0) {
+            updateIteration.setClustersToBeAdded(toBeAdded);
             }
-            if (occlusions.toBeRemoved->points.size() != 0) {
-            updateIteration.setClustersToBeRemoved(occlusions.toBeRemoved);
+            if (toBeRemoved->points.size() != 0) {
+            updateIteration.setClustersToBeRemoved(toBeRemoved);
             }
             updateIteration.setMetaRoomInteriorCloud(updatedMetaRoomCloud);
 

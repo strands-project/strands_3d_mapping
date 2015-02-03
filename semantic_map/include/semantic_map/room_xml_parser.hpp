@@ -319,7 +319,9 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
 
         // RoomIntermediateCloudRegisteredTransform
 
-        if (roomIntermediateCloudTransformsRegistered.size() == roomIntermediateCloudTransforms.size())
+        // TODO: this is not the case as I might be registering only the lower sweep.
+//        if (roomIntermediateCloudTransformsRegistered.size() == roomIntermediateCloudTransforms.size())
+        if (roomIntermediateCloudTransformsRegistered.size() > i)
         {
             saveTfStampedTransfromToXml(roomIntermediateCloudTransformsRegistered[i], xmlWriter, "RoomIntermediateCloudTransformRegistered");
         }
