@@ -57,5 +57,11 @@ target_link_libraries(test_validate_rgbd object_retrieval ${PCL_LIBRARIES})
 add_executable(test_instances src/test_instances.cpp)
 target_link_libraries(test_instances object_retrieval metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(test_metric_map_incremental src/test_metric_map_incremental.cpp)
+target_link_libraries(test_metric_map_incremental object_retrieval metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(test_annotate src/test_annotate.cpp)
+target_link_libraries(test_annotate object_retrieval metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
 

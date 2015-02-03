@@ -163,6 +163,30 @@ bool object_retrieval::read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& nor
     return true;
 }
 
+bool object_retrieval::read_other_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment,
+                                    Eigen::Matrix3f& K, string& metadata, size_t segment_id, const string& other_segment_path)
+{
+    boost::filesystem::path base_dir = other_segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
+    boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(segment_id));
+    cout << "Reading directory " << sub_dir.string() << endl;
+    if (!boost::filesystem::is_directory(sub_dir)) {
+        return false;
+    }
+    if (pcl::io::loadPCDFile<PointT>(sub_dir.string() + "/segment.pcd", *segment) == -1) exit(0);
+    if (pcl::io::loadPCDFile<NormalT>(sub_dir.string() + "/normals.pcd", *normal) == -1) exit(0);
+    if (pcl::io::loadPCDFile<PointT>(sub_dir.string() + "/hd_segment.pcd", *hd_segment) == -1) exit(0);
+    {
+        ifstream in(sub_dir.string() + "/K.cereal", std::ios::binary);
+        cereal::BinaryInputArchive archive_i(in);
+        archive_i(K);
+    }
+    ifstream f;
+    f.open(sub_dir.string() + "/metadata.txt");
+    f >> metadata;
+    f.close();
+    return true;
+}
+
 void object_retrieval::write_vocabulary(vocabulary_tree<HistT, 8>& vt)
 {
     boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
@@ -290,7 +314,7 @@ void object_retrieval::process_segments_incremental()
 
     //if (!load_features(features, indices)) {
 
-        for (size_t i = 15139; ; ++i) { // remember to put this back to zero
+        for (size_t i = 0; ; ++i) { // remember to put this back to zero
             CloudT::Ptr segment(new CloudT);
             NormalCloudT::Ptr normal(new NormalCloudT);
             CloudT::Ptr hd_segment(new CloudT);
@@ -378,7 +402,42 @@ void object_retrieval::train_vocabulary_incremental(int max_segments)
     write_vocabulary(vt1);
 }
 
-void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query)
+int object_retrieval::add_others_to_vocabulary(int max_segments, const std::string& other_segment_path)
+{
+    vocabulary_tree<HistT, 8> vt1;
+    read_vocabulary(vt1);
+    int initial_size = vt1.max_ind();
+
+    size_t counter = 0;
+    bool are_done = false;
+
+    while (!are_done) {
+        HistCloudT::Ptr features(new HistCloudT);
+        vector<int> indices;
+
+        for (size_t i = 0; i < max_segments; ++i) {
+            HistCloudT::Ptr features_i(new HistCloudT);
+            if (!load_features_for_other_segment(features_i, other_segment_path, counter)) {
+                are_done = true;
+                break;
+            }
+            features->insert(features->end(), features_i->begin(), features_i->end());
+            for (size_t j = 0; j < features_i->size(); ++j) {
+                indices.push_back(initial_size + counter);
+            }
+            ++counter;
+        }
+
+        vt1.append_cloud(features, indices, false);
+    }
+
+    write_vocabulary(vt1);
+
+    return initial_size;
+}
+
+void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query,
+                                        int number_original_features, const string& other_segments_path)
 {
     static HistCloudT::Ptr features(new HistCloudT);
     static vector<int> indices;
@@ -417,11 +476,26 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
     cout << __FILE__ << ", " << __LINE__ << endl;
 
     cout << "Querying segment nbr: " << query_ind << endl;
-    if(!read_segment(segment, normal, query_segment, query_K, metadata, query_ind)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
-        cout << "Error reading segment!" << endl;
-        exit(0);
+    if (number_original_features != 0 && query_ind >= number_original_features) {
+        if (!read_other_segment(segment, normal, query_segment, query_K, metadata,
+                                query_ind-number_original_features, other_segments_path)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
+            cout << "Error reading segment!" << endl;
+            exit(0);
+        }
+    }
+    else {
+        if (!read_segment(segment, normal, query_segment, query_K, metadata, query_ind)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
+            cout << "Error reading segment!" << endl;
+            exit(0);
+        }
     }
     get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
+    if (visualize_query) {
+        visualize_cloud(query_segment);
+    }
+    /*if (number_original_features != 0) { // DEBUG
+        load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features);
+    }*/
     for (HistT& h : query_cloud->points) {
         eig(h).normalize();
     }
@@ -444,9 +518,18 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
     if (visualize_query) {
         for (index_score s : scores) {
             cout << "Index: " << s.first << " with score: " << s.second << endl;
-            if (!read_segment(segment, normal, hd_segment, K, metadata, s.first)) {
-                cout << "Error reading segment!" << endl;
-                exit(0);
+            if (number_original_features != 0 && s.first >= number_original_features) {
+                if (!read_other_segment(segment, normal, hd_segment, K, metadata,
+                                        s.first-number_original_features, other_segments_path)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
+                    cout << "Error reading segment!" << endl;
+                    exit(0);
+                }
+            }
+            else {
+                if (!read_segment(segment, normal, hd_segment, K, metadata, s.first)) {
+                    cout << "Error reading segment!" << endl;
+                    exit(0);
+                }
             }
             visualize_cloud(hd_segment);
         }
@@ -522,5 +605,13 @@ bool object_retrieval::load_features_for_segment(HistCloudT::Ptr& features, int 
 {
     boost::filesystem::path base_dir = segment_path;
     std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/features.pcd";
+    return (pcl::io::loadPCDFile<HistT>(features_file, *features) != -1);
+}
+
+bool object_retrieval::load_features_for_other_segment(HistCloudT::Ptr& features, const std::string& other_segment_path, int i)
+{
+    boost::filesystem::path base_dir = other_segment_path;
+    std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/features.pcd";
+    std::cout << "features_file: " << features_file << std::endl;
     return (pcl::io::loadPCDFile<HistT>(features_file, *features) != -1);
 }

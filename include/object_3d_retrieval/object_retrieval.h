@@ -33,6 +33,8 @@ public:
     size_t write_segments(std::vector<CloudT::Ptr>& segments, std::vector<NormalCloudT::Ptr>& normals, std::vector<CloudT::Ptr>& hd_segments,  const Eigen::Matrix3f& K, vector<string>& files, size_t istart);
     void read_segments(std::vector<CloudT::Ptr>& segments, std::vector<NormalCloudT::Ptr>& normals, std::vector<CloudT::Ptr>& hd_segments,  Eigen::Matrix3f& K, size_t max_segments);
     bool read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K, string& metadata, size_t segment_id);
+    bool read_other_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K,
+                            string& metadata, size_t segment_id, const std::string& other_segment_path);
     void write_vocabulary(vocabulary_tree<HistT, 8>& vt);
     void read_vocabulary(vocabulary_tree<HistT, 8>& vt);
     float calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,
@@ -41,12 +43,14 @@ public:
     void process_segments();
     void process_segments_incremental();
     void train_vocabulary_incremental(int max_segments);
-    void query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query = false);
+    void query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query = false, int number_original_features = 0, const string &other_segments_path = "");
 
     void save_features(HistCloudT::Ptr& features, std::vector<int>& indices);
     bool load_features(HistCloudT::Ptr& features, std::vector<int>& indices);
     void save_features_for_segment(HistCloudT::Ptr& features, int i);
     bool load_features_for_segment(HistCloudT::Ptr& features, int i);
+    bool load_features_for_other_segment(HistCloudT::Ptr& features, const std::string& other_segment_path, int i);
+    int add_others_to_vocabulary(int max_segments, const std::string& other_segment_path);
 
     object_retrieval(const std::string& segment_path);
 };
