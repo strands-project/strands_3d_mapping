@@ -24,11 +24,16 @@ class SimpleXMLParser {
 public:
 
 
-    struct IntermediateCloudData{
-        std::string                     filename;
-        tf::StampedTransform            transform;
-        sensor_msgs::CameraInfo         camInfo;
-    };
+   struct IntermediateCloudData{
+       std::string                                filename;
+       tf::StampedTransform                       transform;
+       tf::StampedTransform                       regTransform;
+       sensor_msgs::CameraInfo                    camInfo;
+       image_geometry::PinholeCameraModel         corCamInfo;
+       bool                                       hasRegTransform;
+       bool                                       hasCorCamInfo;
+   };
+
 
     struct IntermediatePositionImages
     {
@@ -45,7 +50,9 @@ public:
 
         std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>                            vIntermediateRoomClouds;
         std::vector<tf::StampedTransform>                                                     vIntermediateRoomCloudTransforms;
+        std::vector<tf::StampedTransform>                                                     vIntermediateRoomCloudTransformsRegistered;
         std::vector<image_geometry::PinholeCameraModel>                                       vIntermediateRoomCloudCamParams;
+        std::vector<image_geometry::PinholeCameraModel>                                       vIntermediateRoomCloudCamParamsCorrected;
         std::vector<cv::Mat>                                                                  vIntermediateRGBImages; // type CV_8UC3
         std::vector<cv::Mat>                                                                  vIntermediateDepthImages; // type CV_16UC1
         boost::shared_ptr<pcl::PointCloud<PointType>>                                         completeRoomCloud;
@@ -209,7 +216,7 @@ public:
                     if (sl_index == -1)
                     {
                         cloudFileName=roomFolder + "/" + cloudFileName;
-                    }
+                    }                                        
 
                     std::ifstream file(cloudFileName.toStdString().c_str());
                     if (file)
@@ -227,6 +234,16 @@ public:
                         std::pair<cv::Mat,cv::Mat> rgbAndDepth = SimpleXMLParser::createRGBandDepthFromPC(cloud);
                         aRoom.vIntermediateRGBImages.push_back(rgbAndDepth.first);
                         aRoom.vIntermediateDepthImages.push_back(rgbAndDepth.second);
+                    }
+
+                    if (intermediateCloudData.hasRegTransform)
+                    {
+                        aRoom.vIntermediateRoomCloudTransformsRegistered.push_back(intermediateCloudData.regTransform);
+                    }
+
+                    if (intermediateCloudData.hasCorCamInfo)
+                    {
+                       aRoom.vIntermediateRoomCloudCamParamsCorrected.push_back(intermediateCloudData.corCamInfo);
                     }
                 }
 
@@ -248,28 +265,34 @@ public:
 
 private:
 
+
     static IntermediateCloudData parseRoomIntermediateCloudNode(QXmlStreamReader& xmlReader, bool verbose = false)
     {
         tf::StampedTransform transform;
         geometry_msgs::TransformStamped tfmsg;
+        tf::StampedTransform regTfmsg;
         sensor_msgs::CameraInfo camInfo;
+        image_geometry::PinholeCameraModel corCamParam;
         bool camInfoError = false;
+        bool regTfmsgError = false;
+        bool corCamParamError = false;
 
         IntermediateCloudData       structToRet;
+        structToRet.hasRegTransform = false;
+
         //        toRet.first = CloudPtr(new Cloud);
         QString intermediateParentNode("");
 
         if (xmlReader.name()!="RoomIntermediateCloud")
         {
             ROS_ERROR("Cannot parse RoomIntermediateCloud node, it has a different name: %s",xmlReader.name().toString().toStdString().c_str());
+            return structToRet;
         }
         QXmlStreamAttributes attributes = xmlReader.attributes();
         if (attributes.hasAttribute("filename"))
         {
             QString roomIntermediateCloudFile = attributes.value("filename").toString();
             structToRet.filename = roomIntermediateCloudFile.toStdString();
-            //            pcl::PCDReader reader;
-            //            reader.read (roomIntermediateCloudFile.toStdString(), *toRet.first);
 
         } else {
             ROS_ERROR("RoomIntermediateCloud xml node does not have filename attribute. Aborting.");
@@ -291,6 +314,16 @@ private:
                 {
                     int nsec = xmlReader.readElementText().toInt();
                     tfmsg.header.stamp.nsec = nsec;
+                }
+                if (xmlReader.name() == "FrameId")
+                {
+                    QString val = xmlReader.readElementText();
+                    tfmsg.header.frame_id = val.toStdString();
+                }
+                if (xmlReader.name() == "ChildFrameId")
+                {
+                    QString val = xmlReader.readElementText();
+                    tfmsg.child_frame_id = val.toStdString();
                 }
                 if (xmlReader.name() == "Translation")
                 {
@@ -341,6 +374,18 @@ private:
                         tfmsg.transform.translation.z = z;
                     }
                 }
+
+                if (xmlReader.name() == "RoomIntermediateCloudTransformRegistered")
+                {
+                    regTfmsg = readTfStampedTransformFromXml(&xmlReader, "RoomIntermediateCloudTransformRegistered", regTfmsgError);
+                }
+
+                if (xmlReader.name() == "RoomIntermediateRoomCameraParametersCorrected")
+                {
+                    corCamParam = readCamParamsFromXml(&xmlReader, "RoomIntermediateRoomCameraParametersCorrected", corCamParamError);
+                }
+
+
 
                 // camera parameters
                 if (xmlReader.name() == "RoomIntermediateCameraParameters")
@@ -474,6 +519,22 @@ private:
         {
             structToRet.camInfo = camInfo;
         }
+        if (!regTfmsgError)
+        {
+            structToRet.regTransform = regTfmsg;
+            structToRet.hasRegTransform = true;
+        } else {
+            structToRet.hasRegTransform = false;
+        }
+
+        if (!corCamParamError)
+        {
+          structToRet.corCamInfo = corCamParam;
+          structToRet.hasCorCamInfo = true;
+        } else {
+          structToRet.hasCorCamInfo = false;
+        }
+
         tf::transformStampedMsgToTF(tfmsg, transform);
         structToRet.transform = transform;
         return structToRet;
@@ -708,6 +769,8 @@ private:
         {
             toRet.fromCameraInfo(camInfo);
         }
+
+        errorReading = camInfoError;
 
         return toRet;
 
