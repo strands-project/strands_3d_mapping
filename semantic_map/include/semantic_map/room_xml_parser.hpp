@@ -329,7 +329,6 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
         std::vector<image_geometry::PinholeCameraModel> roomIntermediateCloudCameraParametersCorrected = aRoom.getIntermediateCloudCameraParametersCorrected();
         if (roomIntermediateCloudCameraParametersCorrected.size() == roomIntermediateCloudCameraParameters.size()) // consistency check
         {
-           ROS_INFO_STREAM("Saving intermediate camera parameters corrected ");
            saveCameraParametersToXML(roomIntermediateCloudCameraParametersCorrected[i], xmlWriter, "RoomIntermediateRoomCameraParametersCorrected");
         }
 
