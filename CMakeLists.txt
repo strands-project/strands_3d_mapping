@@ -63,5 +63,8 @@ target_link_libraries(test_metric_map_incremental object_retrieval metaroom_xml_
 add_executable(test_annotate src/test_annotate.cpp)
 target_link_libraries(test_annotate object_retrieval metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(test_generate_segmentation_image src/test_generate_segmentation_image.cpp)
+target_link_libraries(test_generate_segmentation_image convex_voxel_segmentation metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
 

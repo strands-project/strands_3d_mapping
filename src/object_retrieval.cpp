@@ -489,13 +489,16 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
             exit(0);
         }
     }
-    get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
-    if (visualize_query) {
-        visualize_cloud(query_segment);
-    }
-    /*if (number_original_features != 0) { // DEBUG
+    if (number_original_features != 0) { // DEBUG
         load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features);
-    }*/
+    }
+    else {
+        get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
+        if (visualize_query) {
+            visualize_cloud(query_segment);
+        }
+    }
+
     for (HistT& h : query_cloud->points) {
         eig(h).normalize();
     }

@@ -275,7 +275,7 @@ void convex_voxel_segmentation::segment_pointcloud(PointCloudT::Ptr& cloud,
                         PointNCloudT::Ptr& sv_normal_cloud,
                         pcl::PointCloud<pcl::PointXYZL>::Ptr& labels) const
 {
-    bool use_transform = false;//! pcl::console::find_switch (argc, argv, "--NT");
+    bool use_transform = true; // false this far
 
     float seed_resolution = 0.1f;
     float color_importance = 0.6f;

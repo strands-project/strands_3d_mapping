@@ -95,12 +95,12 @@ void get_room_from_xml(vector<CloudT::Ptr>& clouds,
     cout << "Found " << clouds.size() << " scans looking down far enough" << endl;
 }
 
-float segment_is_correct(CloudT::Ptr& cloud, const Eigen::Matrix3f& K, const string& annotation)
+pair<float, bool> segment_is_correct(CloudT::Ptr& cloud, const Eigen::Matrix3f& K, const string& annotation)
 {
     cout << "annotation: " << annotation << endl;
     // annotation example: cereal_2 full 16 102 78 221 OR null
     if (annotation == "null") {
-        return 0.0f;
+        return make_pair(0.0f, false);
     }
 
     vector<string> strs;
@@ -125,10 +125,10 @@ float segment_is_correct(CloudT::Ptr& cloud, const Eigen::Matrix3f& K, const str
         }
     }
 
-    return float(counter)/float(cloud->size());
+    return make_pair(float(counter)/float(cloud->size()), strs[1] == "full");
 }
 
-bool is_correctly_classified(const string& instance, CloudT::Ptr& segment, const Eigen::Matrix3f& K, const string& segments_path, int i)
+pair<bool, bool> is_correctly_classified(const string& instance, CloudT::Ptr& segment, const Eigen::Matrix3f& K, const string& segments_path, int i)
 {
     string metadata_file = segments_path + "/segment" + to_string(i) + "/metadata.txt";
     string metadata;
@@ -148,7 +148,7 @@ bool is_correctly_classified(const string& instance, CloudT::Ptr& segment, const
     string annotated_instance = boost::filesystem::path(strs[0]).parent_path().parent_path().parent_path().stem().string();
     if (annotated_instance != instance) {
         cout << instance << " is not " << annotated_instance << endl;
-        return false;
+        return make_pair(false, false);
     }
     string annotation_file = boost::filesystem::path(strs[0]).parent_path().string() + "/annotation" + strs[1] + ".txt";
     //int scan_id = stoi(strs[1]);
@@ -161,9 +161,11 @@ bool is_correctly_classified(const string& instance, CloudT::Ptr& segment, const
         f.close();
     }
 
-    float ratio = segment_is_correct(segment, K, annotation);
+    float ratio;
+    bool is_full;
+    tie(ratio, is_full) = segment_is_correct(segment, K, annotation);
     cout << "ratio: " << ratio << endl;
-    return ratio > 0.85f;
+    return make_pair(ratio > 0.85f, is_full);
 
     /*SimpleXMLParser<PointT> parser;
     vector<string> xml_nodes_to_parser = {"RoomIntermediateCloud", "IntermediatePosition", "RoomStringId"};  // "RoomCompleteCloud", "RoomDynamicClusters"
@@ -172,7 +174,7 @@ bool is_correctly_classified(const string& instance, CloudT::Ptr& segment, const
     CloudT::Ptr cloud = room.vIntermediateRoomClouds[scan_id];*/
 }
 
-void list_all_annotated_segments(map<int, string>& annotated, const string& segments_path)
+void list_all_annotated_segments(map<int, string>& annotated, map<int, string>& full_annotated, const string& segments_path)
 {
     // example: "/home/nbore/Data/Instances/object_segments"
     boost::filesystem::path path(segments_path);
@@ -181,6 +183,7 @@ void list_all_annotated_segments(map<int, string>& annotated, const string& segm
         ifstream in(annotations_file.string(), std::ios::binary);
         cereal::BinaryInputArchive archive_i(in);
         archive_i(annotated);
+        archive_i(full_annotated);
         return;
     }
 
@@ -220,9 +223,14 @@ void list_all_annotated_segments(map<int, string>& annotated, const string& segm
             archive_i(K);
         }
         string instance = boost::filesystem::path(metadata).parent_path().parent_path().parent_path().stem().string();
-        bool is_instance = is_correctly_classified(instance, segment, K, segments_path, segment_id);
+        bool is_instance;
+        bool is_full;
+        tie(is_instance, is_full) = is_correctly_classified(instance, segment, K, segments_path, segment_id);
         if (is_instance) {
             annotated.insert(make_pair(segment_id, instance));
+            if (is_full) {
+                full_annotated.insert(make_pair(segment_id, instance));
+            }
         }
     }
 
@@ -230,6 +238,7 @@ void list_all_annotated_segments(map<int, string>& annotated, const string& segm
         ofstream out(annotations_file.string(), std::ios::binary);
         cereal::BinaryOutputArchive archive_o(out);
         archive_o(annotated);
+        archive_o(full_annotated);
     }
 }
 
@@ -261,18 +270,19 @@ void visualize_annotations(map<int, string>& annotated, const string& annotation
     }
 }
 
-void compute_correct_ratios(map<string, int>& instance_counts, map<int, string>& annotated, int number_not_annotated,
+void compute_correct_ratios(map<string, int>& instance_counts, map<int, string>& annotated,
+                            map<int, string>& full_annotated, int number_not_annotated,
                             const string& segments_path, const string& annotations_path)
 {
     object_retrieval obr(segments_path);
-    const int query_number = 10;
+    const int query_number = 11;
 
     map<string, int> matched_instances;
     for (pair<const string, int>& m : instance_counts) {
         matched_instances.insert(make_pair(m.first, 0));
     }
 
-    for (pair<const int, string>& a : annotated) {
+    for (pair<const int, string>& a : full_annotated) {
         vector<index_score> scores;
         obr.query_vocabulary(scores, number_not_annotated+a.first, query_number, false, number_not_annotated, annotations_path);
         string queried_instance = a.second;
@@ -287,7 +297,7 @@ void compute_correct_ratios(map<string, int>& instance_counts, map<int, string>&
     }
 
     for (pair<const string, int>& m : instance_counts) {
-        float correct_ratio = float(matched_instances.at(m.first)) / float(query_number*m.second);
+        float correct_ratio = float(matched_instances.at(m.first)-1) / float((query_number-1)*m.second);
         cout << m.first << " had ratio " << correct_ratio << endl;
     }
 }
@@ -340,12 +350,14 @@ int main(int argc, char** argv)
     //i += number_not_annotated;
 
     map<int, string> annotated;
-    list_all_annotated_segments(annotated, annotations_path);
+    map<int, string> full_annotated;
+    list_all_annotated_segments(annotated, full_annotated, annotations_path);
+    //visualize_annotations(annotated, annotations_path);
     map<string, int> instance_counts;
-    compute_instance_counts(instance_counts, annotated);
+    compute_instance_counts(instance_counts, full_annotated);
     cout << "Number of annotated segments: " << annotated.size() << endl;
 
-    compute_correct_ratios(instance_counts, annotated, number_not_annotated, segments_path, annotations_path);
+    compute_correct_ratios(instance_counts, annotated, full_annotated, number_not_annotated, segments_path, annotations_path);
 
     //vector<index_score> scores;
     //obr.query_vocabulary(scores, i, 50, true, number_not_annotated, annotations_path);
