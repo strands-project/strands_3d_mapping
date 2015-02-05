@@ -198,6 +198,19 @@ std::vector<image_geometry::PinholeCameraModel> SemanticRoom<PointType>::getInte
 }
 
 template <class PointType>
+std::vector<image_geometry::PinholeCameraModel> SemanticRoom<PointType>::getIntermediateCloudCameraParametersCorrected()
+{
+    return m_vIntermediateRoomCloudsCamParamsCorrected;
+}
+
+template <class PointType>
+void SemanticRoom<PointType>::addIntermediateCloudCameraParametersCorrected(image_geometry::PinholeCameraModel params)
+{
+    m_vIntermediateRoomCloudsCamParamsCorrected.push_back(params);
+}
+
+
+template <class PointType>
 std::vector<bool>   SemanticRoom<PointType>::getIntermediateCloudsLoaded()
 {
     return m_vIntermediateRoomCloudsLoaded;

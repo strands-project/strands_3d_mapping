@@ -234,8 +234,7 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
     // RoomIntermediateClouds
     xmlWriter->writeStartElement("RoomIntermediateClouds");
     std::vector<CloudPtr> roomIntermediateClouds = aRoom.getIntermediateClouds();
-    std::vector<tf::StampedTransform> roomIntermediateCloudTransforms = aRoom.getIntermediateCloudTransforms();
-    std::vector<tf::StampedTransform> roomIntermediateCloudTransformsRegistered = aRoom.getIntermediateCloudTransformsRegistered();
+    std::vector<tf::StampedTransform> roomIntermediateCloudTransforms = aRoom.getIntermediateCloudTransforms();    
     std::vector<image_geometry::PinholeCameraModel> roomIntermediateCloudCameraParameters = aRoom.getIntermediateCloudCameraParameters();
     std::vector<bool>   roomIntermediateCloudsLoaded = aRoom.getIntermediateCloudsLoaded();
     for (size_t i=0; i<roomIntermediateCloudTransforms.size(); i++)
@@ -318,12 +317,20 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
         xmlWriter->writeEndElement(); // RoomIntermediateCloudTransform
 
         // RoomIntermediateCloudRegisteredTransform
-
+        std::vector<tf::StampedTransform> roomIntermediateCloudTransformsRegistered = aRoom.getIntermediateCloudTransformsRegistered();
         // TODO: this is not the case as I might be registering only the lower sweep.
 //        if (roomIntermediateCloudTransformsRegistered.size() == roomIntermediateCloudTransforms.size())
         if (roomIntermediateCloudTransformsRegistered.size() > i)
         {
             saveTfStampedTransfromToXml(roomIntermediateCloudTransformsRegistered[i], xmlWriter, "RoomIntermediateCloudTransformRegistered");
+        }
+
+        // RoomIntermediateRoomCloudsCamParamsCorrected
+        std::vector<image_geometry::PinholeCameraModel> roomIntermediateCloudCameraParametersCorrected = aRoom.getIntermediateCloudCameraParametersCorrected();
+        if (roomIntermediateCloudCameraParametersCorrected.size() == roomIntermediateCloudCameraParameters.size()) // consistency check
+        {
+           ROS_INFO_STREAM("Saving intermediate camera parameters corrected ");
+           saveCameraParametersToXML(roomIntermediateCloudCameraParametersCorrected[i], xmlWriter, "RoomIntermediateRoomCameraParametersCorrected");
         }
 
         Eigen::IOFormat CommaInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", ", ", "", "", " << ", "");
@@ -702,6 +709,11 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
                     aRoom.addIntermediateRoomCloudRegisteredTransform(intermediateCloudData.regTransform);
                 }
 
+                if (intermediateCloudData.hasCorCamInfo)
+                {
+                   aRoom.addIntermediateCloudCameraParametersCorrected(intermediateCloudData.corCamInfo);
+                }
+
             }
 
             if (xmlReader->name() == "IntermediatePosition")
@@ -728,8 +740,10 @@ typename SemanticRoomXMLParser<PointType>::IntermediateCloudData SemanticRoomXML
     geometry_msgs::TransformStamped tfmsg;
     tf::StampedTransform regTfmsg;
     sensor_msgs::CameraInfo camInfo;
+    image_geometry::PinholeCameraModel corCamParam;
     bool camInfoError = false;
     bool regTfmsgError = true;
+    bool corCamParamError = true;
 
     SemanticRoomXMLParser<PointType>::IntermediateCloudData       structToRet;
     structToRet.hasRegTransform = false;
@@ -833,6 +847,13 @@ typename SemanticRoomXMLParser<PointType>::IntermediateCloudData SemanticRoomXML
             {
                 regTfmsg = readTfStampedTransformFromXml(&xmlReader, "RoomIntermediateCloudTransformRegistered", regTfmsgError);
             }
+
+            if (xmlReader.name() == "RoomIntermediateRoomCameraParametersCorrected")
+            {
+                corCamParam = readCamParamsFromXml(&xmlReader, "RoomIntermediateRoomCameraParametersCorrected", corCamParamError);
+            }
+
+
 
             // camera parameters
             if (xmlReader.name() == "RoomIntermediateCameraParameters")
@@ -972,6 +993,14 @@ typename SemanticRoomXMLParser<PointType>::IntermediateCloudData SemanticRoomXML
         structToRet.hasRegTransform = true;
     } else {
         structToRet.hasRegTransform = false;
+    }
+
+    if (!corCamParamError)
+    {
+      structToRet.corCamInfo = corCamParam;
+      structToRet.hasCorCamInfo = true;
+    } else {
+      structToRet.hasCorCamInfo = false;
     }
 
     tf::transformStampedMsgToTF(tfmsg, transform);

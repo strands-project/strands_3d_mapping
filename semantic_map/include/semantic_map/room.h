@@ -57,6 +57,7 @@ private:
     std::vector<bool>                                m_vIntermediateRoomCloudsLoaded;
     std::vector<std::string>                         m_vIntermediateRoomCloudsFilenames;
     std::vector<image_geometry::PinholeCameraModel>  m_vIntermediateRoomCloudsCamParams;
+    std::vector<image_geometry::PinholeCameraModel>  m_vIntermediateRoomCloudsCamParamsCorrected;
 
     // intermediate cloud images
     std::vector<IntermediatePositionImages>                m_vIntermediatePositionImages;
@@ -98,6 +99,8 @@ public:
     std::vector<tf::StampedTransform> getIntermediateCloudTransformsRegistered();
     std::vector<tf::StampedTransform> getIntermediateCloudTransforms();
     std::vector<image_geometry::PinholeCameraModel> getIntermediateCloudCameraParameters();
+    std::vector<image_geometry::PinholeCameraModel> getIntermediateCloudCameraParametersCorrected();
+    void addIntermediateCloudCameraParametersCorrected(image_geometry::PinholeCameraModel params);
     std::vector<bool>   getIntermediateCloudsLoaded();
     std::vector<std::string>   getIntermediateCloudsFilenames();
 

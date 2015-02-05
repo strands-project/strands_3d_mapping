@@ -35,11 +35,13 @@ public:
     typedef typename SemanticRoom<PointType>::IntermediatePositionImages IntermediatePositionImages;
 
     struct IntermediateCloudData{
-        std::string                     filename;
-        tf::StampedTransform            transform;
-        sensor_msgs::CameraInfo         camInfo;
-        tf::StampedTransform            regTransform;
-        bool                            hasRegTransform;
+        std::string                                filename;
+        tf::StampedTransform                       transform;
+        tf::StampedTransform                       regTransform;
+        sensor_msgs::CameraInfo                    camInfo;
+        image_geometry::PinholeCameraModel         corCamInfo;
+        bool                                       hasRegTransform;
+        bool                                       hasCorCamInfo;
     };
 
 
