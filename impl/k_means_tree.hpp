@@ -188,7 +188,7 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
 
     std::vector<int> clusters[dim];
     //float cluster_distances[dim];
-    size_t min_iter = std::max(50, int(subcloud->size()/100));
+    size_t min_iter = std::max(50, int(subcloud->size()/100)); // 50 100
     size_t counter = 0;
     PointT p;
     while (true) {
