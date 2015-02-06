@@ -41,6 +41,7 @@ struct annotation {
 };
 
 struct bboxes {
+    // all of the annotations for one scene type (e.g. desk_1) then all for one image
     vector<vector<annotation> > values;
     void read_json(const string& file)
     {
@@ -158,6 +159,67 @@ size_t count_hits(string cobject, int cinstance, vector<CloudT::Ptr>& segments, 
     return hits;
 }
 
+void get_all_annotations(map<pair<string, int> , vector<int> >& instance_segments,
+                         map<string, bboxes>& annotations, const string& segments_path,
+                         object_retrieval& obr)
+{
+    boost::filesystem::path path(segments_path);
+    boost::filesystem::path annotations_file = path.parent_path() / "annotations.cereal";
+
+    if (boost::filesystem::is_regular_file(annotations_file)) {
+        ifstream in(annotations_file.string(), std::ios::binary);
+        cereal::BinaryInputArchive archive_i(in);
+        archive_i(instance_segments);
+        return;
+    }
+
+    for (size_t i = 0; ; ++i) {
+        CloudT::Ptr segment(new CloudT);
+        NormalCloudT::Ptr normal(new NormalCloudT);
+        CloudT::Ptr hd_segment(new CloudT);
+        string metadata;
+        Eigen::Matrix3f K;
+        if (!obr.read_segment(segment, normal, hd_segment, K, metadata, i)) {
+            break;
+        }
+        vector<annotation> scene_annotations;
+        scene_annotations_for_metadata(scene_annotations, annotations, metadata);
+        string object;
+        int instance;
+        get_object_instance(object, instance, scene_annotations, segment, K);
+        if (instance == 0) {
+            continue;
+        }
+        pair<string, int> instance_id = make_pair(object, instance);
+        if (instance_segments.count(instance_id) == 0) {
+            instance_segments.insert(make_pair(instance_id, vector<int>({ i })));
+        }
+        else {
+            instance_segments.at(instance_id).push_back(i);
+        }
+    }
+
+    {
+        ofstream out(annotations_file.string(), std::ios::binary);
+        cereal::BinaryOutputArchive archive_o(out);
+        archive_o(instance_segments);
+    }
+}
+
+void calculate_exclude_set(set<int>& exclude_set, map<pair<string, int>, vector<int> >& annotations, int exclude_number)
+{
+    for (pair<const pair<string, int>, vector<int> >& instance_set : annotations) {
+        int counter = 0;
+        for (int i : instance_set.second) {
+            if (counter >= exclude_number) {
+                break;
+            }
+            exclude_set.insert(i);
+            ++counter;
+        }
+    }
+}
+
 void read_segments_from_scores(vector<CloudT::Ptr>& segments, vector<string>& metadatas, vector<index_score>& scores, object_retrieval& obr)
 {
     for (index_score& i : scores) {
@@ -192,18 +254,22 @@ int main(int argc, char** argv)
     map<string, bboxes> annotations;
     read_annotations(annotations);
 
-    //bboxes& bb = annotations.at("table_1");
-    //print_annotations(bb);
+    string segments_path = "/home/nbore/Data/rgbd-scenes/object_segments";
+    object_retrieval obr(segments_path);
 
-    object_retrieval obr("/home/nbore/Data/rgbd-scenes/object_segments");
+    map<pair<string, int>, vector<int> > instance_segments;
+    get_all_annotations(instance_segments, annotations, segments_path, obr);
 
-    vector<string> objects;
-    vector<int> instances;
-    vector<float> ratios;
-    vector<int> total_instances;
-    vector<size_t> indices;
-    get_test_segments(indices);
-    for (size_t i : indices) {
+    set<int> exclude_set;
+    int exclude_number = 20; // the number of examples of each instance to query
+    calculate_exclude_set(exclude_set, instance_segments, exclude_number);
+    obr.set_exclude_set(exclude_set);
+
+    //obr.train_vocabulary_incremental(5000, false);
+
+    int nbr_query = 10;
+    map<pair<string, int>, int> matched_instances;
+    for (int i : exclude_set) {
         CloudT::Ptr segment(new CloudT);
         NormalCloudT::Ptr normal(new NormalCloudT);
         CloudT::Ptr hd_segment(new CloudT);
@@ -217,48 +283,27 @@ int main(int argc, char** argv)
         scene_annotations_for_metadata(scene_annotations, annotations, metadata);
 
         // determine if segment correspondes to any object in scene
-        string object;
-        int instance;
-        get_object_instance(object, instance, scene_annotations, hd_segment, K);
-        if (object == "") {
-            cout << i << " does not correspond to any annotated object" << endl;
-            continue;
-        }
-        cout << "Got " << object << " instance " << instance << endl;
+        pair<string, int> instance;
+        get_object_instance(instance.first, instance.second, scene_annotations, hd_segment, K);
 
-        // query for similar objects
         vector<index_score> scores;
-        obr.query_vocabulary(scores, i, 20, false);
-
-        // read necessary information
+        obr.query_vocabulary(scores, i, nbr_query);
         vector<CloudT::Ptr> segments;
         vector<string> metadatas;
         read_segments_from_scores(segments, metadatas, scores, obr);
 
-        // count the number that share the same object and instance
-        size_t hits = count_hits(object, instance, segments, metadatas, K, annotations);
-        float ratio = float(hits)/float(scores.size());
-        cout << "Ratio: " << ratio << endl;
-
-        objects.push_back(object);
-        instances.push_back(instance);
-        ratios.push_back(ratio);
-        total_instances.push_back(instances_in_annotations(object, instance, annotations));
+        int hits = count_hits(instance.first, instance.second, segments, metadatas, K, annotations);
+        if (matched_instances.count(instance) == 0) {
+            matched_instances.insert(make_pair(instance, hits));
+        }
+        else {
+            matched_instances.at(instance) += hits;
+        }
     }
 
-    for (size_t i = 0; i < objects.size(); ++i) {
-        cout << objects[i] << " " << instances[i] << ": " << ratios[i] << ", total instances: " << total_instances[i] << endl;
+    for (pair<const pair<string, int>, int> m : matched_instances) {
+        cout << m.first.first << "_" << m.first.second << " = " << float(m.second)/float(nbr_query*exclude_number) << ";" << endl;
     }
-
-    /*scene_annotations_for_metadata(scene_annotations, annotations, "/home/nbore/Data/rgbd-scenes/desk/desk_1/desk_1_10.png");
-    for (annotation& a : scene_annotations) {
-        cout << "category: " << a.category << endl;
-        cout << "instance: " << a.instance << endl;
-        cout << "top: " << a.top << endl;
-        cout << "bottom: " << a.bottom << endl;
-        cout << "left: " << a.left << endl;
-        cout << "right: " << a.right << endl;
-    }*/
 
     return 0;
 }

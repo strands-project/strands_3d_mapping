@@ -105,9 +105,9 @@ int main(int argc, char** argv)
     string root_path = "/home/nbore/Data/Instances/";
     string segments_path = root_path + "object_segments";
     vector<entity> entities;
-    get_rooms(entities, root_path);
+    //get_rooms(entities, root_path);
     object_retrieval obr(segments_path);
-    int counter;
+    /*int counter;
     size_t current_save = 0;
     for (entity room : entities) {
         vector<CloudT::Ptr> clouds;
@@ -117,9 +117,11 @@ int main(int argc, char** argv)
         get_room_from_xml(clouds, transforms, files, intrinsics, room);
         current_save = obr.compute_segments(clouds, intrinsics, files, current_save);
         ++counter;
-    }
+    }*/
 
-    //obr.process_segments_incremental();
+    obr.process_segments_incremental();
+
+    cout << "Computed all of the features" << endl;
     //obr.train_vocabulary_incremental(5000);
 
     vector<index_score> scores;

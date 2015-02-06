@@ -16,6 +16,7 @@ class segment_features
 {
 private:
 
+    //static const int N = 131;
     static const int N = 1344;
 
     using PointT = pcl::PointXYZRGB;
@@ -27,7 +28,7 @@ private:
     using HistT = pcl::Histogram<N>;
     using HistCloudT = pcl::PointCloud<HistT>;
 
-    static constexpr float color_weight = 5.0f;
+    static constexpr float color_weight = 0.3f;
 
     Eigen::Matrix3f K;
     bool visualize_features;

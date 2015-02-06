@@ -20,6 +20,16 @@
 
 using namespace std;
 
+// using SIFT
+//string object_retrieval::feature_vocabulary_file = "vocabulary_sift.cereal";
+//string object_retrieval::feature_segment_file = "features_sift.pcd";
+//string object_retrieval::indices_segment_file = "indices_sift.cereal";
+
+// using SHOT
+string object_retrieval::feature_vocabulary_file = "vocabulary.cereal";
+string object_retrieval::feature_segment_file = "features.pcd";
+string object_retrieval::indices_segment_file = "indices.cereal";
+
 object_retrieval::object_retrieval(const std::string& segment_path) : segment_path(segment_path)
 {
 }
@@ -191,7 +201,7 @@ void object_retrieval::write_vocabulary(vocabulary_tree<HistT, 8>& vt)
 {
     boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
     boost::filesystem::create_directory(base_dir);
-    std::string vocabulary_file = base_dir.string() + "/vocabulary.cereal";
+    std::string vocabulary_file = base_dir.string() + "/" + feature_vocabulary_file;
     ofstream out(vocabulary_file, std::ios::binary);
     cereal::BinaryOutputArchive archive_o(out);
     archive_o(vt);
@@ -200,7 +210,7 @@ void object_retrieval::write_vocabulary(vocabulary_tree<HistT, 8>& vt)
 void object_retrieval::read_vocabulary(vocabulary_tree<HistT, 8>& vt)
 {
     boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
-    std::string vocabulary_file = base_dir.string() + "/vocabulary.cereal";
+    std::string vocabulary_file = base_dir.string() + "/" + feature_vocabulary_file;
     {
         cout << __FILE__ << ", " << __LINE__ << endl;
         ifstream in(vocabulary_file, std::ios::binary);
@@ -350,7 +360,7 @@ void object_retrieval::process_segments_incremental()
     write_vocabulary(vt1);*/
 }
 
-void object_retrieval::train_vocabulary_incremental(int max_segments)
+void object_retrieval::train_vocabulary_incremental(int max_segments, bool simply_train)
 {
 
     vocabulary_tree<HistT, 8> vt1;
@@ -362,28 +372,44 @@ void object_retrieval::train_vocabulary_incremental(int max_segments)
         vector<int> indices;
 
         for (size_t i = 0; i < max_segments; ++i) {
-             HistCloudT::Ptr features_i(new HistCloudT);
-             if (!load_features_for_segment(features_i, counter)) {
-                 are_done = true;
-                 break;
-             }
-             features->insert(features->end(), features_i->begin(), features_i->end());
-             for (size_t j = 0; j < features_i->size(); ++j) {
-                 indices.push_back(counter);
-             }
-             ++counter;
+            if (!exclude_set.empty()) {
+                if (exclude_set.count(counter) != 0) {
+                    ++counter;
+                    continue;
+                }
+            }
+            HistCloudT::Ptr features_i(new HistCloudT);
+            if (!load_features_for_segment(features_i, counter)) {
+                are_done = true;
+                break;
+            }
+            features->insert(features->end(), features_i->begin(), features_i->end());
+            for (size_t j = 0; j < features_i->size(); ++j) {
+                indices.push_back(counter);
+            }
+            ++counter;
         }
 
         vt1.set_input_cloud(features, indices);
         vt1.add_points_from_input_cloud();
     }
 
+    if (simply_train) {
+        write_vocabulary(vt1);
+        return;
+    }
 
     while (!are_done) {
         HistCloudT::Ptr features(new HistCloudT);
         vector<int> indices;
 
         for (size_t i = 0; i < max_segments; ++i) {
+            if (!exclude_set.empty()) {
+                if (exclude_set.count(counter) != 0) {
+                    ++counter;
+                    continue;
+                }
+            }
             HistCloudT::Ptr features_i(new HistCloudT);
             if (!load_features_for_segment(features_i, counter)) {
                 are_done = true;
@@ -402,38 +428,69 @@ void object_retrieval::train_vocabulary_incremental(int max_segments)
     write_vocabulary(vt1);
 }
 
-int object_retrieval::add_others_to_vocabulary(int max_segments, const std::string& other_segment_path)
+// this should just be 2 separate functions
+int object_retrieval::add_others_to_vocabulary(int max_segments, const std::string& other_segment_path, int nbr_original_segments, bool add_some)
 {
-    vocabulary_tree<HistT, 8> vt1;
-    read_vocabulary(vt1);
-    int initial_size = vt1.max_ind();
-
-    size_t counter = 0;
+    //vocabulary_tree<HistT, 8> vt1;
+    //read_vocabulary(vt1);
+    if (vt.empty()) {
+        read_vocabulary(vt);
+    }
+    int initial_size;
+    size_t counter;
+    if (add_some) {
+        initial_size = 0;
+        counter = nbr_original_segments;
+    }
+    else {
+        if (nbr_original_segments != -1) {
+            initial_size = nbr_original_segments;
+        }
+        else {
+            initial_size = vt.max_ind();
+        }
+        counter = 0;
+    }
     bool are_done = false;
+    cout << __FILE__ << ", " << __LINE__ << endl;
 
     while (!are_done) {
         HistCloudT::Ptr features(new HistCloudT);
         vector<int> indices;
 
         for (size_t i = 0; i < max_segments; ++i) {
+            cout << __FILE__ << ", " << __LINE__ << endl;
             HistCloudT::Ptr features_i(new HistCloudT);
             if (!load_features_for_other_segment(features_i, other_segment_path, counter)) {
                 are_done = true;
                 break;
             }
+            cout << __FILE__ << ", " << __LINE__ << endl;
             features->insert(features->end(), features_i->begin(), features_i->end());
             for (size_t j = 0; j < features_i->size(); ++j) {
                 indices.push_back(initial_size + counter);
             }
+            cout << __FILE__ << ", " << __LINE__ << endl;
             ++counter;
         }
 
-        vt1.append_cloud(features, indices, false);
+        cout << __FILE__ << ", " << __LINE__ << endl;
+        vt.append_cloud(features, indices, false);
+        cout << __FILE__ << ", " << __LINE__ << endl;
+        if (add_some) {
+            break;
+        }
     }
 
-    write_vocabulary(vt1);
+    cout << __FILE__ << ", " << __LINE__ << endl;
+    //write_vocabulary(vt1);
 
-    return initial_size;
+    if (add_some) {
+        return static_cast<int>(are_done); // we need to communicate if we've reached the end
+    }
+    else {
+        return initial_size;
+    }
 }
 
 void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query,
@@ -489,8 +546,9 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
             exit(0);
         }
     }
-    if (number_original_features != 0) { // DEBUG
-        load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features);
+    if (false) { // DEBUG
+        //load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features);
+        load_features(features, indices);
     }
     else {
         get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
@@ -564,8 +622,8 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (object_retrieval::HistT,
 void object_retrieval::save_features(HistCloudT::Ptr& features, std::vector<int>& indices)
 {
     boost::filesystem::path base_dir = segment_path;
-    std::string features_file = base_dir.string() + "/features.pcd";
-    std::string indices_file = base_dir.string() + "/indices.cereal";
+    std::string features_file = base_dir.string() + "/" + feature_segment_file;
+    std::string indices_file = base_dir.string() + "/" + indices_segment_file;
     {
         ofstream out(indices_file, std::ios::binary);
         cereal::BinaryOutputArchive archive_o(out);
@@ -577,11 +635,11 @@ void object_retrieval::save_features(HistCloudT::Ptr& features, std::vector<int>
 bool object_retrieval::load_features(HistCloudT::Ptr& features, std::vector<int>& indices)
 {
     boost::filesystem::path base_dir = segment_path;
-    boost::filesystem::path features_file = base_dir / "features.pcd";
+    boost::filesystem::path features_file = base_dir / feature_segment_file;
     if (!boost::filesystem::is_regular_file(features_file)) {
         return false;
     }
-    std::string indices_file = base_dir.string() + "/indices.cereal";
+    std::string indices_file = base_dir.string() + "/" + indices_segment_file;
     {
         ifstream in(indices_file, std::ios::binary);
         cereal::BinaryInputArchive archive_i(in);
@@ -600,21 +658,21 @@ void object_retrieval::save_features_for_segment(HistCloudT::Ptr& features, int 
         features->push_back(p);
     }
     boost::filesystem::path base_dir = segment_path;
-    std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/features.pcd";
+    std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/" + feature_segment_file;
     pcl::io::savePCDFileBinary(features_file, *features);
 }
 
 bool object_retrieval::load_features_for_segment(HistCloudT::Ptr& features, int i)
 {
     boost::filesystem::path base_dir = segment_path;
-    std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/features.pcd";
+    std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/" + feature_segment_file;
     return (pcl::io::loadPCDFile<HistT>(features_file, *features) != -1);
 }
 
 bool object_retrieval::load_features_for_other_segment(HistCloudT::Ptr& features, const std::string& other_segment_path, int i)
 {
     boost::filesystem::path base_dir = other_segment_path;
-    std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/features.pcd";
+    std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/" + feature_segment_file;
     std::cout << "features_file: " << features_file << std::endl;
     return (pcl::io::loadPCDFile<HistT>(features_file, *features) != -1);
 }

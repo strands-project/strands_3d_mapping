@@ -114,7 +114,7 @@ void read_clouds(vector<CloudT::Ptr>& clouds, vector<Eigen::Matrix3f, Eigen::ali
     }
 }
 
-
+// This program just reads in the point cloud, segments them and then extracts and saves features
 int main(int argc, char** argv)
 {
     vector<CloudT::Ptr> clouds;
@@ -123,9 +123,7 @@ int main(int argc, char** argv)
     //read_clouds(clouds, intrinsics, files);
     object_retrieval obr("/home/nbore/Data/rgbd-scenes/object_segments");
     //obr.compute_segments(clouds, intrinsics, files);
-    obr.process_segments();
-    vector<index_score> scores;
-    //obr.query_vocabulary(scores, 34, 20, true);
+    obr.process_segments_incremental();
 
     return 0;
 }

@@ -306,8 +306,12 @@ void segment_features::calculate_features(Eigen::VectorXf& global_features, Hist
     global_features(1) = fabs(T(2) / T(0));
     global_features(2) = segment->size();
 
-    //compute_sift_features(local_features, full_segment);
-    compute_shot_features(local_features, full_segment);
+    if (N == 131) {
+        compute_sift_features(local_features, full_segment);
+    }
+    else {
+        compute_shot_features(local_features, full_segment);
+    }
 }
 
 // FPFH FEATURE DESCRIPTORS

@@ -270,11 +270,12 @@ void visualize_annotations(map<int, string>& annotated, const string& annotation
     }
 }
 
-void compute_correct_ratios(map<string, int>& instance_counts, map<int, string>& annotated,
+void compute_correct_ratios(object_retrieval& obr, map<string, vector<float> >& correct_ratios,
+                            map<string, int>& instance_counts, map<int, string>& annotated,
                             map<int, string>& full_annotated, int number_not_annotated,
-                            const string& segments_path, const string& annotations_path)
+                            const string& annotations_path)
 {
-    object_retrieval obr(segments_path);
+    //object_retrieval obr(segments_path);
     const int query_number = 11;
 
     map<string, int> matched_instances;
@@ -297,10 +298,61 @@ void compute_correct_ratios(map<string, int>& instance_counts, map<int, string>&
     }
 
     for (pair<const string, int>& m : instance_counts) {
+        // instance counts is also counting the instances in the partially observed =)
+        // we need another, full instance counts
         float correct_ratio = float(matched_instances.at(m.first)-1) / float((query_number-1)*m.second);
-        cout << m.first << " had ratio " << correct_ratio << endl;
+        if (correct_ratios.count(m.first) == 0) {
+            correct_ratios.insert(make_pair(m.first, vector<float>({correct_ratio})));
+        }
+        else {
+            correct_ratios.at(m.first).push_back(correct_ratio);
+        }
+        //cout << m.first << " had ratio " << correct_ratio << endl;
     }
 }
+
+/*void compute_precision_recall(map<int, string>& annotated,
+                              map<int, string>& full_annotated,
+                              map<string, int>& instance_counts)
+{
+    const int query_number = 11;
+
+    map<string, int> true_matches;
+    map<string, int> false_matches;
+
+    map<string, int> matched_instances;
+    for (pair<const string, int>& m : instance_counts) {
+        true_matches.insert(make_pair(m.first, 0));
+        false_matches.insert(make_pair(m.first, 0));;
+    }
+
+    for (pair<const int, string>& a : full_annotated) {
+        vector<index_score> scores;
+        obr.query_vocabulary(scores, number_not_annotated+a.first, query_number, false, number_not_annotated, annotations_path);
+        string queried_instance = a.second;
+        for (index_score& score : scores) {
+            if (score.first >= number_not_annotated && annotated.count(score.first-number_not_annotated) != 0) {
+                string matched_instance = annotated.at(score.first-number_not_annotated);
+                if (matched_instance == queried_instance) {
+                    true_matches.at(queried_instance) += 1;
+                    continue;
+                }
+            }
+            false_matches.at(queried_instance) += 1;
+        }
+    }
+
+    for (pair<const string, int>& m : instance_counts) {
+        float correct_ratio = float(matched_instances.at(m.first)-1) / float((query_number-1)*m.second);
+        if (correct_ratios.count(m.first) == 0) {
+            correct_ratios.insert(make_pair(m.first, vector<float>({correct_ratio})));
+        }
+        else {
+            correct_ratios.at(m.first).push_back(correct_ratio);
+        }
+        //cout << m.first << " had ratio " << correct_ratio << endl;
+    }
+}*/
 
 int main(int argc, char** argv)
 {
@@ -337,27 +389,57 @@ int main(int argc, char** argv)
         ++counter;
     }*/
 
-    std::string annotations_path = "/home/nbore/Data/Instances/object_segments";
-
     //obr.process_segments_incremental();
-    //obr.train_vocabulary_incremental(5000);
 
-    //int number_not_annotated = obr.add_others_to_vocabulary(5000, annotations_path);
-    int number_not_annotated = 22557;
+    cout << "Extracted all of the features" << endl;
 
-    cout << "number not annotated: " << number_not_annotated << endl;
+    //exit(0);
 
-    //i += number_not_annotated;
-
+    // compute or load all annotations
+    string annotations_path = "/home/nbore/Data/Instances/object_segments";
     map<int, string> annotated;
     map<int, string> full_annotated;
     list_all_annotated_segments(annotated, full_annotated, annotations_path);
     //visualize_annotations(annotated, annotations_path);
-    map<string, int> instance_counts;
+    map<string, int> instance_counts; // the number of fully observed instances of every type
     compute_instance_counts(instance_counts, full_annotated);
     cout << "Number of annotated segments: " << annotated.size() << endl;
 
-    compute_correct_ratios(instance_counts, annotated, full_annotated, number_not_annotated, segments_path, annotations_path);
+    bool compute_decay = false; // this is true if we want to add more observations to see how that affects retrieval rates
+    // do initial training of vocabulary, optionally only add 5000 first
+    obr.train_vocabulary_incremental(5000, compute_decay);
+
+    int number_not_annotated;
+    if (compute_decay) {
+        number_not_annotated = obr.add_others_to_vocabulary(5000, annotations_path, 22557); // 22557
+    }
+    else {
+        number_not_annotated = obr.add_others_to_vocabulary(5000, annotations_path);
+    }
+    //int number_not_annotated = 22557;
+    cout << "number not annotated: " << number_not_annotated << endl;
+
+    map<string, vector<float> > correct_ratios;
+    if (compute_decay) {
+        bool are_done = false;
+        for (int add_extra = 5000; !are_done; add_extra += 2000) {
+            //i += number_not_annotated;
+            cout << "segments: " << add_extra << " - " << add_extra + 2000 << endl;
+            are_done = obr.add_others_to_vocabulary(2000, segments_path, add_extra, true) == 1;
+            compute_correct_ratios(obr, correct_ratios, instance_counts, annotated, full_annotated, number_not_annotated, annotations_path);
+        }
+    }
+    else {
+        compute_correct_ratios(obr, correct_ratios, instance_counts, annotated, full_annotated, number_not_annotated, annotations_path);
+    }
+
+    for (pair<const string, vector<float> >& c : correct_ratios) {
+        cout << c.first << " = [ ";
+        for (float f : c.second) {
+            cout << f << " ";
+        }
+        cout << " ]; " << endl;
+    }
 
     //vector<index_score> scores;
     //obr.query_vocabulary(scores, i, 50, true, number_not_annotated, annotations_path);

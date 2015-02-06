@@ -10,8 +10,15 @@
 class object_retrieval
 {
 public:
-    //const int N = 131;
+    // using SIFT
+    //static const int N = 131;
+
+    // using SHOT
     static const int N = 1344;
+
+    static std::string feature_vocabulary_file;
+    static std::string feature_segment_file;
+    static std::string indices_segment_file;
 
     using PointT = pcl::PointXYZRGB;
     using CloudT = pcl::PointCloud<PointT>;
@@ -23,6 +30,9 @@ public:
 
     std::string segment_path;
     vocabulary_tree<HistT, 8> vt;
+    std::set<int> exclude_set;
+
+    void set_exclude_set(const std::set<int>& other_set) { exclude_set = other_set; }
 
     void visualize_cloud(CloudT::Ptr& cloud);
     void extract_features(std::vector<int>& inds, HistCloudT::Ptr& features, std::vector<CloudT::Ptr>& segments,
@@ -42,7 +52,7 @@ public:
     size_t compute_segments(std::vector<CloudT::Ptr>& sweeps, std::vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files, size_t i = 0);
     void process_segments();
     void process_segments_incremental();
-    void train_vocabulary_incremental(int max_segments);
+    void train_vocabulary_incremental(int max_segments, bool simply_train = false);
     void query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query = false, int number_original_features = 0, const string &other_segments_path = "");
 
     void save_features(HistCloudT::Ptr& features, std::vector<int>& indices);
@@ -50,7 +60,7 @@ public:
     void save_features_for_segment(HistCloudT::Ptr& features, int i);
     bool load_features_for_segment(HistCloudT::Ptr& features, int i);
     bool load_features_for_other_segment(HistCloudT::Ptr& features, const std::string& other_segment_path, int i);
-    int add_others_to_vocabulary(int max_segments, const std::string& other_segment_path);
+    int add_others_to_vocabulary(int max_segments, const std::string& other_segment_path, int nbr_original_segments = -1, bool add_some = false);
 
     object_retrieval(const std::string& segment_path);
 };
