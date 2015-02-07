@@ -100,6 +100,7 @@ public:
     std::vector<tf::StampedTransform> getIntermediateCloudTransforms();
     std::vector<image_geometry::PinholeCameraModel> getIntermediateCloudCameraParameters();
     std::vector<image_geometry::PinholeCameraModel> getIntermediateCloudCameraParametersCorrected();
+    void clearIntermediateCloudCameraParametersCorrected();
     void addIntermediateCloudCameraParametersCorrected(image_geometry::PinholeCameraModel params);
     std::vector<bool>   getIntermediateCloudsLoaded();
     std::vector<std::string>   getIntermediateCloudsFilenames();

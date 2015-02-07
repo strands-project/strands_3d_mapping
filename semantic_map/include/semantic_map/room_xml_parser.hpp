@@ -327,7 +327,8 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
 
         // RoomIntermediateRoomCloudsCamParamsCorrected
         std::vector<image_geometry::PinholeCameraModel> roomIntermediateCloudCameraParametersCorrected = aRoom.getIntermediateCloudCameraParametersCorrected();
-        if (roomIntermediateCloudCameraParametersCorrected.size() == roomIntermediateCloudCameraParameters.size()) // consistency check
+//        if (roomIntermediateCloudCameraParametersCorrected.size() == roomIntermediateCloudCameraParameters.size()) // consistency check
+        if (roomIntermediateCloudCameraParametersCorrected.size() > i) // consistency check
         {
            saveCameraParametersToXML(roomIntermediateCloudCameraParametersCorrected[i], xmlWriter, "RoomIntermediateRoomCameraParametersCorrected");
         }
@@ -1239,6 +1240,8 @@ typename image_geometry::PinholeCameraModel SemanticRoomXMLParser<PointType>::re
     {
         toRet.fromCameraInfo(camInfo);
     }
+
+    errorReading = camInfoError;
 
     return toRet;
 

@@ -209,6 +209,12 @@ void SemanticRoom<PointType>::addIntermediateCloudCameraParametersCorrected(imag
     m_vIntermediateRoomCloudsCamParamsCorrected.push_back(params);
 }
 
+template <class PointType>
+void SemanticRoom<PointType>::clearIntermediateCloudCameraParametersCorrected()
+{
+   m_vIntermediateRoomCloudsCamParamsCorrected.clear();
+}
+
 
 template <class PointType>
 std::vector<bool>   SemanticRoom<PointType>::getIntermediateCloudsLoaded()
