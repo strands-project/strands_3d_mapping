@@ -195,7 +195,7 @@ void MetaRoom<PointType>::setSensorOrigin(tf::Vector3 so)
 }
 
 template <class PointType>
-MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std::string savePath)
+MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std::string savePath, bool registerRoom)
 {
     // check if meta room is initialized
     if (!this->m_CompleteRoomCloudLoaded && this->m_CompleteRoomCloudFilename == "")
@@ -209,6 +209,12 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         ROS_INFO_STREAM("Room run number "<<aRoom.getRoomRunNumber());
 //            ROS_INFO_STREAM("Room centroid "<<aRoom.getCentroid());
         std::vector<tf::StampedTransform> roomTransforms = aRoom.getIntermediateCloudTransforms();
+        std::vector<tf::StampedTransform> roomRegisteredTransforms = aRoom.getIntermediateCloudTransformsRegistered();
+        if (roomRegisteredTransforms.size() != 0)
+        {
+           roomTransforms = roomRegisteredTransforms;
+        }
+
         if (roomTransforms.size() == 0)
         {
             ROS_INFO_STREAM("No intermediate transforms saved. Sensor origin will be set as the origin");
@@ -272,47 +278,44 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
 
     // check if semantic room needs to be transformed into the metaroom frame of reference
     Eigen::Matrix4f roomTransform = aRoom.getRoomTransform();
-    if (roomTransform == Eigen::Matrix4f::Identity())
+    CloudPtr transformedRoomCloud(new Cloud);
+    *transformedRoomCloud = *aRoom.getCompleteRoomCloud();; // initialize with room cloud
+    if (registerRoom && (roomTransform == Eigen::Matrix4f::Identity()))
     { // identity transform -> needs to be updated
         ROS_INFO_STREAM("Transforming semantic room into metaroom frame of reference.");
         CloudPtr output(new Cloud);
         Eigen::Matrix4f finalTransform;
         CloudPtr roomCloud = aRoom.getCompleteRoomCloud();
 
-        CloudPtr transformedRoomCloud(new Cloud);
-//        transformedRoomCloud = NdtRegistration<PointType>::registerClouds(roomCloud, this->getCompleteRoomCloud(),finalTransform);
         transformedRoomCloud = NdtRegistration<PointType>::registerClouds(roomCloud, this->getInteriorRoomCloud(),finalTransform);
-
-        ROS_INFO_STREAM("Room alignment complete.");
-
-        // extract noise and re-align rooms (hoping to get a better alignment without the noise outside the walls).
-        CloudPtr roomDownsampledCloud = MetaRoom<PointType>::downsampleCloud(transformedRoomCloud);
-
-        aRoom.setDeNoisedRoomCloud(roomDownsampledCloud);
-
+        // Update room XML file to reflect new transformation
         aRoom.setRoomTransform(finalTransform);
-        std::cout<<"Final transform "<<finalTransform<<std::endl;
-
-        // Update room XML file to reflect new transformation, and new point clouds
+        ROS_INFO_STREAM("Room alignment complete.");
         ROS_INFO_STREAM("Updating room xml with new transform to metaroom.");
-        aRoom.setInteriorRoomCloud(roomDownsampledCloud);
-
-        QString rootFolderPath;
-
-        if (savePath == "")
-        {
-            // save room in the correct folder
-            QString roomXml(aRoom.getCompleteRoomCloudFilename().c_str());
-            int date = roomXml.indexOf("201");
-            rootFolderPath = roomXml.left(date);
-        } else {
-            rootFolderPath = QString(savePath.c_str()) + QString("/");
-        }
-
-        ROS_INFO_STREAM("Initializeing room xml parser with root folder "<<rootFolderPath.toStdString());
-        SemanticRoomXMLParser<PointType> parser(rootFolderPath.toStdString());
-        parser.saveRoomAsXML(aRoom);
+        ROS_INFO_STREAM("Final transform "<<finalTransform);
     }
+
+
+    // set interior room cloud as downsampled original cloud (after transformation, if registration is enabled)
+    CloudPtr roomDownsampledCloud = MetaRoom<PointType>::downsampleCloud(transformedRoomCloud);
+    aRoom.setDeNoisedRoomCloud(roomDownsampledCloud);
+    aRoom.setInteriorRoomCloud(roomDownsampledCloud);
+
+    QString rootFolderPath;
+
+    if (savePath == "")
+    {
+       // save room in the correct folder
+       QString roomXml(aRoom.getCompleteRoomCloudFilename().c_str());
+       int date = roomXml.indexOf("201");
+       rootFolderPath = roomXml.left(date);
+    } else {
+       rootFolderPath = QString(savePath.c_str()) + QString("/");
+    }
+
+    ROS_INFO_STREAM("Initializeing room xml parser with root folder "<<rootFolderPath.toStdString());
+    SemanticRoomXMLParser<PointType> parser(rootFolderPath.toStdString());
+    parser.saveRoomAsXML(aRoom);
 
     if (!m_bUpdateMetaroom)
     {
@@ -441,6 +444,7 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
 //        occlusions = occlusionChecker.checkOcclusions(combinedDifferenceMRtoR,combinedDifferenceRtoMR, 720 );
         *toBeAdded = *occlusions.toBeAdded;
         *toBeRemoved = *occlusions.toBeRemoved;
+        ROS_INFO_STREAM("To be added "<<toBeAdded->points.size()<<"  to be removed  "<<toBeRemoved->points.size());
 
 //        if ((toBeRemoved->points.size() > 0.1*this->getInteriorRoomCloud()->points.size()) ||
 //                (toBeAdded->points.size() > 0.1*this->getInteriorRoomCloud()->points.size()))
