@@ -1,4 +1,6 @@
 #include "k_means_tree/k_means_tree.h"
+#include "vocabulary_tree/vocabulary_tree.h"
+#include "reweighted_vocabulary_tree/reweighted_vocabulary_tree.h"
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/visualization/pcl_visualizer.h>
@@ -45,6 +47,8 @@ int main(int argc, char** argv)
     }
 
     k_means_tree<pcl::Histogram<100>, 8> kmt;
+    vocabulary_tree<pcl::Histogram<100>, 8> vt;
+    reweighted_vocabulary_tree<pcl::Histogram<100>, 8> rvt;
 
     return 0;
 }

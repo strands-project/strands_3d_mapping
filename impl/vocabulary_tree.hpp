@@ -316,7 +316,6 @@ template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, double> &query_id_freqs, CloudPtrT& query_cloud)
 {
     for (PointT p : query_cloud->points) {
-        //eig(p).normalize(); // normalize SIFT points
         std::vector<node*> path;
         super::get_path_for_point(path, p);
         for (node* n : path) {
