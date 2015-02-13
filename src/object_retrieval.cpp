@@ -207,21 +207,17 @@ void object_retrieval::write_vocabulary(vocabulary_tree<HistT, 8>& vt)
     archive_o(vt);
 }
 
-void object_retrieval::read_vocabulary(vocabulary_tree<HistT, 8>& vt)
+void object_retrieval::read_vocabulary(vocabulary_tree<HistT, 8>& rvt)
 {
     boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
     std::string vocabulary_file = base_dir.string() + "/" + feature_vocabulary_file;
     {
-        cout << __FILE__ << ", " << __LINE__ << endl;
         ifstream in(vocabulary_file, std::ios::binary);
-        cout << __FILE__ << ", " << __LINE__ << endl;
         cereal::BinaryInputArchive archive_i(in);
-        cout << __FILE__ << ", " << __LINE__ << endl;
-        archive_i(vt);
-        cout << __FILE__ << ", " << __LINE__ << endl;
+        archive_i(rvt);
         in.close();
-        cout << __FILE__ << ", " << __LINE__ << endl;
     }
+    cout << "Vocabulary size: " << rvt.size() << endl;
 }
 
 float object_retrieval::calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,
@@ -483,7 +479,7 @@ int object_retrieval::add_others_to_vocabulary(int max_segments, const std::stri
     }
 
     cout << __FILE__ << ", " << __LINE__ << endl;
-    //write_vocabulary(vt1);
+    write_vocabulary(vt);
 
     if (add_some) {
         return static_cast<int>(are_done); // we need to communicate if we've reached the end
@@ -607,6 +603,89 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
         //cout << "Shape similarity: " << similarity << endl;
         visualize_cloud(hd_segment);
     }*/
+}
+
+void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scores, vector<index_score>& reweight_scores,
+                                                 size_t query_ind, size_t nbr_query, bool visualize_query,
+                                                 int number_original_features, const string& other_segments_path)
+{
+    static HistCloudT::Ptr features(new HistCloudT);
+    static vector<int> indices;
+
+    //vocabulary_tree<HistT, 8> vt;
+    HistCloudT::Ptr query_cloud(new HistCloudT);
+    CloudT::Ptr segment(new CloudT);
+    CloudT::Ptr query_segment(new CloudT);
+    NormalCloudT::Ptr normal(new NormalCloudT);
+    CloudT::Ptr hd_segment(new CloudT);
+    Eigen::Matrix3f K, query_K;
+    string metadata;
+
+    cout << "Querying segment nbr: " << query_ind << endl;
+    if (number_original_features != 0 && query_ind >= number_original_features) {
+        if (!read_other_segment(segment, normal, query_segment, query_K, metadata,
+                                query_ind-number_original_features, other_segments_path)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
+            cout << "Error reading segment!" << endl;
+            exit(0);
+        }
+    }
+    else {
+        if (!read_segment(segment, normal, query_segment, query_K, metadata, query_ind)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
+            cout << "Error reading segment!" << endl;
+            exit(0);
+        }
+    }
+    if (true) { // DEBUG
+        load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features);
+        //load_features(query_cloud, indices);
+    }
+    else {
+        get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
+        if (visualize_query) {
+            visualize_cloud(query_segment);
+        }
+    }
+
+    for (HistT& h : query_cloud->points) {
+        eig(h).normalize();
+    }
+
+    cout << "Histogram cloud size: " << query_cloud->size() << endl;
+
+    if (rvt.empty()) {
+        read_vocabulary(rvt);
+    }
+    rvt.top_similarities(first_scores, query_cloud, nbr_query);
+
+    map<int, double> weights;
+    for (index_score s : first_scores) {
+        if (s.first == query_ind) { // we do not want to reweight with a perfect match (itself)
+            continue;
+        }
+        cout << "Index: " << s.first << " with score: " << s.second << endl;
+        if (number_original_features != 0 && s.first >= number_original_features) {
+            if (!read_other_segment(segment, normal, hd_segment, K, metadata,
+                                    s.first-number_original_features, other_segments_path)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
+                cout << "Error reading segment!" << endl;
+                exit(0);
+            }
+        }
+        else {
+            if (!read_segment(segment, normal, hd_segment, K, metadata, s.first)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
+                cout << "Error reading segment!" << endl;
+                exit(0);
+            }
+        }
+        float similarity = calculate_similarity(query_segment, query_K, hd_segment, K);
+        if (isnan(similarity)) {
+            continue;
+        }
+        weights.insert(make_pair(s.first, similarity));
+        cout << "Shape similarity: " << similarity << endl;
+        //visualize_cloud(hd_segment);
+    }
+
+    rvt.top_similarities_reweighted(reweight_scores, weights, query_cloud, nbr_query);
 }
 
 /*template <class Archive>

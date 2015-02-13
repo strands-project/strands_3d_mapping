@@ -2,6 +2,7 @@
 #define OBJECT_RETRIEVAL_H
 
 #include <vocabulary_tree/vocabulary_tree.h>
+#include <reweighted_vocabulary_tree/reweighted_vocabulary_tree.h>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -30,6 +31,7 @@ public:
 
     std::string segment_path;
     vocabulary_tree<HistT, 8> vt;
+    reweighted_vocabulary_tree<HistT, 8> rvt;
     std::set<int> exclude_set;
 
     void set_exclude_set(const std::set<int>& other_set) { exclude_set = other_set; }
@@ -46,7 +48,7 @@ public:
     bool read_other_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K,
                             string& metadata, size_t segment_id, const std::string& other_segment_path);
     void write_vocabulary(vocabulary_tree<HistT, 8>& vt);
-    void read_vocabulary(vocabulary_tree<HistT, 8>& vt);
+    void read_vocabulary(vocabulary_tree<HistT, 8>& rvt);
     float calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,
                                CloudT::Ptr& cloud2, const Eigen::Matrix3f& K2);
     size_t compute_segments(std::vector<CloudT::Ptr>& sweeps, std::vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files, size_t i = 0);
@@ -54,6 +56,9 @@ public:
     void process_segments_incremental();
     void train_vocabulary_incremental(int max_segments, bool simply_train = false);
     void query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query = false, int number_original_features = 0, const string &other_segments_path = "");
+    void query_reweight_vocabulary(vector<index_score>& first_scores, vector<index_score>& reweight_scores,
+                                   size_t query_ind, size_t nbr_query, bool visualize_query,
+                                   int number_original_features, const string& other_segments_path);
 
     void save_features(HistCloudT::Ptr& features, std::vector<int>& indices);
     bool load_features(HistCloudT::Ptr& features, std::vector<int>& indices);

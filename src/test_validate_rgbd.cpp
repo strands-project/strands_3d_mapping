@@ -206,16 +206,30 @@ void get_all_annotations(map<pair<string, int> , vector<int> >& instance_segment
     }
 }
 
+vector<size_t> sample_without_replacement(size_t upper, size_t number)
+{
+    random_device device;
+    mt19937 generator(device());
+
+    // Generate a vector with all possible numbers and shuffle it.
+    vector<size_t> result;
+    for (size_t i = 0; i < upper; ++i) {
+        result.push_back(i);
+    }
+    shuffle(result.begin(), result.end(), generator);
+
+    // Truncate to the requested size.
+    result.resize(number);
+
+    return result;
+}
+
 void calculate_exclude_set(set<int>& exclude_set, map<pair<string, int>, vector<int> >& annotations, int exclude_number)
 {
     for (pair<const pair<string, int>, vector<int> >& instance_set : annotations) {
-        int counter = 0;
-        for (int i : instance_set.second) {
-            if (counter >= exclude_number) {
-                break;
-            }
-            exclude_set.insert(i);
-            ++counter;
+        vector<size_t> sampled = sample_without_replacement(instance_set.second.size(), exclude_number);
+        for (size_t i : sampled) {
+            exclude_set.insert(instance_set.second[i]);
         }
     }
 }
@@ -249,6 +263,35 @@ size_t instances_in_annotations(string object, int instance, map<string, bboxes>
     return counter;
 }
 
+void compute_precision_recall(map<pair<string, int>, vector<int> >& annotations,
+                              map<pair<string, int>, int>& matched_instances, int nbr_query, int exclude_number)
+{
+    // also, remember that exclude_number of every instance is not in the data set
+
+    for (pair<const pair<string, int>, vector<int> >& a : annotations) {
+        pair<string, int> instance = a.first;
+        int number_in_dataset = a.second.size();
+
+        // first, compute the number of true positives
+        // tp simply the number of correctly matched instances, matched_instances
+        int tp = matched_instances.at(instance);
+
+        // then, the number of false positives
+        // fp simply the rest of the query vector i.e. nbr_query*exclude_number - matched_instances
+        int fp = nbr_query*exclude_number - tp;
+
+        // then, the number of true negatives
+        // all_examples - all_of_instance
+        int tn = number_in_dataset - exclude_number;
+
+        // then, the number of false negatives
+        // all_of_instance - matched_instances
+        //int fn = 0;
+
+        // generate matlab code
+    }
+}
+
 int main(int argc, char** argv)
 {
     map<string, bboxes> annotations;
@@ -269,6 +312,14 @@ int main(int argc, char** argv)
 
     int nbr_query = 10;
     map<pair<string, int>, int> matched_instances;
+    for (const pair<pair<string, int>, vector<int> >& i : instance_segments) {
+        if (i.first.second == 0) {
+            cout << "WTF? background in here" << endl;
+            exit(0);
+        }
+        matched_instances.insert(make_pair(i.first, 0));
+    }
+
     for (int i : exclude_set) {
         CloudT::Ptr segment(new CloudT);
         NormalCloudT::Ptr normal(new NormalCloudT);
@@ -284,21 +335,20 @@ int main(int argc, char** argv)
 
         // determine if segment correspondes to any object in scene
         pair<string, int> instance;
-        get_object_instance(instance.first, instance.second, scene_annotations, hd_segment, K);
+        get_object_instance(instance.first, instance.second, scene_annotations, segment, K);
+        if (instance.second == 0) {
+            cout << "WTF? background in here" << endl;
+            exit(0);
+        }
 
         vector<index_score> scores;
-        obr.query_vocabulary(scores, i, nbr_query);
+        obr.query_vocabulary(scores, i, nbr_query); // query as many as there are instances
         vector<CloudT::Ptr> segments;
         vector<string> metadatas;
         read_segments_from_scores(segments, metadatas, scores, obr);
 
         int hits = count_hits(instance.first, instance.second, segments, metadatas, K, annotations);
-        if (matched_instances.count(instance) == 0) {
-            matched_instances.insert(make_pair(instance, hits));
-        }
-        else {
-            matched_instances.at(instance) += hits;
-        }
+        matched_instances.at(instance) += hits;
     }
 
     for (pair<const pair<string, int>, int> m : matched_instances) {

@@ -294,9 +294,19 @@ double register_objects::get_match_score()
     mean_color *= 1.0/double(counter);
     mean_dist *= 1.0/double(counter);
 
-    // blah, how to weigh distance and color?
+    // blah, how to weigh distance and color, we need some learning here
+    // probability 0-1 of being the same object, how to go from 0-1 to (1-e, 1+e)
+    // use the logarithm for now
     double color_weight = 0.01;
-    return 1.0/(color_weight*mean_color+mean_dist);
+    double dist = 1.0/(color_weight*mean_color+mean_dist);
+
+    double weight = std::max(1.0 - 2*log(color_weight*mean_color+mean_dist), 1.0);
+    //double weight = -log(color_weight*mean_color+mean_dist);
+
+    cout << "Distance: " << dist << endl;
+    cout << "Weight: " << weight << endl;
+
+    return weight;
 }
 
 void register_objects::get_transformation(Eigen::Matrix4f& trans)
