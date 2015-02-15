@@ -268,12 +268,12 @@ double register_objects::get_match_score()
     size_t counter = 0;
 
     // use kdtree to find all of the reasonably close points
-    pcl::KdTreeFLANN<PointT> kdtree;
-    kdtree.setInputCloud(new_cloud);
+    pcl::KdTreeFLANN<PointT> kdtree1;
+    kdtree1.setInputCloud(new_cloud);
     for (const PointT& p : c2->points) {
         vector<int> indices;
         vector<float> distances;
-        kdtree.nearestKSearchT(p, 1, indices, distances);
+        kdtree1.nearestKSearchT(p, 1, indices, distances);
         if (distances.empty() || distances.empty()) {
             cout << "Distances empty, wtf??" << endl;
             exit(0);
@@ -291,22 +291,46 @@ double register_objects::get_match_score()
         ++counter;
     }
 
+    pcl::KdTreeFLANN<PointT> kdtree2;
+    kdtree2.setInputCloud(c2);
+    for (const PointT& p : new_cloud->points) {
+        vector<int> indices;
+        vector<float> distances;
+        kdtree2.nearestKSearchT(p, 1, indices, distances);
+        if (distances.empty() || distances.empty()) {
+            cout << "Distances empty, wtf??" << endl;
+            exit(0);
+        }
+        float dist = distances[0];
+        if (dist > 0.1) {
+            continue;
+        }
+        PointT q = c2->at(indices[0]);
+        // compare distance and color
+        Eigen::Vector3d pc(p.r, p.g, p.b);
+        Eigen::Vector3d qc(q.r, q.g, q.b);
+        mean_color += (pc - qc).norm();
+        mean_dist += dist;
+        ++counter;
+    }
+
     mean_color *= 1.0/double(counter);
     mean_dist *= 1.0/double(counter);
 
     // blah, how to weigh distance and color, we need some learning here
     // probability 0-1 of being the same object, how to go from 0-1 to (1-e, 1+e)
     // use the logarithm for now
-    double color_weight = 0.01;
+    double color_weight = 0.05;
     double dist = 1.0/(color_weight*mean_color+mean_dist);
 
-    double weight = std::max(1.0 - 2*log(color_weight*mean_color+mean_dist), 1.0);
+    //double weight = std::max(1.0 - 2*log(color_weight*mean_color+mean_dist), 1.0);
+    double weight = std::max(1.0, 5.0*fabs(dist));
     //double weight = -log(color_weight*mean_color+mean_dist);
 
     cout << "Distance: " << dist << endl;
     cout << "Weight: " << weight << endl;
 
-    return weight;
+    return 1.0/mean_dist;
 }
 
 void register_objects::get_transformation(Eigen::Matrix4f& trans)

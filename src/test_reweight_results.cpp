@@ -165,7 +165,7 @@ pair<bool, bool> is_correctly_classified(const string& instance, CloudT::Ptr& se
     bool is_full;
     tie(ratio, is_full) = segment_is_correct(segment, K, annotation);
     cout << "ratio: " << ratio << endl;
-    return make_pair(ratio > 0.85f, is_full);
+    return make_pair(ratio > 0.75f, is_full);
 
     /*SimpleXMLParser<PointT> parser;
     vector<string> xml_nodes_to_parser = {"RoomIntermediateCloud", "IntermediatePosition", "RoomStringId"};  // "RoomCompleteCloud", "RoomDynamicClusters"
@@ -223,6 +223,9 @@ void list_all_annotated_segments(map<int, string>& annotated, map<int, string>& 
             archive_i(K);
         }
         string instance = boost::filesystem::path(metadata).parent_path().parent_path().parent_path().stem().string();
+        /*if (instance != "cereal_2") { // DEBUG: remove this when done!
+            continue;
+        }*/
         bool is_instance;
         bool is_full;
         tie(is_instance, is_full) = is_correctly_classified(instance, segment, K, segments_path, segment_id);

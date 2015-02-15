@@ -636,8 +636,8 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
         }
     }
     if (true) { // DEBUG
-        load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features);
-        //load_features(query_cloud, indices);
+        //load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features); // test_reweight_results
+        load_features(query_cloud, indices); // test_validate_rgbd
     }
     else {
         get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
@@ -658,6 +658,7 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
     rvt.top_similarities(first_scores, query_cloud, nbr_query);
 
     map<int, double> weights;
+    double sum = 0.0;
     for (index_score s : first_scores) {
         if (s.first == query_ind) { // we do not want to reweight with a perfect match (itself)
             continue;
@@ -681,11 +682,22 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
             continue;
         }
         weights.insert(make_pair(s.first, similarity));
+        sum += similarity;
         cout << "Shape similarity: " << similarity << endl;
         //visualize_cloud(hd_segment);
     }
 
+    for (pair<const int, double>& w : weights) {
+        w.second *= 1.0*double(weights.size())/sum; // 1.0 seems best, needs no explanation
+        //w.second = 1.5; // just to check how much "bootstrapping" contributes
+    }
+
     rvt.top_similarities_reweighted(reweight_scores, weights, query_cloud, nbr_query);
+    cout << "Reweighted distances: " << endl;
+    for (index_score s : reweight_scores) {
+        cout << s.second << ", ";
+    }
+    cout << endl;
 }
 
 /*template <class Archive>

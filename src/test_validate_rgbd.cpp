@@ -308,16 +308,18 @@ int main(int argc, char** argv)
     calculate_exclude_set(exclude_set, instance_segments, exclude_number);
     obr.set_exclude_set(exclude_set);
 
-    //obr.train_vocabulary_incremental(5000, false);
+    obr.train_vocabulary_incremental(5000, false);
 
     int nbr_query = 10;
-    map<pair<string, int>, int> matched_instances;
+    map<pair<string, int>, int> first_matched_instances;
+    map<pair<string, int>, int> reweight_matched_instances;
     for (const pair<pair<string, int>, vector<int> >& i : instance_segments) {
         if (i.first.second == 0) {
             cout << "WTF? background in here" << endl;
             exit(0);
         }
-        matched_instances.insert(make_pair(i.first, 0));
+        first_matched_instances.insert(make_pair(i.first, 0));
+        reweight_matched_instances.insert(make_pair(i.first, 0));
     }
 
     for (int i : exclude_set) {
@@ -341,18 +343,26 @@ int main(int argc, char** argv)
             exit(0);
         }
 
-        vector<index_score> scores;
-        obr.query_vocabulary(scores, i, nbr_query); // query as many as there are instances
-        vector<CloudT::Ptr> segments;
-        vector<string> metadatas;
-        read_segments_from_scores(segments, metadatas, scores, obr);
+        vector<index_score> first_scores;
+        vector<index_score> reweight_scores;
+        obr.query_reweight_vocabulary(first_scores, reweight_scores, i, nbr_query); // query as many as there are instances
+        vector<CloudT::Ptr> first_segments;
+        vector<string> first_metadatas;
+        read_segments_from_scores(first_segments, first_metadatas, first_scores, obr);
+        vector<CloudT::Ptr> reweight_segments;
+        vector<string> reweight_metadatas;
+        read_segments_from_scores(reweight_segments, reweight_metadatas, reweight_scores, obr);
 
-        int hits = count_hits(instance.first, instance.second, segments, metadatas, K, annotations);
-        matched_instances.at(instance) += hits;
+        int first_hits = count_hits(instance.first, instance.second, first_segments, first_metadatas, K, annotations);
+        int reweight_hits = count_hits(instance.first, instance.second, reweight_segments, reweight_metadatas, K, annotations);
+        first_matched_instances.at(instance) += first_hits;
+        reweight_matched_instances.at(instance) += reweight_hits;
     }
 
-    for (pair<const pair<string, int>, int> m : matched_instances) {
-        cout << m.first.first << "_" << m.first.second << " = " << float(m.second)/float(nbr_query*exclude_number) << ";" << endl;
+    for (pair<const pair<string, int>, int> m : first_matched_instances) {
+        float first_ratio = float(m.second)/float(nbr_query*exclude_number);
+        float reweight_ratio = float(reweight_matched_instances.at(m.first))/float(nbr_query*exclude_number);
+        cout << m.first.first << "_" << m.first.second << " = [ " << first_ratio << ", " << reweight_ratio << " ];" << endl;
     }
 
     return 0;

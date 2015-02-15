@@ -57,8 +57,8 @@ public:
     void train_vocabulary_incremental(int max_segments, bool simply_train = false);
     void query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query = false, int number_original_features = 0, const string &other_segments_path = "");
     void query_reweight_vocabulary(vector<index_score>& first_scores, vector<index_score>& reweight_scores,
-                                   size_t query_ind, size_t nbr_query, bool visualize_query,
-                                   int number_original_features, const string& other_segments_path);
+                                   size_t query_ind, size_t nbr_query, bool visualize_query = false,
+                                   int number_original_features = 0, const string& other_segments_path = "");
 
     void save_features(HistCloudT::Ptr& features, std::vector<int>& indices);
     bool load_features(HistCloudT::Ptr& features, std::vector<int>& indices);
