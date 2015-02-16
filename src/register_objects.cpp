@@ -190,6 +190,14 @@ void register_objects::do_registration()
     calculate_features_for_image(descriptors1, keypoints1, cloud1, image1, depth1, x1, y1, k1);
     calculate_features_for_image(descriptors2, keypoints2, cloud2, image2, depth2, x2, y2, k2);
 
+    if (descriptors1.empty() || descriptors2.empty()) {
+        // shit just hit the fan
+        if (c1->size() < 50000 && c2->size() < 50000) {
+            initial_alignment();
+        }
+        return;
+    }
+
     // matching descriptors
     //cv::BFMatcher matcher;
     cv::FlannBasedMatcher matcher;
@@ -230,16 +238,17 @@ void register_objects::do_registration()
 
     if (sac_correspondences.empty() || correspondences->size() == sac_correspondences.size()) { // No samples could be selected
         // alternative way of estimating the transformation that doesn't depend as heavily on keypoints
-        initial_alignment();
+        if (c1->size() < 50000 && c2->size() < 50000) {
+            initial_alignment();
+        }
     }
 
     cout << "Estimated transformation: " << endl;
     cout << T << endl;
 
-    CloudT::Ptr new_cloud(new CloudT);
-    pcl::transformPointCloud(*c1, *new_cloud, T);
-
     if (VISUALIZE) {
+        CloudT::Ptr new_cloud(new CloudT);
+        pcl::transformPointCloud(*c1, *new_cloud, T);
         boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
         viewer->setBackgroundColor(0, 0, 0);
         pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb1(c2);
@@ -302,7 +311,7 @@ double register_objects::get_match_score()
             exit(0);
         }
         float dist = distances[0];
-        if (dist > 0.1) {
+        if (dist > 0.1) { // make this a parameter
             continue;
         }
         PointT q = c2->at(indices[0]);
@@ -316,6 +325,11 @@ double register_objects::get_match_score()
 
     mean_color *= 1.0/double(counter);
     mean_dist *= 1.0/double(counter);
+
+    if (counter == 0) {
+        mean_dist = 0.1; // make this a parameter
+        mean_color = 100;
+    }
 
     // blah, how to weigh distance and color, we need some learning here
     // probability 0-1 of being the same object, how to go from 0-1 to (1-e, 1+e)

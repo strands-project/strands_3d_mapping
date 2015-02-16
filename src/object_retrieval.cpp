@@ -636,8 +636,8 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
         }
     }
     if (true) { // DEBUG
-        //load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features); // test_reweight_results
-        load_features(query_cloud, indices); // test_validate_rgbd
+        load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features); // test_reweight_results
+        //load_features(query_cloud, indices); // test_validate_rgbd
     }
     else {
         get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
@@ -655,7 +655,8 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
     if (rvt.empty()) {
         read_vocabulary(rvt);
     }
-    rvt.top_similarities(first_scores, query_cloud, nbr_query);
+    rvt.top_similarities(first_scores, query_cloud, 40); // do 2 times matches to get better reweight results
+    //rvt.top_pyramid_match_similarities(first_scores, query_cloud, nbr_query); // do 2 times matches to get better reweight results
 
     map<int, double> weights;
     double sum = 0.0;
@@ -693,6 +694,7 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
     }
 
     rvt.top_similarities_reweighted(reweight_scores, weights, query_cloud, nbr_query);
+
     cout << "Reweighted distances: " << endl;
     for (index_score s : reweight_scores) {
         cout << s.second << ", ";
