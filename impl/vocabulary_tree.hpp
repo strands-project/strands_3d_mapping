@@ -272,25 +272,21 @@ void vocabulary_tree<Point, K>::top_similarities(std::vector<cloud_idx_score>& s
 template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::pyramid_match_score_for_node(std::map<int, double>& scores, std::map<int, int>& source_id_freqs, node* n, const PointT& p)
 {
-    std::set<int> new_matches;
-    for (std::pair<const int, int>& u : source_id_freqs) {
-        new_matches.insert(u.first);
-    }
     if (!n->is_leaf) {
         node* c = super::get_next_node(n, p);
         std::map<int, int> child_id_freqs;
         source_freqs_for_node(child_id_freqs, c);
-        pyramid_match_score_for_node(scores, child_id_freqs, c, p);
         for (std::pair<const int, int>& u : child_id_freqs) {
-            new_matches.erase(u.first);
+            source_id_freqs.at(u.first) -= u.second; // might result in 0 but not less
         }
+        pyramid_match_score_for_node(scores, child_id_freqs, c, p);
     }
-    for (int i : new_matches) {
-        if (scores.count(i) == 1) {
-            scores.at(i) += n->weight;
+    for (pair<const int, int>& u : source_id_freqs) {
+        if (scores.count(u.first) == 1) {
+            scores.at(u.first) += n->weight*double(u.second);
         }
         else {
-            scores.insert(std::make_pair(i, n->weight));
+            scores.insert(std::make_pair(u.first, n->weight*double(u.second)));
         }
     }
 }
@@ -298,11 +294,21 @@ void vocabulary_tree<Point, K>::pyramid_match_score_for_node(std::map<int, doubl
 template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::top_pyramid_match_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
+    // in the end, this should be just a toggle, use one distance measure or the other
+    map<node*, double> original_weights; // this could be a vector of pairs instead
+    compute_pyramid_match_weights(original_weights);
+
     std::map<int, double> map_scores;
     std::map<int, int> source_id_freqs;
     source_freqs_for_node(source_id_freqs, &(super::root));
     for (PointT& p : query_cloud->points) {
         pyramid_match_score_for_node(map_scores, source_id_freqs, &(super::root), p);
+    }
+    int query_size = query_cloud->size();
+    if (classic_pyramid_match) {
+        for (pair<const int, double>& s : map_scores) {
+            s.second *= 1.0/double(std::min(source_id_freqs.at(s.first), query_size));
+        }
     }
 
     scores.insert(scores.end(), map_scores.begin(), map_scores.end());
@@ -310,6 +316,10 @@ void vocabulary_tree<Point, K>::top_pyramid_match_similarities(std::vector<cloud
         return s1.second < s2.second;
     });
     scores.resize(nbr_results);
+
+    for (pair<node* const, double>& w : original_weights) {
+        w.first->weight = w.second;
+    }
 }
 
 template <typename Point, size_t K>
@@ -357,42 +367,48 @@ void vocabulary_tree<Point, K>::load(Archive& archive)
 }
 
 template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::pyramid_match_weights_for_node(node* n)
+void vocabulary_tree<Point, K>::pyramid_match_weights_for_node(map<node *, double>& original_weights, node* n, size_t current_depth)
 {
-    std::vector<int> cloud_indices;
-    for (size_t i = n->range.first; i < n->range.second; ++i) {
-        leaf* l = super::leaves[i];
-        cloud_indices.insert(cloud_indices.end(), l->inds.begin(), l->inds.end());
+    if (classic_pyramid_match) {
+        original_weights.insert(make_pair(n, n->weight));
+        n->weight = pow(1.0/double(super::dim), double(super::depth-current_depth));
     }
+    else {
+        std::vector<int> cloud_indices;
+        for (size_t i = n->range.first; i < n->range.second; ++i) {
+            leaf* l = super::leaves[i];
+            cloud_indices.insert(cloud_indices.end(), l->inds.begin(), l->inds.end());
+        }
 
-    std::vector<double> distances(cloud_indices.size());
-    for (int ind : cloud_indices) {
-        distances.push_back((eig(n->centroid)-eig(super::cloud->at(ind))).template lpNorm<1>());
+        std::vector<double> distances(cloud_indices.size());
+        for (int ind : cloud_indices) {
+            distances.push_back((eig(n->centroid)-eig(super::cloud->at(ind))).template lpNorm<1>());
+        }
+
+        double m = std::accumulate(distances.begin(), distances.end(), 0.0);
+        m /= double(distances.size());
+
+        double var = 0.0;
+        for (double d : distances) {
+            var += (d - m)*(d - m);
+        }
+
+        n->weight = std::min(1.0/sqrt(var), 200000.0); // need to check what is a good value here, check mean of leaves
     }
-
-    double m = std::accumulate(distances.begin(), distances.end(), 0.0);
-    m /= double(distances.size());
-
-    double var = 0.0;
-    for (double d : distances) {
-        var += (d - m)*(d - m);
-    }
-
-    n->weight = std::min(1.0/sqrt(var), 200000.0); // need to check what is a good value here, check mean of leaves
 
     if (!n->is_leaf) {
         for (node* c : n->children) {
-            pyramid_match_weights_for_node(c);
+            pyramid_match_weights_for_node(original_weights, c, current_depth+1);
         }
     }
 }
 
 template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::compute_pyramid_match_weights()
+void vocabulary_tree<Point, K>::compute_pyramid_match_weights(map<node*, double>& original_weights)
 {
     // there should really be a node iterator for these things
     // remember to call set_input_cloud if loaded from file
-    pyramid_match_weights_for_node(&(super::root));
+    pyramid_match_weights_for_node(original_weights, &(super::root), 0);
 
     double accum = 0.0;
     for (leaf* l : super::leaves) {
