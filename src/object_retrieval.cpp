@@ -152,6 +152,7 @@ void object_retrieval::read_segments(vector<CloudT::Ptr>& segments, vector<Norma
 bool object_retrieval::read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment,
                                     Eigen::Matrix3f& K, string& metadata, size_t segment_id)
 {
+    cout << "Entering" << endl;
     boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
     boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(segment_id));
     cout << "Reading directory " << sub_dir.string() << endl;
@@ -162,6 +163,7 @@ bool object_retrieval::read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& nor
     if (pcl::io::loadPCDFile<NormalT>(sub_dir.string() + "/normals.pcd", *normal) == -1) exit(0);
     if (pcl::io::loadPCDFile<PointT>(sub_dir.string() + "/hd_segment.pcd", *hd_segment) == -1) exit(0);
     {
+        cout << "Reading matrix: " << sub_dir.string() + "/K.cereal" << endl;
         ifstream in(sub_dir.string() + "/K.cereal", std::ios::binary);
         cereal::BinaryInputArchive archive_i(in);
         archive_i(K);
@@ -170,6 +172,7 @@ bool object_retrieval::read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& nor
     f.open(sub_dir.string() + "/metadata.txt");
     f >> metadata;
     f.close();
+    cout << "Returning" << endl;
     return true;
 }
 
@@ -622,7 +625,7 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
     string metadata;
 
     cout << "Querying segment nbr: " << query_ind << endl;
-    if (number_original_features != 0 && query_ind >= number_original_features) {
+    if (number_original_features != 0 && query_ind >= number_original_features) { // annotations in different data set
         if (!read_other_segment(segment, normal, query_segment, query_K, metadata,
                                 query_ind-number_original_features, other_segments_path)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
             cout << "Error reading segment!" << endl;
@@ -636,8 +639,13 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
         }
     }
     if (true) { // DEBUG
-        load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features); // test_reweight_results
         //load_features(query_cloud, indices); // test_validate_rgbd
+        if (number_original_features != 0 && query_ind >= number_original_features) { // annotations in different data set
+            load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features); // test_reweight_results
+        }
+        else {
+            load_features_for_segment(query_cloud, query_ind);
+        }
     }
     else {
         get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
@@ -655,45 +663,52 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
     if (rvt.empty()) {
         read_vocabulary(rvt);
     }
-    rvt.top_similarities(first_scores, query_cloud, 40); // do 2 times matches to get better reweight results
+    rvt.top_similarities(first_scores, query_cloud, 1*(nbr_query-1)+1); // do 2 times matches to get better reweight results
     //rvt.top_pyramid_match_similarities(first_scores, query_cloud, nbr_query); // do 2 times matches to get better reweight results
 
-    map<int, double> weights;
-    double sum = 0.0;
-    for (index_score s : first_scores) {
-        if (s.first == query_ind) { // we do not want to reweight with a perfect match (itself)
-            continue;
-        }
-        cout << "Index: " << s.first << " with score: " << s.second << endl;
-        if (number_original_features != 0 && s.first >= number_original_features) {
-            if (!read_other_segment(segment, normal, hd_segment, K, metadata,
-                                    s.first-number_original_features, other_segments_path)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
-                cout << "Error reading segment!" << endl;
-                exit(0);
+    const int reweight_rounds = 1;
+    for (int i = 0; i < reweight_rounds; ++i) { // do the reweighting and querying 1 time to begin with, maybe add caching of matches later
+        map<int, double> weights;
+        double sum = 0.0;
+        for (index_score s : first_scores) {
+            if (s.first == query_ind) { // we do not want to reweight with a perfect match (itself)
+                continue;
             }
-        }
-        else {
-            if (!read_segment(segment, normal, hd_segment, K, metadata, s.first)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
-                cout << "Error reading segment!" << endl;
-                exit(0);
+            cout << "Index: " << s.first << " with score: " << s.second << endl;
+            if (number_original_features != 0 && s.first >= number_original_features) {
+                if (!read_other_segment(segment, normal, hd_segment, K, metadata,
+                                        s.first-number_original_features, other_segments_path)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
+                    cout << "Error reading segment!" << endl;
+                    exit(0);
+                }
             }
+            else {
+                if (!read_segment(segment, normal, hd_segment, K, metadata, s.first)) { // 20 Drawer // 34 Blue Cup // 50 Monitor
+                    cout << "Error reading segment!" << endl;
+                    exit(0);
+                }
+            }
+            float similarity = calculate_similarity(query_segment, query_K, hd_segment, K);
+            if (isnan(similarity)) {
+                continue;
+            }
+            weights.insert(make_pair(s.first, similarity));
+            sum += similarity;
+            cout << "Shape similarity: " << similarity << endl;
+            //visualize_cloud(hd_segment);
         }
-        float similarity = calculate_similarity(query_segment, query_K, hd_segment, K);
-        if (isnan(similarity)) {
-            continue;
+
+        for (pair<const int, double>& w : weights) {
+            w.second *= 1.0*double(weights.size())/sum; // 1.0 seems best, needs no explanation
+            //w.second = 1.5; // just to check how much "bootstrapping" contributes
         }
-        weights.insert(make_pair(s.first, similarity));
-        sum += similarity;
-        cout << "Shape similarity: " << similarity << endl;
-        //visualize_cloud(hd_segment);
-    }
 
-    for (pair<const int, double>& w : weights) {
-        w.second *= 1.0*double(weights.size())/sum; // 1.0 seems best, needs no explanation
-        //w.second = 1.5; // just to check how much "bootstrapping" contributes
+        reweight_scores.clear();
+        rvt.top_similarities_reweighted(reweight_scores, weights, query_cloud, nbr_query);
+        if (i < reweight_rounds-1) {
+            first_scores.swap(reweight_scores);
+        }
     }
-
-    rvt.top_similarities_reweighted(reweight_scores, weights, query_cloud, nbr_query);
 
     cout << "Reweighted distances: " << endl;
     for (index_score s : reweight_scores) {
