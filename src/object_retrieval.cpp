@@ -68,18 +68,12 @@ void object_retrieval::extract_features(vector<int>& inds, HistCloudT::Ptr& feat
 void object_retrieval::extract_feature(vector<int>& inds, HistCloudT::Ptr& feature, CloudT::Ptr& segment,
                                        NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, const Eigen::Matrix3f& K, int ind)
 {
-    //int counter = 0;
-    //for (size_t i = 0; i < segments.size(); ++i) {
     segment_features sf(K, false);
-    //HistCloudT::Ptr featuresi(new HistCloudT);
     Eigen::VectorXf globalf;
     sf.calculate_features(globalf, feature, segment, normal, hd_segment);
     for (size_t j = 0; j < feature->size(); ++j) {
         inds.push_back(ind);
     }
-    //features->insert(features->end(), featuresi->begin(), featuresi->end());
-    //++counter;
-    //}
 }
 
 void object_retrieval::get_query_cloud(HistCloudT::Ptr& query_cloud, CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K)
@@ -129,23 +123,17 @@ void object_retrieval::read_segments(vector<CloudT::Ptr>& segments, vector<Norma
         if (!boost::filesystem::is_directory(sub_dir)) {
             break;
         }
-        //cout << __FILE__ << ", " << __LINE__ << endl;
         segments.push_back(CloudT::Ptr(new CloudT));
-        //cout << __FILE__ << ", " << __LINE__ << endl;
         normals.push_back(NormalCloudT::Ptr(new NormalCloudT));
-        //cout << __FILE__ << ", " << __LINE__ << endl;
         hd_segments.push_back(CloudT::Ptr(new CloudT));
         if (pcl::io::loadPCDFile<PointT>(sub_dir.string() + "/segment.pcd", *segments[i]) == -1) exit(0);
-        //cout << __FILE__ << ", " << __LINE__ << endl;
         if (pcl::io::loadPCDFile<NormalT>(sub_dir.string() + "/normals.pcd", *normals[i]) == -1) exit(0);
-        //cout << __FILE__ << ", " << __LINE__ << endl;
         if (pcl::io::loadPCDFile<PointT>(sub_dir.string() + "/hd_segment.pcd", *hd_segments[i]) == -1) exit(0);
         {
             ifstream in(sub_dir.string() + "/K.cereal", std::ios::binary);
             cereal::BinaryInputArchive archive_i(in);
-            archive_i(K); // Is reading of the K matrix slowing this down?
+            archive_i(K);
         }
-        //cout << __FILE__ << ", " << __LINE__ << endl;
     }
 }
 
@@ -232,26 +220,10 @@ pair<double, double> object_retrieval::calculate_similarity(CloudT::Ptr& cloud1,
     return ro.get_match_score();
 }
 
-//void object_retrieval::compute_segments()
 size_t object_retrieval::compute_segments(vector<CloudT::Ptr>& sweeps, vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files, size_t i)
 {
-    //vector<CloudT::Ptr> sweeps;
-    //vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> > intrinsics;
-    //read_clouds(sweeps, intrinsics, 3);
-
-    //vector<CloudT::Ptr> segments;
-    //vector<NormalCloudT::Ptr> normals;
-    //vector<CloudT::Ptr> hd_segments;
-    //vector<string> segment_files;
-
-    //size_t max_segments = 5;
     size_t counter = 0;
-    //size_t i = 0;
     for (CloudT::Ptr cloud : sweeps) {
-        /*if (counter >= max_segments) {
-            break;
-        }*/
-
         if (VISUALIZE) {
             visualize_cloud(cloud);
         }
@@ -262,12 +234,7 @@ size_t object_retrieval::compute_segments(vector<CloudT::Ptr>& sweeps, vector<Ei
         vector<string> filesi;
         cvs.segment_objects(segmentsi, normalsi, hd_segmentsi, cloud);
 
-        //segments.insert(segments.end(), segmentsi.begin(), segmentsi.end());
-        //normals.insert(normals.end(), normalsi.begin(), normalsi.end());
-        //hd_segments.insert(hd_segments.end(), hd_segmentsi.begin(), hd_segmentsi.end());
-
         for (size_t j = 0; j < segmentsi.size(); ++j) {
-            //segment_files.push_back(files[counter]);
             filesi.push_back(files[counter]);
         }
         ++counter;
@@ -275,7 +242,6 @@ size_t object_retrieval::compute_segments(vector<CloudT::Ptr>& sweeps, vector<Ei
         i = write_segments(segmentsi, normalsi, hd_segmentsi,  intrinsics[0], filesi, i);
     }
 
-    //write_segments(segments, normals, hd_segments,  intrinsics[0], segment_files);
     return i;
 }
 
@@ -318,45 +284,22 @@ void object_retrieval::process_segments()
 
 void object_retrieval::process_segments_incremental()
 {
-    //HistCloudT::Ptr features(new HistCloudT);
-    //vector<int> indices;
-
-    //if (!load_features(features, indices)) {
-
-        for (size_t i = 0; ; ++i) { // remember to put this back to zero
-            CloudT::Ptr segment(new CloudT);
-            NormalCloudT::Ptr normal(new NormalCloudT);
-            CloudT::Ptr hd_segment(new CloudT);
-            Eigen::Matrix3f K;
-            string metadata;
-            if (!read_segment(segment, normal, hd_segment, K, metadata, i)) {
-                break;
-            }
-
-            HistCloudT::Ptr features_i(new HistCloudT);
-            vector<int> indices_i;
-            extract_feature(indices_i, features_i, segment, normal, hd_segment, K, i);
-
-            //features->insert(features->end(), features_i->begin(), features_i->end());
-            //indices.insert(indices.end(), indices_i.begin(), indices_i.end());
-
-            save_features_for_segment(features_i, i);
+    for (size_t i = 0; ; ++i) { // remember to put this back to zero
+        CloudT::Ptr segment(new CloudT);
+        NormalCloudT::Ptr normal(new NormalCloudT);
+        CloudT::Ptr hd_segment(new CloudT);
+        Eigen::Matrix3f K;
+        string metadata;
+        if (!read_segment(segment, normal, hd_segment, K, metadata, i)) {
+            break;
         }
 
-        //save_features(features, indices);
-    //}
+        HistCloudT::Ptr features_i(new HistCloudT);
+        vector<int> indices_i;
+        extract_feature(indices_i, features_i, segment, normal, hd_segment, K, i);
 
-    /*for (int i : indices) cout << i << " "; cout << endl;
-
-    for (HistT& h : features->points) {
-        eig(h).normalize();
+        save_features_for_segment(features_i, i);
     }
-
-    vocabulary_tree<HistT, 8> vt1;
-    vt1.set_input_cloud(features, indices);
-    vt1.add_points_from_input_cloud();
-
-    write_vocabulary(vt1);*/
 }
 
 void object_retrieval::train_vocabulary_incremental(int max_segments, bool simply_train)
@@ -430,8 +373,6 @@ void object_retrieval::train_vocabulary_incremental(int max_segments, bool simpl
 // this should just be 2 separate functions
 int object_retrieval::add_others_to_vocabulary(int max_segments, const std::string& other_segment_path, int nbr_original_segments, bool add_some)
 {
-    //vocabulary_tree<HistT, 8> vt1;
-    //read_vocabulary(vt1);
     if (vt.empty()) {
         read_vocabulary(vt);
     }
@@ -451,37 +392,30 @@ int object_retrieval::add_others_to_vocabulary(int max_segments, const std::stri
         counter = 0;
     }
     bool are_done = false;
-    cout << __FILE__ << ", " << __LINE__ << endl;
 
     while (!are_done) {
         HistCloudT::Ptr features(new HistCloudT);
         vector<int> indices;
 
         for (size_t i = 0; i < max_segments; ++i) {
-            cout << __FILE__ << ", " << __LINE__ << endl;
             HistCloudT::Ptr features_i(new HistCloudT);
             if (!load_features_for_other_segment(features_i, other_segment_path, counter)) {
                 are_done = true;
                 break;
             }
-            cout << __FILE__ << ", " << __LINE__ << endl;
             features->insert(features->end(), features_i->begin(), features_i->end());
             for (size_t j = 0; j < features_i->size(); ++j) {
                 indices.push_back(initial_size + counter);
             }
-            cout << __FILE__ << ", " << __LINE__ << endl;
             ++counter;
         }
 
-        cout << __FILE__ << ", " << __LINE__ << endl;
         vt.append_cloud(features, indices, false);
-        cout << __FILE__ << ", " << __LINE__ << endl;
         if (add_some) {
             break;
         }
     }
 
-    cout << __FILE__ << ", " << __LINE__ << endl;
     write_vocabulary(vt);
 
     if (add_some) {
@@ -495,10 +429,6 @@ int object_retrieval::add_others_to_vocabulary(int max_segments, const std::stri
 void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query,
                                         int number_original_features, const string& other_segments_path)
 {
-    static HistCloudT::Ptr features(new HistCloudT);
-    static vector<int> indices;
-
-    //vocabulary_tree<HistT, 8> vt;
     HistCloudT::Ptr query_cloud(new HistCloudT);
     CloudT::Ptr segment(new CloudT);
     CloudT::Ptr query_segment(new CloudT);
@@ -507,29 +437,9 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
     Eigen::Matrix3f K, query_K;
     string metadata;
 
-#if 0
-    {
-        vector<CloudT::Ptr> segments;
-        vector<NormalCloudT::Ptr> normals;
-        vector<CloudT::Ptr> hd_segments;
-
-        read_segments(segments, normals, hd_segments, K, 200);
-        HistCloudT::Ptr features(new HistCloudT);
-        vector<int> indices;
-        extract_features(indices, features, segments, normals, hd_segments, K);
-        for (HistT& h : features->points) {
-            eig(h).normalize();
-        }
-        vt.set_input_cloud(features, indices);
-        vt.add_points_from_input_cloud();
-    }
-#endif
-
-    cout << __FILE__ << ", " << __LINE__ << endl;
     if (vt.empty()) {
         read_vocabulary(vt);
     }
-    cout << __FILE__ << ", " << __LINE__ << endl;
 
     cout << "Querying segment nbr: " << query_ind << endl;
     if (number_original_features != 0 && query_ind >= number_original_features) {
@@ -545,9 +455,13 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
             exit(0);
         }
     }
-    if (false) { // DEBUG
-        //load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features);
-        load_features(features, indices);
+    if (true) { // DEBUG
+        if (number_original_features != 0 && query_ind >= number_original_features) { // annotations in different data set
+            load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features); // test_reweight_results
+        }
+        else {
+            load_features_for_segment(query_cloud, query_ind);
+        }
     }
     else {
         get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
@@ -556,23 +470,10 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
         }
     }
 
-    for (HistT& h : query_cloud->points) {
+    /*for (HistT& h : query_cloud->points) {
         eig(h).normalize();
-    }
-
-    /*if (true) {
-        if (indices.empty() || features->empty()) {
-            if (!load_features(features, indices)) {
-                exit(0);
-            }
-        }
-        vt.set_input_cloud(features, indices);
-        vt.compute_pyramid_match_weights();
-        vt.top_pyramid_match_similarities(scores, query_cloud, nbr_query);
-        return;
     }*/
 
-    //vector<index_score> scores;
     vt.top_similarities(scores, query_cloud, nbr_query);
 
     if (visualize_query) {
@@ -594,28 +495,12 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
             visualize_cloud(hd_segment);
         }
     }
-
-    // don't register right now
-    /*for (index_score s : scores) {
-        cout << "Index: " << s.first << " with score: " << s.second << endl;
-        if (!read_segment(segment, normal, hd_segment, K, metadata, s.first)) {
-            cout << "Error reading segment!" << endl;
-            exit(0);
-        }
-        //float similarity = calculate_similarity(query_segment, query_K, hd_segment, K);
-        //cout << "Shape similarity: " << similarity << endl;
-        visualize_cloud(hd_segment);
-    }*/
 }
 
 void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scores, vector<index_score>& reweight_scores,
                                                  size_t query_ind, size_t nbr_query, bool visualize_query,
                                                  int number_original_features, const string& other_segments_path)
 {
-    static HistCloudT::Ptr features(new HistCloudT);
-    static vector<int> indices;
-
-    //vocabulary_tree<HistT, 8> vt;
     HistCloudT::Ptr query_cloud(new HistCloudT);
     CloudT::Ptr segment(new CloudT);
     CloudT::Ptr query_segment(new CloudT);
@@ -639,7 +524,6 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
         }
     }
     if (true) { // DEBUG
-        //load_features(query_cloud, indices); // test_validate_rgbd
         if (number_original_features != 0 && query_ind >= number_original_features) { // annotations in different data set
             load_features_for_other_segment(query_cloud, other_segments_path, query_ind-number_original_features); // test_reweight_results
         }
@@ -727,12 +611,6 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
     }
     cout << endl;
 }
-
-/*template <class Archive>
-void serialize(Archive& archive, object_retrieval::HistT& m)
-{
-    archive(m.histogram);
-}*/
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (object_retrieval::HistT,
                                    (float[object_retrieval::N], histogram, histogram)

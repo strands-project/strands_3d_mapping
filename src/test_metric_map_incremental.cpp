@@ -111,15 +111,11 @@ pair<float, bool> segment_is_correct(CloudT::Ptr& cloud, const Eigen::Matrix3f& 
     int miny = stoi(strs[4]);
     int maxy = stoi(strs[5]);
 
-    cout << minx << " " << maxx << " " << miny << " " << maxy << endl;
-    //cout << K << endl;
-
     size_t counter = 0;
     for (PointT& p : cloud->points) {
         Eigen::Vector3f q = K*p.getVector3fMap();
         int x = int(q(0)/q(2) + 0.5f);
         int y = int(q(1)/q(2) + 0.5f);
-        //cout << x << " " << y << endl;
         if (x >= minx && x <= maxx && y >= miny && y <= maxy) {
             ++counter;
         }
@@ -136,7 +132,6 @@ pair<bool, bool> is_correctly_classified(const string& instance, CloudT::Ptr& se
         ifstream f;
         f.open(metadata_file);
         getline(f, metadata);
-        //f >> metadata;
         f.close();
     }
     // metadata example: cereal_1/patrol_run_1/room_0/room.xml 2
@@ -144,14 +139,12 @@ pair<bool, bool> is_correctly_classified(const string& instance, CloudT::Ptr& se
     vector<string> strs;
     boost::split(strs, metadata, boost::is_any_of(" \t\n"));
 
-    //string room_xml_file = annotations_path + "/" + strs[0];
     string annotated_instance = boost::filesystem::path(strs[0]).parent_path().parent_path().parent_path().stem().string();
     if (annotated_instance != instance) {
         cout << instance << " is not " << annotated_instance << endl;
         return make_pair(false, false);
     }
     string annotation_file = boost::filesystem::path(strs[0]).parent_path().string() + "/annotation" + strs[1] + ".txt";
-    //int scan_id = stoi(strs[1]);
 
     string annotation;
     {
@@ -166,12 +159,6 @@ pair<bool, bool> is_correctly_classified(const string& instance, CloudT::Ptr& se
     tie(ratio, is_full) = segment_is_correct(segment, K, annotation);
     cout << "ratio: " << ratio << endl;
     return make_pair(ratio > 0.85f, is_full);
-
-    /*SimpleXMLParser<PointT> parser;
-    vector<string> xml_nodes_to_parser = {"RoomIntermediateCloud", "IntermediatePosition", "RoomStringId"};  // "RoomCompleteCloud", "RoomDynamicClusters"
-    SimpleXMLParser<PointT>::RoomData room = parser.loadRoomFromXML(room_xml_file, xml_nodes_to_parser);
-
-    CloudT::Ptr cloud = room.vIntermediateRoomClouds[scan_id];*/
 }
 
 void list_all_annotated_segments(map<int, string>& annotated, map<int, string>& full_annotated, const string& segments_path)
@@ -307,7 +294,6 @@ void compute_correct_ratios(object_retrieval& obr, map<string, vector<float> >& 
         else {
             correct_ratios.at(m.first).push_back(correct_ratio);
         }
-        //cout << m.first << " had ratio " << correct_ratio << endl;
     }
 }
 
@@ -356,14 +342,6 @@ void compute_correct_ratios(object_retrieval& obr, map<string, vector<float> >& 
 
 int main(int argc, char** argv)
 {
-    //int i = 12022; // cereal box
-    //int i = 2966; // graphics box
-    //int i = 4855; // kinect box
-    int i = 1498; // paper clips box
-    if (argc >= 2) {
-        i = atoi(argv[1]);
-    }
-
     using entity = SimpleSummaryParser::EntityStruct;
     string root_path = "/home/nbore/Data/semantic_map/";
     string segments_path = root_path + "object_segments";
@@ -393,8 +371,6 @@ int main(int argc, char** argv)
 
     cout << "Extracted all of the features" << endl;
 
-    //exit(0);
-
     // compute or load all annotations
     string annotations_path = "/home/nbore/Data/Instances/object_segments";
     map<int, string> annotated;
@@ -406,17 +382,18 @@ int main(int argc, char** argv)
     cout << "Number of annotated segments: " << annotated.size() << endl;
 
     bool compute_decay = false; // this is true if we want to add more observations to see how that affects retrieval rates
+
     // do initial training of vocabulary, optionally only add 5000 first
-    obr.train_vocabulary_incremental(5000, compute_decay);
+    //obr.train_vocabulary_incremental(5000, compute_decay);
 
     int number_not_annotated;
     if (compute_decay) {
-        number_not_annotated = obr.add_others_to_vocabulary(5000, annotations_path, 22557); // 22557
+        //number_not_annotated = obr.add_others_to_vocabulary(5000, annotations_path, 22557); // 22557
     }
     else {
-        number_not_annotated = obr.add_others_to_vocabulary(5000, annotations_path);
+        //number_not_annotated = obr.add_others_to_vocabulary(5000, annotations_path);
     }
-    //int number_not_annotated = 22557;
+    number_not_annotated = 22557;
     cout << "number not annotated: " << number_not_annotated << endl;
 
     map<string, vector<float> > correct_ratios;
@@ -440,7 +417,4 @@ int main(int argc, char** argv)
         }
         cout << " ]; " << endl;
     }
-
-    //vector<index_score> scores;
-    //obr.query_vocabulary(scores, i, 50, true, number_not_annotated, annotations_path);
 }
