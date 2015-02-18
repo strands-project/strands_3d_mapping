@@ -35,7 +35,7 @@ typename map_proxy<pcl::PointXYZRGB>::const_map_type eig(const pcl::PointXYZRGB&
 template <typename Point, size_t K, typename Data>
 float k_means_tree<Point, K, Data>::norm_func(const PointT& p1, const PointT& p2) const
 {
-    return -eig(p1).dot(eig(p2));
+    return (eig(p1)-eig(p2)).array().abs().sum();//-eig(p1).dot(eig(p2));
 }
 
 template <typename Point, size_t K, typename Data>
@@ -80,8 +80,10 @@ void k_means_tree<Point, K, Data>::assign_extra(CloudPtrT& subcloud, node* n, co
     for (int ind = 0; ind < subcloud->size(); ++ind) {
         p = subcloud->at(ind);
         int closest;
-        distances = eig(p).transpose()*centroids;
-        distances.maxCoeff(&closest);
+        //distances = eig(p).transpose()*centroids;
+        distances = (centroids.colwise()-eig(p)).array().abs().colwise().sum();
+        //distances.maxCoeff(&closest);
+        distances.minCoeff(&closest);
         clusters[closest].push_back(ind);
     }
 
@@ -208,10 +210,11 @@ typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::
             */
             int closest;
             // Wrap these two calls with some nice inlining
-            distances = eig(p).transpose()*centroids;
-            distances.maxCoeff(&closest);
+            //distances = eig(p).transpose()*centroids;
+            distances = (centroids.colwise()-eig(p)).array().abs().colwise().sum();
+            //distances.maxCoeff(&closest);
+            distances.minCoeff(&closest);
             clusters[closest].push_back(ind);
-            //++ind;
         }
 
         if (skip == 1 && (counter >= min_iter || compare_centroids(centroids, last_centroids))) {
@@ -431,7 +434,6 @@ typename k_means_tree<Point, K, Data>::node* k_means_tree<Point, K, Data>::get_n
 {
     node** closest = std::min_element(n->children, n->children+dim, [this, &p](const node* q1, const node* q2) {
         return norm_func(p, q1->centroid) < norm_func(p, q2->centroid);
-        //return (eig(p) - eig(q1->centroid)).norm() < (eig(p) - eig(q2->centroid)).norm();
     });
     return *closest;
 }
@@ -442,9 +444,6 @@ void k_means_tree<Point, K, Data>::unfold_nodes(vector<node*>& path, node* n, co
     if (n->is_leaf) {
         return;
     }
-    /*node** closest = std::min_element(n->children, n->children+dim, [&p](const node* q1, const node* q2) {
-        return (eig(p) - eig(q1->centroid)).norm() < (eig(p) - eig(q2->centroid)).norm();
-    });*/
     node* closest = get_next_node(n, p);
     path.push_back(closest);
     unfold_nodes(path, closest, p);
