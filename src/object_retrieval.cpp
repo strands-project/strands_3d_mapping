@@ -223,7 +223,7 @@ void object_retrieval::read_vocabulary(vocabulary_tree<HistT, 8>& rvt)
     cout << "Vocabulary size: " << rvt.size() << endl;
 }
 
-float object_retrieval::calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,
+pair<double, double> object_retrieval::calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,
                            CloudT::Ptr& cloud2, const Eigen::Matrix3f& K2)
 {
     register_objects ro;
@@ -669,7 +669,9 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
     const int reweight_rounds = 1;
     for (int i = 0; i < reweight_rounds; ++i) { // do the reweighting and querying 1 time to begin with, maybe add caching of matches later
         map<int, double> weights;
+        map<int, double> color_weights;
         double sum = 0.0;
+        double color_sum = 0.0;
         for (index_score s : first_scores) {
             if (s.first == query_ind) { // we do not want to reweight with a perfect match (itself)
                 continue;
@@ -688,18 +690,27 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
                     exit(0);
                 }
             }
-            float similarity = calculate_similarity(query_segment, query_K, hd_segment, K);
-            if (isnan(similarity)) {
+            double similarity;
+            double color_similarity;
+            tie(similarity, color_similarity) = calculate_similarity(query_segment, query_K, hd_segment, K);
+            if (std::isnan(similarity) || (use_color_weights && std::isnan(color_similarity))) {
                 continue;
             }
             weights.insert(make_pair(s.first, similarity));
+            color_weights.insert(make_pair(s.first, color_similarity));
             sum += similarity;
+            color_sum += color_similarity;
             cout << "Shape similarity: " << similarity << endl;
             //visualize_cloud(hd_segment);
         }
 
         for (pair<const int, double>& w : weights) {
-            w.second *= 1.0*double(weights.size())/sum; // 1.0 seems best, needs no explanation
+            if (use_color_weights) {
+                w.second = (w.second/sum + color_weights.at(w.first)/color_sum)/double(weights.size());
+            }
+            else {
+                w.second *= 1.0*double(weights.size())/sum; // 1.0 seems best, needs no explanation
+            }
             //w.second = 1.5; // just to check how much "bootstrapping" contributes
         }
 
@@ -783,4 +794,9 @@ bool object_retrieval::load_features_for_other_segment(HistCloudT::Ptr& features
     std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/" + feature_segment_file;
     std::cout << "features_file: " << features_file << std::endl;
     return (pcl::io::loadPCDFile<HistT>(features_file, *features) != -1);
+}
+
+string object_retrieval::get_folder_for_segment_id(int i) const
+{
+    return segment_path + "/segment" + to_string(i) + "/";
 }

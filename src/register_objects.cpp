@@ -18,8 +18,12 @@
 
 using namespace std;
 
+float register_objects::sRGB_LUT[256] = {- 1};
+float register_objects::sXYZ_LUT[4000] = {- 1};
+
 register_objects::register_objects()
 {
+
 }
 
 void register_objects::set_input_clouds(CloudPtrT& t1, const Eigen::Matrix3f& tk1,
@@ -266,7 +270,70 @@ void register_objects::do_registration()
 
 }
 
-double register_objects::get_match_score()
+
+// from https://raw.githubusercontent.com/PointCloudLibrary/pcl/master/features/include/pcl/features/impl/shot.hpp
+// see project_root/license.txt for details
+void register_objects::RGB2CIELAB(unsigned char R, unsigned char G, unsigned char B, float &L, float &A, float &B2)
+{
+    if (sRGB_LUT[0] < 0) {
+        for (int i = 0; i < 256; i++) {
+            float f = static_cast<float> (i) / 255.0f;
+            if (f > 0.04045) {
+                sRGB_LUT[i] = powf ((f + 0.055f) / 1.055f, 2.4f);
+            }
+            else {
+                sRGB_LUT[i] = f / 12.92f;
+            }
+        }
+        for (int i = 0; i < 4000; i++) {
+            float f = static_cast<float> (i) / 4000.0f;
+            if (f > 0.008856) {
+                sXYZ_LUT[i] = static_cast<float> (powf (f, 0.3333f));
+            }
+            else {
+                sXYZ_LUT[i] = static_cast<float>((7.787 * f) + (16.0 / 116.0));
+            }
+        }
+    }
+
+    float fr = sRGB_LUT[R];
+    float fg = sRGB_LUT[G];
+    float fb = sRGB_LUT[B];
+
+    // Use white = D65
+    const float x = fr * 0.412453f + fg * 0.357580f + fb * 0.180423f;
+    const float y = fr * 0.212671f + fg * 0.715160f + fb * 0.072169f;
+    const float z = fr * 0.019334f + fg * 0.119193f + fb * 0.950227f;
+
+    float vx = x / 0.95047f;
+    float vy = y;
+    float vz = z / 1.08883f;
+
+    vx = sXYZ_LUT[int(vx*4000)];
+    vy = sXYZ_LUT[int(vy*4000)];
+    vz = sXYZ_LUT[int(vz*4000)];
+
+    L = 116.0f * vy - 16.0f;
+    if (L > 100) {
+        L = 100.0f;
+    }
+    A = 500.0f * (vx - vy);
+    if (A > 120) {
+        A = 120.0f;
+    }
+    else if (A <- 120) {
+        A = -120.0f;
+    }
+    B2 = 200.0f * (vy - vz);
+    if (B2 > 120) {
+        B2 = 120.0f;
+    }
+    else if (B2<- 120) {
+        B2 = -120.0f;
+    }
+}
+
+pair<double, double> register_objects::get_match_score()
 {
     // transform one cloud into the coordinate frame of the other
     CloudT::Ptr new_cloud(new CloudT);
@@ -344,7 +411,7 @@ double register_objects::get_match_score()
     cout << "Distance: " << dist << endl;
     cout << "Weight: " << weight << endl;
 
-    return 1.0/mean_dist;
+    return make_pair(1.0/mean_dist, 1.0/mean_color);
 }
 
 void register_objects::get_transformation(Eigen::Matrix4f& trans)

@@ -16,6 +16,7 @@ public:
 
     // using SHOT
     static const int N = 1344;
+    static const bool use_color_weights = true;
 
     static std::string feature_vocabulary_file;
     static std::string feature_segment_file;
@@ -49,8 +50,8 @@ public:
                             string& metadata, size_t segment_id, const std::string& other_segment_path);
     void write_vocabulary(vocabulary_tree<HistT, 8>& vt);
     void read_vocabulary(vocabulary_tree<HistT, 8>& rvt);
-    float calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,
-                               CloudT::Ptr& cloud2, const Eigen::Matrix3f& K2);
+    std::pair<double, double> calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,
+                                                   CloudT::Ptr& cloud2, const Eigen::Matrix3f& K2);
     size_t compute_segments(std::vector<CloudT::Ptr>& sweeps, std::vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files, size_t i = 0);
     void process_segments();
     void process_segments_incremental();
@@ -66,6 +67,7 @@ public:
     bool load_features_for_segment(HistCloudT::Ptr& features, int i);
     bool load_features_for_other_segment(HistCloudT::Ptr& features, const std::string& other_segment_path, int i);
     int add_others_to_vocabulary(int max_segments, const std::string& other_segment_path, int nbr_original_segments = -1, bool add_some = false);
+    std::string get_folder_for_segment_id(int i) const;
 
     object_retrieval(const std::string& segment_path);
 };

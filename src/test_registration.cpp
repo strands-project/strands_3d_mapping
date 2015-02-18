@@ -24,8 +24,8 @@ void test_registration_pair(const std::string& file1, const std::string& file2)
     ro.set_input_clouds(cloud1, K, cloud2, K);
     ro.do_registration();
 
-    float score = ro.get_match_score();
-    cout << "Match score: " << score << endl;
+    std::pair<double, double> score = ro.get_match_score();
+    cout << "Match score: " << score.first << ", Color score: " << score.second << endl;
 
     Eigen::Matrix4f T;
     ro.get_transformation(T);
