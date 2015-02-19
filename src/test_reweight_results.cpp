@@ -367,14 +367,14 @@ int main(int argc, char** argv)
     // do initial training of vocabulary, optionally only add 5000 first
     //obr.train_vocabulary_incremental(5000, compute_decay);
 
-    int number_not_annotated = 22557;
+    int number_not_annotated;
     if (compute_decay) {
         //number_not_annotated = obr.add_others_to_vocabulary(5000, annotations_path, 22557); // 22557
     }
     else {
         //number_not_annotated = obr.add_others_to_vocabulary(5000, annotations_path);
     }
-    //int number_not_annotated = 22557;
+    number_not_annotated = 22557;
     cout << "number not annotated: " << number_not_annotated << endl;
     //exit(0);
 

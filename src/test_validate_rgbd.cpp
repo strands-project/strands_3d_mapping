@@ -359,11 +359,13 @@ int main(int argc, char** argv)
         reweight_matched_instances.at(instance) += reweight_hits;
     }
 
+    cout << "instances = {" << endl;
     for (pair<const pair<string, int>, int> m : first_matched_instances) {
         float first_ratio = float(m.second)/float(nbr_query*exclude_number);
         float reweight_ratio = float(reweight_matched_instances.at(m.first))/float(nbr_query*exclude_number);
-        cout << m.first.first << "_" << m.first.second << " = [ " << first_ratio << ", " << reweight_ratio << " ];" << endl;
+        cout << "{'" << m.first.first << "_" << m.first.second << "', " << first_ratio << ", " << reweight_ratio << "}," << endl;
     }
+    cout << "};" << endl;
 
     return 0;
 }

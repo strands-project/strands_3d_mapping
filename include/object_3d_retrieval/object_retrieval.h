@@ -16,7 +16,7 @@ public:
 
     // using SHOT
     static const int N = 1344;
-    static const bool use_color_weights = true;
+    static const bool use_color_weights = false;
 
     static std::string feature_vocabulary_file;
     static std::string feature_segment_file;

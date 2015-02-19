@@ -69,6 +69,9 @@ target_link_libraries(test_generate_segmentation_image convex_voxel_segmentation
 add_executable(test_reweight_results src/test_reweight_results.cpp)
 target_link_libraries(test_reweight_results object_retrieval metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(test_count_annotated src/test_count_annotated.cpp)
+target_link_libraries(test_count_annotated ${PCL_LIBRARIES})
+
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
 

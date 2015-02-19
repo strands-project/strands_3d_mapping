@@ -538,16 +538,16 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
         }
     }
 
-    for (HistT& h : query_cloud->points) {
+    /*for (HistT& h : query_cloud->points) {
         eig(h).normalize();
-    }
+    }*/
 
     cout << "Histogram cloud size: " << query_cloud->size() << endl;
 
     if (rvt.empty()) {
         read_vocabulary(rvt);
     }
-    rvt.top_similarities(first_scores, query_cloud, 1*(nbr_query-1)+1); // do 2 times matches to get better reweight results
+    rvt.top_similarities(first_scores, query_cloud, 4*(nbr_query-1)+1); // do 2 times matches to get better reweight results
     //rvt.top_pyramid_match_similarities(first_scores, query_cloud, nbr_query); // do 2 times matches to get better reweight results
 
     const int reweight_rounds = 1;
