@@ -1,3 +1,6 @@
+#ifndef __SEMANTIC_MAP_LOAD_UTILITIES__
+#define __SEMANTIC_MAP_LOAD_UTILITIES__
+
 #include "simple_summary_parser.h"
 #include "simple_xml_parser.h"
 
@@ -79,3 +82,6 @@ namespace semantic_map_load_utilties
 #include "load_utilities.hpp"
 
 }
+
+
+#endif
