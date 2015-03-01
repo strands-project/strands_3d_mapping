@@ -1,8 +1,8 @@
 #ifndef __SIMPLE_SUMMARY_PARSER__H
 #define __SIMPLE_SUMMARY_PARSER__H
 
-#include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h>
+//#include <pcl/point_types.h>
+//#include <pcl/io/pcd_io.h>
 
 #include "ros/time.h"
 #include "ros/serialization.h"
