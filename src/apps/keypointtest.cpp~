@@ -1,0 +1,451 @@
+#include <string.h>
+#include <stdio.h>
+
+#include "cv.h" 
+#include "highgui.h"
+#include <opencv.hpp>
+
+#include <iostream>
+#include "opencv2/core/core.hpp"
+#include "opencv2/features2d/features2d.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/nonfree/features2d.hpp"
+#include <opencv2/ml/ml.hpp>
+
+using namespace std;
+using namespace cv;
+
+int main(int argc, char **argv){
+	//test();
+	
+	// Set up SVM's parameters
+	CvSVMParams params;
+	params.svm_type		= CvSVM::C_SVC;
+	params.kernel_type	= CvSVM::LINEAR;
+	params.term_crit	= cvTermCriteria(CV_TERMCRIT_ITER, 100, 1e-6);
+	
+
+	
+	printf("starting image keypointtest software\n");
+	
+	vector<Mat> img_vec;
+	vector<Mat> descriptors_vec;
+	vector<Mat> weights_vec;
+	vector<vector<KeyPoint> > keypoints_vec;
+	
+	vector<vector<CvSVM * > > svms_vec;
+	vector<CvSVM * > multi_svm_vec;
+	svms_vec.resize(argc-1);
+
+	for(int imgnr = 1; imgnr < argc; imgnr++){
+		printf("path: %s\n",argv[imgnr]);
+		Mat img = imread( argv[imgnr], CV_LOAD_IMAGE_UNCHANGED );
+		resize(img, img, Size(), 0.25/1.0f, 0.25/1.0f);
+		
+		//vector<CvSVM> svms;
+		vector<KeyPoint> keypoints;
+		Mat descriptors;
+		
+		int minHessian = 650;
+		SurfFeatureDetector		detector( minHessian );
+		detector.detect( img, keypoints );
+	
+		SurfDescriptorExtractor	extractor;
+		extractor.compute( img, keypoints, descriptors );
+		
+		//for(int i = 0; i < (int)keypoints.size(); i++ ){circle(img,keypoints.at(i).pt,5,cvScalar(0,255,0,0),1,8);}
+		namedWindow( "img", WINDOW_AUTOSIZE );	// Create a window for display.
+		imshow( "img", img );					// Show our image inside it.
+		waitKey(100);
+		
+		Mat weights = Mat::ones(descriptors.rows,descriptors.cols,CV_32F);
+
+		float prev_mindistsum = 0;
+		float current_mindistsum = 0;
+		for(int i = 0; i < (int)keypoints.size(); i++ ){
+			printf("weighting %i\n",i);
+		
+			Mat d1 = descriptors.row(i);
+			Mat w1 = weights.row(i);
+			normalize(w1,w1,1);
+
+			float mindist = 99999999;
+			int minInd = -1;
+
+			for( int j = 0; j < (int)keypoints.size(); j++ ){
+				if(i != j){
+					float d = norm(w1.mul(d1-descriptors.row(j)));
+					if(d < mindist){
+						mindist = d;
+						minInd	= j;
+					}
+				}
+			}
+			prev_mindistsum += mindist;
+			
+			float step = 0.1*norm(w1);
+			float ratio = 1.1;
+			float prev = mindist;
+			bool first = true;	
+			while(ratio > 1.0001){
+				mindist = 99999999;
+				minInd = -1;
+				for( int j = 0; j < (int)keypoints.size(); j++ ){
+					if(i != j){
+						float d = norm(w1.mul(d1-descriptors.row(j)));
+						if(d < mindist){
+							mindist = d;
+							minInd	= j;
+						}
+					}
+				}
+				
+				ratio = mindist/prev;
+				prev = mindist;
+				
+				if(first){first = false;ratio = 2;}
+				Mat diff = abs(d1-descriptors.row(minInd));
+				normalize(diff,diff,step);
+				Mat regularize = w1-mean(w1);
+				normalize(diff,diff,step);
+				w1 = w1 + diff;// - step*8.5*regularize;
+				//cout << w1 << endl;
+				double a, b;
+				cv::minMaxLoc(w1, &a, &b);
+				if(a < 0){w1 = w1-a;}
+				normalize(w1,w1,1);
+				if( ratio < 1 ){step *= 0.7; ratio = 2;}
+			}
+			if(i == 0 && imgnr == 1){
+				//cout << w1 << endl;
+			}
+			//exit(0);
+
+			weights.row(i) = w1;
+			
+			double a, b;
+			cv::minMaxLoc(w1, &a, &b);
+			printf("%i min: %f max: %f\n",i,a,b);
+
+			current_mindistsum += mindist;
+		}
+		cout << weights.row(0) << endl;
+
+		printf("improvement: %f\n",current_mindistsum/prev_mindistsum);
+
+		img_vec.push_back(img);
+		descriptors_vec.push_back(descriptors);
+		weights_vec.push_back(weights);
+		keypoints_vec.push_back(keypoints);
+/*
+		// Set up training data
+		float * labels = new float[keypoints.size()+1];
+		for(int i = 0; i < (int)keypoints.size(); i++ ){labels[i] = -1;}
+		Mat labelsMat(descriptors.rows,1, CV_32FC1, labels);
+		svms_vec.at(imgnr-1).resize(keypoints.size());
+		for(int i = 0; i < (int)keypoints.size(); i++ ){
+			printf("training %i\n",i);
+			labels[i] = 1;		if(i > 0){labels[i-1]=-1;}
+			CvSVM * SVM = new CvSVM();
+			SVM->train(descriptors, labelsMat, Mat(), Mat(), params);
+			svms_vec.at(imgnr-1).at(i) = SVM;
+			//svms.push_back(SVM);
+		}
+*/
+/*
+		for(int i = 0; i < 125 && i < (int)keypoints.size(); i++ ){labels[i] = i-1;}
+		CvSVM * multiSVM = new CvSVM();
+		printf("train\n");
+		multiSVM->train(descriptors, labelsMat, Mat(), Mat(), params);
+		printf("done training");
+		multi_svm_vec.push_back(multiSVM);
+*/
+		//svms_vec.push_back(svms);
+
+/*
+		for(int i = 0; i < (int)keypoints.size(); i++ ){
+			Mat visual = img.clone();
+			
+			Mat d1 = descriptors.row(i);
+			float mindist = 99999999;
+			int minInd = -1;
+
+			for( int j = 0; j < (int)keypoints.size(); j++ ){
+				if(i != j){
+					float d = norm(d1-descriptors.row(j));
+					if(d < mindist){
+						mindist = d;
+						minInd	= j;
+					}
+				}
+			}
+			printf("mindist: %f size: %f octave: %i\n",mindist,keypoints.at(i).size,keypoints.at(i).octave);
+
+		
+			circle(visual,keypoints.at(minInd).pt,keypoints.at(minInd).size,cvScalar(0,0,255,0),2,8);
+
+			//circle(visual,keypoints.at(i).pt,7,cvScalar(255,0,0,0),2,8);
+			circle(visual,keypoints.at(i).pt,keypoints.at(i).size,cvScalar(0,255,0,0),2,8);
+			//circle(visual,keypoints.at(i).pt,3,cvScalar(0,0,255,0),2,8);
+			namedWindow( "visual", WINDOW_AUTOSIZE );	// Create a window for display.
+			imshow( "visual", visual );					// Show our image inside it.
+			waitKey(0);	
+		}
+*/
+/*
+		namedWindow( "img", WINDOW_AUTOSIZE );	// Create a window for display.
+		imshow( "img", img );					// Show our image inside it.
+		waitKey(0);
+		*/							// Wait for a keystroke in the window
+	}
+	
+	for(int t = 0; t < img_vec.size()-1; t++){
+		Mat img1 = img_vec.at(t);
+		Mat img2 = img_vec.at(t+1);
+		
+		Mat descriptors1 = descriptors_vec.at(t);
+		Mat descriptors2 = descriptors_vec.at(t+1);
+		
+		Mat weights1 = weights_vec.at(t);
+		Mat weights2 = weights_vec.at(t+1);
+		
+		vector<KeyPoint> keypoints1 = keypoints_vec.at(t);
+		vector<KeyPoint> keypoints2 = keypoints_vec.at(t+1);
+		
+		std::vector< DMatch > w_matches;
+		std::vector< DMatch > o_matches;
+		Mat img_matches;
+		drawMatches( img1, keypoints1, img2, keypoints2, w_matches, img_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
+		
+		int * w_minInd_arr		= new int	[keypoints1.size()];
+		int * o_minInd_arr		= new int	[keypoints1.size()];
+		
+		float * w_mindist_arr	= new float	[keypoints1.size()];
+		float * o_mindist_arr	= new float	[keypoints1.size()];
+		
+		float * w_mindist2_arr	= new float	[keypoints1.size()];
+		float * o_mindist2_arr	= new float	[keypoints1.size()];
+				
+		for(int i = 0; i < (int)keypoints1.size(); i++ ){
+			float w_mindist = 99999999;
+			float w_mindist2 = w_mindist;
+			int w_minInd = -1;
+			
+			float o_mindist = 99999999;
+			float o_mindist2 = o_mindist;
+			int o_minInd = -1;
+			Mat d1 = descriptors1.row(i);
+			Mat w1 = weights1.row(i);
+			
+			for( int j = 0; j < (int)keypoints2.size(); j++ ){
+				float w_d = norm(w1.mul(d1-descriptors2.row(j)));
+
+				if(w_d < w_mindist){
+					w_mindist2	= w_mindist;
+					w_mindist	= w_d;
+					w_minInd	= j;
+				}else if(w_mindist2 < w_d){
+					w_mindist2 = w_d;
+				}
+				
+				float o_d = norm(d1-descriptors2.row(j));
+				if(o_d < o_mindist){
+					o_mindist2	= o_mindist;
+					o_mindist	= o_d;
+					o_minInd	= j;
+				}else if(w_mindist2 < o_d){
+					o_mindist2 = o_d;
+				}
+			}
+			
+			w_minInd_arr[i]		= w_minInd;
+			w_mindist_arr[i]	= w_mindist;
+			w_mindist2_arr[i]	= w_mindist2;
+
+			o_minInd_arr[i]		= o_minInd;
+			o_mindist_arr[i]	= o_mindist;
+			o_mindist2_arr[i]	= o_mindist2;
+			
+			//bool w_match = w_mindist < w_mindist2*0.06;
+			//bool o_match = o_mindist < o_mindist2*0.5;
+			
+			//if(w_match && !o_match){line(img_matches, keypoints1.at(i).pt, Point(keypoints2.at(w_minInd).pt.x+img1.cols,keypoints2.at(w_minInd).pt.y), cvScalar(0,255,0,0));}
+			//if(!w_match && o_match){line(img_matches, keypoints1.at(i).pt, Point(keypoints2.at(o_minInd).pt.x+img1.cols,keypoints2.at(o_minInd).pt.y), cvScalar(0,0,255,0));}
+			//if(w_match){w_matches.push_back(DMatch(i, w_minInd, w_mindist));}
+			//if(o_match){o_matches.push_back(DMatch(i, o_minInd, o_mindist));}
+		}
+		
+		int * w_minInd_arr2		= new int	[keypoints2.size()];
+		int * o_minInd_arr2		= new int	[keypoints2.size()];
+		
+		float * w_mindist_arr2	= new float	[keypoints2.size()];
+		float * o_mindist_arr2	= new float	[keypoints2.size()];
+		
+		float * w_mindist2_arr2	= new float	[keypoints2.size()];
+		float * o_mindist2_arr2	= new float	[keypoints2.size()];
+				
+		for(int i = 0; i < (int)keypoints2.size(); i++ ){
+			float w_mindist = 99999999;
+			float w_mindist2 = w_mindist;
+			int w_minInd = -1;
+			
+			float o_mindist = 99999999;
+			float o_mindist2 = o_mindist;
+			int o_minInd = -1;
+			Mat d1 = descriptors2.row(i);
+			Mat w1 = weights2.row(i);
+			
+			for( int j = 0; j < (int)keypoints1.size(); j++ ){
+				float w_d = norm(w1.mul(d1-descriptors1.row(j)));
+
+				if(w_d < w_mindist){
+					w_mindist2	= w_mindist;
+					w_mindist	= w_d;
+					w_minInd	= j;
+				}else if(w_mindist2 < w_d){
+					w_mindist2 = w_d;
+				}
+				
+				float o_d = norm(d1-descriptors1.row(j));
+				if(o_d < o_mindist){
+					o_mindist2	= o_mindist;
+					o_mindist	= o_d;
+					o_minInd	= j;
+				}else if(w_mindist2 < o_d){
+					o_mindist2 = o_d;
+				}
+			}
+			
+			w_minInd_arr2[i]	= w_minInd;
+			w_mindist_arr2[i]	= w_mindist;
+			w_mindist2_arr2[i]	= w_mindist2;
+
+			o_minInd_arr2[i]	= o_minInd;
+			o_mindist_arr2[i]	= o_mindist;
+			o_mindist2_arr2[i]	= o_mindist2;
+			
+			//bool w_match = w_mindist < w_mindist2*0.06;
+			//bool o_match = o_mindist < o_mindist2*0.5;
+			
+			//if(w_match && !o_match){line(img_matches, keypoints1.at(i).pt, Point(keypoints2.at(w_minInd).pt.x+img1.cols,keypoints2.at(w_minInd).pt.y), cvScalar(0,255,0,0));}
+			//if(!w_match && o_match){line(img_matches, keypoints1.at(i).pt, Point(keypoints2.at(o_minInd).pt.x+img1.cols,keypoints2.at(o_minInd).pt.y), cvScalar(0,0,255,0));}
+			//if(w_match){w_matches.push_back(DMatch(i, w_minInd, w_mindist));}
+			//if(o_match){o_matches.push_back(DMatch(i, o_minInd, o_mindist));}
+		}
+	
+		for(int i = 0; i < (int)keypoints1.size(); i++ ){
+			bool w_match = false;
+			bool o_match = false;
+			//if(i == w_minInd_arr2[w_minInd_arr[i]] && w_mindist_arr[i] < 0.04){w_match = true;}
+			//if(i == o_minInd_arr2[o_minInd_arr[i]] && o_mindist_arr[i] < 0.2){o_match = true;}
+			
+			if(i == w_minInd_arr2[w_minInd_arr[i]] && w_mindist_arr[i] < 0.04){w_match = true;}
+			if(i == o_minInd_arr2[o_minInd_arr[i]] && o_mindist_arr[i] < 0.2){o_match = true;}
+
+			if(w_match && !o_match){line(img_matches, keypoints1.at(i).pt, Point(keypoints2.at(w_minInd_arr[i]).pt.x+img1.cols,keypoints2.at(w_minInd_arr[i]).pt.y), cvScalar(0,255,0,0));}
+			if(!w_match && o_match){line(img_matches, keypoints1.at(i).pt, Point(keypoints2.at(o_minInd_arr[i]).pt.x+img1.cols,keypoints2.at(o_minInd_arr[i]).pt.y), cvScalar(0,0,255,0));}
+			if(w_match){w_matches.push_back(DMatch(i, w_minInd_arr[i], 1));}
+			if(o_match){o_matches.push_back(DMatch(i, o_minInd_arr[i], 1));}
+		}
+
+
+		vector<int> w_pointIndexes1;
+		vector<int> w_pointIndexes2;
+
+		vector<int> o_pointIndexes1;
+		vector<int> o_pointIndexes2;
+		
+		vector<int> svm_pointIndexes1;
+		vector<int> svm_pointIndexes2;
+
+
+
+		for(int i = 0; i < (int)keypoints1.size(); i++ ){
+			bool w_match = true;//false;
+			bool o_match = true;//false;
+			
+			//if(i == w_minInd_arr2[w_minInd_arr[i]]){w_match = true;}
+			//if(i == o_minInd_arr2[o_minInd_arr[i]]){o_match = true;}
+			
+			if(w_match){
+				//w_points1.push_back(Point2f(keypoints1.at(i).pt.x,keypoints1.at(i).pt.y));
+				//w_points1.push_back(Point2f(keypoints2.at(w_minInd_arr[i]).pt.x,keypoints2.at(w_minInd_arr[i]).pt.y));
+				w_pointIndexes1.push_back(i);
+				w_pointIndexes2.push_back(w_minInd_arr[i]);
+			}	
+			
+			if(o_match){
+				//o_points1.push_back(Point2f(keypoints1.at(i).pt.x,keypoints1.at(i).pt.y));
+				//o_points1.push_back(Point2f(keypoints2.at(o_minInd_arr[i]).pt.x,keypoints2.at(o_minInd_arr[i]).pt.y));
+				o_pointIndexes1.push_back(i);
+				o_pointIndexes2.push_back(o_minInd_arr[i]);
+			}
+		}
+/*
+		for(int i = 0; i < (int)keypoints1.size(); i++ ){
+			CvSVM * svm = svms_vec.at(t).at(i);
+			float minval = 9999999;
+			int minind = 0;
+			for(int j = 0; j < (int)keypoints2.size(); j++ ){
+				float predict = svm->predict(descriptors2.row(j),true);
+				if(predict < minval){
+					minval = predict;
+					minind = j;
+				}
+				//printf("%i %i predicting: %f\n",i,j,predict);
+				//if(svm->predict(descriptors2.row(j))==1){
+				//	svm_pointIndexes1.push_back(i);
+				//	svm_pointIndexes2.push_back(j);
+				//}
+			}
+			printf("predict: %f %i\n",minval,minind);
+			svm_pointIndexes1.push_back(i);
+			svm_pointIndexes2.push_back(minind);
+		}
+*/
+		vector<Point2f> w_selPoints1, w_selPoints2;
+		KeyPoint::convert(keypoints1,w_selPoints1,w_pointIndexes1);
+		KeyPoint::convert(keypoints2,w_selPoints2,w_pointIndexes2);
+		Mat w_status;
+		float t1 = 3.0;
+		float t2 = 0.99;
+		Mat w_fundemental= cv::findFundamentalMat(Mat(w_selPoints1), Mat(w_selPoints2), FM_RANSAC,t1,t2,w_status);
+		int w_inliers = sum(w_status)[0];
+		printf("w_inliers: %i\n",w_inliers);
+		
+		vector<Point2f> o_selPoints1, o_selPoints2;
+		KeyPoint::convert(keypoints1,o_selPoints1,o_pointIndexes1);
+		KeyPoint::convert(keypoints2,o_selPoints2,o_pointIndexes2);
+		Mat o_status;
+		Mat o_fundemental= cv::findFundamentalMat(Mat(o_selPoints1), Mat(o_selPoints2), FM_RANSAC,t1,t2,o_status);
+		int o_inliers = sum(o_status)[0];
+		printf("o_inliers: %i\n",o_inliers);
+/*
+		vector<Point2f> svm_selPoints1, svm_selPoints2;
+		KeyPoint::convert(keypoints1,svm_selPoints1,svm_pointIndexes1);
+		KeyPoint::convert(keypoints2,svm_selPoints2,svm_pointIndexes2);
+		Mat svm_status;
+		Mat svm_fundemental= cv::findFundamentalMat(Mat(svm_selPoints1), Mat(svm_selPoints2), FM_RANSAC,t1,t2,svm_status);
+		int svm_inliers = sum(svm_status)[0];
+		printf("svm_inliers: %i\n",svm_inliers);
+*/
+		//-- Draw only "good" matches
+		//Mat img_matches;
+		printf("nr_w_matches: %i\n",w_selPoints1.size());
+		printf("nr_o_matches: %i\n",o_selPoints1.size());
+		//drawMatches( img1, keypoints1, img2, keypoints2, w_matches, img_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
+		imshow( "Matches", img_matches );
+		waitKey(0);
+		
+
+		//result_channel( Rect(0, 0, cols, rows) ) = blue_channel;
+		//result_channel( Rect(cols, 0, cols, rows) ) = green_channel;
+		//result_channel( Rect(cols*2, 0, cols, rows) ) = red_channel;
+		
+	}
+	//	img_vec.push_back(img);
+	//	descriptors_vec.push_back(descriptors);
+	//	weights_vec.push_back(weights);
+	//	keypoints_vec.push_back(keypoints);
+	return 0;
+}

@@ -1,0 +1,368 @@
+#include "ros/ros.h"
+#include "std_msgs/String.h"
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_ros/point_cloud.h>
+
+// PCL specific includes
+#include <pcl/ros/conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <sensor_msgs/PointCloud2.h>
+
+#include <string.h>
+
+#include "Frame.h"
+#include "Camera.h"
+#include "FrameConnection.h"
+#include "PoseTransform.h"
+#include "Sweep.h"
+#include "CameraUpdater.h"
+
+#include "ceres/ceres.h"
+#include "gflags/gflags.h"
+#include "glog/logging.h"
+#include "ceres/rotation.h"
+#include "ceres/iteration_callback.h"
+
+#include "simple_xml_parser.h"//../../scitos_3d_mapping/metaroom_xml_parser/include/
+#include "simple_summary_parser.h"
+//#include "load_utilities.h"
+
+#include <tf_conversions/tf_eigen.h>
+
+#include <pcl/common/transformation_from_correspondences.h>
+
+#include "tf_conversions/tf_eigen.h"
+
+#include <semantic_map/room_xml_parser.h>
+#include <pcl_ros/transforms.h>
+
+using namespace std;
+
+int main(int argc, char **argv){
+
+//testColors();
+
+	int gx = 17;
+	int todox = 2;
+	int gy = 3;
+	int todoy = 1;
+
+    unsigned int start_sweep = 0;
+    unsigned int stop_sweep = 0;//15;
+
+    unsigned int sweeps_for_training = 1000;
+
+	float loop_weight = 1000;
+
+	bool alignColor = true;
+
+	double * shared_params = new double[5];
+	shared_params[0] = 1.0/540.0;//invfx
+	shared_params[1] = 1.0/540.0;//invfy
+	shared_params[2] = (640.0-1.0)/2;//cx
+	shared_params[3] = (480.0-1.0)/2;//cy
+	shared_params[4] = 0.1;
+
+	int inds[17][3];
+	for(int y = 0; y < gy; y++){//Camera moving forward
+		for (int x = 0; x < gx ; x++){inds[x][y] = 0;}
+		if(y % 2 == 0){
+			for (int x = 0; x < gx ; x++){inds[x][y] = y*gx+x;}
+		}else{
+			for (int x = 0; x < gx ; x++){inds[x][y] = y*gx+gx-x-1;}
+		}
+	}
+		
+	string folderPath;
+	if (argc < 2){
+		//folderPath = "/media/johane/storage/rareshdata/";
+		folderPath = "/media/johane/SSDstorage/rareshdata/";
+	}else{
+		folderPath = argv[1];
+	}
+
+    string summaryXMLPath = folderPath + "/index.xml";
+    SimpleSummaryParser summary_parser(summaryXMLPath);
+    summary_parser.createSummaryXML(folderPath);
+
+    SimpleXMLParser<PointType> simple_parser;
+    SimpleXMLParser<PointType>::RoomData roomData;
+/*
+WayPoint20
+WayPoint4
+WayPoint5
+WayPoint7
+WayPoint1
+WayPoint22
+WayPoint12
+WayPoint16
+WayPoint19
+WayPoint20
+WayPoint4
+WayPoint5
+WayPoint7
+WayPoint1
+*/
+    string waypId = "WayPoint16";
+	//string waypId = "WayPoint22";
+
+    vector<string> allSweeps;
+	allSweeps = getSweepXmlsForTopologicalWaypoint<PointType>(folderPath, waypId);
+
+/*
+	auto sweep_xmls = summary_parser.getRooms();
+	for (size_t i=0; i<sweep_xmls.size(); i++){
+        auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweep_xmls[i].roomXmlFile, std::vector<std::string>(), false);
+		printf("%s\n",sweep.roomWaypointId.c_str());
+		allSweeps.push_back(sweep_xmls[i].roomXmlFile);
+    }
+*/
+    unsigned int nr_sweeps = allSweeps.size();
+	vector<PoseTransform * > panTransforms;
+	vector<PoseTransform * > tiltTransforms;
+	for (int x = 0; x < todoy; x++){panTransforms.push_back(new PoseTransform());}
+	for (int x = 0; x < todox ; x++){tiltTransforms.push_back(new PoseTransform());}
+
+	Camera * camera = 0;//new Camera(fx, fy, cx, cy, width,	height);
+	vector<Sweep *> sweeps;
+	vector<Frame *> all_frames;
+	vector<SimpleXMLParser<PointType>::RoomData> all_roomData;
+	vector<string> idtags;
+
+	for (unsigned int i = 0; i < nr_sweeps; i+= 1){
+		printf("%i\n",i);
+		if(i < start_sweep || i > stop_sweep){continue;}
+		printf("reading sweep %i / %i\n",i,nr_sweeps);
+        SimpleXMLParser<PointType>::RoomData roomData = simple_parser.loadRoomFromXML(allSweeps[i]);
+		if(roomData.vIntermediateRoomClouds.size() < gx*gy){continue;}
+		//if(roomData.roomWaypointId.compare("WayPoint19") != 0){continue;}
+		float fx = 540.0;//roomData.vIntermediateRoomCloudCamParams[i].fx();
+		float fy = 540.0;//roomData.vIntermediateRoomCloudCamParams[i].fy();
+		float cx = 319.5;//roomData.vIntermediateRoomCloudCamParams[i].cx();
+		float cy = 239.5;//roomData.vIntermediateRoomCloudCamParams[i].cy();
+		
+		cv::Size res = roomData.vIntermediateRoomCloudCamParams[0].fullResolution();//Crashes on 392, 673 698
+		int height	= 480;res.height; 
+		int width	= 640;res.width;
+//continue;
+		if(camera == 0){
+			camera = new Camera(fx, fy, cx, cy, width,	height);
+			camera->version = 1;
+		}
+		vector<Frame *> sweep_frames;
+		
+		int counter = 0;
+		sweep_frames.resize(todox*todoy);
+		for(int y = 0; y < todoy; y++){//Camera moving forward
+			for (int x = 0; x < todox ; x++){
+				float * rgb		=	new float[3*640*480];
+				float * depth	=	new float[640*480];
+				pcl::PointCloud<PointType>::Ptr clouddata = roomData.vIntermediateRoomClouds[inds[x][y]];//Crashes on 145, 
+				for(int w = 0; w < width; w++){
+					for(int h = 0; h < height; h++){
+						int ind = h*width+w;
+						int ind3 = 3*ind;
+						rgb[ind3+0] = clouddata->points.at(ind).r;//rgb_data[ind3+2];	
+						rgb[ind3+1] = clouddata->points.at(ind).g;//rgb_data[ind3+1];
+						rgb[ind3+2] = clouddata->points.at(ind).b;//rgb_data[ind3+0];
+						depth[ind] = clouddata->points.at(ind).z;//float(depth_data[ind])*0.001;
+					}
+				}
+				sweep_frames.at(y*todox+x) = new Frame(camera,rgb,depth,alignColor);
+				sweep_frames.at(y*todox+x)->framepos = inds[x][y];
+				all_frames.push_back(sweep_frames.at(y*todox+x));
+			}
+		}
+
+		printf("new sweep\n");
+		sweeps.push_back(new Sweep(camera, panTransforms, tiltTransforms, todox, todoy, sweep_frames));
+		sweeps.back()->idtag = roomData.roomWaypointId;
+        sweeps.back()->xmlpath = allSweeps[i];
+	}
+//exit(0);
+	printf("ceres optimizer stuff\n");
+{
+	double *** poses = new double**[todox];
+	for(int x = 0; x < todox; x++){
+		poses[x] = new double*[todoy]; 
+		for(int y = 0; y < todoy; y++){
+			poses[x][y] = new double[6];
+			for(int k = 0; k < 6; k++){poses[x][y][k] = 0;}
+		}
+	}
+
+	using namespace Eigen;
+
+	ceres::Problem problem;
+	Solver::Options options;
+	options.max_num_iterations = 1500;
+	options.minimizer_progress_to_stdout = true;
+	options.num_linear_solver_threads = 7;
+	Solver::Summary summary;
+
+//1st forward X loop
+	vector< vector< ProblemFrameConnection * > > x1_vec;
+	x1_vec.resize(todoy);
+	for(unsigned int s = 0; s < sweeps.size() && s < sweeps_for_training; s++){
+		printf("1st forward X loop: %i\n",s);
+		Sweep * sweep = sweeps.at(s);
+		for(int x = 0; x < todox-1; x++){
+			for(int y = 0; y < todoy; y++){
+				ProblemFrameConnection * pc = new ProblemFrameConnection(problem, sweep->frames[x][y],sweep->frames[x+1][y], shared_params, poses[x][y], poses[x+1][y]);
+				x1_vec.at(y).push_back(pc);
+			}
+		}
+	}
+
+	for(int y = 0; y < todoy; y++){
+		vector< CostFunction * > matches = getMatchesRansac(x1_vec.at(y));
+		for(unsigned int i = 0; i < x1_vec.at(y).size(); i++){
+			x1_vec.at(y).at(i)->addMatchesToProblem(problem, matches);
+		}
+	}
+
+	Solve(options, &problem, &summary);
+	//std::cout << summary.FullReport() << "\n";
+
+//1st forward Y loop
+	vector< vector< ProblemFrameConnection * > > y1_vec;
+	y1_vec.resize(todox);
+	for(unsigned int s = 0; s < sweeps.size() && s < sweeps_for_training; s++){
+		printf("1st forward Y loop: %i\n",s);
+		Sweep * sweep = sweeps.at(s);
+		for(int x = 0; x < todox; x++){
+			for(int y = 0; y < todoy-1; y++){
+				ProblemFrameConnection * pc = new ProblemFrameConnection(problem, sweep->frames[x][y],sweep->frames[x][y+1], shared_params, poses[x][y], poses[x][y+1]);
+				y1_vec.at(x).push_back(pc);
+			}
+		}
+	}
+
+	for(int x = 0; x < todox; x++){
+		vector< CostFunction * > matches = getMatchesRansac(y1_vec.at(x));
+		for(unsigned int i = 0; i < y1_vec.at(x).size(); i++){
+			y1_vec.at(x).at(i)->addMatchesToProblem(problem, matches);
+		}
+	}
+
+	Solve(options, &problem, &summary);
+	//std::cout << summary.FullReport() << "\n";
+
+//2nd forward X loop
+	vector< vector< ProblemFrameConnection * > > x2_vec;
+	x2_vec.resize(todoy);
+	for(unsigned int s = 0; s < sweeps.size() && s < sweeps_for_training; s++){
+		printf("2t forward X loop: %i\n",s);
+		Sweep * sweep = sweeps.at(s);
+		for(int x = 0; x < todox-2; x++){
+			for(int y = 0; y < todoy; y++){
+				ProblemFrameConnection * pc = new ProblemFrameConnection(problem, sweep->frames[x][y],sweep->frames[x+2][y], shared_params, poses[x][y], poses[x+2][y]);
+				x2_vec.at(y).push_back(pc);
+			}
+		}
+	}
+
+	for(int y = 0; y < todoy; y++){
+		vector< CostFunction * > matches = getMatchesRansac(x2_vec.at(y));
+		for(unsigned int i = 0; i < x2_vec.at(y).size(); i++){
+			x2_vec.at(y).at(i)->addMatchesToProblem(problem, matches);
+		}
+	}
+	
+	Solve(options, &problem, &summary);
+	//std::cout << summary.FullReport() << "\n";
+
+	camera->fx = 1.0/shared_params[0];	camera->fy = 1.0/shared_params[1];	camera->cx = shared_params[2];		camera->cy = shared_params[3];
+	camera->print();
+	for(unsigned int s = 0; s < sweeps.size(); s++){
+		for(int x = 0; x < todox; x++){
+			for(int y = 0; y < todoy; y++){
+				sweeps.at(s)->poses[x][y] = (getMat(poses[0][0]).inverse()*getMat(poses[x][y])).cast<float>();
+			}
+		}
+	}
+	//for(unsigned int s = 0; s < sweeps.size(); s++){sweeps.at(s)->show(0);}
+	//sweeps.at(0)->show(0);
+
+//Loop closure
+	vector< vector< ProblemFrameConnection * > > loop_vec;
+	loop_vec.resize(todoy);
+	for(unsigned int s = 0; s < sweeps.size() && s < sweeps_for_training; s++){
+		Sweep * sweep = sweeps.at(s);
+		for(int y = 0; y < todoy; y++){
+			ProblemFrameConnection * pc = new ProblemFrameConnection(problem, sweep->frames[0][y],sweep->frames[todox-1][y], shared_params, poses[0][y], poses[todox-1][y],1,false);
+			loop_vec.at(y).push_back(pc);
+		}
+	}
+
+	for(int y = 0; y < todoy; y++){
+		vector< CostFunction * > matches = getMatchesRansac(loop_vec.at(y),x1_vec.at(y).size());//,0.03, 500000, 3);
+		for(unsigned int i = 0; i < loop_vec.at(y).size(); i++){
+			loop_vec.at(y).at(i)->addMatchesToProblem(problem, matches);
+			//loop_vec.at(y).at(i)->showMatches();
+		}
+	}
+	Solve(options, &problem, &summary);
+	std::cout << summary.FullReport() << "\n";
+
+	//Optimize camera parameter
+	optimizeCameraParams = true;
+	//Solve(options, &problem, &summary);
+	//std::cout << summary.FullReport() << "\n";
+
+	camera->fx = 1.0/shared_params[0];	camera->fy = 1.0/shared_params[1];	camera->cx = shared_params[2];		camera->cy = shared_params[3];
+	camera->print();
+	for(unsigned int s = 0; s < sweeps.size(); s++){
+		for(int x = 0; x < todox; x++){
+			for(int y = 0; y < todoy; y++){
+				sweeps.at(s)->poses[x][y] = (getMat(poses[0][0]).inverse()*getMat(poses[x][y])).cast<float>();
+			}
+		}
+	}
+
+printf("OMG DONE OPT\n");
+if(alignColor){
+	for(unsigned int s = 0; s < sweeps.size(); s++){sweeps.at(s)->alignColors();}
+}
+exit(0);
+
+	vector< Sweep * > donesweeps;
+	while(sweeps.size() > 0){
+		Sweep * sweep = sweeps.back();
+		donesweeps.push_back(sweep);
+		sweeps.pop_back();
+		printf("%s\n",sweep->idtag.c_str());
+		for(unsigned int i = 0; i < sweeps.size(); i++){
+			Sweep * s = sweeps.at(i);
+			if((sweep->idtag.compare(s->idtag))  == 0){
+				sweeps.at(i) = sweeps.back();
+				sweeps.pop_back();
+				i--;
+				printf("%s\n",s->idtag.c_str());
+				sweep->align(s);
+
+				donesweeps.push_back(s);
+			}
+		}
+	}
+
+//for(unsigned int i = 0; i < donesweeps.size(); i++){donesweeps.at(i)->savePCD(i);}
+//exit(0);
+
+	for(int i = 0; i < donesweeps.size(); i++){
+		saveSweep(donesweeps.at(i));
+/*
+		pcl::PointCloud<PointType>::Ptr mergedCloud = rebuildRegisteredCloud(donesweeps.at(i)->xmlpath);
+		boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("Sweep::show"));
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> src_rgb(mergedCloud);
+		viewer->addPointCloud<pcl::PointXYZRGB> (mergedCloud, src_rgb, "merged_cloud");
+		//viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.0, string(buf));
+		viewer->spin();
+		viewer->removeAllPointClouds();
+*/
+	}
+}
+	return 0;
+}
