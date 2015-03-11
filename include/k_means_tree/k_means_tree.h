@@ -50,7 +50,7 @@ struct map_proxy<const pcl::PointXYZRGB>
     using const_map_type = Eigen::Map<const Eigen::Matrix<float, rows, 1> >;
 };
 
-template <typename Point, size_t K, typename Data = void>
+template <typename Point, size_t K, typename Data = void, int Lp=1>
 class k_means_tree {
 protected:
 
@@ -59,6 +59,7 @@ protected:
     using CloudPtrT = typename CloudT::Ptr;
     static const size_t dim = K;
     static const size_t rows = map_proxy<PointT>::rows;
+    static const int desc_norm = Lp;
     using data_type = Data;
     using leaf_range = std::pair<int, int>;
 
