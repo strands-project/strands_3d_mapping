@@ -8,6 +8,8 @@
 #include "cereal/types/map.hpp"
 #include "cereal/types/string.hpp"
 
+#include "object_3d_retrieval/dataset_convenience.h"
+
 using namespace std;
 
 using PointT = pcl::PointXYZRGB;
@@ -82,7 +84,7 @@ pair<bool, bool> is_correctly_classified(const string& instance, CloudT::Ptr& se
 string get_annotation(const string& sweep_folder, int i)
 {
 
-    string annotation_file = sweep_folder + "/annotation" + stoi(i) + ".txt";
+    string annotation_file = sweep_folder + "/annotation" + to_string(i) + ".txt";
     string annotation;
     {
         ifstream f;
@@ -170,6 +172,7 @@ void list_all_annotated_segments(map<int, string>& annotated, map<int, string>& 
 void list_all_annotations(map<int, string>& annotated, map<int, string>& full_annotated, const string& segments_path)
 {
     // list all of the folders, check that they start with "segment"
+    boost::filesystem::path path(segments_path);
     typedef vector<boost::filesystem::path> vec;
     vec v; // so we can sort them later
     copy(boost::filesystem::directory_iterator(path), boost::filesystem::directory_iterator(), back_inserter(v));
@@ -230,6 +233,20 @@ void compute_instance_counts(map<string, int>& instance_counts, map<int, string>
     }
 }
 
+void list_all_annotated_scans(map<string, int>& annotations, const string& scans_path)
+{
+    object_retrieval obr(scans_path);
+    obr.segment_name = "scan";
+    for (int i = 0; ; ++i) {
+        string folder = obr.get_folder_for_segment_id(i);
+        if (!boost::filesystem::is_directory(folder)) {
+            break;
+        }
+        string annotation = dataset_convenience::annotation_for_scan(i, obr);
+        annotations[annotation] += 1;
+    }
+}
+
 int main(int argc, char** argv)
 {
     string annotations_path = "/home/nbore/Data/Instances/object_segments";
@@ -240,21 +257,29 @@ int main(int argc, char** argv)
     map<string, int> all_instance_counts;
     compute_instance_counts(full_instance_counts, full_annotated);
     compute_instance_counts(all_instance_counts, annotated);
+    map<string, int> all_annotations;
+    list_all_annotated_scans(all_annotations, "/home/nbore/Data/Instances/scan_segments");
 
     stringstream fully_string;
     fully_string << "Fully observed";
     stringstream partially_string;
     partially_string << "Partially observed";
+    stringstream total_string;
+    total_string << "All annotated";
     for (pair<const string, int>& a : all_instance_counts) {
         int fully_observed = full_instance_counts[a.first];
+        int total_annotation = all_annotations[a.first];
         cout << "Partially observed " << a.first << ": " << a.second - fully_observed << endl;
         cout << "Fully observed " << a.first << ": " << fully_observed << endl;
+        cout << "Total annotations " << a.first << ": " << total_annotation << endl;
         fully_string << " & " << fully_observed;
         partially_string << " & " << a.second - fully_observed;
+        total_string << " & " << total_annotation;
     }
 
     cout << fully_string.str() << endl;
     cout << partially_string.str() << endl;
+    cout << total_string.str() << endl;
 
     return 0;
 }

@@ -15,6 +15,8 @@
 #include "eigen_cereal/eigen_cereal.h"
 #include <cereal/types/vector.hpp>
 #include <cereal/types/array.hpp>
+#include <cereal/types/map.hpp>
+#include <cereal/types/utility.hpp>
 
 #define VISUALIZE false
 
@@ -22,16 +24,34 @@ using namespace std;
 
 // using SIFT
 //string object_retrieval::feature_vocabulary_file = "vocabulary_sift.cereal";
+//string object_retrieval::feature_vocabulary_file = "vocabulary_duplet.cereal";
 //string object_retrieval::feature_segment_file = "features_sift.pcd";
+//string object_retrieval::feature_segment_file = "duplet_points_file.pcd";
+//string object_retrieval::feature_segment_file = "sift_cloud.pcd";
 //string object_retrieval::indices_segment_file = "indices_sift.cereal";
 
+// using PFH
+string object_retrieval::feature_vocabulary_file = "vocabulary_pfhrgb.cereal";
+string object_retrieval::grouped_vocabulary_file = "vocabulary_grouped.cereal";
+string object_retrieval::feature_segment_file = "pfhrgb_cloud.pcd";
+string object_retrieval::indices_segment_file = "indices_pfhrgb.cereal";
+
 // using SHOT
-string object_retrieval::feature_vocabulary_file = "vocabulary.cereal";
-string object_retrieval::feature_segment_file = "features.pcd";
-string object_retrieval::indices_segment_file = "indices.cereal";
+//string object_retrieval::feature_vocabulary_file = "vocabulary.cereal";
+//string object_retrieval::feature_segment_file = "features.pcd";
+//string object_retrieval::indices_segment_file = "indices.cereal";
 
 object_retrieval::object_retrieval(const std::string& segment_path) : segment_path(segment_path)
 {
+    segment_name = "segment";
+}
+
+object_retrieval::~object_retrieval()
+{
+    ofstream out(segment_path + "/saved_match_scores.cereal", std::ios::binary);
+    cereal::BinaryOutputArchive archive_o(out);
+    archive_o(saved_match_scores);
+    cout << "Saved match scores!" << endl;
 }
 
 void object_retrieval::visualize_cloud(CloudT::Ptr& cloud)
@@ -94,7 +114,7 @@ size_t object_retrieval::write_segments(vector<CloudT::Ptr>& segments, vector<No
     for (i = istart; i < istart+segments.size(); ++i) {
         // save the point clouds for this segment
         size_t j = i - istart;
-        boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(i));
+        boost::filesystem::path sub_dir = base_dir / (segment_name + to_string(i));
         cout << "Writing directory " << sub_dir.string() << endl;
         boost::filesystem::create_directory(sub_dir);
         pcl::io::savePCDFileBinary(sub_dir.string() + "/segment.pcd", *segments[j]);
@@ -118,7 +138,7 @@ void object_retrieval::read_segments(vector<CloudT::Ptr>& segments, vector<Norma
 {
     boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
     for (size_t i = 0; ; ++i) { // i < max_segments
-        boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(i));
+        boost::filesystem::path sub_dir = base_dir / (segment_name + to_string(i));
         cout << "Reading directory " << sub_dir.string() << endl;
         if (!boost::filesystem::is_directory(sub_dir)) {
             break;
@@ -142,7 +162,7 @@ bool object_retrieval::read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& nor
 {
     cout << "Entering" << endl;
     boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
-    boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(segment_id));
+    boost::filesystem::path sub_dir = base_dir / (segment_name + to_string(segment_id));
     cout << "Reading directory " << sub_dir.string() << endl;
     if (!boost::filesystem::is_directory(sub_dir)) {
         return false;
@@ -168,7 +188,7 @@ bool object_retrieval::read_other_segment(CloudT::Ptr& segment, NormalCloudT::Pt
                                     Eigen::Matrix3f& K, string& metadata, size_t segment_id, const string& other_segment_path)
 {
     boost::filesystem::path base_dir = other_segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
-    boost::filesystem::path sub_dir = base_dir / (string("segment") + to_string(segment_id));
+    boost::filesystem::path sub_dir = base_dir / (segment_name + to_string(segment_id));
     cout << "Reading directory " << sub_dir.string() << endl;
     if (!boost::filesystem::is_directory(sub_dir)) {
         return false;
@@ -198,10 +218,33 @@ void object_retrieval::write_vocabulary(vocabulary_tree<HistT, 8>& vt)
     archive_o(vt);
 }
 
+void object_retrieval::write_vocabulary(grouped_vocabulary_tree<HistT, 8>& vt)
+{
+    boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
+    boost::filesystem::create_directory(base_dir);
+    std::string vocabulary_file = base_dir.string() + "/" + grouped_vocabulary_file;
+    ofstream out(vocabulary_file, std::ios::binary);
+    cereal::BinaryOutputArchive archive_o(out);
+    archive_o(vt);
+}
+
 void object_retrieval::read_vocabulary(vocabulary_tree<HistT, 8>& rvt)
 {
     boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
     std::string vocabulary_file = base_dir.string() + "/" + feature_vocabulary_file;
+    {
+        ifstream in(vocabulary_file, std::ios::binary);
+        cereal::BinaryInputArchive archive_i(in);
+        archive_i(rvt);
+        in.close();
+    }
+    cout << "Vocabulary size: " << rvt.size() << endl;
+}
+
+void object_retrieval::read_vocabulary(grouped_vocabulary_tree<HistT, 8>& rvt)
+{
+    boost::filesystem::path base_dir = segment_path;//"/home/nbore/Workspace/objectness_score/object_segments";
+    std::string vocabulary_file = base_dir.string() + "/" + grouped_vocabulary_file;
     {
         ifstream in(vocabulary_file, std::ios::binary);
         cereal::BinaryInputArchive archive_i(in);
@@ -302,8 +345,88 @@ void object_retrieval::process_segments_incremental()
     }
 }
 
+void object_retrieval::train_grouped_vocabulary(int max_segments, bool simply_train)
+{
+    int min_features = 20;
+
+    grouped_vocabulary_tree<HistT, 8> vt1;
+    size_t counter = 0;
+    bool are_done = false;
+
+    {
+        HistCloudT::Ptr features(new HistCloudT);
+        vector<pair<int, int> > indices;
+
+        // atm the training has problems dealing with more than ~700000 vectors
+        for (size_t i = 0; i < max_segments && features->size() < 1200000; ++i) {
+            if (!exclude_set.empty()) {
+                if (exclude_set.count(counter) != 0) {
+                    ++counter;
+                    continue;
+                }
+            }
+            HistCloudT::Ptr features_i(new HistCloudT);
+            vector<pair<int, int> > indices_i;
+            if (!load_grouped_features_for_segment(features_i, indices_i, counter)) {
+                are_done = true;
+                break;
+            }
+            if (features_i->size() < min_features) {
+                ++counter;
+                continue;
+            }
+            features->insert(features->end(), features_i->begin(), features_i->end());
+            indices.insert(indices.end(), indices_i.begin(), indices_i.end());
+            ++counter;
+        }
+
+        cout << "Adding " << features->size() << " features to vocabulary." << endl;
+        vt1.set_input_cloud(features, indices);
+        vt1.add_points_from_input_cloud(false);
+    }
+
+    if (simply_train) {
+        write_vocabulary(vt1);
+        return;
+    }
+
+    while (!are_done) {
+        HistCloudT::Ptr features(new HistCloudT);
+        vector<pair<int, int> > indices;
+
+        // as long as we can keep them all in memory, no upper bound on features here
+        for (size_t i = 0; i < max_segments && features->size() < 2000000; ++i) {
+            if (!exclude_set.empty()) {
+                if (exclude_set.count(counter) != 0) {
+                    ++counter;
+                    continue;
+                }
+            }
+            HistCloudT::Ptr features_i(new HistCloudT);
+            vector<pair<int, int> > indices_i;
+            if (!load_grouped_features_for_segment(features_i, indices_i, counter)) {
+                are_done = true;
+                break;
+            }
+            if (features_i->size() < min_features) {
+                ++counter;
+                continue;
+            }
+            features->insert(features->end(), features_i->begin(), features_i->end());
+            indices.insert(indices.end(), indices_i.begin(), indices_i.end());
+            ++counter;
+        }
+
+        vt1.append_cloud(features, indices, false);
+    }
+
+    write_vocabulary(vt1);
+}
+
+// this should probably be max_features instead
 void object_retrieval::train_vocabulary_incremental(int max_segments, bool simply_train)
 {
+    int min_features = 20;
 
     vocabulary_tree<HistT, 8> vt1;
     size_t counter = 0;
@@ -313,7 +436,8 @@ void object_retrieval::train_vocabulary_incremental(int max_segments, bool simpl
         HistCloudT::Ptr features(new HistCloudT);
         vector<int> indices;
 
-        for (size_t i = 0; i < max_segments; ++i) {
+        // atm the training has problems dealing with more than ~700000 vectors
+        for (size_t i = 0; i < max_segments && features->size() < 2000000; ++i) {
             if (!exclude_set.empty()) {
                 if (exclude_set.count(counter) != 0) {
                     ++counter;
@@ -325,6 +449,10 @@ void object_retrieval::train_vocabulary_incremental(int max_segments, bool simpl
                 are_done = true;
                 break;
             }
+            if (features_i->size() < min_features) {
+                ++counter;
+                continue;
+            }
             features->insert(features->end(), features_i->begin(), features_i->end());
             for (size_t j = 0; j < features_i->size(); ++j) {
                 indices.push_back(counter);
@@ -333,7 +461,7 @@ void object_retrieval::train_vocabulary_incremental(int max_segments, bool simpl
         }
 
         vt1.set_input_cloud(features, indices);
-        vt1.add_points_from_input_cloud();
+        vt1.add_points_from_input_cloud(false);
     }
 
     if (simply_train) {
@@ -345,7 +473,8 @@ void object_retrieval::train_vocabulary_incremental(int max_segments, bool simpl
         HistCloudT::Ptr features(new HistCloudT);
         vector<int> indices;
 
-        for (size_t i = 0; i < max_segments; ++i) {
+        // as long as we can keep them all in memory, no upper bound on features here
+        for (size_t i = 0; i < max_segments && features->size() < 2000000; ++i) {
             if (!exclude_set.empty()) {
                 if (exclude_set.count(counter) != 0) {
                     ++counter;
@@ -356,6 +485,10 @@ void object_retrieval::train_vocabulary_incremental(int max_segments, bool simpl
             if (!load_features_for_segment(features_i, counter)) {
                 are_done = true;
                 break;
+            }
+            if (features_i->size() < min_features) {
+                ++counter;
+                continue;
             }
             features->insert(features->end(), features_i->begin(), features_i->end());
             for (size_t j = 0; j < features_i->size(); ++j) {
@@ -547,10 +680,11 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
     if (rvt.empty()) {
         read_vocabulary(rvt);
     }
-    rvt.top_similarities(first_scores, query_cloud, 4*(nbr_query-1)+1); // do 2 times matches to get better reweight results
+    rvt.top_similarities(first_scores, query_cloud, 2*(nbr_query-1)+1); // do 2 times matches to get better reweight results
     //rvt.top_pyramid_match_similarities(first_scores, query_cloud, nbr_query); // do 2 times matches to get better reweight results
 
     const int reweight_rounds = 1;
+    saved_match_scores.insert(make_pair(query_ind, vector<pair<int, double> >()));
     for (int i = 0; i < reweight_rounds; ++i) { // do the reweighting and querying 1 time to begin with, maybe add caching of matches later
         map<int, double> weights;
         map<int, double> color_weights;
@@ -580,6 +714,7 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
             if (std::isnan(similarity) || (use_color_weights && std::isnan(color_similarity))) {
                 continue;
             }
+            saved_match_scores.at(query_ind).push_back(make_pair(s.first, similarity));
             weights.insert(make_pair(s.first, similarity));
             color_weights.insert(make_pair(s.first, color_similarity));
             sum += similarity;
@@ -589,13 +724,19 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
         }
 
         for (pair<const int, double>& w : weights) {
-            if (use_color_weights) {
+            /*if (use_color_weights) {
                 w.second = (w.second/sum + color_weights.at(w.first)/color_sum)/double(weights.size());
             }
             else {
                 w.second *= 1.0*double(weights.size())/sum; // 1.0 seems best, needs no explanation
-            }
+            }*/
             //w.second = 1.5; // just to check how much "bootstrapping" contributes
+            if (w.second < 80) {
+                w.second = -1;
+            }
+            else {
+                w.second = 1;
+            }
         }
 
         reweight_scores.clear();
@@ -610,6 +751,101 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
         cout << s.second << ", ";
     }
     cout << endl;
+}
+
+void object_retrieval::read_scan(CloudT::Ptr& cloud, int i)
+{
+    string folder = get_folder_for_segment_id(i);
+    string metadata_file = folder + "/metadata.txt";
+    string metadata; // in this dataset, this is the path to the scan
+    {
+        ifstream f;
+        f.open(metadata_file);
+        getline(f, metadata);
+        f.close();
+    }
+    cout << metadata << endl;
+    if (pcl::io::loadPCDFile(metadata, *cloud) == -1) {
+        cout << "Could not load scan point cloud..." << endl;
+        exit(-1);
+    }
+}
+
+string object_retrieval::get_scan_file(int i)
+{
+    string folder = get_folder_for_segment_id(i);
+    string metadata_file = folder + "/metadata.txt";
+    string metadata; // in this dataset, this is the path to the scan
+    {
+        ifstream f;
+        f.open(metadata_file);
+        getline(f, metadata);
+        f.close();
+    }
+    return metadata;
+}
+
+void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scores, vector<index_score>& reweight_scores,
+                                                 HistCloudT::Ptr& query_cloud, CloudT::Ptr& query_segment, Eigen::Matrix3f& K, size_t nbr_query)
+{
+    static int m = 0;
+    cout << "Histogram cloud size: " << query_cloud->size() << endl;
+
+    if (rvt.empty()) {
+        read_vocabulary(rvt);
+    }
+    rvt.top_partial_similarities(first_scores, query_cloud, 1*(nbr_query-1)+1);
+
+    const int reweight_rounds = 1;
+    for (int i = 0; i < reweight_rounds; ++i) { // do the reweighting and querying 1 time to begin with, maybe add caching of matches later
+        map<int, double> weights;
+        map<int, double> color_weights;
+        double sum = 0.0;
+        double color_sum = 0.0;
+        bool first = true;
+        for (index_score s : first_scores) {
+            if (first) { // first is itself, the perfect match
+                first = false;
+                continue;
+            }
+            cout << "Index: " << s.first << " with score: " << s.second << endl;
+            CloudT::Ptr hd_segment(new CloudT);
+            read_scan(hd_segment, s.first);
+            double similarity;
+            double color_similarity;
+            tie(similarity, color_similarity) = calculate_similarity(query_segment, K, hd_segment, K);
+            if (std::isnan(similarity) || (use_color_weights && std::isnan(color_similarity))) {
+                continue;
+            }
+            weights.insert(make_pair(s.first, similarity));
+            color_weights.insert(make_pair(s.first, color_similarity));
+            sum += similarity;
+            color_sum += color_similarity;
+            cout << "Shape similarity: " << similarity << endl;
+        }
+
+        for (pair<const int, double>& w : weights) {
+            if (use_color_weights) {
+                w.second = (w.second/sum + color_weights.at(w.first)/color_sum)/double(weights.size());
+            }
+            else {
+                w.second *= 1.0*double(weights.size())/sum;
+            }
+        }
+
+        reweight_scores.clear();
+        rvt.top_similarities_reweighted(reweight_scores, weights, query_cloud, nbr_query);
+        if (i < reweight_rounds-1) {
+            first_scores.swap(reweight_scores);
+        }
+    }
+
+    cout << "Reweighted distances: " << endl;
+    for (index_score s : reweight_scores) {
+        cout << s.second << ", ";
+    }
+    cout << endl;
+    ++m;
 }
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (object_retrieval::HistT,
@@ -655,26 +891,48 @@ void object_retrieval::save_features_for_segment(HistCloudT::Ptr& features, int 
         features->push_back(p);
     }
     boost::filesystem::path base_dir = segment_path;
-    std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/" + feature_segment_file;
+    std::string features_file = base_dir.string() + "/" + segment_name + to_string(i) + "/" + feature_segment_file;
     pcl::io::savePCDFileBinary(features_file, *features);
 }
 
 bool object_retrieval::load_features_for_segment(HistCloudT::Ptr& features, int i)
 {
     boost::filesystem::path base_dir = segment_path;
-    std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/" + feature_segment_file;
+    std::string features_file = base_dir.string() + "/" + segment_name + to_string(i) + "/" + feature_segment_file;
     return (pcl::io::loadPCDFile<HistT>(features_file, *features) != -1);
+}
+
+bool object_retrieval::load_grouped_features_for_segment(HistCloudT::Ptr& features, vector<pair<int, int> >& indices, int ind)
+{
+   string segment_folder = segment_path + "/" + segment_name + to_string(ind) + "/";
+   if (!boost::filesystem::is_directory(segment_folder)) {
+       return false;
+   }
+   for (int i = 0; ;  ++i) {
+       std::string features_file = segment_folder + "split_features" + to_string(i) + ".pcd";
+       HistCloudT::Ptr featuresi(new HistCloudT);
+       //cout << features_file << endl;
+       if (pcl::io::loadPCDFile<HistT>(features_file, *featuresi) == -1) {
+           return true;
+       }
+       features->insert(features->end(), featuresi->begin(), featuresi->end());
+       for (int j = 0; j < featuresi->size(); ++j) {
+           indices.push_back(make_pair(ind, i));
+       }
+   }
+
+   return true; // won't reach
 }
 
 bool object_retrieval::load_features_for_other_segment(HistCloudT::Ptr& features, const std::string& other_segment_path, int i)
 {
     boost::filesystem::path base_dir = other_segment_path;
-    std::string features_file = base_dir.string() + "/segment" + to_string(i) + "/" + feature_segment_file;
+    std::string features_file = base_dir.string() + "/" + segment_name + to_string(i) + "/" + feature_segment_file;
     std::cout << "features_file: " << features_file << std::endl;
     return (pcl::io::loadPCDFile<HistT>(features_file, *features) != -1);
 }
 
 string object_retrieval::get_folder_for_segment_id(int i) const
 {
-    return segment_path + "/segment" + to_string(i) + "/";
+    return segment_path + "/" + segment_name + to_string(i) + "/";
 }

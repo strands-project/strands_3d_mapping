@@ -17,7 +17,10 @@ class segment_features
 private:
 
     //static const int N = 131;
-    static const int N = 1344;
+    //static const int N = 1344; // use SHOT
+    //static const int N = 128; // use SIFT
+    static const int N = 250; // use PFHRGB
+    //static const int N = 256;
 
     using PointT = pcl::PointXYZRGB;
     using PointCloudT = pcl::PointCloud<PointT>;
@@ -33,11 +36,11 @@ private:
     Eigen::Matrix3f K;
     bool visualize_features;
 
-    void compute_sift_features(HistCloudT::Ptr& local_features, PointCloudT::Ptr& segment) const;
-    void compute_shot_features(HistCloudT::Ptr& local_features, PointCloudT::Ptr& segment) const;
     void visualize_keypoints(PointCloudT::Ptr& cloud, PointCloudT::Ptr& keypoints) const;
 
 public:
+    void compute_sift_features(HistCloudT::Ptr& local_features, PointCloudT::Ptr& segment) const;
+    void compute_shot_features(HistCloudT::Ptr& local_features, PointCloudT::Ptr& segment, bool hires = false, int points = 0) const;
     void calculate_features(Eigen::VectorXf &global_features, HistCloudT::Ptr& local_features, PointCloudT::Ptr& segment,
                             NormalCloudT::Ptr& segment_normals, PointCloudT::Ptr& full_segment) const;
     segment_features(const Eigen::Matrix3f& K, bool visualize_features = false);

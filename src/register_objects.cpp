@@ -196,9 +196,10 @@ void register_objects::do_registration()
 
     if (descriptors1.empty() || descriptors2.empty()) {
         // shit just hit the fan
-        if (c1->size() < 50000 && c2->size() < 50000) {
+        T.setIdentity();
+        /*if (c1->size() < 50000 && c2->size() < 50000) {
             initial_alignment();
-        }
+        }*/
         return;
     }
 
@@ -241,10 +242,11 @@ void register_objects::do_registration()
     trans_est.estimateRigidTransformation(*cloud1, *cloud2, sac_correspondences, T);
 
     if (sac_correspondences.empty() || correspondences->size() == sac_correspondences.size()) { // No samples could be selected
+        T.setIdentity();
         // alternative way of estimating the transformation that doesn't depend as heavily on keypoints
-        if (c1->size() < 50000 && c2->size() < 50000) {
+        /*if (c1->size() < 50000 && c2->size() < 50000) {
             initial_alignment();
-        }
+        }*/
     }
 
     cout << "Estimated transformation: " << endl;
@@ -347,14 +349,17 @@ pair<double, double> register_objects::get_match_score()
     pcl::KdTreeFLANN<PointT> kdtree1;
     kdtree1.setInputCloud(new_cloud);
     for (const PointT& p : c2->points) {
-        vector<int> indices;
-        vector<float> distances;
+        if (!pcl::isFinite(p)) {
+            continue;
+        }
+        vector<int> indices(1);
+        vector<float> distances(1);
         kdtree1.nearestKSearchT(p, 1, indices, distances);
         if (distances.empty() || distances.empty()) {
             cout << "Distances empty, wtf??" << endl;
             exit(0);
         }
-        float dist = distances[0];
+        float dist = sqrt(distances[0]);
         if (dist > 0.1) {
             continue;
         }
@@ -370,6 +375,9 @@ pair<double, double> register_objects::get_match_score()
     pcl::KdTreeFLANN<PointT> kdtree2;
     kdtree2.setInputCloud(c2);
     for (const PointT& p : new_cloud->points) {
+        if (!pcl::isFinite(p)) {
+            continue;
+        }
         vector<int> indices;
         vector<float> distances;
         kdtree2.nearestKSearchT(p, 1, indices, distances);

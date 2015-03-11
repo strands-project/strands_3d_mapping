@@ -1,38 +1,20 @@
-#include <iostream>
-#include <chrono>
-#include <ctime>
-#include <boost/filesystem.hpp>
+#include "object_3d_retrieval/dataset_convenience.h"
 
-#include "object_3d_retrieval/object_retrieval.h"
+#include <pcl/common/transforms.h>
+#include <pcl/filters/voxel_grid.h>
+#include <tf_conversions/tf_eigen.h>
+
 #include "eigen_cereal/eigen_cereal.h"
 #include "cereal/types/utility.hpp"
 #include "cereal/types/map.hpp"
 #include "cereal/types/string.hpp"
+#include "cereal/archives/binary.hpp"
 
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/common/transforms.h>
-#include <pcl/filters/voxel_grid.h>
+POINT_CLOUD_REGISTER_POINT_STRUCT (object_retrieval::HistT,
+                                   (float[object_retrieval::N], histogram, histogram)
+)
 
-#include "simple_xml_parser.h"
-#include "simple_summary_parser.h"
-#include "simple_xml_parser.h"
-
-#include <tf_conversions/tf_eigen.h>
-
-using namespace std;
-
-typedef typename SimpleSummaryParser::EntityStruct Entities;
-using PointT = pcl::PointXYZRGB;
-using CloudT = pcl::PointCloud<PointT>;
-using HistT = pcl::Histogram<131>;
-using HistCloudT = pcl::PointCloud<HistT>;
-using NormalT = pcl::Normal;
-using NormalCloudT = pcl::PointCloud<NormalT>;
-
-using index_score = object_retrieval::index_score;
+namespace dataset_convenience {
 
 void subsample_cloud(CloudT::Ptr& cloud_in, CloudT::Ptr& cloud_out)
 {
@@ -297,129 +279,163 @@ void compute_correct_ratios(object_retrieval& obr, map<string, vector<float> >& 
     }
 }
 
-/*void compute_precision_recall(map<int, string>& annotated,
-                              map<int, string>& full_annotated,
-                              map<string, int>& instance_counts)
+void aggregate_features(object_retrieval& obr, const string& aggregate_dir)
 {
-    const int query_number = 11;
+    boost::filesystem::path aggregate_path(aggregate_dir);
+    boost::filesystem::create_directory(aggregate_path);
+    cout << "Creating directory " << aggregate_path.string() << endl;
 
-    map<string, int> true_matches;
-    map<string, int> false_matches;
+    string previous_cloud = "";
+    vector<int> segment_ids;
+    HistCloudT::Ptr scan_features(new HistCloudT);
+    int scan_id = 0;
 
-    map<string, int> matched_instances;
-    for (pair<const string, int>& m : instance_counts) {
-        true_matches.insert(make_pair(m.first, 0));
-        false_matches.insert(make_pair(m.first, 0));;
-    }
-
-    for (pair<const int, string>& a : full_annotated) {
-        vector<index_score> scores;
-        obr.query_vocabulary(scores, number_not_annotated+a.first, query_number, false, number_not_annotated, annotations_path);
-        string queried_instance = a.second;
-        for (index_score& score : scores) {
-            if (score.first >= number_not_annotated && annotated.count(score.first-number_not_annotated) != 0) {
-                string matched_instance = annotated.at(score.first-number_not_annotated);
-                if (matched_instance == queried_instance) {
-                    true_matches.at(queried_instance) += 1;
-                    continue;
+    // the segments of a scan are stored consecutively
+    // iterate through all our segments, aggregate them in one folder for each scan
+    for (int i = 0; ; ++i) {
+        string folder = obr.get_folder_for_segment_id(i);
+        if (!boost::filesystem::is_directory(folder)) {
+            boost::filesystem::path scan_path(aggregate_path / ("scan" + to_string(scan_id)));
+            boost::filesystem::create_directory(scan_path);
+            cout << "Creating directory " << scan_path.string() << endl;
+            string scan_file = scan_path.string() + "/features.pcd"; // object_retrieval::feature_file
+            string new_metadata_file = scan_path.string() + "/metadata.txt";
+            pcl::io::savePCDFileBinary(scan_file, *scan_features);
+            {
+                ofstream f;
+                f.open(new_metadata_file);
+                f << previous_cloud << '\n';
+                for (int j : segment_ids) {
+                    f << j << " ";
                 }
+                f << '\n';
+                f.close();
             }
-            false_matches.at(queried_instance) += 1;
+            return;
         }
-    }
-
-    for (pair<const string, int>& m : instance_counts) {
-        float correct_ratio = float(matched_instances.at(m.first)-1) / float((query_number-1)*m.second);
-        if (correct_ratios.count(m.first) == 0) {
-            correct_ratios.insert(make_pair(m.first, vector<float>({correct_ratio})));
+        cout << "Reading segment folder " << folder << endl;
+        string metadata_file = folder + "/metadata.txt";
+        string feature_file = folder + "/features.pcd"; // object_retrieval::feature_file
+        string metadata; // in this dataset, this is the path to the scan
+        {
+            ifstream f;
+            f.open(metadata_file);
+            getline(f, metadata);
+            f.close();
+        }
+        vector<string> strs;
+        boost::split(strs, metadata, boost::is_any_of(" \t\n"));
+        stringstream ss;
+        ss << boost::filesystem::path(strs[0]).parent_path().string() << "/intermediate_cloud" << setw(4) << setfill('0') << stoi(strs[1]) << ".pcd";
+        string cloud_file = ss.str();
+        cout << "Got metadata " << ss.str() << endl;
+        if (cloud_file == previous_cloud) {
+            // load segment features and append to scan features
+            HistCloudT::Ptr segment_features(new HistCloudT);
+            if (pcl::io::loadPCDFile<HistT>(feature_file, *segment_features) == -1) {
+                cout << "Could not load segment features" << endl;
+                exit(0);
+            }
+            *scan_features += *segment_features;
+            segment_ids.push_back(i);
         }
         else {
-            correct_ratios.at(m.first).push_back(correct_ratio);
+            cout << "Got new scan id " << cloud_file << endl;
+            // first, save features to the path of the previous file
+            if (previous_cloud != "") {
+                boost::filesystem::path scan_path(aggregate_path / ("scan" + to_string(scan_id)));
+                boost::filesystem::create_directory(scan_path);
+                cout << "Creating directory " << scan_path.string() << endl;
+                string scan_file = scan_path.string() + "/features.pcd"; // object_retrieval::feature_file
+                pcl::io::savePCDFileBinary(scan_file, *scan_features);
+
+                // also save the metadata so we know which orignal scan the features belong to
+                string new_metadata_file = scan_path.string() + "/metadata.txt";
+                {
+                    ofstream f;
+                    f.open(new_metadata_file);
+                    f << previous_cloud << '\n';
+                    for (int j : segment_ids) {
+                        f << j << " ";
+                    }
+                    f << '\n';
+                    f.close();
+                }
+                ++scan_id;
+            }
+            scan_features = HistCloudT::Ptr(new HistCloudT);
+            if (pcl::io::loadPCDFile<HistT>(feature_file, *scan_features) == -1) {
+                cout << "Could not load segment features" << endl;
+                exit(0);
+            }
+            segment_ids.clear();
+            segment_ids.push_back(i);
+            previous_cloud = cloud_file;
         }
-        //cout << m.first << " had ratio " << correct_ratio << endl;
-    }
-}*/
-
-int main(int argc, char** argv)
-{
-    using entity = SimpleSummaryParser::EntityStruct;
-    string root_path = "/home/nbore/Data/semantic_map/";
-    string segments_path = root_path + "object_segments";
-    vector<entity> entities;
-    //get_rooms(entities, root_path);
-    object_retrieval obr(segments_path);
-
-    /*int counter;
-    size_t current_save = 0;
-    for (entity room : entities) {
-        vector<CloudT::Ptr> clouds;
-        vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d> > transforms;
-        string room_id;
-        vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> > intrinsics;
-        get_room_from_xml(clouds, transforms, room_id, intrinsics, room);
-
-        vector<string> files;
-        for (int i = 0; i < clouds.size(); ++i) {
-            files.push_back(room_id + "_" + to_string(counter) + "_" + to_string(i));
-        }
-
-        current_save = obr.compute_segments(clouds, intrinsics, files, current_save);
-        ++counter;
-    }*/
-
-    //obr.process_segments_incremental();
-
-    cout << "Extracted all of the features" << endl;
-
-    // compute or load all annotations
-    string annotations_path = "/home/nbore/Data/Instances/object_segments";
-    map<int, string> annotated;
-    map<int, string> full_annotated;
-    list_all_annotated_segments(annotated, full_annotated, annotations_path);
-    //visualize_annotations(annotated, annotations_path);
-    map<string, int> instance_counts; // the number of fully observed instances of every type
-    compute_instance_counts(instance_counts, full_annotated);
-    cout << "Number of annotated segments: " << annotated.size() << endl;
-
-    bool compute_decay = false; // this is true if we want to add more observations to see how that affects retrieval rates
-
-    // do initial training of vocabulary, optionally only add 5000 first
-    //obr.train_vocabulary_incremental(5000, compute_decay);
-
-    int number_not_annotated;
-    if (compute_decay) {
-        //number_not_annotated = obr.add_others_to_vocabulary(5000, annotations_path, 22557); // 22557
-    }
-    else {
-        //number_not_annotated = obr.add_others_to_vocabulary(5000, annotations_path);
-    }
-    number_not_annotated = 22557;
-    cout << "number not annotated: " << number_not_annotated << endl;
-
-    if (obr.vt.empty()) {
-        obr.read_vocabulary(obr.vt);
-    }
-    obr.vt.compute_normalizing_constants();
-
-    map<string, vector<float> > correct_ratios;
-    if (compute_decay) {
-        bool are_done = false;
-        for (int add_extra = 5000; !are_done; add_extra += 2000) {
-            //i += number_not_annotated;
-            cout << "segments: " << add_extra << " - " << add_extra + 2000 << endl;
-            are_done = obr.add_others_to_vocabulary(2000, segments_path, add_extra, true) == 1;
-            compute_correct_ratios(obr, correct_ratios, instance_counts, annotated, full_annotated, number_not_annotated, annotations_path);
-        }
-    }
-    else {
-        compute_correct_ratios(obr, correct_ratios, instance_counts, annotated, full_annotated, number_not_annotated, annotations_path);
-    }
-
-    for (pair<const string, vector<float> >& c : correct_ratios) {
-        cout << c.first << " = [ ";
-        for (float f : c.second) {
-            cout << f << " ";
-        }
-        cout << " ]; " << endl;
     }
 }
+
+void aggregate_pfhrgb_features(object_retrieval& obr)
+{
+    for (int i = 0; ; ++i) {
+        string scan_path = obr.get_folder_for_segment_id(i);
+        if (!boost::filesystem::is_directory(scan_path)) {
+            break;
+        }
+        string supervoxel_paths_file = scan_path + "/segment_paths.txt";
+        HistCloudT::Ptr scan_cloud(new HistCloudT);
+        vector<string> supervoxel_paths; // in this dataset, this is the path to the scan
+        {
+            ifstream f;
+            string metadata;
+            f.open(supervoxel_paths_file);
+            while (getline(f, metadata)) {
+                if (metadata.length() > 1) {
+                    supervoxel_paths.push_back(metadata);
+                }
+            }
+            f.close();
+        }
+        for (string supervoxel_path : supervoxel_paths) {
+            HistCloudT::Ptr supervoxel_cloud(new HistCloudT);
+            string supervoxel_cloud_file = supervoxel_path + "/pfhrgb_cloud_1.pcd";
+            if (pcl::io::loadPCDFile<HistT>(supervoxel_cloud_file, *supervoxel_cloud) == -1) {
+                cout << "Could not load segment features" << endl;
+                continue;
+            }
+            scan_cloud->insert(scan_cloud->end(), supervoxel_cloud->begin(), supervoxel_cloud->end());
+        }
+        string scan_cloud_file = scan_path + "/pfhrgb_cloud_1.pcd";
+        pcl::io::savePCDFileBinary(scan_cloud_file, *scan_cloud);
+    }
+}
+
+string annotation_for_scan(int i, object_retrieval& obr)
+{
+    string folder = obr.get_folder_for_segment_id(i);
+    string metadata_file = folder + "/metadata.txt";
+    string metadata; // in this dataset, this is the path to the scan
+    {
+        ifstream f;
+        f.open(metadata_file);
+        getline(f, metadata);
+        f.close();
+    }
+    cout << metadata << endl;
+    boost::filesystem::path metadata_path(metadata);
+    string name = metadata_path.stem().string();
+    size_t pos = name.find_last_not_of("0123456789");
+    int ind = stoi(name.substr(pos+1));
+    string annotations_file = metadata_path.parent_path().string() + "/annotation" + to_string(ind) + ".txt";
+    cout << annotations_file << endl;
+    string annotation;
+    {
+        ifstream f;
+        f.open(annotations_file);
+        f >> annotation;
+        f.close();
+    }
+    return annotation;
+}
+
+} // namespace dataset_convenience

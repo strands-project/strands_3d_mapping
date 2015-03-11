@@ -56,7 +56,7 @@ segment_features::segment_features(const Eigen::Matrix3f& K, bool visualize_feat
 
 // TODO: compare using just the lowres segments and the hd segments, lowres should be faster
 // and already have the normals precomputed
-void segment_features::compute_shot_features(HistCloudT::Ptr& local_features, PointCloudT::Ptr& segment) const
+void segment_features::compute_shot_features(HistCloudT::Ptr& local_features, PointCloudT::Ptr& segment, bool hires, int points) const
 {
     // first, extract normals, if we don't use the lowres cloud
     pcl::NormalEstimationOMP<PointT, NormalT> ne;
@@ -85,9 +85,21 @@ void segment_features::compute_shot_features(HistCloudT::Ptr& local_features, Po
     pcl::PointCloud<int>::Ptr keypoints_ind(new pcl::PointCloud<int>);
     pcl::IndicesPtr indices(new std::vector<int>);
 
-    if (segment->size() < 0.1*480*640) {
+    if ((hires && points < 0.1*480*640) || (!hires && segment->size() < 0.1*480*640)) {
         // Fill in the model cloud
-        double model_resolution = std::min(0.006, 0.003 + 0.003*float(segment->size())/(0.1*480*640));//0.01;
+        //double model_resolution = std::min(0.006, 0.003 + 0.003*float(segment->size())/(0.1*480*640));//0.01;
+        double model_resolution;
+        if (hires) {
+            if (points != 0) {
+                model_resolution = std::min(0.006, 0.003 + 0.003*float(points)/(0.1*480*640));
+            }
+            else {
+                model_resolution = std::min(0.006, 0.003 + 0.003*float(segment->size())/(0.1*480*640));
+            }
+        }
+        else {
+            model_resolution = std::min(0.006, 0.003 + 0.003*float(segment->size())/(0.1*480*640));//0.01;
+        }
 
         // Compute model_resolution
 
@@ -142,7 +154,9 @@ void segment_features::compute_shot_features(HistCloudT::Ptr& local_features, Po
         }
     }
 
-    //visualize_keypoints(segment, keypoints);
+    if (visualize_features) {
+        visualize_keypoints(segment, keypoints);
+    }
     // ISS3D
 
     // SHOTCOLOR
