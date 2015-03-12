@@ -35,6 +35,8 @@
 #include <semantic_map/room_xml_parser.h>
 #include <pcl_ros/transforms.h>
 
+#include "RobotContainer.h"
+
 using namespace std;
 
 typedef pcl::PointXYZRGB PointType;
@@ -157,10 +159,10 @@ void getMat(const double* const camera, double * mat){
 bool optimizeCameraParams = false;
 double information = 1.0/1.5;//0.01;
 
-class pair3DErrorFast3 : public SizedCostFunction<3, 6, 6, 4> {
+class pair3DError : public SizedCostFunction<3, 6, 6, 4> {
 	public:
-	pair3DErrorFast3(double sw, double sh, double sz,double dw, double dh, double dz, double weight) : sw(sw), sh(sh), sz(sz), dw(dw), dh(dh), dz(dz), weight(weight) {id = sumid++;}
-	virtual ~pair3DErrorFast3() {}
+	pair3DError(double sw, double sh, double sz,double dw, double dh, double dz, double weight) : sw(sw), sh(sh), sz(sz), dw(dw), dh(dh), dz(dz), weight(weight) {id = sumid++;}
+	virtual ~pair3DError() {}
 	virtual bool Evaluate(double const* const* parameters, double* residuals, double** jacobians) const {
 		const double h = 3e-7;
 		const double* const scamera = parameters[0];
@@ -456,7 +458,7 @@ class ProblemFrameConnection {
 			double sz	= src->keypoint_depth.at(src_kp_id);
 			double dz	= dst->keypoint_depth.at(dst_kp_id);			
 
-			CostFunction* err = new pair3DErrorFast3(src_kp.pt.x,src_kp.pt.y,sz,dst_kp.pt.x,dst_kp.pt.y,dz,weight);
+			CostFunction* err = new pair3DError(src_kp.pt.x,src_kp.pt.y,sz,dst_kp.pt.x,dst_kp.pt.y,dz,weight);
 			problem.AddResidualBlock(err, NULL, src_variable, dst_variable, params);
 		}
 	}
@@ -685,7 +687,7 @@ vector< CostFunction * > getMatchesICP(vector< ProblemFrameConnection * > & pc_v
 				double sz	= pc->src->keypoint_depth.at(src_kp_id);
 				double dz	= pc->dst->keypoint_depth.at(dst_kp_id);
 
-				CostFunction* err = new pair3DErrorFast3(src_kp.pt.x,src_kp.pt.y,sz,dst_kp.pt.x,dst_kp.pt.y,dz,weight);
+				CostFunction* err = new pair3DError(src_kp.pt.x,src_kp.pt.y,sz,dst_kp.pt.x,dst_kp.pt.y,dz,weight);
 				errors.push_back(err);
 			}
 		}
@@ -827,7 +829,7 @@ vector< CostFunction * > getMatchesRansac(vector< ProblemFrameConnection * > & p
 		cv::KeyPoint dst_kp = pc->dst->keypoints.at(dst_kp_id);
 		double sz	= pc->src->keypoint_depth.at(src_kp_id);
 		double dz	= pc->dst->keypoint_depth.at(dst_kp_id);
-		CostFunction* err = new pair3DErrorFast3(src_kp.pt.x,src_kp.pt.y,sz,dst_kp.pt.x,dst_kp.pt.y,dz,weight);
+		CostFunction* err = new pair3DError(src_kp.pt.x,src_kp.pt.y,sz,dst_kp.pt.x,dst_kp.pt.y,dz,weight);
 		errors.push_back(err);
 	}
 
@@ -934,11 +936,12 @@ int main(int argc, char **argv){
 	unsigned int todoy = 3;
 
     unsigned int start_sweep = 0;
-    unsigned int stop_sweep = 1;//15;
+    unsigned int stop_sweep = 1;
 
     unsigned int sweeps_for_training = 1000;
-
 	float loop_weight = 1000;
+
+	RobotContainer * rc = new RobotContainer(gx,todox,gy,todoy);
 
 	double * shared_params = new double[5];
 	shared_params[0] = 1.0/540.0;		//invfx
@@ -1002,6 +1005,16 @@ int main(int argc, char **argv){
 
     unsigned int nr_sweeps = allSweeps.size();
 
+	for (unsigned int i = 0; i < nr_sweeps; i++){
+		if(i < start_sweep || i > stop_sweep){continue;}
+		rc->addToTraining(allSweeps[i]);
+	}
+exit(0);
+
+
+
+
+
 	Camera * camera = 0;//new Camera(fx, fy, cx, cy, width,	height);
 	vector<Sweep *> sweeps;
 	vector<Frame *> all_frames;
@@ -1011,7 +1024,8 @@ int main(int argc, char **argv){
 
 	for (unsigned int i = 0; i < nr_sweeps; i++){
 		if(i < start_sweep || i > stop_sweep){continue;}
-
+		rc->addToTraining(allSweeps[i]);
+		continue;
         SimpleXMLParser<PointType>::RoomData roomData = simple_parser.loadRoomFromXML(allSweeps[i]);
 
 		if(roomData.vIntermediateRoomClouds.size() < gx*gy){continue;}
