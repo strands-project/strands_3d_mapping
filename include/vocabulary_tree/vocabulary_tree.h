@@ -71,6 +71,7 @@ public:
 
     void top_partial_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results);
     void test_partial_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results);
+    void top_combined_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results);
 
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);

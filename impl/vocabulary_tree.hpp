@@ -256,6 +256,33 @@ void vocabulary_tree<Point, K>::compare_vocabulary_vectors(std::map<node*, doubl
 }
 
 template <typename Point, size_t K>
+void vocabulary_tree<Point, K>::top_combined_similarities(vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
+{
+    vector<cloud_idx_score> larger_scores;
+    top_partial_similarities(larger_scores, query_cloud, 0);
+    vector<cloud_idx_score> smaller_scores;
+    test_partial_similarities(smaller_scores, query_cloud, 0);
+
+    map<int, double> larger_map((larger_scores.begin()), larger_scores.end());
+    map<int, double> smaller_map((smaller_scores.begin()), smaller_scores.end());
+
+    for (pair<const int, double>& s : larger_map) {
+        if (smaller_map.count(s.first)) {
+            s.second = std::max(s.second, smaller_map[s.first]);
+        }
+        else {
+            s.second = 1.0; // very large
+        }
+    }
+
+    scores.insert(scores.end(), larger_map.begin(), larger_map.end());
+    std::sort(scores.begin(), scores.end(), [](const cloud_idx_score& s1, const cloud_idx_score& s2) {
+        return s1.second < s2.second; // find min elements!
+    });
+    scores.resize(nbr_results);
+}
+
+template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::top_partial_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
     std::map<node*, double> query_id_freqs;
@@ -294,7 +321,13 @@ void vocabulary_tree<Point, K>::top_partial_similarities(std::vector<cloud_idx_s
         return s1.second < s2.second; // find min elements!
     });
 
-    scores.resize(nbr_results);
+    if (nbr_results > 0) {
+        scores.resize(nbr_results);
+    }
+
+    /*for (cloud_idx_score& s : scores) {
+        s.second = proot(s.second);
+    }*/
 }
 
 template <typename Point, size_t K>
@@ -320,15 +353,17 @@ void vocabulary_tree<Point, K>::test_partial_similarities(std::vector<cloud_idx_
             }*/
             //common_nodes[u.first] += 1; // DEBUG
 
-            //double dbnorm = db_vector_normalizing_constants[u.first];
+            double dbnorm = db_vector_normalizing_constants[u.first];
             double pi = v.first->weight*double(u.second);
-            //double residual = pexp(std::max(pi-qi, 0.0))-pexp(pi); // ~ (|q_i-p_i|-|q_i|-|p_i|)+|q_i|
-            //double normalization = 1.0;//qnorm;//dbnorm;//std::min(float(total_id_freqs[u.first]), float(query_cloud->size()));
+            double residual = pexp(std::max(pi-qi, 0.0))-pexp(pi); // ~ (|q_i-p_i|-|q_i|-|p_i|)+|q_i|
+            double normalization = dbnorm;//dbnorm;//std::min(float(total_id_freqs[u.first]), float(query_cloud->size()));
             if (map_scores.count(u.first) != 0) {
-                map_scores.at(u.first) += std::min(pi, qi);
+                map_scores.at(u.first) += residual/normalization;
+                //map_scores.at(u.first) += std::min(pi, qi);
             }
             else {
-                map_scores.insert(std::make_pair(u.first, std::min(pi, qi)));
+                map_scores.insert(std::make_pair(u.first, (dbnorm+residual)/normalization));
+                //map_scores.insert(std::make_pair(u.first, std::min(pi, qi)));
             }
         }
     }
@@ -340,10 +375,16 @@ void vocabulary_tree<Point, K>::test_partial_similarities(std::vector<cloud_idx_
     // this could probably be optimized a bit also, quite big copy operattion
     scores.insert(scores.end(), map_scores.begin(), map_scores.end());
     std::sort(scores.begin(), scores.end(), [](const cloud_idx_score& s1, const cloud_idx_score& s2) {
-        return s1.second > s2.second; // find min elements!
+        return s1.second < s2.second; // find min elements!
     });
 
-    scores.resize(nbr_results);
+    if (nbr_results > 0) {
+        scores.resize(nbr_results);
+    }
+
+    /*for (cloud_idx_score& s : scores) {
+        s.second = proot(s.second);
+    }*/
 }
 
 template <typename Point, size_t K>
