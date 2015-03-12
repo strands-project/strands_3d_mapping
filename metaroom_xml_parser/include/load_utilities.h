@@ -84,4 +84,19 @@ namespace semantic_map_load_utilties
 }
 
 
+namespace semantic_map_registration_features
+{
+
+    struct RegistrationFeatures
+    {
+        std::vector<cv::KeyPoint> keypoints;
+        std::vector<double> depths;
+        cv::Mat descriptors;
+    };
+
+    std::vector<RegistrationFeatures> loadRegistrationFeaturesFromSingleSweep(std::string sweepXmlPath, bool verbose = false, std::string registrationFeaturesFilename = "registration_features.yml");
+
+}
+
 #endif
+
