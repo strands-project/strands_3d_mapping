@@ -204,7 +204,7 @@ void Sweep::align(Sweep * sweep,float threshold, int ransac_iter, int nr_points)
 		}
 	}
 
-	printf("src_points: %i\n",src_points.size());
+//    printf("src_points: %d\n",src_points.size());
 
 	int nr_kp = src_points.size();
 	int nr_consistent = 0;

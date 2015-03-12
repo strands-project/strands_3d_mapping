@@ -40,7 +40,7 @@ class RobotContainer
 
 	void addToTraining(std::string path);
 
-	void runInitialTraining();
+    std::vector<Eigen::Matrix4f> runInitialTraining();
 	void refineTraining();
 	void train();
 	bool isCalibrated();

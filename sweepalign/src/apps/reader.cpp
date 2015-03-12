@@ -91,7 +91,7 @@ int main(int argc, char **argv){
 
 	std::string folderPath;
 	if (argc < 2){
-		folderPath = "/media/johane/SSDstorage/rareshdata/";
+        folderPath = "/media/rares/HD-PCFU3/KTH_longterm_dataset/";
 	}else{
 		folderPath = argv[1];
 	}
@@ -104,7 +104,7 @@ int main(int argc, char **argv){
  
     std::vector<std::string> allSweeps;
 
-	if(true){
+    if(false){
 		auto sweep_xmls = summary_parser.getRooms();
 		for (size_t i=0; i<sweep_xmls.size(); i++){
 		    auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweep_xmls[i].roomXmlFile, std::vector<std::string>(), false);
@@ -115,6 +115,8 @@ int main(int argc, char **argv){
 		allSweeps = getSweepXmlsForTopologicalWaypoint<PointType>(folderPath, "WayPoint16");
 	}
 
+    std::sort(allSweeps.begin(), allSweeps.end());
+
     unsigned int nr_sweeps = allSweeps.size();
 
 	RobotContainer * rc = new RobotContainer(gx,todox,gy,todoy);
@@ -123,11 +125,11 @@ int main(int argc, char **argv){
 		rc->addToTraining(allSweeps[i]);
 	}
 	rc->train();
-	rc->alignAndStoreSweeps();
-	for (unsigned int i = stop_sweep+1; i < nr_sweeps; i++){
-		if(i > 10){continue;}
-		rc->addToTraining(allSweeps[i]);
-	}
-	rc->alignAndStoreSweeps();
+    rc->alignAndStoreSweeps();
+//	for (unsigned int i = stop_sweep+1; i < nr_sweeps; i++){
+//		if(i > 10){continue;}
+//		rc->addToTraining(allSweeps[i]);
+//	}
+//	rc->alignAndStoreSweeps();
 	return 0;
 }

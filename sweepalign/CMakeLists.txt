@@ -38,10 +38,13 @@ INCLUDE(${QT_USE_FILE})
 include_directories(/opt/ros/indigo/include)
 link_directories(/opt/ros/indigo/lib)
 
+FIND_PACKAGE(Ceres REQUIRED)
+INCLUDE_DIRECTORIES(${CERES_INCLUDE_DIRS})
+
 #RARES STUFFS
-set(room_parser_dir /home/johane/catkin_ws/src/strands_3d_mapping/metaroom_xml_parser)
-include_directories(${room_parser_dir}/include)
-link_directories(/home/johane/catkin_ws/devel/lib)
+#set(room_parser_dir /home/johane/catkin_ws/src/strands_3d_mapping/metaroom_xml_parser)
+#include_directories(${room_parser_dir}/include)
+#link_directories(/home/johane/catkin_ws/devel/lib)
 
 include_directories(src)
 include_directories(src/Camera)
@@ -83,8 +86,8 @@ target_link_libraries(RobotContainer_strands_room ProblemFrameConnection_strands
 ###########################
 
 #add_executable(room_reader_rares src/apps/reader_rares.cpp )
-#target_link_libraries(room_reader_rares RobotContainer_strands_room Sweep_strands_room image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ceres glog)
+#target_link_libraries(room_reader_rares RobotContainer_strands_room Sweep_strands_room image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 add_executable(reader src/apps/reader.cpp )
-target_link_libraries(reader RobotContainer_strands_room Sweep_strands_room image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ceres glog)
+target_link_libraries(reader RobotContainer_strands_room Sweep_strands_room image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 

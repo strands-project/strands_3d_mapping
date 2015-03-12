@@ -10,6 +10,48 @@
 typedef pcl::PointXYZRGB PointType;
 typedef typename SimpleSummaryParser::EntityStruct Entities;
 
+void saveSweep(Sweep * sweep){//std::vector<tf::StampedTransform> transforms)
+    std::string sweep_xml = sweep->xmlpath;
+    std::vector<Eigen::Matrix4f> poses = sweep->getPoseVector();
+
+    std::cout<<"Sweep xml "<<sweep_xml<<std::endl;
+    std::cout<<"No poses "<<poses.size()<<std::endl;
+
+    auto room = SemanticRoomXMLParser<PointType>::loadRoomFromXML(sweep_xml, true);
+    room.clearIntermediateCloudRegisteredTransforms();
+    room.clearIntermediateCloudCameraParametersCorrected();
+    auto original_transforms = room.getIntermediateCloudTransforms();
+    auto intClouds = room.getIntermediateClouds();
+    auto original_params = room.getIntermediateCloudCameraParameters();
+
+    static tf::StampedTransform firstTransform = original_transforms[0];
+
+    Camera * camera = sweep->frames[0][0]->camera;
+    for (unsigned int i=0; i<poses.size(); i++){
+        Eigen::Matrix4f pose = poses[i];
+        // add reg transform and corrected camera parameters to sweep
+        auto transform = original_transforms[i];
+        tf::Transform tfTr;
+        const Eigen::Affine3d eigenTr(pose.cast<double>());
+        tf::transformEigenToTF(eigenTr, tfTr);
+        tf::Transform combinedTransform = firstTransform * tfTr;
+
+        sensor_msgs::CameraInfo camInfo;
+        camInfo.P = {camera->fx, 0.0, camera->cx, 0.0, 0.0, camera->fy, camera->cy, 0.0,0.0, 0.0, 1.0,0.0};
+        camInfo.D = {0,0,0,0,0};
+        image_geometry::PinholeCameraModel aCameraModel;
+        aCameraModel.fromCameraInfo(camInfo);
+        room.addIntermediateCloudCameraParametersCorrected(aCameraModel);
+
+        transform.setOrigin(tfTr.getOrigin());
+        transform.setBasis(tfTr.getBasis());
+        room.addIntermediateRoomCloudRegisteredTransform(transform);
+    }
+
+    SemanticRoomXMLParser<PointType> parser("/home/rares/Data/Test_Registration/");
+    parser.saveRoomAsXML(room);
+}
+
 RobotContainer::RobotContainer(unsigned int gx_,unsigned int todox_,unsigned int gy_,unsigned int todoy_){
 	gx = gx_;
 	todox = todox_;
@@ -71,10 +113,14 @@ void RobotContainer::addToTraining(std::string path){
 	SimpleXMLParser<PointType>::RoomData roomData = simple_parser.loadRoomFromXML(path);
 	if(roomData.vIntermediateRoomClouds.size() < todox*todoy){return;}
 
-	float fx = roomData.vIntermediateRoomCloudCamParams[0].fx();
-	float fy = roomData.vIntermediateRoomCloudCamParams[0].fy();
-	float cx = roomData.vIntermediateRoomCloudCamParams[0].cx();
-	float cy = roomData.vIntermediateRoomCloudCamParams[0].cy();
+//	float fx = roomData.vIntermediateRoomCloudCamParams[0].fx();
+//	float fy = roomData.vIntermediateRoomCloudCamParams[0].fy();
+//	float cx = roomData.vIntermediateRoomCloudCamParams[0].cx();
+//	float cy = roomData.vIntermediateRoomCloudCamParams[0].cy();
+    float fx = 540.0;//roomData.vIntermediateRoomCloudCamParams[i].fx();
+    float fy = 540.0;//roomData.vIntermediateRoomCloudCamParams[i].fy();
+    float cx = 319.5;//roomData.vIntermediateRoomCloudCamParams[i].cx();
+    float cy = 239.5;//roomData.vIntermediateRoomCloudCamParams[i].cy();
 		
 	cv::Size res	= roomData.vIntermediateRoomCloudCamParams[0].fullResolution();
 	height			= res.height; 
@@ -86,11 +132,11 @@ void RobotContainer::addToTraining(std::string path){
 		rgb		=	new float[3*width*height];
 		depth	=	new float[	width*height];
 
-		shared_params[0] = 1.0/fx;		//invfx
-		shared_params[1] = 1.0/fy;		//invfy
-		shared_params[2] = cx;
-		shared_params[3] = cy;
-		shared_params[4] = 0.1;
+        shared_params[0] = 1.0/fx;		//invfx
+        shared_params[1] = 1.0/fy;		//invfy
+        shared_params[2] = cx;
+        shared_params[3] = cy;
+        shared_params[4] = 0.1;
 	}
 
 	std::vector<Frame *> sweep_frames;
@@ -273,12 +319,13 @@ template <typename T> Eigen::Matrix<T,4,4> getMat(const T* const camera, int mod
 	return ret;
 }
 
-void RobotContainer::runInitialTraining(){
+std::vector<Eigen::Matrix4f> RobotContainer::runInitialTraining(){
 	ceres::Problem problem;
 	Solver::Options options;
 	options.max_num_iterations = 1500;
 	options.minimizer_progress_to_stdout = true;
-	options.num_linear_solver_threads = 7;
+    options.num_linear_solver_threads = 11;
+    options.num_threads = 11;
 	Solver::Summary summary;
 
 	double *** poses = new double**[todox];
@@ -363,15 +410,15 @@ void RobotContainer::runInitialTraining(){
 	Solve(options, &problem, &summary);
 	//std::cout << summary.FullReport() << "\n";
 
-	camera->fx = 1.0/shared_params[0];	camera->fy = 1.0/shared_params[1];	camera->cx = shared_params[2];		camera->cy = shared_params[3];
-	camera->print();
-	for(unsigned int s = 0; s < sweeps.size(); s++){
-		for(unsigned int x = 0; x < todox; x++){
-			for(unsigned int y = 0; y < todoy; y++){
-				sweeps.at(s)->poses[x][y] = (getMat(poses[0][0]).inverse()*getMat(poses[x][y])).cast<float>();
-			}
-		}
-	}
+//	camera->fx = 1.0/shared_params[0];	camera->fy = 1.0/shared_params[1];	camera->cx = shared_params[2];		camera->cy = shared_params[3];
+//	camera->print();
+//	for(unsigned int s = 0; s < sweeps.size(); s++){
+//		for(unsigned int x = 0; x < todox; x++){
+//			for(unsigned int y = 0; y < todoy; y++){
+//				sweeps.at(s)->poses[x][y] = (getMat(poses[0][0]).inverse()*getMat(poses[x][y])).cast<float>();
+//			}
+//		}
+//	}
 
 	//Loop closure
 	std::vector< std::vector< ProblemFrameConnection * > > loop_vec;
@@ -409,6 +456,10 @@ void RobotContainer::runInitialTraining(){
 		}
 	}
 
+    std::vector<Eigen::Matrix4f> registeredPoses = sweeps.at(0)->getPoseVector(); // all the sweeps have the same poses. Return the first one
+    return registeredPoses;
+//    for(unsigned int i = 0; i < sweeps.size(); i++){saveSweep(sweeps.at(i));}
+
 }
 
 void RobotContainer::refineTraining(){}
@@ -420,59 +471,19 @@ void RobotContainer::train(){
 
 bool RobotContainer::isCalibrated(){return true;}
 
-void saveSweep(Sweep * sweep){//std::vector<tf::StampedTransform> transforms)
-	std::string sweep_xml = sweep->xmlpath;
-	std::vector<Eigen::Matrix4f> poses = sweep->getPoseVector();
 
-	std::cout<<"Sweep xml "<<sweep_xml<<std::endl;
-    std::cout<<"No poses "<<poses.size()<<std::endl;
-
- 	auto room = SemanticRoomXMLParser<PointType>::loadRoomFromXML(sweep_xml, true);
-	room.clearIntermediateCloudRegisteredTransforms();
-	room.clearIntermediateCloudCameraParametersCorrected();
-    auto original_transforms = room.getIntermediateCloudTransforms();
-	auto intClouds = room.getIntermediateClouds();
-	auto original_params = room.getIntermediateCloudCameraParameters();
-
-	static tf::StampedTransform firstTransform = original_transforms[0];
-
-	Camera * camera = sweep->frames[0][0]->camera;
-	for (unsigned int i=0; i<poses.size(); i++){
-		Eigen::Matrix4f pose = poses[i];
-		// add reg transform and corrected camera parameters to sweep
-		auto transform = original_transforms[i];
-		tf::Transform tfTr;
-		const Eigen::Affine3d eigenTr(pose.cast<double>());
-		tf::transformEigenToTF(eigenTr, tfTr);
-		tf::Transform combinedTransform = firstTransform * tfTr;
-
-		sensor_msgs::CameraInfo camInfo;
-		camInfo.P = {camera->fx, 0.0, camera->cx, 0.0, 0.0, camera->fy, camera->cy, 0.0,0.0, 0.0, 1.0,0.0}; 	
-		camInfo.D = {0,0,0,0,0}; 
-		image_geometry::PinholeCameraModel aCameraModel;
-		aCameraModel.fromCameraInfo(camInfo);
-		room.addIntermediateCloudCameraParametersCorrected(aCameraModel);	
-
-		transform.setOrigin(tfTr.getOrigin());
-		transform.setBasis(tfTr.getBasis());
-		room.addIntermediateRoomCloudRegisteredTransform(transform);
-	}
-
-    SemanticRoomXMLParser<PointType> parser("/media/johane/SSDstorage/output/");
-	parser.saveRoomAsXML(room);
-}
 
 void RobotContainer::alignAndStoreSweeps(){
 
-	for(unsigned int s = 0; s < sweeps.size(); s++){
-		if(!alignedSweep.at(s)){
-			for(unsigned int x = 0; x < todox; x++){
-				for(unsigned int y = 0; y < todoy; y++){
-					sweeps.at(s)->poses[x][y] = (getMat(poses[0][0]).inverse()*getMat(poses[x][y])).cast<float>();
-				}
-			}
-		}
-	}
+//	for(unsigned int s = 0; s < sweeps.size(); s++){
+//		if(!alignedSweep.at(s)){
+//			for(unsigned int x = 0; x < todox; x++){
+//				for(unsigned int y = 0; y < todoy; y++){
+//					sweeps.at(s)->poses[x][y] = (getMat(poses[0][0]).inverse()*getMat(poses[x][y])).cast<float>();
+//				}
+//			}
+//		}
+//	}
 
 	using namespace Eigen;
 
