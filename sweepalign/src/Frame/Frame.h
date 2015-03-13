@@ -30,7 +30,7 @@ class Frame
 	std::vector<Eigen::Vector3f> keypoint_location;
 
 	Frame(Camera * camera_, float * rgb_data_, float * depth_data_);
-    Frame(Camera * camera_, std::vector<cv::KeyPoint> k, std::vector<double> depth, cv::Mat d); // initialize from ORB features driectly
+    Frame(Camera * camera_, std::vector<cv::KeyPoint> k, std::vector<float> depth, cv::Mat d); // initialize from ORB features driectly
 	~Frame();
 
 	void recalculateFullPoints();

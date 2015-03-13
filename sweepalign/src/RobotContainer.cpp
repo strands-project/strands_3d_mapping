@@ -144,16 +144,89 @@ void RobotContainer::addToTrainingORBFeatures(std::string path)
 {
     std::cout<<"Adding ORB features to training from sweep "<<path<<std::endl;
 
-    typedef semantic_map_registration_features::RegistrationFeatures RegFeatures;
+//    typedef semantic_map_registration_features::RegistrationFeatures RegFeatures;
 
-    // load precomputed orb features
-    std::vector<RegFeatures> features = semantic_map_registration_features::loadRegistrationFeaturesFromSingleSweep(path, true);
+//    // load precomputed orb features
+//    std::vector<RegFeatures> features = semantic_map_registration_features::loadRegistrationFeaturesFromSingleSweep(path, true);
+    SimpleXMLParser<PointType> simple_parser;
+    SimpleXMLParser<PointType>::RoomData roomData = simple_parser.loadRoomFromXML(path);
+    if(roomData.vIntermediateRoomClouds.size() < todox*todoy){return;}
+
+    cv::Size res	= roomData.vIntermediateRoomCloudCamParams[0].fullResolution();
+    height			= res.height;
+    width			= res.width;
+    float fx = 540.0;//roomData.vIntermediateRoomCloudCamParams[i].fx();
+    float fy = 540.0;//roomData.vIntermediateRoomCloudCamParams[i].fy();
+    float cx = 319.5;//roomData.vIntermediateRoomCloudCamParams[i].cx();
+    float cy = 239.5;//roomData.vIntermediateRoomCloudCamParams[i].cy();
+
+    if(camera == 0){
+        camera = new Camera(fx, fy, cx, cy, width,	height);
+        camera->version = 1;
+        rgb		=	new float[3*width*height];
+        depth	=	new float[	width*height];
+
+        shared_params[0] = 1.0/fx;		//invfx
+        shared_params[1] = 1.0/fy;		//invfy
+        shared_params[2] = cx;
+        shared_params[3] = cy;
+        shared_params[4] = 0.1;
+    }
+
+
 
     std::vector<Frame *> sweep_frames;
     sweep_frames.resize(todox*todoy);
     for(unsigned int y = 0; y < todoy; y++){
         for (unsigned int x = 0; x < todox ; x++){
-            sweep_frames.at(y*todox+x) = new Frame(camera,features[inds[x][y]].keypoints, features[inds[x][y]].depths, features[inds[x][y]].descriptors);
+            int index = inds[x][y];
+            std::vector<cv::KeyPoint> keypoints;
+            std::vector<float> depths;
+            cv::Mat descriptors;
+
+            pcl::PointCloud<PointType>::Ptr clouddata = roomData.vIntermediateRoomClouds[inds[x][y]];
+
+            for(unsigned int w = 0; w < width; w++){
+                for(unsigned int h = 0; h < height; h++){
+                    unsigned int ind = h*width+w;
+                    unsigned int ind3 = 3*ind;
+                    rgb[ind3+0] = clouddata->points.at(ind).r;
+                    rgb[ind3+1] = clouddata->points.at(ind).g;
+                    rgb[ind3+2] = clouddata->points.at(ind).b;
+                    depth[ind] = clouddata->points.at(ind).z;
+                }
+            }
+
+            cv::Mat img = cv::Mat::zeros(camera->height,camera->width, CV_8UC1);
+            unsigned char * imgdata = (unsigned char*)img.data;
+            for(int w = 0; w < camera->width; w++){
+                for(int h = 0; h < camera->height; h++){
+                    int i = h*camera->width+w;
+                    int i3		= 3*i;
+                    unsigned char r		= rgb[i3+0];
+                    unsigned char g		= rgb[i3+1];
+                    unsigned char b		= rgb[i3+2];
+                    imgdata[i] = (unsigned char)(r);
+                }
+            }
+
+            cv::ORB orb = cv::ORB(600,2.5f, 1, 3, 0,2, cv::ORB::HARRIS_SCORE, 31);
+            orb(img, cv::Mat(), keypoints, descriptors);
+
+            for( int i = 0; i < (int)keypoints.size(); i++ ){
+                float w = keypoints.at(i).pt.x;
+                float h = keypoints.at(i).pt.y;
+
+                int id = int(h+0.5)*camera->width+int(w+0.5);
+                float z = depth[id];
+                depths.push_back(z);
+            }
+
+
+//            sweep_frames.at(y*todox+x) = new Frame(camera,features[inds[x][y]].keypoints, features[inds[x][y]].depths, features[inds[x][y]].descriptors);
+            sweep_frames.at(y*todox+x) = new Frame(camera,keypoints, depths, descriptors);
+//            sweep_frames.at(y*todox+x).
+//            sweep_frames.at(y*todox+x) = new Frame(camera,rgb,depth);
             sweep_frames.at(y*todox+x)->framepos = inds[x][y];
         }
     }

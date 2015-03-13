@@ -118,12 +118,12 @@ int main(int argc, char **argv){
     unsigned int nr_sweeps = allSweeps.size();
 
 	RobotContainer * rc = new RobotContainer(gx,todox,gy,todoy);
-    rc->initializeCamera(540.0, 540.0,319.5, 219.5, 640, 480);
+//    rc->initializeCamera(540.0, 540.0,319.5, 219.5, 640, 480);
 
 	for (unsigned int i = 0; i < nr_sweeps; i++){
 		if(i < start_sweep || i > stop_sweep){continue;}
-        rc->addToTraining(allSweeps[i]);
-//        rc->addToTrainingORBFeatures(allSweeps[i]);
+//        rc->addToTraining(allSweeps[i]);
+        rc->addToTrainingORBFeatures(allSweeps[i]);
 	}
 	rc->train();
     rc->alignAndStoreSweeps();

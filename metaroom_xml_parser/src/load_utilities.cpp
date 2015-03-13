@@ -21,7 +21,7 @@ std::vector<semantic_map_registration_features::RegistrationFeatures> semantic_m
     {
         std::stringstream ss_k;ss_k<<"keypoints"<<counter;
         std::stringstream ss_d;ss_d<<"descriptors"<<counter;
-        std::stringstream ss_v;ss_d<<"depths"<<counter;
+        std::stringstream ss_v;ss_v<<"depths"<<counter;
         counter++;
 
         RegistrationFeatures reg;
