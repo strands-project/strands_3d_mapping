@@ -4,6 +4,7 @@
 #include "simple_summary_parser.h"
 #include <semantic_map/room_xml_parser.h>
 #include <tf_conversions/tf_eigen.h>
+#include <load_utilities.h>
 
 #include "pair3DError.h"
 
@@ -115,8 +116,39 @@ RobotContainer::~RobotContainer(){
 	delete[] poses;
 };
 
+void RobotContainer::initializeCamera(double fx, double fy, double cx, double cy, unsigned int w, unsigned int h)
+{
+    width = w;
+    height = h;
+
+    if (camera != 0)
+    {
+        delete camera;
+    }
+
+    camera = new Camera(fx, fy, cx, cy, width,	height);
+    camera->version = 1;
+
+    shared_params[0] = 1.0/fx;		//invfx
+    shared_params[1] = 1.0/fy;		//invfy
+    shared_params[2] = cx;
+    shared_params[3] = cy;
+    shared_params[4] = 0.1;
+}
+
+void RobotContainer::addToTrainingORBFeatures(std::string path)
+{
+    std::cout<<"Adding ORB features to training from sweep "<<path<<std::endl;
+
+    typedef semantic_map_registration_features::RegistrationFeatures RegFeatures;
+    std::vector<RegFeatures> features = semantic_map_registration_features::loadRegistrationFeaturesFromSingleSweep(path);
+}
+
 void RobotContainer::addToTraining(std::string path){
 	printf("adding to training: %s\n",path.c_str());
+
+
+
     SimpleXMLParser<PointType> simple_parser;
 	SimpleXMLParser<PointType>::RoomData roomData = simple_parser.loadRoomFromXML(path);
 	if(roomData.vIntermediateRoomClouds.size() < todox*todoy){return;}
@@ -496,7 +528,7 @@ void RobotContainer::alignAndStoreSweeps(){
 	using namespace Eigen;
 
 	std::vector< Sweep * > donesweeps;
-	for(int iter = 0; iter < sweeps.size(); iter++){
+    for(unsigned int iter = 0; iter < sweeps.size(); iter++){
 		Sweep * sweep = sweeps.at(iter);
 		alignedSweep.at(iter) = true;
 		printf("%s\n",sweep->idtag.c_str());

@@ -11,14 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
 	pcl_ros
 )
 
-#Include rares library
 rosbuild_prepare_qt4(QtCore QtXml)
 include_directories(${catkin_INCLUDE_DIRS})
-link_directories(/home/johane/catkin_ws/devel/lib)
-
-##############################################
-##################### INCLUDES ###############
-##############################################
 
 # PCL
 find_package(PCL 1.7 REQUIRED)
@@ -40,11 +34,6 @@ link_directories(/opt/ros/indigo/lib)
 
 FIND_PACKAGE(Ceres REQUIRED)
 INCLUDE_DIRECTORIES(${CERES_INCLUDE_DIRS})
-
-#RARES STUFFS
-#set(room_parser_dir /home/johane/catkin_ws/src/strands_3d_mapping/metaroom_xml_parser)
-#include_directories(${room_parser_dir}/include)
-#link_directories(/home/johane/catkin_ws/devel/lib)
 
 include_directories(src)
 include_directories(src/Camera)

@@ -38,7 +38,9 @@ class RobotContainer
 	RobotContainer(unsigned int gx_,unsigned int todox_,unsigned int gy_,unsigned int todoy_);
 	~RobotContainer();
 
-	void addToTraining(std::string path);
+    void initializeCamera(double fx, double fy, double cx, double cy, unsigned int w, unsigned int h);
+    void addToTraining(std::string path); // this loads a whole sweep and extracts ORB features
+    void addToTrainingORBFeatures(std::string path); // this loads previously comptued ORB features
 
     std::vector<Eigen::Matrix4f> runInitialTraining();
 	void refineTraining();
