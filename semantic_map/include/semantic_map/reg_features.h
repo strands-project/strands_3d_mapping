@@ -28,6 +28,7 @@ public:
             // clouds not loaded. Load them
             if (intCloudsFiles.size() == 0)
             {
+                ROS_ERROR("Intermediate clouds could not be found.");
                 return error;
             }
 
