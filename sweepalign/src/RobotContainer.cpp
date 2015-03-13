@@ -118,6 +118,7 @@ RobotContainer::~RobotContainer(){
 
 void RobotContainer::initializeCamera(double fx, double fy, double cx, double cy, unsigned int w, unsigned int h)
 {
+    std::cout<<"Initializing camera"<<std::endl;
     width = w;
     height = h;
 
@@ -128,6 +129,9 @@ void RobotContainer::initializeCamera(double fx, double fy, double cx, double cy
 
     camera = new Camera(fx, fy, cx, cy, width,	height);
     camera->version = 1;
+
+    rgb		=	new float[3*width*height];
+    depth	=	new float[	width*height];
 
     shared_params[0] = 1.0/fx;		//invfx
     shared_params[1] = 1.0/fy;		//invfy
@@ -141,7 +145,23 @@ void RobotContainer::addToTrainingORBFeatures(std::string path)
     std::cout<<"Adding ORB features to training from sweep "<<path<<std::endl;
 
     typedef semantic_map_registration_features::RegistrationFeatures RegFeatures;
-    std::vector<RegFeatures> features = semantic_map_registration_features::loadRegistrationFeaturesFromSingleSweep(path);
+
+    // load precomputed orb features
+    std::vector<RegFeatures> features = semantic_map_registration_features::loadRegistrationFeaturesFromSingleSweep(path, true);
+
+    std::vector<Frame *> sweep_frames;
+    sweep_frames.resize(todox*todoy);
+    for(unsigned int y = 0; y < todoy; y++){
+        for (unsigned int x = 0; x < todox ; x++){
+            sweep_frames.at(y*todox+x) = new Frame(camera,features[inds[x][y]].keypoints, features[inds[x][y]].depths, features[inds[x][y]].descriptors);
+            sweep_frames.at(y*todox+x)->framepos = inds[x][y];
+        }
+    }
+
+    sweeps.push_back(new Sweep(todox, todoy, sweep_frames));
+    alignedSweep.push_back(false);
+    sweeps.back()->xmlpath = path;
+
 }
 
 void RobotContainer::addToTraining(std::string path){
@@ -201,7 +221,7 @@ void RobotContainer::addToTraining(std::string path){
 
 	sweeps.push_back(new Sweep(todox, todoy, sweep_frames));
 	alignedSweep.push_back(false);
-	sweeps.back()->idtag = roomData.roomWaypointId;
+    sweeps.back()->idtag = roomData.roomWaypointId;
 	sweeps.back()->xmlpath = path;
 }
 
@@ -531,11 +551,12 @@ void RobotContainer::alignAndStoreSweeps(){
     for(unsigned int iter = 0; iter < sweeps.size(); iter++){
 		Sweep * sweep = sweeps.at(iter);
 		alignedSweep.at(iter) = true;
-		printf("%s\n",sweep->idtag.c_str());
+//		printf("%s\n",sweep->idtag.c_str());
 		for(unsigned int i = 0; i < sweeps.size(); i++){
 			Sweep * s = sweeps.at(i);
-			if((sweep->idtag.compare(s->idtag)) == 0 && !alignedSweep.at(i)){
-				printf("align %i to %i -> %s\n",iter,i,s->idtag.c_str());
+            if(/*(sweep->idtag.compare(s->idtag)) == 0 &&*/ !alignedSweep.at(i)){
+//				printf("align %i to %i -> %s\n",iter,i,s->idtag.c_str());
+                printf("align %i to %i \n",iter,i);
 				alignedSweep.at(i) = true;
 				sweep->align(s);
 			}

@@ -62,6 +62,40 @@ Frame::Frame(Camera * camera_, float * rgb_data_, float * depth_data_){
 	recalculateFullPoints();
 }
 
+Frame::Frame(Camera * camera_, std::vector<cv::KeyPoint> k, std::vector<double> depth, cv::Mat d)
+{
+    id = frame_id;
+    frame_id++;
+    camera = camera_;
+
+    keypoints = k;
+    descriptors = d;
+
+    float centerX		= camera->cx;
+    float centerY		= camera->cy;
+    float invFocalX		= 1.0f/camera->fx;
+    float invFocalY		= 1.0f/camera->fy;
+
+    for( int i = 0; i < (int)keypoints.size(); i++ ){
+        double w = keypoints.at(i).pt.x;
+        double h = keypoints.at(i).pt.y;
+
+        double z = depth[i];
+        if( z == 0 || z > 4.5 || isnan(z)){
+            keypoints.at(i) = keypoints.back();
+            keypoints.pop_back();
+            i--;
+        }else{
+            keypoint_depth.push_back(z);
+            float x = (w - centerX) * z * invFocalX;
+            float y = (h - centerY) * z * invFocalY;
+            keypoint_location.push_back(Eigen::Vector3f(x,y,z));
+        }
+    }
+
+    recalculateFullPoints();
+}
+
 void Frame::recalculateFullPoints(){
 	float centerX		= camera->cx;
 	float centerY		= camera->cy;
