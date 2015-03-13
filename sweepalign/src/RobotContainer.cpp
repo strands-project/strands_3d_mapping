@@ -10,7 +10,15 @@
 typedef pcl::PointXYZRGB PointType;
 typedef typename SimpleSummaryParser::EntityStruct Entities;
 
-void saveSweep(Sweep * sweep){//std::vector<tf::StampedTransform> transforms)
+void RobotContainer::saveAllSweeps(std::string savePath)
+{
+    for (auto sweep: sweeps)
+    {
+        saveSweep(sweep, savePath);
+    }
+}
+
+void RobotContainer::saveSweep(Sweep * sweep, std::string savePath){//std::vector<tf::StampedTransform> transforms)
     std::string sweep_xml = sweep->xmlpath;
     std::vector<Eigen::Matrix4f> poses = sweep->getPoseVector();
 
@@ -48,7 +56,7 @@ void saveSweep(Sweep * sweep){//std::vector<tf::StampedTransform> transforms)
         room.addIntermediateRoomCloudRegisteredTransform(transform);
     }
 
-    SemanticRoomXMLParser<PointType> parser("/home/rares/Data/Test_Registration/");
+    SemanticRoomXMLParser<PointType> parser(savePath);
     parser.saveRoomAsXML(room);
 }
 
@@ -502,6 +510,6 @@ void RobotContainer::alignAndStoreSweeps(){
 		}
 	}
 
-	for(unsigned int i = 0; i < sweeps.size(); i++){saveSweep(sweeps.at(i));}
+//	for(unsigned int i = 0; i < sweeps.size(); i++){saveSweep(sweeps.at(i));}
 }
 

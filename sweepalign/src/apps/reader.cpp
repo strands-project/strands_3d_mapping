@@ -91,12 +91,10 @@ int main(int argc, char **argv){
 
 	std::string folderPath;
 	if (argc < 2){
-        folderPath = "/media/rares/HD-PCFU3/KTH_longterm_dataset/";
+        folderPath = "/home/rares/Data/Original_data/";
 	}else{
 		folderPath = argv[1];
 	}
-
-
 
     SimpleSummaryParser summary_parser(folderPath + "/index.xml");
     summary_parser.createSummaryXML(folderPath);
@@ -126,6 +124,7 @@ int main(int argc, char **argv){
 	}
 	rc->train();
     rc->alignAndStoreSweeps();
+    rc->saveAllSweeps("/home/rares/Data/Test_Registration/");
 //	for (unsigned int i = stop_sweep+1; i < nr_sweeps; i++){
 //		if(i > 10){continue;}
 //		rc->addToTraining(allSweeps[i]);

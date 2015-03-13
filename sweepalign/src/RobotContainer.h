@@ -46,5 +46,11 @@ class RobotContainer
 	bool isCalibrated();
 
 	void alignAndStoreSweeps();
+
+    void saveAllSweeps(std::string path);
+
+private:
+    void saveSweep(Sweep*, std::string path);
+
 };
 #endif
