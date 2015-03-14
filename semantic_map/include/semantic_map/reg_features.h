@@ -1,3 +1,6 @@
+#ifndef __SEMANTIC_MAP_REGISTRATION_FEATURES__
+#define __SEMANTIC_MAP_REGISTRATION_FEATURES__
+
 #include "room.h"
 #include "room_xml_parser.h"
 #include <iostream>
@@ -126,3 +129,5 @@ private:
     std::string m_dataFilename;
 
 };
+
+#endif //__SEMANTIC_MAP_REGISTRATION_FEATURES__
