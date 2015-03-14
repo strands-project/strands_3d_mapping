@@ -44,7 +44,7 @@ class RobotContainer
 
     std::vector<Eigen::Matrix4f> runInitialTraining();
 	void refineTraining();
-	void train();
+    std::vector<Eigen::Matrix4f> train();
 	bool isCalibrated();
 
 	void alignAndStoreSweeps();

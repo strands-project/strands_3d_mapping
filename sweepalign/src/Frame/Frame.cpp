@@ -48,7 +48,6 @@ Frame::Frame(Camera * camera_, float * rgb_data_, float * depth_data_){
 		
 		int id = int(h+0.5)*camera->width+int(w+0.5);
 		float z = depth_data_[id];
-//        std::cout<<z<<std::endl;
 		if( z == 0 || z > 4.5 || isnan(z)){
 			keypoints.at(i) = keypoints.back();
 			keypoints.pop_back();
@@ -65,12 +64,10 @@ Frame::Frame(Camera * camera_, float * rgb_data_, float * depth_data_){
 //    cv::imshow( "Display window", img);                   // Show our image inside it.
 //    cv::waitKey(0);                                          // Wait for a keystroke in t
 
-    std::cout<<"Remaining keypoints "<<keypoints.size()<<std::endl;
-
 	recalculateFullPoints();
 }
 
-Frame::Frame(Camera * camera_, std::vector<cv::KeyPoint> k, std::vector<float> depth, cv::Mat d)
+Frame::Frame(Camera * camera_, std::vector<cv::KeyPoint> k, std::vector<double> depth, cv::Mat d)
 {
     id = frame_id;
     frame_id++;
@@ -86,15 +83,16 @@ Frame::Frame(Camera * camera_, std::vector<cv::KeyPoint> k, std::vector<float> d
     float invFocalY		= 1.0f/camera->fy;
 
     for( int i = 0; i < (int)keypoints.size(); i++ ){
-//        std::cout<<"Keypoint "<<i<<std::endl;
         double w = keypoints.at(i).pt.x;
         double h = keypoints.at(i).pt.y;
 
-        double z = depth[i];
-//         std::cout<<z<<std::endl;
+        float z = (float)depth[i];
         if( z == 0 || z > 4.5 || isnan(z)){
             keypoints.at(i) = keypoints.back();
             keypoints.pop_back();
+
+            depth.at(i) = depth.back();
+            depth.pop_back();
             i--;
         }else{
             keypoint_depth.push_back(z);
@@ -103,8 +101,6 @@ Frame::Frame(Camera * camera_, std::vector<cv::KeyPoint> k, std::vector<float> d
             keypoint_location.push_back(Eigen::Vector3f(x,y,z));
         }
     }
-
-    std::cout<<"Remaining keypoints "<<keypoints.size()<<std::endl;
 
     recalculateFullPoints();
 }

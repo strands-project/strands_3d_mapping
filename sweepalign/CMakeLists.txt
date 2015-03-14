@@ -9,9 +9,21 @@ find_package(catkin REQUIRED COMPONENTS
 	metaroom_xml_parser
 	semantic_map
 	pcl_ros
+        image_geometry
+        cpp_common
+        roscpp
+        rosconsole
+        tf_conversions
 )
 
 rosbuild_prepare_qt4(QtCore QtXml)
+
+catkin_package(
+   INCLUDE_DIRS src src/Camera src/Camera/PixelFunction src/Frame src/Sweep
+   CATKIN_DEPENDS metaroom_xml_parser semantic_map image_geometry cpp_common roscpp rosconsole tf_conversions
+   LIBRARIES PixelFunction_strands_room Camera_strands_room  Frame_strands_room Sweep_strands_room util_strands_room pair3DError_strands_room ProblemFrameConnection_strands_room RobotContainer_strands_room
+)
+
 include_directories(${catkin_INCLUDE_DIRS})
 
 # PCL
@@ -50,25 +62,25 @@ add_library(PixelFunction_strands_room src/Camera/PixelFunction/PixelFunction.cp
 
 #Keeps camera parameters etc
 add_library(Camera_strands_room src/Camera/Camera.cpp)
-target_link_libraries(Camera_strands_room PixelFunction_strands_room ${catkin_LIBRARIES})
+target_link_libraries(Camera_strands_room PixelFunction_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 add_library(Frame_strands_room src/Frame/Frame.cpp)
-target_link_libraries(Frame_strands_room Camera_strands_room  ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(Frame_strands_room Camera_strands_room  ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 add_library(Sweep_strands_room src/Sweep/Sweep.cpp)
-target_link_libraries(Sweep_strands_room Frame_strands_room)
+target_link_libraries(Sweep_strands_room Frame_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 add_library(util_strands_room src/util.cpp)
-target_link_libraries(util_strands_room ${PCL_LIBRARIES})
+target_link_libraries(util_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 add_library(pair3DError_strands_room src/pair3DError.cpp)
-target_link_libraries(pair3DError_strands_room util_strands_room ceres glog)
+target_link_libraries(pair3DError_strands_room util_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 add_library(ProblemFrameConnection_strands_room src/ProblemFrameConnection.cpp)
-target_link_libraries(ProblemFrameConnection_strands_room pair3DError_strands_room Frame_strands_room ceres glog)
+target_link_libraries(ProblemFrameConnection_strands_room pair3DError_strands_room Frame_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 add_library(RobotContainer_strands_room src/RobotContainer.cpp)
-target_link_libraries(RobotContainer_strands_room ProblemFrameConnection_strands_room pair3DError_strands_room util_strands_room Sweep_strands_room image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ceres glog)
+target_link_libraries(RobotContainer_strands_room ProblemFrameConnection_strands_room pair3DError_strands_room util_strands_room Sweep_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 ###########################
 ##APPS#####################
@@ -78,5 +90,5 @@ target_link_libraries(RobotContainer_strands_room ProblemFrameConnection_strands
 #target_link_libraries(room_reader_rares RobotContainer_strands_room Sweep_strands_room image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 add_executable(reader src/apps/reader.cpp )
-target_link_libraries(reader RobotContainer_strands_room Sweep_strands_room image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+target_link_libraries(reader RobotContainer_strands_room Sweep_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 

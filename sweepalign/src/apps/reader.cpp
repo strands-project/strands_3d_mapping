@@ -33,6 +33,7 @@
 #include "tf_conversions/tf_eigen.h"
 
 #include <semantic_map/room_xml_parser.h>
+#include <semantic_map/reg_transforms.h>
 #include <pcl_ros/transforms.h>
 
 #include "RobotContainer.h"
@@ -85,7 +86,7 @@ int main(int argc, char **argv){
 	unsigned int todoy = 3;
 
     unsigned int start_sweep = 0;
-    unsigned int stop_sweep = 5;
+    unsigned int stop_sweep = 2;
 
     unsigned int sweeps_for_training = 1000;
 
@@ -110,7 +111,7 @@ int main(int argc, char **argv){
 			allSweeps.push_back(sweep_xmls[i].roomXmlFile);
 		}
 	}else{
-		allSweeps = getSweepXmlsForTopologicalWaypoint<PointType>(folderPath, "WayPoint16");
+        allSweeps = getSweepXmlsForTopologicalWaypoint<PointType>(folderPath, "WayPoint16");
 	}
 
     std::sort(allSweeps.begin(), allSweeps.end());
@@ -118,14 +119,42 @@ int main(int argc, char **argv){
     unsigned int nr_sweeps = allSweeps.size();
 
 	RobotContainer * rc = new RobotContainer(gx,todox,gy,todoy);
-//    rc->initializeCamera(540.0, 540.0,319.5, 219.5, 640, 480);
+    rc->initializeCamera(540.0, 540.0,319.5, 219.5, 640, 480);
 
 	for (unsigned int i = 0; i < nr_sweeps; i++){
 		if(i < start_sweep || i > stop_sweep){continue;}
 //        rc->addToTraining(allSweeps[i]);
         rc->addToTrainingORBFeatures(allSweeps[i]);
 	}
-	rc->train();
+    std::vector<Eigen::Matrix4f> cameraPoses = rc->train();
+    std::vector<tf::StampedTransform> registeredPoses;
+
+    for (auto eigenPose : cameraPoses)
+    {
+        tf::StampedTransform tfStamped;
+        tfStamped.frame_id_ = "temp";
+        tfStamped.child_frame_id_ = "temp";
+        tf::Transform tfTr;
+        const Eigen::Affine3d eigenTr(eigenPose.cast<double>());
+        tf::transformEigenToTF(eigenTr, tfTr);
+        tfStamped.setOrigin(tfTr.getOrigin());
+        tfStamped.setBasis(tfTr.getBasis());
+        registeredPoses.push_back(tfStamped);
+    }
+
+    std::string file = semantic_map_registration_transforms::saveRegistrationTransforms(registeredPoses);
+    std::vector<tf::StampedTransform> transforms = semantic_map_registration_transforms::loadRegistrationTransforms("default", true);
+
+    double*** rawPoses = rc->poses;
+    unsigned int x,y;
+    file = semantic_map_registration_transforms::saveRegistrationTransforms(rawPoses, rc->todox,rc->todoy);
+    rawPoses = semantic_map_registration_transforms::loadRegistrationTransforms(x,y);
+
+    // delete and re-initialize
+    delete rc;
+
+
+
     rc->alignAndStoreSweeps();
     rc->saveAllSweeps("/home/rares/Data/Test_Registration/");
 //	for (unsigned int i = stop_sweep+1; i < nr_sweeps; i++){
