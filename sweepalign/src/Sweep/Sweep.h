@@ -19,7 +19,7 @@ class Sweep
 	Sweep();
 	virtual ~Sweep();
 	
-	void align(Sweep * sweep, float threshold = 0.02, int ransac_iter = 20000, int nr_points = 3);
+    Eigen::Matrix4f align(Sweep * sweep, float threshold = 0.02, int ransac_iter = 20000, int nr_points = 3);
 	std::vector<Eigen::Matrix4f> getPoseVector();
 };
 #endif

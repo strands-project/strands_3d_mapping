@@ -90,7 +90,7 @@ static inline int popcount_lauradoux2(uint64_t *buf, uint32_t size) {
   return bitCount;
 }
 
-void Sweep::align(Sweep * sweep,float threshold, int ransac_iter, int nr_points){
+Eigen::Matrix4f Sweep::align(Sweep * sweep,float threshold, int ransac_iter, int nr_points){
 
 	float centerX		= frames[0][0]->camera->cx;
 	float centerY		= frames[0][0]->camera->cy;
@@ -278,7 +278,7 @@ void Sweep::align(Sweep * sweep,float threshold, int ransac_iter, int nr_points)
 			Eigen::Vector4f src_data = src_points.at(j);
 			Eigen::Vector4f dst_data = dst_points.at(j);
 				
-			Eigen::Vector4f sd = retpose*src_data;
+            Eigen::Vector4f sd = retpose*src_data;
 			Eigen::Vector4f dd = dst_data;
 			if((sd-dd).norm() < 0.005){
 				tfc.add(dst_data.head<3>(),src_data.head<3>(),1);
@@ -294,9 +294,11 @@ void Sweep::align(Sweep * sweep,float threshold, int ransac_iter, int nr_points)
 
 	for(int h = 0; h < height; h++){
 		for(int w = 0; w < width; w++){
-			sweep->poses[w][h] = retpose.inverse()*sweep->poses[w][h];
+            sweep->poses[w][h] = retpose.inverse()*sweep->poses[w][h];
 		}	
 	}
+
+    return retpose;
 }
 
 std::vector<Eigen::Matrix4f> Sweep::getPoseVector(){

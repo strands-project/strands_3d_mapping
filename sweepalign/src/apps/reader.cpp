@@ -86,7 +86,7 @@ int main(int argc, char **argv){
 	unsigned int todoy = 3;
 
     unsigned int start_sweep = 0;
-    unsigned int stop_sweep = 2;
+    unsigned int stop_sweep = 5;
 
     unsigned int sweeps_for_training = 1000;
 
@@ -151,7 +151,7 @@ int main(int argc, char **argv){
     rawPoses = semantic_map_registration_transforms::loadRegistrationTransforms(x,y);
 
     // delete and re-initialize
-    delete rc;
+//    delete rc;
 
 
 
@@ -161,6 +161,6 @@ int main(int argc, char **argv){
 //		if(i > 10){continue;}
 //		rc->addToTraining(allSweeps[i]);
 //	}
-//	rc->alignAndStoreSweeps();
+//    rc->alignAndStoreSweeps();
 	return 0;
 }
