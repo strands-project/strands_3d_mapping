@@ -69,7 +69,6 @@ namespace semantic_map_room_utilities
 
               CloudPtr addToRoom(new Cloud());
               *addToRoom = rebuilt_cloud;
-              std::cout<<"Adding "<<addToRoom->points.size()<<" points "<<std::endl;
               aRoom.addIntermediateRoomCloud(addToRoom, cloudTransforms[j], camParamOrig[j]);
 
            }

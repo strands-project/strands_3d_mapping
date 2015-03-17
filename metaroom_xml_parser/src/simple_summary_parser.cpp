@@ -24,8 +24,9 @@ std::vector<SimpleSummaryParser::EntityStruct> SimpleSummaryParser::getRooms()
 }
 
 
-bool SimpleSummaryParser::createSummaryXML(std::string rootFolder)
+bool SimpleSummaryParser::createSummaryXML(std::string rootFolder, bool verbose)
 {
+    ROS_INFO_STREAM("Reading observations from "<<rootFolder);
     rootFolder+=std::string("/"); // just to make sure, doesn't matter if there are two /
 
     QString qrootFolder;
@@ -60,18 +61,17 @@ bool SimpleSummaryParser::createSummaryXML(std::string rootFolder)
     xmlWriter->writeStartDocument();
     xmlWriter->writeStartElement("SemanticMap");
 
-    saveSemanticRooms(xmlWriter, qrootFolder);
+    saveSemanticRooms(xmlWriter, qrootFolder, verbose);
 
     xmlWriter->writeEndElement(); // SemanticMap
     xmlWriter->writeEndDocument();
 
-    ROS_INFO_STREAM("Created semantic map summary xml.");
-
+    ROS_INFO_STREAM("Done looking for observations. Found "<<m_vAllRooms.size()<<" observations.");
 
     return true;
 }
 
-void SimpleSummaryParser::saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString qrootFolder)
+void SimpleSummaryParser::saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString qrootFolder, bool verbose)
 {
     xmlWriter->writeStartElement("SemanticRooms");
 
@@ -161,7 +161,10 @@ void SimpleSummaryParser::saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString
             xmlWriter->writeEndElement();
 
             xmlWriter->writeEndElement();
-            ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
+            if (verbose)
+            {
+                ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
+            }
 
             EntityStruct aRoom;
             aRoom.roomXmlFile = roomXmlFile.toStdString();

@@ -49,11 +49,11 @@ public:
     ~SemanticRoomXMLParser();
 
     bool setRootFolderFromRoomXml(std::string roomXml);
-    std::string saveRoomAsXML(SemanticRoom<PointType>& aRoom, std::string xmlFile="room.xml");
+    std::string saveRoomAsXML(SemanticRoom<PointType>& aRoom, std::string xmlFile="room.xml", bool verbose = false);
     void  saveIntermediateImagesToXML(SemanticRoom<PointType>& aRoom, QXmlStreamWriter* xmlWriter, std::string roomFolder);
 
 
-    static SemanticRoom<PointType> loadRoomFromXML(const std::string& xmlFile, bool deepLoad=true);
+    static SemanticRoom<PointType> loadRoomFromXML(const std::string& xmlFile, bool deepLoad=true, bool verbose = false);
 
 private:
 

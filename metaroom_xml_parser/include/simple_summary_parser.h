@@ -38,12 +38,12 @@ public:
 
     std::vector<EntityStruct> getRooms();
 
-    bool createSummaryXML(std::string rootFolder="");
+    bool createSummaryXML(std::string rootFolder="", bool verbose = false);
 
 
 private:
 
-    void saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString qrootFolder);
+    void saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString qrootFolder, bool verbose);
 
     std::vector<QString> listXmlInFolder(QString qrootFolder, int depth);
 
