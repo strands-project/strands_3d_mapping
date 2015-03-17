@@ -148,85 +148,13 @@ void RobotContainer::addToTrainingORBFeatures(std::string path)
 
     //    // load precomputed orb features
     std::vector<semantic_map_registration_features::RegistrationFeatures> features = semantic_map_registration_features::loadRegistrationFeaturesFromSingleSweep(path, true);
-    //    SimpleXMLParser<PointType> simple_parser;
-    //    SimpleXMLParser<PointType>::RoomData roomData = simple_parser.loadRoomFromXML(path);
-    //    if(roomData.vIntermediateRoomClouds.size() < todox*todoy){return;}
-
-    //    cv::Size res	= roomData.vIntermediateRoomCloudCamParams[0].fullResolution();
-    //    height			= res.height;
-    //    width			= res.width;
-    //    float fx = 540.0;//roomData.vIntermediateRoomCloudCamParams[i].fx();
-    //    float fy = 540.0;//roomData.vIntermediateRoomCloudCamParams[i].fy();
-    //    float cx = 319.5;//roomData.vIntermediateRoomCloudCamParams[i].cx();
-    //    float cy = 239.5;//roomData.vIntermediateRoomCloudCamParams[i].cy();
-
-    //    if(camera == 0){
-    //        camera = new Camera(fx, fy, cx, cy, width,	height);
-    //        camera->version = 1;
-    //        rgb		=	new float[3*width*height];
-    //        depth	=	new float[	width*height];
-
-    //        shared_params[0] = 1.0/fx;		//invfx
-    //        shared_params[1] = 1.0/fy;		//invfy
-    //        shared_params[2] = cx;
-    //        shared_params[3] = cy;
-    //        shared_params[4] = 0.1;
-    //    }
-
-
 
     std::vector<Frame *> sweep_frames;
     sweep_frames.resize(todox*todoy);
     for(unsigned int y = 0; y < todoy; y++){
         for (unsigned int x = 0; x < todox ; x++){
             int index = inds[x][y];
-            //            std::vector<cv::KeyPoint> keypoints;
-            //            std::vector<float> depths;
-            //            cv::Mat descriptors;
-
-            //            pcl::PointCloud<PointType>::Ptr clouddata = roomData.vIntermediateRoomClouds[inds[x][y]];
-
-            //            for(unsigned int w = 0; w < width; w++){
-            //                for(unsigned int h = 0; h < height; h++){
-            //                    unsigned int ind = h*width+w;
-            //                    unsigned int ind3 = 3*ind;
-            //                    rgb[ind3+0] = clouddata->points.at(ind).r;
-            //                    rgb[ind3+1] = clouddata->points.at(ind).g;
-            //                    rgb[ind3+2] = clouddata->points.at(ind).b;
-            //                    depth[ind] = clouddata->points.at(ind).z;
-            //                }
-            //            }
-
-            //            cv::Mat img = cv::Mat::zeros(camera->height,camera->width, CV_8UC1);
-            //            unsigned char * imgdata = (unsigned char*)img.data;
-            //            for(int w = 0; w < camera->width; w++){
-            //                for(int h = 0; h < camera->height; h++){
-            //                    int i = h*camera->width+w;
-            //                    int i3		= 3*i;
-            //                    unsigned char r		= rgb[i3+0];
-            //                    unsigned char g		= rgb[i3+1];
-            //                    unsigned char b		= rgb[i3+2];
-            //                    imgdata[i] = (unsigned char)(r);
-            //                }
-            //            }
-
-            //            cv::ORB orb = cv::ORB(600,2.5f, 1, 3, 0,2, cv::ORB::HARRIS_SCORE, 31);
-            //            orb(img, cv::Mat(), keypoints, descriptors);
-
-            //            for( int i = 0; i < (int)keypoints.size(); i++ ){
-            //                float w = keypoints.at(i).pt.x;
-            //                float h = keypoints.at(i).pt.y;
-
-            //                int id = int(h+0.5)*camera->width+int(w+0.5);
-            //                float z = depth[id];
-            //                depths.push_back(z);
-            //            }
-
-
             sweep_frames.at(y*todox+x) = new Frame(camera,features[index].keypoints, features[index].depths, features[index].descriptors);
-            //            sweep_frames.at(y*todox+x) = new Frame(camera,keypoints, depths, descriptors);
-            //            sweep_frames.at(y*todox+x).
-            //            sweep_frames.at(y*todox+x) = new Frame(camera,rgb,depth);
             sweep_frames.at(y*todox+x)->framepos = inds[x][y];
         }
     }
@@ -461,14 +389,14 @@ std::vector<Eigen::Matrix4f> RobotContainer::runInitialTraining(){
     options.num_threads = 11;
     Solver::Summary summary;
 
-    double *** poses = new double**[todox];
-    for(unsigned int x = 0; x < todox; x++){
-        poses[x] = new double*[todoy];
-        for(unsigned int y = 0; y < todoy; y++){
-            poses[x][y] = new double[6];
-            for(unsigned int k = 0; k < 6; k++){poses[x][y][k] = 0;}
-        }
-    }
+    //    double *** poses = new double**[todox];
+    //    for(unsigned int x = 0; x < todox; x++){
+    //        poses[x] = new double*[todoy];
+    //        for(unsigned int y = 0; y < todoy; y++){
+    //            poses[x][y] = new double[6];
+    //            for(unsigned int k = 0; k < 6; k++){poses[x][y][k] = 0;}
+    //        }
+    //    }
 
 
     //1st forward X loop
@@ -612,60 +540,39 @@ std::vector<Eigen::Matrix4f> RobotContainer::alignAndStoreSweeps(){
 
     std::vector<Eigen::Matrix4f> toRet;
 
-//    if (sweeps.size() == 0)
-//    {
-//        std::cout<<"No sweeps to register."<<std::endl;
-//        return toRet;
-//    }
+    if (sweeps.size() == 0)
+    {
+        std::cout<<"No sweeps to register."<<std::endl;
+        return toRet;
+    }
 
-//    for (size_t i=0; i<todox; i++){
-//        for (size_t j=0; j<todoy;j++){
-//            for (size_t k=0; k<6;k++)
-//            {
-//                std::cout<<poses[i][j][k]<<std::endl;
-//            }
-//        }
-//    }
-
-
-//    std::cout<<"Initializing sweep camera positions."<<std::endl;
-//    // setup sweep transforms
-//    for(unsigned int s = 0; s < sweeps.size(); s++){
-//        for(unsigned int x = 0; x < todox; x++){
-//            for(unsigned int y = 0; y < todoy; y++){
-//                Eigen::Matrix4f mat = (getMat(poses[0][0]).inverse()*getMat(poses[x][y])).cast<float>();
-//                sweeps.at(s)->poses[x][y] = mat;
-//            }
-//        }
-//    }
-
-//    Sweep * sweep = sweeps.at(0);
-//    for(unsigned int i = 1; i < sweeps.size(); i++){
-//        Sweep * s = sweeps.at(i);
-//        Eigen::Matrix4f m = sweep->align(s);
-//        toRet.push_back(m);
-//    }
-//    return toRet;
-
-        std::vector< Sweep * > donesweeps;
-        for(unsigned int iter = 0; iter < sweeps.size(); iter++){
-            Sweep * sweep = sweeps.at(iter);
-            alignedSweep.at(iter) = true;
-    //		printf("%s\n",sweep->idtag.c_str());
-            for(unsigned int i = 0; i < sweeps.size(); i++){
-                Sweep * s = sweeps.at(i);
-                if(/*(sweep->idtag.compare(s->idtag)) == 0 &&*/ !alignedSweep.at(i)){
-    //				printf("align %i to %i -> %s\n",iter,i,s->idtag.c_str());
-                    printf("align %i to %i \n",iter,i);
-                    alignedSweep.at(i) = true;
-                    sweep->align(s);
-                }
+    for (size_t i=0; i<todox; i++){
+        for (size_t j=0; j<todoy;j++){
+            for (size_t k=0; k<6;k++)
+            {
+                std::cout<<poses[i][j][k]<<std::endl;
             }
         }
+    }
 
 
+    std::cout<<"Initializing sweep camera positions."<<std::endl;
+    // setup sweep transforms
+    for(unsigned int s = 0; s < sweeps.size(); s++){
+        for(unsigned int x = 0; x < todox; x++){
+            for(unsigned int y = 0; y < todoy; y++){
+                Eigen::Matrix4f mat = (getMat(poses[0][0]).inverse()*getMat(poses[x][y])).cast<float>();
+                sweeps.at(s)->poses[x][y] = mat;
+            }
+        }
+    }
 
-//        for(unsigned int i = 0; i < sweeps.size(); i++){saveSweep(sweeps.at(i));}
-        return toRet;
+    Sweep * sweep = sweeps.at(0);
+    for(unsigned int i = 1; i < sweeps.size(); i++){
+        Sweep * s = sweeps.at(i);
+        Eigen::Matrix4f m = sweep->align(s);
+        toRet.push_back(m);
+    }
+    return toRet;
 }
 

@@ -101,7 +101,7 @@ namespace semantic_map_room_utilities
             }
             aRoom.setCompleteRoomCloud(mergedCloudRegistered);
         } else {
-            ROS_INFO_STREAM("Cannot rebuild registered cloud. Not enough registered transforms.");
+            ROS_INFO_STREAM("Cannot rebuild registered cloud. Not enough registered transforms."<<cloudTransformsReg.size()<<"  "<<clouds.size());
         }
 
 

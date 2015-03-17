@@ -298,7 +298,7 @@ Eigen::Matrix4f Sweep::align(Sweep * sweep,float threshold, int ransac_iter, int
 		}	
 	}
 
-    return retpose;
+    return retpose.inverse();
 }
 
 std::vector<Eigen::Matrix4f> Sweep::getPoseVector(){

@@ -82,6 +82,28 @@ Frame::Frame(Camera * camera_, std::vector<cv::KeyPoint> k, std::vector<double> 
     float invFocalX		= 1.0f/camera->fx;
     float invFocalY		= 1.0f/camera->fy;
 
+    std::vector<int> good_indices;
+    for (size_t i=0; i<depth.size();i++)
+    {
+        float z = (float)depth[i];
+        if( !(z == 0 || z > 4.5 || isnan(z))){
+            good_indices.push_back(i);
+        }
+    }
+
+    std::vector<cv::KeyPoint> good_keypoints;
+    std::vector<double> good_depth;
+    cv::Mat good_descriptors;
+    for (auto index : good_indices)
+    {
+        good_keypoints.push_back(k[index]);
+        good_depth.push_back(depth[index]);
+        good_descriptors.push_back(d.row(index));
+    }
+    depth = good_depth;
+    keypoints = good_keypoints;
+    descriptors = good_descriptors;
+
     for( int i = 0; i < (int)keypoints.size(); i++ ){
         double w = keypoints.at(i).pt.x;
         double h = keypoints.at(i).pt.y;
@@ -93,6 +115,7 @@ Frame::Frame(Camera * camera_, std::vector<cv::KeyPoint> k, std::vector<double> 
 
             depth.at(i) = depth.back();
             depth.pop_back();
+            std::cout<<"------------------ RESHUFFLING -------------------"<<std::endl;
             i--;
         }else{
             keypoint_depth.push_back(z);
