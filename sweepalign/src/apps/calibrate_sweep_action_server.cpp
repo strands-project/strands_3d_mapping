@@ -6,7 +6,19 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include <boost/filesystem.hpp>
+#include <tf_conversions/tf_eigen.h>
 
+#include <semantic_map/room_xml_parser.h>
+#include <semantic_map/reg_features.h>
+#include <semantic_map/room_utilities.h>
+#include <semantic_map/reg_transforms.h>
+#include "load_utilities.h"
+#include "RobotContainer.h"
+
+typedef pcl::PointXYZRGB PointType;
+typedef pcl::PointCloud<pcl::PointXYZRGB> Cloud;
+typedef typename Cloud::Ptr CloudPtr;
+using namespace std;
 
 typedef actionlib::SimpleActionServer<strands_room::CalibrateSweepsAction> Server;
 
@@ -36,18 +48,12 @@ void execute(const strands_room::CalibrateSweepsGoalConstPtr& goal, Server* as)
     ROS_INFO_STREAM("Sweeps will be read from "<<sweep_location);
 
     std::string save_folder;
-    if (goal->calibration_folder=="")
-    {
-        // default location
-        passwd* pw = getpwuid(getuid());
-        std::string path(pw->pw_dir);
+    // default location
+    passwd* pw = getpwuid(getuid());
+    std::string path(pw->pw_dir);
 
-        path+="/.ros/semanticMap/";
-        save_folder = path;
-
-    } else {
-        save_folder = goal->calibration_folder;
-    }
+    path+="/.ros/semanticMap/";
+    save_folder = path;
     if ( ! boost::filesystem::exists( save_folder ) )
     {
         if (!boost::filesystem::create_directory(save_folder))
@@ -58,7 +64,105 @@ void execute(const strands_room::CalibrateSweepsGoalConstPtr& goal, Server* as)
         }
     }
     ROS_INFO_STREAM("Calibration data will be saved at: "<<save_folder);
-  // Do lots of awesome groundbreaking robot stuff here
+
+    // Load sweeps
+    vector<string> matchingObservations = semantic_map_load_utilties::getSweepXmls<PointType>(sweep_location);
+
+    if (matchingObservations.size() < goal->min_num_sweeps)
+    {
+        ROS_ERROR_STREAM("Not enough sweeps to perform calibration "<<matchingObservations.size());
+         as->setAborted(res,"Not enough sweeps to perform calibration "+matchingObservations.size());
+         return;
+    }
+
+    sort(matchingObservations.begin(), matchingObservations.end());
+    reverse(matchingObservations.begin(), matchingObservations.end());
+
+    // Initialize calibration class
+    unsigned int gx = 17;
+    unsigned int todox = 17;
+    unsigned int gy = 3;
+    unsigned int todoy = 3;
+    RobotContainer * rc = new RobotContainer(gx,todox,gy,todoy);
+    rc->initializeCamera(540.0, 540.0,319.5, 219.5, 640, 480);
+
+    for (size_t i=0; i<goal->max_num_sweeps && i<matchingObservations.size(); i++)
+    {
+        // check if the orb features have already been computed
+        std::vector<semantic_map_registration_features::RegistrationFeatures> features = semantic_map_registration_features::loadRegistrationFeaturesFromSingleSweep(matchingObservations[i], false);
+        if (features.size() == 0)
+        {
+            // recompute orb
+            SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(matchingObservations[i],true);
+            unsigned found = matchingObservations[i].find_last_of("/");
+            std::string base_path = matchingObservations[i].substr(0,found+1);
+            RegistrationFeatures reg(false);
+            reg.saveOrbFeatures<PointType>(aRoom,base_path);
+        }
+        rc->addToTrainingORBFeatures(matchingObservations[i]);
+    }
+
+    // perform calibration
+    std::vector<Eigen::Matrix4f> cameraPoses = rc->train();
+    std::vector<tf::StampedTransform> registeredPoses;
+
+    for (auto eigenPose : cameraPoses)
+    {
+        tf::StampedTransform tfStamped;
+        tfStamped.frame_id_ = "temp";
+        tfStamped.child_frame_id_ = "temp";
+        tf::Transform tfTr;
+        const Eigen::Affine3d eigenTr(eigenPose.cast<double>());
+        tf::transformEigenToTF(eigenTr, tfTr);
+        tfStamped.setOrigin(tfTr.getOrigin());
+        tfStamped.setBasis(tfTr.getBasis());
+        registeredPoses.push_back(tfStamped);
+    }
+    std::string registeredPosesFile = semantic_map_registration_transforms::saveRegistrationTransforms(registeredPoses);
+    ROS_INFO_STREAM("Calibration poses saved at: "<<registeredPosesFile);
+
+    double*** rawPoses = rc->poses;
+    unsigned int x,y;
+    std::string rawPosesFile = semantic_map_registration_transforms::saveRegistrationTransforms(rawPoses, rc->todox,rc->todoy);
+    ROS_INFO_STREAM("Raw calibration data saved at: "<<rawPosesFile);
+    res.calibration_file = registeredPosesFile;
+
+    // correct used sweeps with the new transforms and camera parameters
+    // create corrected cam params
+    sensor_msgs::CameraInfo camInfo;
+    camInfo.P = {rc->camera->fx, 0.0, rc->camera->cx, 0.0, 0.0, rc->camera->fy, rc->camera->cy, 0.0,0.0, 0.0, 1.0,0.0};
+    camInfo.D = {0,0,0,0,0};
+    image_geometry::PinholeCameraModel aCameraModel;
+    aCameraModel.fromCameraInfo(camInfo);
+
+    // update sweeps with new poses and new camera parameters
+    SemanticRoomXMLParser<PointType> reg_parser("/home/rares/Data/Test_Registration/");
+
+    for (auto usedObs : matchingObservations)
+    {
+        SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(usedObs,true);
+        auto origTransforms = aRoom.getIntermediateCloudTransforms();
+        for (size_t i=0; i<origTransforms.size(); i++)
+        {
+            tf::StampedTransform transform = origTransforms[i];
+            transform.setOrigin(registeredPoses[i].getOrigin());
+            transform.setBasis(registeredPoses[i].getBasis());
+            aRoom.addIntermediateCloudCameraParametersCorrected(aCameraModel);
+            aRoom.addIntermediateRoomCloudRegisteredTransform(transform);
+        }
+        semantic_map_room_utilities::reprojectIntermediateCloudsUsingCorrectedParams<PointType>(aRoom);
+        semantic_map_room_utilities::rebuildRegisteredCloud<PointType>(aRoom);
+        string room_path = reg_parser.saveRoomAsXML(aRoom);
+        // recompute ORB features
+        unsigned found = room_path.find_last_of("/");
+        std::string base_path = room_path.substr(0,found+1);
+        RegistrationFeatures reg(false);
+        reg.saveOrbFeatures<PointType>(aRoom,base_path);
+    }
+
+    delete rc;
+
+
     as->setSucceeded(res,"Done");
 }
 

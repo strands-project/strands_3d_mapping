@@ -147,7 +147,7 @@ void RobotContainer::addToTrainingORBFeatures(std::string path)
     //    typedef semantic_map_registration_features::RegistrationFeatures RegFeatures;
 
     //    // load precomputed orb features
-    std::vector<semantic_map_registration_features::RegistrationFeatures> features = semantic_map_registration_features::loadRegistrationFeaturesFromSingleSweep(path, true);
+    std::vector<semantic_map_registration_features::RegistrationFeatures> features = semantic_map_registration_features::loadRegistrationFeaturesFromSingleSweep(path, false);
 
     std::vector<Frame *> sweep_frames;
     sweep_frames.resize(todox*todoy);
