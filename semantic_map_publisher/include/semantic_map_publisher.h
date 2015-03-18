@@ -260,8 +260,6 @@ bool SemanticMapPublisher<PointType>::observationOctomapServiceCallback(Observat
     map.insertPointCloud(oct_pc, octo_centroid);
     octomap_msgs::Octomap octo_msg;
     octomap_msgs::fullMapToMsg(map,octo_msg);
-
-    map.writeBinary("map.bt");
     res.octomap = octo_msg;
     return true;
 }
