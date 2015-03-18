@@ -25,12 +25,12 @@ add_message_files(
   RoomObservation.msg
 )
 
-add_service_files(
-   FILES
-   MetaroomService.srv
-   DynamicClusterService.srv
-   ObservationService.srv
- )
+#add_service_files(
+#   FILES
+#   MetaroomService.srv
+#   DynamicClusterService.srv
+#   ObservationService.srv
+# )
 
 generate_messages(
   DEPENDENCIES

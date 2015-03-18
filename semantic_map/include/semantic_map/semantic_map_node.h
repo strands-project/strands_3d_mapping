@@ -18,9 +18,9 @@
 #include <sensor_msgs/image_encodings.h>
 
 // Services
-#include <semantic_map/MetaroomService.h>
-#include <semantic_map/DynamicClusterService.h>
-#include <semantic_map/ObservationService.h>
+//#include <semantic_map/MetaroomService.h>
+//#include <semantic_map/DynamicClusterService.h>
+//#include <semantic_map/ObservationService.h>
 
 #include <semantic_map/RoomObservation.h>
 
@@ -45,12 +45,12 @@ public:
     typedef typename Cloud::Ptr CloudPtr;
     typedef typename SemanticMapSummaryParser::EntityStruct Entities;
 
-    typedef typename semantic_map::MetaroomService::Request MetaroomServiceRequest;
-    typedef typename semantic_map::MetaroomService::Response MetaroomServiceResponse;
-    typedef typename semantic_map::MetaroomService::Request ObservationServiceRequest;
-    typedef typename semantic_map::MetaroomService::Response ObservationServiceResponse;
-    typedef typename semantic_map::DynamicClusterService::Request DynamicClusterServiceRequest;
-    typedef typename semantic_map::DynamicClusterService::Response DynamicClusterServiceResponse;
+//    typedef typename semantic_map::MetaroomService::Request MetaroomServiceRequest;
+//    typedef typename semantic_map::MetaroomService::Response MetaroomServiceResponse;
+//    typedef typename semantic_map::MetaroomService::Request ObservationServiceRequest;
+//    typedef typename semantic_map::MetaroomService::Response ObservationServiceResponse;
+//    typedef typename semantic_map::DynamicClusterService::Request DynamicClusterServiceRequest;
+//    typedef typename semantic_map::DynamicClusterService::Response DynamicClusterServiceResponse;
 
 
     typedef typename std::map<std::string, boost::shared_ptr<MetaRoom<PointType> > >::iterator WaypointMetaroomMapIterator;
@@ -63,17 +63,17 @@ public:
     void processRoomObservation(std::string xml_file_name);
 
     void roomObservationCallback(const semantic_map::RoomObservationConstPtr& obs_msg);
-    bool metaroomServiceCallback(MetaroomServiceRequest &req, MetaroomServiceResponse &res);
-    bool dynamicClusterServiceCallback(DynamicClusterServiceRequest &req, DynamicClusterServiceResponse &res);
-    bool observationServiceCallback(ObservationServiceRequest &req, ObservationServiceResponse &res);
+//    bool metaroomServiceCallback(MetaroomServiceRequest &req, MetaroomServiceResponse &res);
+//    bool dynamicClusterServiceCallback(DynamicClusterServiceRequest &req, DynamicClusterServiceResponse &res);
+//    bool observationServiceCallback(ObservationServiceRequest &req, ObservationServiceResponse &res);
 
     ros::Subscriber                                                             m_SubscriberRoomObservation;
     ros::Publisher                                                              m_PublisherMetaroom;
     ros::Publisher                                                              m_PublisherObservation;
     ros::Publisher                                                              m_PublisherDynamicClusters;
-    ros::ServiceServer                                                          m_MetaroomServiceServer;
-    ros::ServiceServer                                                          m_DynamicClusterServiceServer;
-    ros::ServiceServer                                                          m_ObservationServiceServer;
+//    ros::ServiceServer                                                          m_MetaroomServiceServer;
+//    ros::ServiceServer                                                          m_DynamicClusterServiceServer;
+//    ros::ServiceServer                                                          m_ObservationServiceServer;
 
 private:
     ros::NodeHandle                                                             m_NodeHandle;
@@ -102,9 +102,9 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
     m_PublisherObservation = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/merged_point_cloud_downsampled", 1, true);
 
 
-    m_MetaroomServiceServer = m_NodeHandle.advertiseService("SemanticMap/MetaroomService", &SemanticMapNode::metaroomServiceCallback, this);
-    m_DynamicClusterServiceServer = m_NodeHandle.advertiseService("SemanticMap/DynamicClusterService", &SemanticMapNode::dynamicClusterServiceCallback, this);
-    m_ObservationServiceServer = m_NodeHandle.advertiseService("SemanticMap/ObservationService", &SemanticMapNode::observationServiceCallback, this);
+//    m_MetaroomServiceServer = m_NodeHandle.advertiseService("SemanticMap/MetaroomService", &SemanticMapNode::metaroomServiceCallback, this);
+//    m_DynamicClusterServiceServer = m_NodeHandle.advertiseService("SemanticMap/DynamicClusterService", &SemanticMapNode::dynamicClusterServiceCallback, this);
+//    m_ObservationServiceServer = m_NodeHandle.advertiseService("SemanticMap/ObservationService", &SemanticMapNode::observationServiceCallback, this);
 
     bool save_intermediate;
     m_NodeHandle.param<bool>("save_intermediate",save_intermediate,false);
@@ -411,6 +411,7 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     this->processRoomObservation(obs_msg->xml_file_name);
 }
 
+/*
 template <class PointType>
 bool SemanticMapNode<PointType>::metaroomServiceCallback(MetaroomServiceRequest &req, MetaroomServiceResponse &res)
 {
@@ -494,6 +495,6 @@ bool SemanticMapNode<PointType>::dynamicClusterServiceCallback(DynamicClusterSer
         return false;
     }
 }
-
+*/
 
 #endif
