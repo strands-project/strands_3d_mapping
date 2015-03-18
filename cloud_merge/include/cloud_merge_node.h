@@ -46,6 +46,7 @@
 #include <semantic_map/room_xml_parser.h>
 #include <semantic_map/semantic_map_summary_parser.h>
 #include <semantic_map/reg_transforms.h>
+#include <semantic_map/reg_features.h>
 #include <semantic_map/room_utilities.h>
 
 #include "cloud_merge.h"
@@ -529,6 +530,10 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     ROS_INFO_STREAM("..done");
                     aSemanticRoom.setCompleteRoomCloud(completeCloud);
                     std::string roomXMLPath = parser.saveRoomAsXML(aSemanticRoom);
+                    unsigned found = roomXMLPath.find_last_of("/");
+                    std::string base_path = roomXMLPath.substr(0,found+1);
+                    RegistrationFeatures reg(true);
+                    reg.saveOrbFeatures<PointType>(aSemanticRoom,base_path);
 
                 }
             }
