@@ -123,7 +123,10 @@ public:
 
 
         file.open(QIODevice::ReadOnly);
-        ROS_INFO_STREAM("Parsing xml file: "<<xmlFile.c_str());
+        if (verbose)
+        {
+            ROS_INFO_STREAM("Parsing xml file: "<<xmlFile.c_str());
+        }
 
         QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
         Eigen::Vector4f centroid(0.0,0.0,0.0,0.0);
