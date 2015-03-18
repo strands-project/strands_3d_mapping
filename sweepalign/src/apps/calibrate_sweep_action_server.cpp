@@ -37,6 +37,7 @@ void execute(const strands_room::CalibrateSweepsGoalConstPtr& goal, Server* as)
         sweep_location = path;
     } else {
         sweep_location = goal->sweep_location;
+        sweep_location+="/";
     }
     if ( ! boost::filesystem::exists( sweep_location ) )
     {
