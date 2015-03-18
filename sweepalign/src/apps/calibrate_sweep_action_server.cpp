@@ -75,6 +75,24 @@ void execute(const strands_room::CalibrateSweepsGoalConstPtr& goal, Server* as)
          return;
     }
 
+    std::string saveLocation = goal->save_location;
+    if (saveLocation == "")
+    {
+        saveLocation = sweep_location; // save in the same folder
+    } else {
+        saveLocation+="/";
+        if ( ! boost::filesystem::exists( saveLocation ) )
+        {
+            if (!boost::filesystem::create_directory(saveLocation))
+            {
+                ROS_ERROR_STREAM("Could not create folder where to save calibration data "+saveLocation);
+                 as->setAborted(res,"Could not create folder where to save calibration data "+saveLocation);
+                 return;
+            }
+        }
+    }
+    ROS_INFO_STREAM("The registered sweeps will be saved at: "<<saveLocation);
+
     sort(matchingObservations.begin(), matchingObservations.end());
     reverse(matchingObservations.begin(), matchingObservations.end());
 
@@ -136,7 +154,8 @@ void execute(const strands_room::CalibrateSweepsGoalConstPtr& goal, Server* as)
     aCameraModel.fromCameraInfo(camInfo);
 
     // update sweeps with new poses and new camera parameters
-    SemanticRoomXMLParser<PointType> reg_parser("/home/rares/Data/Test_Registration/");
+
+    SemanticRoomXMLParser<PointType> reg_parser(saveLocation);
 
     for (auto usedObs : matchingObservations)
     {
