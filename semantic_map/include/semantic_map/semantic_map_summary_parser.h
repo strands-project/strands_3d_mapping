@@ -511,6 +511,11 @@ private:
                     // parse XML file and extract some important fields with which to populate the index.html file
                     QString roomXmlFile = patrolFolder+"/"+roomFolders[k] + "/room.xml";
                     SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(roomXmlFile.toStdString(), false);
+                    if ((aRoom.getRoomRunNumber()== -1) && (aRoom.getRoomStringId()=="") && (aRoom.getRoomLogName()==""))
+                    {
+                        // skip this room - parsing didn't work
+                        continue;
+                    }
                     xmlWriter->writeStartElement("SemanticRoom");
 
                     xmlWriter->writeStartElement("RoomLogName");
