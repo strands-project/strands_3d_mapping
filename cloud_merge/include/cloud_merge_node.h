@@ -45,7 +45,8 @@
 #include <semantic_map/room.h>
 #include <semantic_map/room_xml_parser.h>
 #include <semantic_map/semantic_map_summary_parser.h>
-
+#include <semantic_map/reg_transforms.h>
+#include <semantic_map/room_utilities.h>
 
 #include "cloud_merge.h"
 #include "mongodb_interface.h"
@@ -444,16 +445,19 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             pcl::toROSMsg(*merged_cloud, msg_cloud);
             m_PublisherMergedCloud.publish(msg_cloud);
 
-	    // subsample again for visualization and metaroom purposes
-            m_CloudMerge.subsampleMergedCloud(m_VoxelSizeObservation,m_VoxelSizeObservation,m_VoxelSizeObservation);
+
             CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
+            // add complete cloud to semantic room
+            aSemanticRoom.setCompleteRoomCloud(merged_cloud);
+
+            // subsample again for visualization and metaroom purposes
+            m_CloudMerge.subsampleMergedCloud(m_VoxelSizeObservation,m_VoxelSizeObservation,m_VoxelSizeObservation);
+            merged_cloud = m_CloudMerge.getMergedCloud();
             pcl::toROSMsg(*merged_cloud, msg_cloud);
             m_PublisherMergedCloudDownsampled.publish(msg_cloud);
 
             // set room end time
             aSemanticRoom.setRoomLogEndTime(ros::Time::now().toBoost());
-            // add complete cloud to semantic room
-            aSemanticRoom.setCompleteRoomCloud(merged_cloud);
 
             // set room patrol number and room id
             int roomId, runNumber;
@@ -485,6 +489,49 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             ROS_INFO_STREAM("Saving semantic room file");
             std::string roomXMLPath = parser.saveRoomAsXML(aSemanticRoom);
             ROS_INFO_STREAM("Saved semantic room");
+
+            if (m_bRegisterAndCorrectSweep)
+            {
+                // load precalibrated camera poses
+                std::vector<tf::StampedTransform> regTransforms = semantic_map_registration_transforms::loadRegistrationTransforms("default", true);
+                if (regTransforms.size() != aSemanticRoom.getIntermediateClouds().size())
+                {
+                    ROS_ERROR_STREAM("Cannot correct sweep as the number of precalibrated sweep poses is not the same as the number of intermediate point clouds in this sweep "/*<<regTransforms.size<<"  "<<aSemanticRoom.getIntermediateClouds().size()*/);
+                } else {
+                    // create corrected camera parameters
+                    // TODO load this from file
+                    ROS_INFO_STREAM("Reprojecting and registering sweep...");
+
+                    sensor_msgs::CameraInfo camInfo;
+
+                    camInfo.P = {540.0, 0.0, 540.0, 0.0, 0.0, 319.5, 219.5, 0.0,0.0, 0.0, 1.0,0.0};
+                    camInfo.D = {0,0,0,0,0};
+                    image_geometry::PinholeCameraModel aCameraModel;
+                    aCameraModel.fromCameraInfo(camInfo);
+
+                    auto origTransforms = aSemanticRoom.getIntermediateCloudTransforms();
+                    aSemanticRoom.clearIntermediateCloudRegisteredTransforms(); // just in case they had already been set
+                    for (size_t i=0; i<origTransforms.size(); i++)
+                    {
+                        tf::StampedTransform transform = origTransforms[i];
+                        transform.setOrigin(regTransforms[i].getOrigin());
+                        transform.setBasis(regTransforms[i].getBasis());
+                        aSemanticRoom.addIntermediateCloudCameraParametersCorrected(aCameraModel);
+                        aSemanticRoom.addIntermediateRoomCloudRegisteredTransform(transform);
+                    }
+                    // reproject individual clouds
+                    semantic_map_room_utilities::reprojectIntermediateCloudsUsingCorrectedParams<PointType>(aSemanticRoom);
+                    // rebuild merged cloud
+                    semantic_map_room_utilities::rebuildRegisteredCloud<PointType>(aSemanticRoom);
+                    // transform merged cloud to map frame
+                    CloudPtr completeCloud = aSemanticRoom.getCompleteRoomCloud();
+                    pcl_ros::transformPointCloud(*completeCloud, *completeCloud,origTransforms[0]);
+                    ROS_INFO_STREAM("..done");
+                    aSemanticRoom.setCompleteRoomCloud(completeCloud);
+                    std::string roomXMLPath = parser.saveRoomAsXML(aSemanticRoom);
+
+                }
+            }
 
             // Pulbish room observation
             semantic_map::RoomObservation obs_msg;
