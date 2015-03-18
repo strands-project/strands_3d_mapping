@@ -140,6 +140,11 @@ bool SemanticMapPublisher<PointType>::observationServiceCallback(ObservationServ
     ROS_INFO_STREAM("Received an observation request for waypoint "<<req.waypoint_id);
 
     std::vector<std::string> matchingObservations = semantic_map_load_utilties::getSweepXmlsForTopologicalWaypoint<PointType>(m_dataFolder, req.waypoint_id);
+    if (matchingObservations.size() == 0)
+    {
+        ROS_INFO_STREAM("No observations for this waypoint "<<req.waypoint_id);
+        return false;
+    }
     sort(matchingObservations.begin(), matchingObservations.end());
     reverse(matchingObservations.begin(), matchingObservations.end());
     string latest = matchingObservations[0];
@@ -217,6 +222,12 @@ bool SemanticMapPublisher<PointType>::observationOctomapServiceCallback(Observat
     ROS_INFO_STREAM("Received an observation octomap request for waypoint "<<req.waypoint_id);
     using namespace std;
     std::vector<std::string> matchingObservations = semantic_map_load_utilties::getSweepXmlsForTopologicalWaypoint<PointType>(m_dataFolder, req.waypoint_id);
+    if (matchingObservations.size() == 0)
+    {
+        ROS_INFO_STREAM("No observations for this waypoint "<<req.waypoint_id);
+        return false;
+    }
+
     sort(matchingObservations.begin(), matchingObservations.end());
     reverse(matchingObservations.begin(), matchingObservations.end());
     string latest = matchingObservations[0];
