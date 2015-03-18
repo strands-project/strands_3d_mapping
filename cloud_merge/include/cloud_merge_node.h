@@ -5,6 +5,10 @@
 #include <iosfwd>
 #include <stdlib.h>
 #include <string>
+#include <sys/types.h>
+#include <pwd.h>
+#include <boost/filesystem.hpp>
+
 
 // ROS includes
 #include "ros/ros.h"
@@ -120,6 +124,8 @@ private:
 
     double                                                                      m_VoxelSizeTabletop;
     double                                                                      m_VoxelSizeObservation;
+    bool                                                                        m_bRegisterAndCorrectSweep;
+    std::string                                                                 m_sRegisteredPoseLocation;
 
 };
 
@@ -306,6 +312,41 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     ROS_INFO_STREAM("Voxel size for the table top point cloud is "<<m_VoxelSizeTabletop);
     ROS_INFO_STREAM("Voxel size for the observation and metaroom point cloud is "<<m_VoxelSizeObservation);
     ROS_INFO_STREAM("Point cutoff distance set to "<<cutoffDistance);
+
+
+    m_NodeHandle.param<bool>("register_and_correct_sweep",m_bRegisterAndCorrectSweep,true);
+    if (m_bRegisterAndCorrectSweep)
+    {
+         m_NodeHandle.param<std::string>("registered_poses_location",m_sRegisteredPoseLocation,"");
+         if ((m_sRegisteredPoseLocation == "") || (m_sRegisteredPoseLocation == "default"))
+         {
+             // default path
+             passwd* pw = getpwuid(getuid());
+             std::string path(pw->pw_dir);
+             path+="/.ros/semanticMap/registration_transforms.txt";
+             if ( ! boost::filesystem::exists( path ) )
+             {
+                 ROS_INFO_STREAM("File containing precalibrated sweep positions cannot be found at "<<path);
+                 m_bRegisterAndCorrectSweep = false;
+             } else {
+               m_sRegisteredPoseLocation = path;
+             }
+         } else {
+             if ( ! boost::filesystem::exists( m_sRegisteredPoseLocation ) )
+             {
+                 ROS_INFO_STREAM("File containing precalibrated sweep positions cannot be found at "<<m_sRegisteredPoseLocation);
+                 m_bRegisterAndCorrectSweep = false;
+             }
+         }
+
+    } else {
+        ROS_INFO_STREAM("Will not correct the intermediate point clouds of the sweeps using precalibrated sweep positions.");
+    }
+
+    if (m_bRegisterAndCorrectSweep)
+    {
+        ROS_INFO_STREAM("Precalibrated sweep positions will be loaded from "<<m_sRegisteredPoseLocation<<". The sweep intermediate point clouds will be corrected.");
+    }
 
 }
 template <class PointType>

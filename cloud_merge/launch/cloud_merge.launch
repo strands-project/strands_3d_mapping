@@ -15,7 +15,10 @@
   <arg name="input_depth"           	  default="/head_xtion/depth/image_rect" />
   <arg name="input_caminfo_rgb"       	  default="/head_xtion/rgb/camera_info" />
   <arg name="input_caminfo_depth"     	  default="/head_xtion/depth/camera_info" />
-
+  
+  <arg name="register_and_correct_sweep"  default="true" />
+  <arg name="registered_poses_location"  default="default" />
+  
   <arg name="machine"   	default="localhost" />
   <arg name="user"   	default="" />
  
@@ -39,6 +42,10 @@
  	<param name="voxel_size_table_top"        type="double" value="$(arg voxel_size_table_top)" />
 	<param name="voxel_size_observation"      type="double" value="$(arg voxel_size_observation)" />
   	<param name="point_cutoff_distance"       type="double" value="$(arg point_cutoff_distance)" />
+
+	<param name="register_and_correct_sweep"  		 type="bool" value="$(arg register_and_correct_sweep)"/>
+	<param name="registered_poses_location"  		 type="string" value="$(arg registered_poses_location)"/>	
+
   </node>
 
 </launch>
