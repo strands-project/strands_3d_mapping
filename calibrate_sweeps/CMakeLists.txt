@@ -37,7 +37,7 @@ generate_messages(
 
 
 catkin_package(
-   INCLUDE_DIRS include
+   INCLUDE_DIRS
    LIBRARIES 
    CATKIN_DEPENDS semantic_map metaroom_xml_parser strands_room
    DEPENDS 
