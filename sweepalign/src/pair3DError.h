@@ -8,8 +8,7 @@
 
 #include "util.h"
 
-bool optimizeCameraParams = false;
-double information = 1.0/1.5;
+
 
 using ceres::NumericDiffCostFunction;
 using ceres::SizedCostFunction;
@@ -35,5 +34,7 @@ class pair3DError : public SizedCostFunction<3, 6, 6, 4> {
 	double dh;
 	double dz;
 	double weight;
+    bool optimizeCameraParams;
+    double information;
 };
 #endif

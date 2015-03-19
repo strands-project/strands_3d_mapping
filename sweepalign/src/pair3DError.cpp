@@ -2,7 +2,12 @@
 
 int sumid = 0;
 
-pair3DError::pair3DError(double sw, double sh, double sz,double dw, double dh, double dz, double weight) : sw(sw), sh(sh), sz(sz), dw(dw), dh(dh), dz(dz), weight(weight) {id = sumid++;}
+pair3DError::pair3DError(double sw, double sh, double sz,double dw, double dh, double dz, double weight) : sw(sw), sh(sh), sz(sz), dw(dw), dh(dh), dz(dz), weight(weight) \
+{
+    id = sumid++;
+    optimizeCameraParams = false;
+    information = 1.0/1.5;
+}
 
 pair3DError::~pair3DError() {}
 
@@ -30,12 +35,12 @@ bool pair3DError::Evaluate(double const* const* parameters, double* residuals, d
 	double cx = 319.5;
 	double cy = 239.5;
 
-	if(optimizeCameraParams){
-		invfx = params[0];
-		invfy = params[1];
-		cx = params[2];
-		cy = params[3];
-	}
+    if(optimizeCameraParams){
+        invfx = params[0];
+        invfy = params[1];
+        cx = params[2];
+        cy = params[3];
+    }
 
 	sp[2]	= sz;
 	sp[0]	= (sw-cx) * sp[2] * invfx;
