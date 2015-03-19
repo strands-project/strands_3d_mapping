@@ -1,4 +1,4 @@
-#include <strands_room/CalibrateSweepsAction.h>
+#include <calibrate_sweeps/CalibrateSweepsAction.h>
 #include <actionlib/server/simple_action_server.h>
 #include <iostream>
 #include <string>
@@ -20,12 +20,12 @@ typedef pcl::PointCloud<pcl::PointXYZRGB> Cloud;
 typedef typename Cloud::Ptr CloudPtr;
 using namespace std;
 
-typedef actionlib::SimpleActionServer<strands_room::CalibrateSweepsAction> Server;
+typedef actionlib::SimpleActionServer<calibrate_sweeps::CalibrateSweepsAction> Server;
 
-void execute(const strands_room::CalibrateSweepsGoalConstPtr& goal, Server* as)
+void execute(const calibrate_sweeps::CalibrateSweepsGoalConstPtr& goal, Server* as)
 {
     ROS_INFO_STREAM("Received calibrate message. Min/max sweeps: "<<goal->min_num_sweeps<<" "<<goal->max_num_sweeps);
-    strands_room::CalibrateSweepsResult res;
+    calibrate_sweeps::CalibrateSweepsResult res;
 
     std::string sweep_location;
     if (goal->sweep_location=="")
