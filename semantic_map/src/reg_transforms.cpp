@@ -198,4 +198,83 @@ double*** semantic_map_registration_transforms::loadRegistrationTransforms(unsig
     return toRet;
 }
 
+std::string semantic_map_registration_transforms::saveCameraParameters(image_geometry::PinholeCameraModel camParams, bool verbose, std::string file)
+{
+    // get home folder
+    passwd* pw = getpwuid(getuid());
+    std::string path(pw->pw_dir);
 
+    path+="/.ros/";
+    if ( ! boost::filesystem::exists( path ) )
+    {
+        if (!boost::filesystem::create_directory(path))
+        {
+            cerr<<"Cannot create folder "<<path<<endl;
+            return "";
+        }
+    }
+
+    path+="semanticMap/";
+    if ( ! boost::filesystem::exists( path ) )
+    {
+        if (!boost::filesystem::create_directory(path))
+        {
+            cerr<<"Cannot create folder "<<path<<endl;
+            return "";
+        }
+    }
+
+    string fileName = path+file;
+    if (verbose)
+    {
+        cout<<"Saving camera parameters at  "<<fileName<<endl;
+    }
+
+    ofstream out;
+    out.open(fileName);
+
+    out<<camParams.fx()<<" "<<camParams.fy()<<" "<<camParams.cx()<<" "<<camParams.cy();
+    out.close();
+
+    return fileName;
+}
+
+image_geometry::PinholeCameraModel semantic_map_registration_transforms::loadCameraParameters(std::string file, bool verbose)
+{
+
+
+    sensor_msgs::CameraInfo camInfo;
+    camInfo.P = {-1, 0.0, -1, 0.0, 0.0, -1, -1, 0.0,0.0, 0.0, 1.0,0.0};
+    camInfo.D = {0,0,0,0,0};
+    image_geometry::PinholeCameraModel toRet;
+    toRet.fromCameraInfo(camInfo);
+
+    if (file == "default") // load data from the default path
+    {
+        passwd* pw = getpwuid(getuid());
+        std::string path(pw->pw_dir);
+
+        path+="/.ros/semanticMap/camera_params.txt";
+        file = path;
+    }
+
+    if (verbose)
+    {
+        cout<<"Loading camera parameters from "<<file<<endl;
+    }
+
+    ifstream fin;
+    fin.open(file);
+
+    if (!fin.good())
+    {
+        return toRet;
+    }
+
+    double fx, fy, cx, cy;
+    fin>>fx>>fy>>cx>>cy;
+    camInfo.P = {fx, 0.0, cx, 0.0, 0.0, fy, cy, 0.0,0.0, 0.0, 1.0,0.0};
+    toRet.fromCameraInfo(camInfo);
+
+    return toRet;
+}

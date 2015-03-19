@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
+#include <image_geometry/pinhole_camera_model.h>
 
 namespace semantic_map_registration_transforms
 {
@@ -15,6 +16,9 @@ namespace semantic_map_registration_transforms
 
     std::string saveRegistrationTransforms(double*** poses, unsigned int x, unsigned int y, bool verbose=false, std::string filename="registration_transforms_raw.txt");
     double*** loadRegistrationTransforms(unsigned int& x, unsigned int& y, std::string file="default", bool verbose=false);
+
+    std::string saveCameraParameters(image_geometry::PinholeCameraModel camParams, bool verbose=false, std::string file="camera_params.txt");
+    image_geometry::PinholeCameraModel loadCameraParameters(std::string file="default", bool verbose=false);
 }
 
 

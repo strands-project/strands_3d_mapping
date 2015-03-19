@@ -138,6 +138,8 @@ void execute(const strands_room::CalibrateSweepsGoalConstPtr& goal, Server* as)
         registeredPoses.push_back(tfStamped);
     }
     std::string registeredPosesFile = semantic_map_registration_transforms::saveRegistrationTransforms(registeredPoses);
+    registeredPoses.clear();
+    registeredPoses = semantic_map_registration_transforms::loadRegistrationTransforms(registeredPosesFile);
     ROS_INFO_STREAM("Calibration poses saved at: "<<registeredPosesFile);
 
     double*** rawPoses = rc->poses;
@@ -153,6 +155,9 @@ void execute(const strands_room::CalibrateSweepsGoalConstPtr& goal, Server* as)
     camInfo.D = {0,0,0,0,0};
     image_geometry::PinholeCameraModel aCameraModel;
     aCameraModel.fromCameraInfo(camInfo);
+
+    std::string camParamsFile = semantic_map_registration_transforms::saveCameraParameters(aCameraModel);
+    ROS_INFO_STREAM("Camera parameters saved at: "<<camParamsFile);
 
     // update sweeps with new poses and new camera parameters
 
