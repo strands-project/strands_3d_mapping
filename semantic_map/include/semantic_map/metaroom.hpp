@@ -2,6 +2,8 @@
 #include "semantic_map/reg_features.h"
 #include "metaroom_xml_parser.h"
 
+#include <tf_conversions/tf_eigen.h>
+
 template <class PointType>
 MetaRoom<PointType>::MetaRoom(bool saveIntermediateSteps) : RoomBase<PointType>(), m_SensorOrigin(0.0,0.0,0.0), m_ConsistencyUpdateCloud(new Cloud()), m_bSaveIntermediateSteps(saveIntermediateSteps),
     m_bUpdateMetaroom(true)
@@ -257,6 +259,15 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         QString meta_folder = meta_parser.findMetaRoomLocation(this);
         RegistrationFeatures reg(true);
         reg.saveOrbFeatures<pcl::PointXYZRGB>(aRoom,meta_folder.toStdString());
+
+        if (aRoom.getIntermediateCloudTransforms().size() >0)
+        {
+            tf::StampedTransform sweep_to_map = aRoom.getIntermediateCloudTransforms()[0];
+            Eigen::Affine3d eigen_affine; tf::transformTFToEigen(sweep_to_map, eigen_affine);
+            Eigen::Matrix4f eigen_matrix(eigen_affine.matrix().cast<float>());
+            this->setRoomTransform(eigen_matrix);
+        }
+
 
         MetaRoomUpdateIteration<PointType> updateIteration;
         updateIteration.roomLogName = aRoom.getRoomLogName();

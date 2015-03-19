@@ -4,7 +4,7 @@ project(semantic_map)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build image_geometry cv_bridge)
+find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build image_geometry cv_bridge tf_conversions strands_room)
 
 find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
 
@@ -41,7 +41,7 @@ generate_messages(
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES semantic_map
-   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge
+   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge tf_conversions strands_room
    DEPENDS PCL
 )
 
@@ -94,8 +94,9 @@ set(SRCS
 
 add_library(semantic_map ${HDRS} ${HDRS_IMPL} ${SRCS})
 add_executable(semantic_map_node include/semantic_map/semantic_map_node.h src/semantic_map_node.cpp src/semantic_map_main.cpp)
-
 add_executable(load_from_mongo src/load_from_mongo.cpp)
+#add_executable(calibrate_sweep_as src/calibrate_sweep_action_server.cpp )
+
 add_dependencies(semantic_map semantic_map_generate_messages_cpp primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
 add_dependencies(semantic_map_node semantic_map_generate_messages_cpp primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
 
@@ -122,6 +123,12 @@ add_dependencies(semantic_map_node semantic_map_generate_messages_cpp primitive_
    semantic_map
   )
 
+# target_link_libraries(calibrate_sweep_as
+#   ${catkin_LIBRARIES}
+#   ${PCL_LIBRARIES}
+#   ${QT_LIBRARIES}
+#   ${Boost_LIBRARIES}
+#  )
 
 ############################# INSTALL TARGETS
 

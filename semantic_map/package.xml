@@ -24,7 +24,8 @@
   <build_depend>image_geometry</build_depend>
   <build_depend>pcl_ros</build_depend>
   <build_depend>cv_bridge</build_depend>
-
+  <build_depend>tf_conversions</build_depend>
+  <build_depend>strands_room</build_depend>
 
   <run_depend>rospy</run_depend>
   <run_depend>roscpp</run_depend>
@@ -37,6 +38,8 @@
   <run_depend>libpcl-all</run_depend>
   <run_depend>pcl_ros</run_depend>
   <run_depend>cv_bridge</run_depend>
+  <run_depend>tf_conversions</run_depend>
+  <run_depend>strands_room</run_depend>
 
   <export>
   </export>
