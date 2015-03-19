@@ -503,12 +503,16 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     // TODO load this from file
                     ROS_INFO_STREAM("Reprojecting and registering sweep...");
 
-                    sensor_msgs::CameraInfo camInfo;
-
-                    camInfo.P = {540.0, 0.0, 540.0, 0.0, 0.0, 319.5, 219.5, 0.0,0.0, 0.0, 1.0,0.0};
-                    camInfo.D = {0,0,0,0,0};
-                    image_geometry::PinholeCameraModel aCameraModel;
-                    aCameraModel.fromCameraInfo(camInfo);
+                    image_geometry::PinholeCameraModel aCameraModel = semantic_map_registration_transforms::loadCameraParameters();
+                    if (aCameraModel.fx() == -1)
+                    {
+                        // no cam model loaded. set defaults
+                        ROS_INFO_STREAM("Could not find camera parameters file. Setting defaults.");
+                        sensor_msgs::CameraInfo camInfo;
+                        camInfo.P = {540.0, 0.0, 319.5, 0.0, 0.0, 540.0, 219.5, 0.0,0.0, 0.0, 1.0,0.0};
+                        camInfo.D = {0,0,0,0,0};
+                        aCameraModel.fromCameraInfo(camInfo);
+                    }
 
                     auto origTransforms = aSemanticRoom.getIntermediateCloudTransforms();
                     aSemanticRoom.clearIntermediateCloudRegisteredTransforms(); // just in case they had already been set
