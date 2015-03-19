@@ -177,11 +177,10 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         }
     }
 
+    std::string matchingMetaroomXML = "";
     // if not loaded already, look through already saved metarooms
     if (!found)
     {
-
-        std::string matchingMetaroomXML = "";
         std::vector<Entities> allMetarooms = m_SummaryParser.getMetaRooms();
         for (size_t i=0; i<allMetarooms.size();i++)
         {

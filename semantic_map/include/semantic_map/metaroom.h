@@ -29,6 +29,7 @@
 #include "occlusion_checker.h"
 #include "metaroom_update_iteration.h"
 
+
 template <class PointType>
 class MetaRoom : public RoomBase<PointType> {
 public:
@@ -93,6 +94,7 @@ public:
     static CloudPtr downsampleCloud(CloudPtr input, double leafSize = 0.02f);
 
 };
+
 
 #include "metaroom.hpp"
 

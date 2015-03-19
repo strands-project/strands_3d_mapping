@@ -1,4 +1,6 @@
 #include "semantic_map/metaroom.h"
+#include "semantic_map/reg_features.h"
+#include "metaroom_xml_parser.h"
 
 template <class PointType>
 MetaRoom<PointType>::MetaRoom(bool saveIntermediateSteps) : RoomBase<PointType>(), m_SensorOrigin(0.0,0.0,0.0), m_ConsistencyUpdateCloud(new Cloud()), m_bSaveIntermediateSteps(saveIntermediateSteps),
@@ -250,6 +252,11 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         SemanticRoomXMLParser<PointType> parser(rootFolderPath.toStdString());
         parser.saveRoomAsXML(aRoom);
 
+        // Save ORB features in metaroom folder. Will be used later on for registration with other sweeps
+        MetaRoomXMLParser<PointType> meta_parser;
+        QString meta_folder = meta_parser.findMetaRoomLocation(this);
+        RegistrationFeatures reg(true);
+        reg.saveOrbFeatures<pcl::PointXYZRGB>(aRoom,meta_folder.toStdString());
 
         MetaRoomUpdateIteration<PointType> updateIteration;
         updateIteration.roomLogName = aRoom.getRoomLogName();
