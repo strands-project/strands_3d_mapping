@@ -12,7 +12,7 @@
 	<build_depend>pcl</build_depend>
 	<build_depend>pcl_ros</build_depend>
 	<build_depend> qt_build</build_depend>
-	<build_depend> semantic_map</build_depend>
+        <!--<build_depend> semantic_map</build_depend>-->
 	<build_depend> metaroom_xml_parser</build_depend>
         <build_depend> image_geometry</build_depend>
         <build_depend> cpp_common</build_depend>
@@ -23,7 +23,7 @@
 	<run_depend>libg2o</run_depend>
 	<run_depend>pcl</run_depend>
 	<run_depend>pcl_ros</run_depend>
-	<run_depend>semantic_map</run_depend>
+        <!--<run_depend>semantic_map</run_depend>-->
 	<run_depend>metaroom_xml_parser</run_depend>
         <run_depend> image_geometry</run_depend>
         <run_depend> cpp_common</run_depend>

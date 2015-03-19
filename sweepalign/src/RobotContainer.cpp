@@ -1,8 +1,8 @@
 #include "RobotContainer.h"
 
-#include "simple_xml_parser.h"
-#include "simple_summary_parser.h"
-#include <semantic_map/room_xml_parser.h>
+//#include "simple_xml_parser.h"
+//#include "simple_summary_parser.h"
+//#include <semantic_map/room_xml_parser.h>
 #include <tf_conversions/tf_eigen.h>
 #include <load_utilities.h>
 
@@ -20,7 +20,7 @@ void RobotContainer::saveAllSweeps(std::string savePath)
 }
 
 void RobotContainer::saveSweep(Sweep * sweep, std::string savePath){//std::vector<tf::StampedTransform> transforms)
-    std::string sweep_xml = sweep->xmlpath;
+   /* std::string sweep_xml = sweep->xmlpath;
     std::vector<Eigen::Matrix4f> poses = sweep->getPoseVector();
 
     std::cout<<"Sweep xml "<<sweep_xml<<std::endl;
@@ -59,6 +59,7 @@ void RobotContainer::saveSweep(Sweep * sweep, std::string savePath){//std::vecto
 
     SemanticRoomXMLParser<PointType> parser(savePath);
     parser.saveRoomAsXML(room);
+    */
 }
 
 RobotContainer::RobotContainer(unsigned int gx_,unsigned int todox_,unsigned int gy_,unsigned int todoy_){
@@ -140,7 +141,7 @@ void RobotContainer::initializeCamera(double fx, double fy, double cx, double cy
     shared_params[4] = 0.1;
 }
 
-void RobotContainer::addToTrainingORBFeatures(std::string path)
+bool RobotContainer::addToTrainingORBFeatures(std::string path)
 {
     std::cout<<"Adding ORB features to training from sweep "<<path<<std::endl;
 
@@ -148,6 +149,10 @@ void RobotContainer::addToTrainingORBFeatures(std::string path)
 
     //    // load precomputed orb features
     std::vector<semantic_map_registration_features::RegistrationFeatures> features = semantic_map_registration_features::loadRegistrationFeaturesFromSingleSweep(path, false);
+    if (features.size() == 0)
+    {
+        return false;
+    }
 
     std::vector<Frame *> sweep_frames;
     sweep_frames.resize(todox*todoy);
@@ -163,12 +168,14 @@ void RobotContainer::addToTrainingORBFeatures(std::string path)
     alignedSweep.push_back(false);
     sweeps.back()->xmlpath = path;
 
+    return true;
+
 }
 
 void RobotContainer::addToTraining(std::string path){
-    printf("adding to training: %s\n",path.c_str());
+    printf("Not supported. Add to training using precomputed ORB features. \n");
 
-
+/*
 
     SimpleXMLParser<PointType> simple_parser;
     SimpleXMLParser<PointType>::RoomData roomData = simple_parser.loadRoomFromXML(path);
@@ -224,6 +231,7 @@ void RobotContainer::addToTraining(std::string path){
     alignedSweep.push_back(false);
     sweeps.back()->idtag = roomData.roomWaypointId;
     sweeps.back()->xmlpath = path;
+    */
 }
 
 std::vector< CostFunction * > getMatchesRansac(std::vector< ProblemFrameConnection * > & pc_vec, float weight = 1, float threshold = 0.005, int ransac_iter = 200000, int nr_points = 3){

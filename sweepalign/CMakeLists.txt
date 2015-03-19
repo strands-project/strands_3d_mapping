@@ -7,7 +7,7 @@ set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-co
 
 find_package(catkin REQUIRED COMPONENTS
 	metaroom_xml_parser
-	semantic_map
+#	semantic_map
 	pcl_ros
         image_geometry
         cpp_common
@@ -20,18 +20,10 @@ find_package(catkin REQUIRED COMPONENTS
 
 rosbuild_prepare_qt4(QtCore QtXml)
 
-add_action_files(
-DIRECTORY
-    action
-FILES
-    CalibrateSweeps.action
-)
-
-generate_messages(DEPENDENCIES actionlib_msgs sensor_msgs)
-
 catkin_package(
    INCLUDE_DIRS src src/Camera src/Camera/PixelFunction src/Frame src/Sweep
-   CATKIN_DEPENDS metaroom_xml_parser semantic_map image_geometry cpp_common roscpp rosconsole tf_conversions
+   CATKIN_DEPENDS metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions
+   DEPENDS Ceres
    LIBRARIES PixelFunction_strands_room Camera_strands_room  Frame_strands_room Sweep_strands_room util_strands_room pair3DError_strands_room ProblemFrameConnection_strands_room RobotContainer_strands_room
 )
 
@@ -100,9 +92,8 @@ target_link_libraries(RobotContainer_strands_room ProblemFrameConnection_strands
 #add_executable(room_reader_rares src/apps/reader_rares.cpp )
 #target_link_libraries(room_reader_rares RobotContainer_strands_room Sweep_strands_room image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
-add_executable(reader src/apps/reader.cpp )
-target_link_libraries(reader RobotContainer_strands_room Sweep_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+#add_executable(reader src/apps/reader.cpp )
+#target_link_libraries(reader RobotContainer_strands_room Sweep_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
-add_executable(calibrate_sweep_as src/apps/calibrate_sweep_action_server.cpp )
-target_link_libraries(calibrate_sweep_as RobotContainer_strands_room Sweep_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+
 
