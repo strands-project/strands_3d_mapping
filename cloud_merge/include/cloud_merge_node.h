@@ -514,7 +514,9 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                         aCameraModel.fromCameraInfo(camInfo);
                     }
 
+
                     auto origTransforms = aSemanticRoom.getIntermediateCloudTransforms();
+                    tf::StampedTransform origin = origTransforms[0];
                     aSemanticRoom.clearIntermediateCloudRegisteredTransforms(); // just in case they had already been set
                     for (size_t i=0; i<origTransforms.size(); i++)
                     {
@@ -530,7 +532,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     semantic_map_room_utilities::rebuildRegisteredCloud<PointType>(aSemanticRoom);
                     // transform merged cloud to map frame
                     CloudPtr completeCloud = aSemanticRoom.getCompleteRoomCloud();
-                    pcl_ros::transformPointCloud(*completeCloud, *completeCloud,origTransforms[0]);
+                    pcl_ros::transformPointCloud(*completeCloud, *completeCloud,origin);
                     ROS_INFO_STREAM("..done");
                     aSemanticRoom.setCompleteRoomCloud(completeCloud);
                     std::string roomXMLPath = parser.saveRoomAsXML(aSemanticRoom);
