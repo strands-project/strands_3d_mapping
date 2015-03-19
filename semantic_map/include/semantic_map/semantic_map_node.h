@@ -167,6 +167,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     boost::shared_ptr<MetaRoom<PointType> > metaroom;
     bool found = false;
 
+    std::string matchingMetaroomXML = "";
     // first check if the matching metaroom has already been loaded
     for (size_t i=0; i<m_vLoadedMetarooms.size(); i++)
     {
@@ -182,7 +183,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         }
     }
 
-    std::string matchingMetaroomXML = "";
+
     // if not loaded already, look through already saved metarooms
     if (!found)
     {
@@ -221,6 +222,8 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     RegistrationFeatures reg(false);
     std::vector<RegistrationFeatures::RegistrationData> mr_features = reg.loadOrbFeatures(matchingMetaroomXML, false);
     std::vector<RegistrationFeatures::RegistrationData> room_features = reg.loadOrbFeatures(xml_file_name, false);
+    std::cout<<"MR features "<<mr_features.size()<<" room features "<<room_features.size()<<std::endl;
+    std::cout<<"Room xml "<<xml_file_name<<" MR xml "<<matchingMetaroomXML<<std::endl;
 
     if ((rawPoses !=NULL) && (mr_features.size() != 0) && (room_features.size() != 0))
     {
