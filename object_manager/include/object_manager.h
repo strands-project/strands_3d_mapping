@@ -45,6 +45,7 @@
 #include <octomap_msgs/conversions.h>
 #include <pcl/filters/voxel_grid.h>
 
+
 template <class PointType>
 class ObjectManager {
 public:
@@ -70,6 +71,21 @@ public:
 
     ros::Publisher                                                              m_PublisherDynamicClusters;
     ros::ServiceServer                                                          m_DynamicObjectsServiceServer;
+
+    static CloudPtr filterGroundClusters(CloudPtr dynamic, double min_height)
+    {
+        CloudPtr filtered(new Cloud());
+
+
+        pcl::PassThrough<pcl::PointXYZRGB> pass;
+        pass.setInputCloud (dynamic);
+        pass.setFilterFieldName ("z");
+        pass.setFilterLimits (-1.0, min_height);
+        pass.setFilterLimitsNegative (true);
+        pass.filter (*filtered);
+
+        return filtered;
+    }
 
 
 private:
@@ -223,6 +239,8 @@ std::vector<typename ObjectManager<PointType>::ObjStruct>  ObjectManager<PointTy
         // no clusters in the observation
         return dynamicObjects;
     }
+
+    sweep.dynamicClusterCloud = filterGroundClusters(sweep.dynamicClusterCloud, 0.2);
 
     double tolerance = 0.03;
     int min_cluster_size = 800;
