@@ -24,7 +24,6 @@ rosbuild_prepare_qt4(QtCore QtXml)
 add_service_files(
    FILES
    MetaroomService.srv
-   DynamicClusterService.srv
    ObservationService.srv
    ObservationOctomapService.srv
    WaypointInfoService.srv

@@ -23,7 +23,6 @@
 
 // Services
 #include <semantic_map_publisher/MetaroomService.h>
-#include <semantic_map_publisher/DynamicClusterService.h>
 #include <semantic_map_publisher/ObservationService.h>
 #include <semantic_map_publisher/ObservationOctomapService.h>
 #include <semantic_map_publisher/WaypointInfoService.h>
@@ -53,8 +52,8 @@ public:
     typedef typename semantic_map_publisher::MetaroomService::Response MetaroomServiceResponse;
     typedef typename semantic_map_publisher::ObservationService::Request ObservationServiceRequest;
     typedef typename semantic_map_publisher::ObservationService::Response ObservationServiceResponse;
-    typedef typename semantic_map_publisher::DynamicClusterService::Request DynamicClusterServiceRequest;
-    typedef typename semantic_map_publisher::DynamicClusterService::Response DynamicClusterServiceResponse;
+//    typedef typename semantic_map_publisher::DynamicClusterService::Request DynamicClusterServiceRequest;
+//    typedef typename semantic_map_publisher::DynamicClusterService::Response DynamicClusterServiceResponse;
     typedef typename semantic_map_publisher::WaypointInfoService::Request WaypointInfoServiceRequest;
     typedef typename semantic_map_publisher::WaypointInfoService::Response WaypointInfoServiceResponse;
     typedef typename semantic_map_publisher::ObservationOctomapService::Request ObservationOctomapServiceRequest;
@@ -72,7 +71,7 @@ public:
     ~SemanticMapPublisher();
 
     bool metaroomServiceCallback(MetaroomServiceRequest &req, MetaroomServiceResponse &res);
-    bool dynamicClusterServiceCallback(DynamicClusterServiceRequest &req, DynamicClusterServiceResponse &res);
+//    bool dynamicClusterServiceCallback(DynamicClusterServiceRequest &req, DynamicClusterServiceResponse &res);
     bool observationServiceCallback(ObservationServiceRequest &req, ObservationServiceResponse &res);
     bool observationOctomapServiceCallback(ObservationOctomapServiceRequest &req, ObservationOctomapServiceResponse &res);
     bool waypointInfoServiceCallback(WaypointInfoServiceRequest &req, WaypointInfoServiceResponse &res);
@@ -81,7 +80,7 @@ public:
     ros::Publisher                                                              m_PublisherObservation;
     ros::Publisher                                                              m_PublisherDynamicClusters;
     ros::ServiceServer                                                          m_MetaroomServiceServer;
-    ros::ServiceServer                                                          m_DynamicClusterServiceServer;
+//    ros::ServiceServer                                                          m_DynamicClusterServiceServer;
     ros::ServiceServer                                                          m_ObservationServiceServer;
     ros::ServiceServer                                                          m_ObservationOctomapServiceServer;
     ros::ServiceServer                                                          m_WaypointInfoServiceServer;
@@ -113,7 +112,7 @@ SemanticMapPublisher<PointType>::SemanticMapPublisher(ros::NodeHandle nh)
     m_PublisherObservation = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/observation", 1, true);
 
     m_MetaroomServiceServer = m_NodeHandle.advertiseService("SemanticMapPublisher/MetaroomService", &SemanticMapPublisher::metaroomServiceCallback, this);
-    m_DynamicClusterServiceServer = m_NodeHandle.advertiseService("SemanticMapPublisher/DynamicClusterService", &SemanticMapPublisher::dynamicClusterServiceCallback, this);
+//    m_DynamicClusterServiceServer = m_NodeHandle.advertiseService("SemanticMapPublisher/DynamicClusterService", &SemanticMapPublisher::dynamicClusterServiceCallback, this);
     m_ObservationServiceServer = m_NodeHandle.advertiseService("SemanticMapPublisher/ObservationService", &SemanticMapPublisher::observationServiceCallback, this);
     m_ObservationOctomapServiceServer = m_NodeHandle.advertiseService("SemanticMapPublisher/ObservationOctomapService", &SemanticMapPublisher::observationOctomapServiceCallback, this);
     m_WaypointInfoServiceServer= m_NodeHandle.advertiseService("SemanticMapPublisher/WaypointInfoService", &SemanticMapPublisher::waypointInfoServiceCallback, this);
@@ -275,11 +274,11 @@ bool SemanticMapPublisher<PointType>::observationOctomapServiceCallback(Observat
     return true;
 }
 
-template <class PointType>
-bool SemanticMapPublisher<PointType>::dynamicClusterServiceCallback(DynamicClusterServiceRequest &req, DynamicClusterServiceResponse &res)
-{
-    ROS_INFO_STREAM("Received a dynamic clusters request for waypoint "<<req.waypoint_id<<". Not supported for now.");
-}
+//template <class PointType>
+//bool SemanticMapPublisher<PointType>::dynamicClusterServiceCallback(DynamicClusterServiceRequest &req, DynamicClusterServiceResponse &res)
+//{
+//    ROS_INFO_STREAM("Received a dynamic clusters request for waypoint "<<req.waypoint_id<<". Not supported for now.");
+//}
 
 
 #endif
