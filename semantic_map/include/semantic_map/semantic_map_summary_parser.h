@@ -37,6 +37,7 @@ public:
     struct EntityStruct{
         std::string roomXmlFile;
         std::string roomLogName;
+        std::string stringId;
         boost::posix_time::ptime roomLogStartTime, roomLogEndTime;
         Eigen::Vector4f centroid;
         bool    hasCentroid;
@@ -50,6 +51,7 @@ public:
             hasCentroid = false;
             centroid = Eigen::Vector4f::Zero();
             isMetaRoom = false;
+            stringId = "";
         }
     };
 
@@ -303,6 +305,10 @@ public:
                         {
                             aEntityStruct.roomXmlFile = xmlReader->readElementText().toStdString();
                         }
+                        if (xmlReader->name() == "RoomStringId")
+                        {
+                            aEntityStruct.stringId = xmlReader->readElementText().toStdString();
+                        }
 
                         if (xmlReader->name() == "RoomCentroid")
                         {
@@ -339,6 +345,10 @@ public:
                             centroid(0) = centroidSlist[0].toDouble();centroid(1) = centroidSlist[1].toDouble();
                             centroid(2) = centroidSlist[2].toDouble();centroid(3) = centroidSlist[3].toDouble();
                             aEntityStruct.centroid = centroid;
+                        }
+                        if (xmlReader->name() == "MetaRoomStringId")
+                        {
+                            aEntityStruct.stringId = xmlReader->readElementText().toStdString();
                         }
                         token = xmlReader->readNext();
                     }

@@ -42,7 +42,6 @@
 #include "room_utilities.h"
 #include "RobotContainer.h"
 
-
 template <class PointType>
 class SemanticMapNode {
 public:
@@ -50,17 +49,20 @@ public:
     typedef typename Cloud::Ptr CloudPtr;
     typedef typename SemanticMapSummaryParser::EntityStruct Entities;
 
-//    typedef typename semantic_map::MetaroomService::Request MetaroomServiceRequest;
-//    typedef typename semantic_map::MetaroomService::Response MetaroomServiceResponse;
-//    typedef typename semantic_map::MetaroomService::Request ObservationServiceRequest;
-//    typedef typename semantic_map::MetaroomService::Response ObservationServiceResponse;
-//    typedef typename semantic_map::DynamicClusterService::Request DynamicClusterServiceRequest;
-//    typedef typename semantic_map::DynamicClusterService::Response DynamicClusterServiceResponse;
+    //    typedef typename semantic_map::MetaroomService::Request MetaroomServiceRequest;
+    //    typedef typename semantic_map::MetaroomService::Response MetaroomServiceResponse;
+    //    typedef typename semantic_map::MetaroomService::Request ObservationServiceRequest;
+    //    typedef typename semantic_map::MetaroomService::Response ObservationServiceResponse;
+    //    typedef typename semantic_map::DynamicClusterService::Request DynamicClusterServiceRequest;
+    //    typedef typename semantic_map::DynamicClusterService::Response DynamicClusterServiceResponse;
 
 
     typedef typename std::map<std::string, boost::shared_ptr<MetaRoom<PointType> > >::iterator WaypointMetaroomMapIterator;
     typedef typename std::map<std::string, SemanticRoom<PointType> >::iterator WaypointRoomMapIterator;
     typedef typename std::map<std::string, CloudPtr>::iterator WaypointPointCloudMapIterator;
+
+//    using pcl::visualization::PointCloudColorHandlerCustom;
+
 
     SemanticMapNode(ros::NodeHandle nh);
     ~SemanticMapNode();
@@ -68,17 +70,17 @@ public:
     void processRoomObservation(std::string xml_file_name);
 
     void roomObservationCallback(const semantic_map::RoomObservationConstPtr& obs_msg);
-//    bool metaroomServiceCallback(MetaroomServiceRequest &req, MetaroomServiceResponse &res);
-//    bool dynamicClusterServiceCallback(DynamicClusterServiceRequest &req, DynamicClusterServiceResponse &res);
-//    bool observationServiceCallback(ObservationServiceRequest &req, ObservationServiceResponse &res);
+    //    bool metaroomServiceCallback(MetaroomServiceRequest &req, MetaroomServiceResponse &res);
+    //    bool dynamicClusterServiceCallback(DynamicClusterServiceRequest &req, DynamicClusterServiceResponse &res);
+    //    bool observationServiceCallback(ObservationServiceRequest &req, ObservationServiceResponse &res);
 
     ros::Subscriber                                                             m_SubscriberRoomObservation;
     ros::Publisher                                                              m_PublisherMetaroom;
     ros::Publisher                                                              m_PublisherObservation;
     ros::Publisher                                                              m_PublisherDynamicClusters;
-//    ros::ServiceServer                                                          m_MetaroomServiceServer;
-//    ros::ServiceServer                                                          m_DynamicClusterServiceServer;
-//    ros::ServiceServer                                                          m_ObservationServiceServer;
+    //    ros::ServiceServer                                                          m_MetaroomServiceServer;
+    //    ros::ServiceServer                                                          m_DynamicClusterServiceServer;
+    //    ros::ServiceServer                                                          m_ObservationServiceServer;
 
 private:
     ros::NodeHandle                                                             m_NodeHandle;
@@ -91,6 +93,7 @@ private:
     std::map<std::string, SemanticRoom<PointType> >                             m_WaypointToRoomMap;
     std::map<std::string, CloudPtr>                                             m_WaypointToDynamicClusterMap;
     bool                                                                        m_bUpdateMetaroom;
+
 };
 
 template <class PointType>
@@ -107,9 +110,9 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
     m_PublisherObservation = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/merged_point_cloud_downsampled", 1, true);
 
 
-//    m_MetaroomServiceServer = m_NodeHandle.advertiseService("SemanticMap/MetaroomService", &SemanticMapNode::metaroomServiceCallback, this);
-//    m_DynamicClusterServiceServer = m_NodeHandle.advertiseService("SemanticMap/DynamicClusterService", &SemanticMapNode::dynamicClusterServiceCallback, this);
-//    m_ObservationServiceServer = m_NodeHandle.advertiseService("SemanticMap/ObservationService", &SemanticMapNode::observationServiceCallback, this);
+    //    m_MetaroomServiceServer = m_NodeHandle.advertiseService("SemanticMap/MetaroomService", &SemanticMapNode::metaroomServiceCallback, this);
+    //    m_DynamicClusterServiceServer = m_NodeHandle.advertiseService("SemanticMap/DynamicClusterService", &SemanticMapNode::dynamicClusterServiceCallback, this);
+    //    m_ObservationServiceServer = m_NodeHandle.advertiseService("SemanticMap/ObservationService", &SemanticMapNode::observationServiceCallback, this);
 
     bool save_intermediate;
     m_NodeHandle.param<bool>("save_intermediate",save_intermediate,false);
@@ -151,7 +154,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     std::cout<<"File name "<<xml_file_name<<std::endl;
 
     SemanticRoomXMLParser<PointType> parser;
-    SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(xml_file_name,false);
+    SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(xml_file_name,true);
     aRoom.resetRoomTransform();
 
     // update summary xml
@@ -171,15 +174,27 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     // first check if the matching metaroom has already been loaded
     for (size_t i=0; i<m_vLoadedMetarooms.size(); i++)
     {
-        double centroidDistance = pcl::distances::l2(m_vLoadedMetarooms[i]->getCentroid(),aRoom.getCentroid());
-        if (! (centroidDistance < ROOM_CENTROID_DISTANCE) )
+        // compare by waypoint, if set
+        if (aRoom.getRoomStringId() != "")
         {
-            continue;
+            if (aRoom.getRoomStringId() == m_vLoadedMetarooms[i]->m_sMetaroomStringId)
+            {
+                metaroom = m_vLoadedMetarooms[i];
+                found = true;
+                break;
+            }
         } else {
-            ROS_INFO_STREAM("Matching metaroom already loaded.");
-            metaroom = m_vLoadedMetarooms[i];
-            found = true;
-            break;
+            // if not set, compare by centroid
+            double centroidDistance = pcl::distances::l2(m_vLoadedMetarooms[i]->getCentroid(),aRoom.getCentroid());
+            if (! (centroidDistance < ROOM_CENTROID_DISTANCE) )
+            {
+                continue;
+            } else {
+                ROS_INFO_STREAM("Matching metaroom already loaded.");
+                metaroom = m_vLoadedMetarooms[i];
+                found = true;
+                break;
+            }
         }
     }
 
@@ -190,13 +205,24 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         std::vector<Entities> allMetarooms = m_SummaryParser.getMetaRooms();
         for (size_t i=0; i<allMetarooms.size();i++)
         {
-            double centroidDistance = pcl::distances::l2(allMetarooms[i].centroid,aRoom.getCentroid());
-            if (! (centroidDistance < ROOM_CENTROID_DISTANCE) )
+            // compare by waypoint, if set
+            if (aRoom.getRoomStringId() != "")
             {
-                continue;
+                if (aRoom.getRoomStringId() == allMetarooms[i].stringId)
+                {
+                    matchingMetaroomXML = allMetarooms[i].roomXmlFile;
+                    break;
+                }
             } else {
-                matchingMetaroomXML = allMetarooms[i].roomXmlFile;
-                break;
+                // if not set, compare by centroid
+                double centroidDistance = pcl::distances::l2(allMetarooms[i].centroid,aRoom.getCentroid());
+                if (! (centroidDistance < ROOM_CENTROID_DISTANCE) )
+                {
+                    continue;
+                } else {
+                    matchingMetaroomXML = allMetarooms[i].roomXmlFile;
+                    break;
+                }
             }
         }
 
@@ -204,12 +230,16 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         {
             ROS_INFO_STREAM("No matching metaroom found. Create new metaroom.");
             metaroom =  boost::shared_ptr<MetaRoom<PointType> >(new MetaRoom<PointType>());
-            MetaRoomXMLParser<PointType> meta_parser;
-            matchingMetaroomXML = meta_parser.saveMetaRoomAsXML(*metaroom);
+
         } else {
             ROS_INFO_STREAM("Matching metaroom found. XML file: "<<matchingMetaroomXML);
             metaroom =  boost::shared_ptr<MetaRoom<PointType> >(new MetaRoom<PointType>(MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(matchingMetaroomXML,false)));
+            found = true;
         }
+    } else {
+        MetaRoomXMLParser<PointType> meta_parser;
+        matchingMetaroomXML= meta_parser.findMetaRoomLocation(metaroom.get()).toStdString();
+        matchingMetaroomXML+="/metaroom.xml";
     }
 
     metaroom->setUpdateMetaroom(m_bUpdateMetaroom);
@@ -217,69 +247,77 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
 
     // update metaroom
     // check if the sweep poses have been precomputed
-    unsigned int x,y;
-    double*** rawPoses = semantic_map_registration_transforms::loadRegistrationTransforms(x,y);
-    RegistrationFeatures reg(false);
-    std::vector<RegistrationFeatures::RegistrationData> mr_features = reg.loadOrbFeatures(matchingMetaroomXML, false);
-    std::vector<RegistrationFeatures::RegistrationData> room_features = reg.loadOrbFeatures(xml_file_name, false);
-    std::cout<<"MR features "<<mr_features.size()<<" room features "<<room_features.size()<<std::endl;
-    std::cout<<"Room xml "<<xml_file_name<<" MR xml "<<matchingMetaroomXML<<std::endl;
+//    unsigned int x,y;
+//    double*** rawPoses = semantic_map_registration_transforms::loadRegistrationTransforms(x,y);
+//    RegistrationFeatures reg(false);
+//    std::vector<RegistrationFeatures::RegistrationData> mr_features = reg.loadOrbFeatures(matchingMetaroomXML, false);
+//    std::vector<RegistrationFeatures::RegistrationData> room_features = reg.loadOrbFeatures(xml_file_name, false);
+//    std::cout<<"MR features "<<mr_features.size()<<" room features "<<room_features.size()<<std::endl;
+//    std::cout<<"Room xml "<<xml_file_name<<" MR xml "<<matchingMetaroomXML<<std::endl;
 
-    if ((rawPoses !=NULL) && (mr_features.size() != 0) && (room_features.size() != 0))
-    {
-        ROS_INFO_STREAM("Registering sweep using ORB features.");
-        unsigned int gx = 17;
-        unsigned int todox = 17;
-        unsigned int gy = 3;
-        unsigned int todoy = 3;
-        RobotContainer* new_rc = new RobotContainer(gx,todox,gy,todoy);
-        new_rc->initializeCamera(540.0, 540.0,319.5, 219.5, 640, 480);
-        for (size_t i=0; i<todox; i++){
-            for (size_t j=0; j<todoy;j++){
-                for (size_t k=0; k<6;k++)
-                {
+//    if (!found)
+//    {
+//        ROS_INFO_STREAM("Initializing metaroom.");
+//        metaroom->updateMetaRoom(aRoom);
+//    } else {
 
-                    new_rc->poses[i][j][k] = rawPoses[i][j][k];
-                }
-            }
-        }
-        new_rc->addToTrainingORBFeatures(matchingMetaroomXML);
-        new_rc->addToTrainingORBFeatures(xml_file_name);
-        std::vector<Eigen::Matrix4f> reg_transforms = new_rc->alignAndStoreSweeps();
+//        if ((rawPoses !=NULL) && (mr_features.size() != 0) && (room_features.size() != 0))
+//        {
+//            ROS_INFO_STREAM("Registering sweep using ORB features.");
+//            unsigned int gx = 17;
+//            unsigned int todox = 17;
+//            unsigned int gy = 3;
+//            unsigned int todoy = 3;
+//            RobotContainer* new_rc = new RobotContainer(gx,todox,gy,todoy);
+//            new_rc->initializeCamera(540.0, 540.0,319.5, 219.5, 640, 480);
+//            for (size_t i=0; i<todox; i++){
+//                for (size_t j=0; j<todoy;j++){
+//                    for (size_t k=0; k<6;k++)
+//                    {
 
-        std::vector<Eigen::Matrix4f> sweepPoses = new_rc->sweeps[1]->getPoseVector();
-        auto roomTransforms = aRoom.getIntermediateCloudTransformsRegistered();
-        aRoom.clearIntermediateCloudRegisteredTransforms();
+//                        new_rc->poses[i][j][k] = rawPoses[i][j][k];
+//                    }
+//                }
+//            }
+//            new_rc->addToTrainingORBFeatures(matchingMetaroomXML);
+//            new_rc->addToTrainingORBFeatures(xml_file_name);
+//            std::vector<Eigen::Matrix4f> reg_transforms = new_rc->alignAndStoreSweeps();
 
-        for (size_t j=0; j<roomTransforms.size();j++)
-        {
-            tf::StampedTransform roomTransform = roomTransforms[j];
-            const Eigen::Affine3d eigenTr(sweepPoses[j].cast<double>());
-            tf::Transform tfTr;
-            tf::transformEigenToTF(eigenTr, tfTr);
+//            std::vector<Eigen::Matrix4f> sweepPoses = new_rc->sweeps[1]->getPoseVector();
+//            auto roomTransforms = aRoom.getIntermediateCloudTransforms();
+//            aRoom.clearIntermediateCloudRegisteredTransforms();
 
-            roomTransform.setOrigin(tfTr.getOrigin());
-            roomTransform.setBasis(tfTr.getBasis());
+//            for (size_t j=0; j<roomTransforms.size();j++)
+//            {
+//                tf::StampedTransform roomTransform = roomTransforms[j];
+//                const Eigen::Affine3d eigenTr(sweepPoses[j].cast<double>());
+//                tf::Transform tfTr;
+//                tf::transformEigenToTF(eigenTr, tfTr);
 
-            aRoom.addIntermediateRoomCloudRegisteredTransform(roomTransform);
-        }
+//                roomTransform.setOrigin(tfTr.getOrigin());
+//                roomTransform.setBasis(tfTr.getBasis());
 
-        semantic_map_room_utilities::rebuildRegisteredCloud<PointType>(aRoom);
-        CloudPtr roomCloud = aRoom.getCompleteRoomCloud();
-        pcl::transformPointCloud (*roomCloud, *roomCloud, metaroom->getRoomTransform());
+//                aRoom.addIntermediateRoomCloudRegisteredTransform(roomTransform);
+//            }
 
-        aRoom.setCompleteRoomCloud(roomCloud);
-        parser.saveRoomAsXML(aRoom);
-        delete new_rc;
+//            semantic_map_room_utilities::rebuildRegisteredCloud<PointType>(aRoom);
+//            CloudPtr roomCloud = aRoom.getCompleteRoomCloud();
+//            pcl::transformPointCloud (*roomCloud, *roomCloud, metaroom->getRoomTransform());
 
-        metaroom->updateMetaRoom(aRoom); // use NDT for registration
+//            aRoom.setCompleteRoomCloud(roomCloud);
+//            parser.saveRoomAsXML(aRoom);
+//            delete new_rc;
 
-    } else {
-        ROS_INFO_STREAM("Preregistered sweep poses not found or ORB features not computed. Registering with NDT.");
-        metaroom->updateMetaRoom(aRoom); // use NDT for registration
-    }
+//            metaroom->updateMetaRoom(aRoom, "", false); // already registered, do not use NDT
 
+//        } else {
+//            ROS_INFO_STREAM("Preregistered sweep poses not found or ORB features not computed. Registering with NDT.");
+//            metaroom->updateMetaRoom(aRoom); // use NDT for registration
+//        }
+//    }
 
+//    ROS_INFO_STREAM("Initializing metaroom.");
+    auto updateIteration = metaroom->updateMetaRoom(aRoom);
     // save metaroom
     ROS_INFO_STREAM("Saving metaroom.");
     MetaRoomXMLParser<PointType> meta_parser;
@@ -302,7 +340,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         m_WaypointToMetaroomMap[aRoom.getRoomStringId()] = metaroom;
         ROS_INFO_STREAM("Updated map with new metaroom for waypoint "<<aRoom.getRoomStringId());
 
-//        boost::shared_ptr<SemanticRoom<PointType> > roomPtr(&aRoom);
+        //        boost::shared_ptr<SemanticRoom<PointType> > roomPtr(&aRoom);
         m_WaypointToRoomMap[aRoom.getRoomStringId()] = aRoom;
     }
 
@@ -326,11 +364,11 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     {
         // metaroom and room observation are identical -> no dynamic clusters can be computed
 
-    ROS_INFO_STREAM("No dynamic clusters.");
+        ROS_INFO_STREAM("No dynamic clusters.");
         return;
     }
 
-    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.05,65,1000);
+    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.03,800,100000);
     metaroom->filterClustersBasedOnDistance(vClusters,3.0);
 
     ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
@@ -348,8 +386,8 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         seg.setMethodType (pcl::SAC_RANSAC);
         seg.setMaxIterations (100);
         seg.setDistanceThreshold (0.02);
-//        seg.setAxis(Eigen::Vector3f(0,0,1));
-//        seg.setEpsAngle (0.1);
+        //        seg.setAxis(Eigen::Vector3f(0,0,1));
+        //        seg.setEpsAngle (0.1);
 
         seg.setInputCloud (vClusters[i]);
         seg.segment (*inliers, *coefficients);
@@ -361,21 +399,23 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         }
     }
 
-//    // Filter out ceiling and floor clusters
-//    pcl::PassThrough<PointType> lower_pass;
-//    CloudPtr temp_cloud (new Cloud);
-//    lower_pass.setInputCloud (dynamicClusters);
-//    lower_pass.setFilterFieldName ("z");
-//    lower_pass.setFilterLimits (-.5, .5);
-////    lower_pass.filter (*temp_cloud);
-////    *dynamicClusters = *temp_cloud;
+//    *dynamicClusters = *difference;
 
-//    pcl::PassThrough<PointType> upper_pass;
-//    upper_pass.setInputCloud (dynamicClusters);
-//    upper_pass.setFilterFieldName ("z");
-//    upper_pass.setFilterLimits (0.1, 2.5);
-//    upper_pass.filter (*temp_cloud);
-//    *dynamicClusters = *temp_cloud;
+    //    // Filter out ceiling and floor clusters
+    //    pcl::PassThrough<PointType> lower_pass;
+    //    CloudPtr temp_cloud (new Cloud);
+    //    lower_pass.setInputCloud (dynamicClusters);
+    //    lower_pass.setFilterFieldName ("z");
+    //    lower_pass.setFilterLimits (-.5, .5);
+    ////    lower_pass.filter (*temp_cloud);
+    ////    *dynamicClusters = *temp_cloud;
+
+    //    pcl::PassThrough<PointType> upper_pass;
+    //    upper_pass.setInputCloud (dynamicClusters);
+    //    upper_pass.setFilterFieldName ("z");
+    //    upper_pass.setFilterLimits (0.1, 2.5);
+    //    upper_pass.filter (*temp_cloud);
+    //    *dynamicClusters = *temp_cloud;
     // cluster planarity
 
     // publish dynamic clusters

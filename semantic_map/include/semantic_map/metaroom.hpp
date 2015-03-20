@@ -16,6 +16,7 @@ MetaRoom<PointType>::MetaRoom(bool saveIntermediateSteps) : RoomBase<PointType>(
     m_MetaRoomFloorPrimitiveDirection = false;
     m_ConsistencyUpdateCloudLoaded = false;
     m_ConsistencyUpdateCloudFilename = "";
+    m_sMetaroomStringId = "";
 }
 
 template <class PointType>
@@ -225,8 +226,9 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
             this->m_SensorOrigin = tf::Vector3(0.0,0.0,0.0);
         } else {
 
-            tf::StampedTransform middleTransform = roomTransforms[(int)floor(roomTransforms.size()/2)];
-            this->m_SensorOrigin = middleTransform.getOrigin();
+//            tf::StampedTransform middleTransform = roomTransforms[(int)floor(roomTransforms.size()/2)];
+//            this->m_SensorOrigin = middleTransform.getOrigin();
+            this->m_SensorOrigin = aRoom.getIntermediateCloudTransforms()[0].getOrigin(); // transform to map frame
         }
         // filter down metaroom point cloud
         CloudPtr cloud_filtered = MetaRoom<PointType>::downsampleCloud(this->getCompleteRoomCloud()->makeShared());
@@ -266,6 +268,11 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
             Eigen::Affine3d eigen_affine; tf::transformTFToEigen(sweep_to_map, eigen_affine);
             Eigen::Matrix4f eigen_matrix(eigen_affine.matrix().cast<float>());
             this->setRoomTransform(eigen_matrix);
+        }
+
+        if (aRoom.getRoomStringId() != "")
+        {
+            this->m_sMetaroomStringId = aRoom.getRoomStringId();
         }
 
 

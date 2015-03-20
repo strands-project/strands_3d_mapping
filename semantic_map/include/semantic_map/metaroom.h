@@ -56,6 +56,7 @@ private:
     bool                                                                m_bUpdateMetaroom;
 
 public:
+    std::string                                                         m_sMetaroomStringId;
 
 
     MetaRoom(bool saveIntermediateSteps=true);

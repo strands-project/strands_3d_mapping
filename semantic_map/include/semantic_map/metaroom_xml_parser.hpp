@@ -111,6 +111,11 @@ std::string MetaRoomXMLParser<PointType>::saveMetaRoomAsXML(MetaRoom<PointType>&
         ROS_INFO_STREAM("Saving consistency update cloud file name "<<consistencyUpdateCloudFilename.toStdString());
     }
 
+    // MetaroomStringId
+    xmlWriter->writeStartElement("MetaRoomStringId");
+    xmlWriter->writeCharacters(aMetaRoom.m_sMetaroomStringId.c_str());
+    xmlWriter->writeEndElement();
+
     // RoomCentroid
     xmlWriter->writeStartElement("Centroid");
     Eigen::Vector4f centroid = aMetaRoom.getCentroid();
@@ -289,7 +294,6 @@ std::string MetaRoomXMLParser<PointType>::saveMetaRoomAsXML(MetaRoom<PointType>&
     xmlWriter->writeEndDocument();
 
     delete xmlWriter;
-    return xmlFile;
 
     return metaRoomXMLFile.toStdString();
 
@@ -518,6 +522,12 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
                 centroid(0) = centroidSlist[0].toDouble();centroid(1) = centroidSlist[1].toDouble();
                 centroid(2) = centroidSlist[2].toDouble();centroid(3) = centroidSlist[3].toDouble();
                 aMetaRoom.setCentroid(centroid);
+            }
+
+            if (xmlReader->name() == "MetaRoomStringId")
+            {
+                QString metaroomStringId = xmlReader->readElementText();
+                aMetaRoom.m_sMetaroomStringId = (metaroomStringId.toStdString());
             }
 
             if (xmlReader->name() == "SensorOrigin")
