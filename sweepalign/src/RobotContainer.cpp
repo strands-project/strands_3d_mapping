@@ -554,14 +554,14 @@ std::vector<Eigen::Matrix4f> RobotContainer::alignAndStoreSweeps(){
         return toRet;
     }
 
-    for (size_t i=0; i<todox; i++){
-        for (size_t j=0; j<todoy;j++){
-            for (size_t k=0; k<6;k++)
-            {
-                std::cout<<poses[i][j][k]<<std::endl;
-            }
-        }
-    }
+//    for (size_t i=0; i<todox; i++){
+//        for (size_t j=0; j<todoy;j++){
+//            for (size_t k=0; k<6;k++)
+//            {
+//                std::cout<<poses[i][j][k]<<std::endl;
+//            }
+//        }
+//    }
 
 
     std::cout<<"Initializing sweep camera positions."<<std::endl;
