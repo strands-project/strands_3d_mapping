@@ -40,9 +40,8 @@
 #include <pcl/search/kdtree.h>
 #include "load_utilities.h"
 
-#include <octomap_ros/conversions.h>
-#include <octomap_msgs/Octomap.h>
-#include <octomap_msgs/conversions.h>
+#include <geometry_msgs/Point.h>
+#include <pcl/common/centroid.h>
 #include <pcl/filters/voxel_grid.h>
 
 
@@ -211,6 +210,8 @@ bool ObjectManager<PointType>::dynamicObjectsServiceCallback(DynamicObjectsServi
 
     std::vector<sensor_msgs::PointCloud2> clouds;
     std::vector<std::string> id;
+    std::vector<geometry_msgs::Point> centroids;
+
     for (auto cloudObj : currentObjects)
     {
         sensor_msgs::PointCloud2 msg_objects;
@@ -219,10 +220,18 @@ bool ObjectManager<PointType>::dynamicObjectsServiceCallback(DynamicObjectsServi
 
         clouds.push_back(msg_objects);
         id.push_back(cloudObj.id);
+
+
+        Eigen::Vector4f centroid;
+        pcl::compute3DCentroid(*cloudObj.cloud, centroid);
+
+        geometry_msgs::Point ros_centroid; ros_centroid.x = centroid[0];ros_centroid.y = centroid[1];ros_centroid.z = centroid[2];
+        centroids.push_back(ros_centroid);
     }
 
     res.objects = clouds;
     res.object_id = id;
+    res.centroids = centroids;
 
     return true;
 
