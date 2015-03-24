@@ -4,6 +4,8 @@
 
 #include <Eigen/Core>
 
+#include <chrono> // DEBUG
+
 template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::set_min_match_depth(int depth)
 {
@@ -20,6 +22,168 @@ template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::proot(const double v) const
 {
     return fabs(v);
+}
+
+template <typename Point, size_t K>
+void vocabulary_tree<Point, K>::unfold_nodes(vector<node*>& path, node* n, const PointT& p, map<node*, double>& active)
+{
+    if (n->is_leaf) {
+        return;
+    }
+    node* closest = super::get_next_node(n, p);
+    if (active.count(closest) == 0) {
+        return;
+    }
+    path.push_back(closest);
+    unfold_nodes(path, closest, p, active);
+}
+
+template <typename Point, size_t K>
+void vocabulary_tree<Point, K>::get_path_for_point(vector<node*>& path, const PointT& point, map<node*, double>& active)
+{
+    path.push_back(&(super::root));
+    unfold_nodes(path, &(super::root), point, active);
+}
+
+template <typename Point, size_t K>
+void vocabulary_tree<Point, K>::compute_vocabulary_vector(std::map<node*, double>& query_id_freqs,
+                                                          CloudPtrT& query_cloud, map<node*, double>& active)
+{
+    for (PointT p : query_cloud->points) {
+        std::vector<node*> path;
+        get_path_for_point(path, p, active);
+        int current_depth = 0;
+        for (node* n : path) {
+            if (current_depth >= matching_min_depth) {
+                query_id_freqs[n] += 1.0f;
+            }
+            ++current_depth;
+        }
+    }
+
+    for (std::pair<node* const, double>& v : query_id_freqs) {
+        v.second = v.first->weight*v.second;
+    }
+}
+
+template <typename Point, size_t K>
+double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, vector<CloudPtrT>& smaller_clouds, vector<double>& pnorms,
+                                                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers) // TODO: const
+{
+    chrono::time_point<std::chrono::system_clock> start1, end1;
+    start1 = chrono::system_clock::now();
+
+    pcl::PointCloud<pcl::PointXYZRGB> remaining_centers;
+    remaining_centers += *centers;
+    pcl::PointCloud<pcl::PointXYZRGB> included_centers;
+
+    // first compute vectors to describe cloud and smaller_clouds
+    map<node*, double> cloud_freqs;
+    double qnorm = compute_query_vector(cloud_freqs, cloud);
+    double vnorm = 0.0;
+
+    map<node*, double> source_freqs; // to be filled in
+
+    vector<map<node*, double> > smaller_freqs(smaller_clouds.size());
+    //vector<double> pnorms(smaller_clouds.size());
+    for (size_t i = 0; i < smaller_clouds.size(); ++i) {
+        //pnorms[i] = compute_query_vector(smaller_freqs[i], smaller_clouds[i]);
+        compute_vocabulary_vector(smaller_freqs[i], smaller_clouds[i], cloud_freqs);
+    }
+
+    end1 = chrono::system_clock::now();
+    chrono::duration<double> elapsed_seconds1 = end1-start1;
+    cout << "First part took " << elapsed_seconds1.count() << " seconds" << endl;
+
+    chrono::time_point<std::chrono::system_clock> start2, end2;
+    start2 = chrono::system_clock::now();
+
+    double last_dist = std::numeric_limits<double>::infinity(); // large
+    // repeat until the smallest vector is
+    while (!smaller_freqs.empty()) {
+        double mindist = std::numeric_limits<double>::infinity(); // large
+        int minind = -1;
+        double mincompdist = std::numeric_limits<double>::infinity();
+
+        for (size_t i = 0; i < smaller_freqs.size(); ++i) {
+            // if added any parts, check if close enough to previous ones
+            if (!included_centers.empty()) {
+                bool close_enough = false;
+                for (pcl::PointXYZRGB& p : included_centers) {
+                    if ((eig(p) - eig(remaining_centers.at(i))).norm() < 0.2f) {
+                        close_enough = true;
+                        break;
+                    }
+                }
+                if (!close_enough) {
+                    continue;
+                }
+            }
+
+            //map<node*, double>& m = smaller_freqs[i];
+            //double dist = std::max(pnorms[i] + vnorm, qnorm);
+            double normalization = 1.0/std::max(pnorms[i] + vnorm, qnorm);
+            double dist = 1.0;
+            double compdist = pnorms[i] + vnorm;
+            for (pair<node* const, double>& v : cloud_freqs) {
+                // compute the distance that we are interested in
+                double sum_val = 0.0;
+                if (source_freqs.count(v.first) != 0) { // this could be maintained in a map as a pair with cloud_freqs
+                    sum_val += source_freqs[v.first];
+                }
+                if (smaller_freqs[i].count(v.first) != 0) {
+                    sum_val += smaller_freqs[i][v.first];
+                }
+                if (sum_val != 0) {
+                    //dist -= std::min(v.second, sum_val);
+                    dist -= normalization*std::min(v.second, sum_val);
+                }
+
+                // compute the distance that we use to compare
+                if (sum_val != 0) {
+                    compdist += std::max(sum_val - v.second, 0.0) - sum_val; // = max(-v.second, -sum_val) = -min(v.second, sum_val)
+                }
+            }
+            compdist /= (pnorms[i] + vnorm);
+            if (dist < mindist) {
+                mincompdist = compdist;
+                mindist = dist;
+                minind = i;
+            }
+        }
+
+        if (mindist > last_dist) {
+            break;
+        }
+
+        last_dist = mindist;
+        vnorm += pnorms[minind];
+
+        for (pair<node* const, double>& v : smaller_freqs[minind]) {
+            source_freqs[v.first] += v.second;
+        }
+
+        // remove the ind that we've used in the score now
+        smaller_freqs.erase(smaller_freqs.begin() + minind);
+        pnorms.erase(pnorms.begin() + minind);
+        included_centers.push_back(remaining_centers.at(minind));
+        remaining_centers.erase(remaining_centers.begin() + minind);
+    }
+
+    end2 = chrono::system_clock::now();
+    chrono::duration<double> elapsed_seconds2 = end2-start2;
+    cout << "Second part took " << elapsed_seconds2.count() << " seconds" << endl;
+
+    cout << "Breaking with " << smaller_freqs.size() << " vectors out of " << smaller_clouds.size() << " left to go." << endl;
+
+    return last_dist;
+}
+
+template <typename Point, size_t K>
+double vocabulary_tree<Point, K>::compute_vocabulary_norm(CloudPtrT& cloud)
+{
+    map<node*, double> cloud_freqs;
+    return compute_query_vector(cloud_freqs, cloud);
 }
 
 template <typename Point, size_t K>
@@ -259,9 +423,9 @@ template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::top_combined_similarities(vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
     vector<cloud_idx_score> larger_scores;
-    top_partial_similarities(larger_scores, query_cloud, 0);
+    top_larger_similarities(larger_scores, query_cloud, 0);
     vector<cloud_idx_score> smaller_scores;
-    test_partial_similarities(smaller_scores, query_cloud, 0);
+    top_smaller_similarities(smaller_scores, query_cloud, 0);
 
     map<int, double> larger_map((larger_scores.begin()), larger_scores.end());
     map<int, double> smaller_map((smaller_scores.begin()), smaller_scores.end());
@@ -283,7 +447,7 @@ void vocabulary_tree<Point, K>::top_combined_similarities(vector<cloud_idx_score
 }
 
 template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::top_partial_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
+void vocabulary_tree<Point, K>::top_larger_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
     std::map<node*, double> query_id_freqs;
     double qnorm = compute_query_vector(query_id_freqs, query_cloud);
@@ -299,9 +463,6 @@ void vocabulary_tree<Point, K>::top_partial_similarities(std::vector<cloud_idx_s
         source_freqs_for_node(source_id_freqs, v.first);
 
         for (std::pair<const int, int>& u : source_id_freqs) {
-            /*if (std::abs(total_id_freqs[u.first]-query_cloud->size()) > 10) {
-                continue;
-            }*/
             double dbnorm = db_vector_normalizing_constants[u.first];
             double pi = v.first->weight*double(u.second);
             double residual = pexp(std::max(qi-pi, 0.0))-pexp(qi); // ~ (|q_i-p_i|-|q_i|-|p_i|)+|q_i|
@@ -324,19 +485,14 @@ void vocabulary_tree<Point, K>::top_partial_similarities(std::vector<cloud_idx_s
     if (nbr_results > 0) {
         scores.resize(nbr_results);
     }
-
-    /*for (cloud_idx_score& s : scores) {
-        s.second = proot(s.second);
-    }*/
 }
 
 template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::test_partial_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
+void vocabulary_tree<Point, K>::top_smaller_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
     std::map<node*, double> query_id_freqs;
     double qnorm = compute_query_vector(query_id_freqs, query_cloud);
     std::map<int, double> map_scores;
-    //std::map<int, int> common_nodes; // DEBUG
 
     //std::map<int, int> total_id_freqs;
     //source_freqs_for_node(total_id_freqs, &(super::root));
@@ -348,29 +504,19 @@ void vocabulary_tree<Point, K>::test_partial_similarities(std::vector<cloud_idx_
         source_freqs_for_node(source_id_freqs, v.first);
 
         for (std::pair<const int, int>& u : source_id_freqs) {
-            /*if (std::abs(total_id_freqs[u.first]-query_cloud->size()) > 10) {
-                continue;
-            }*/
-            //common_nodes[u.first] += 1; // DEBUG
 
             double dbnorm = db_vector_normalizing_constants[u.first];
             double pi = v.first->weight*double(u.second);
             double residual = pexp(std::max(pi-qi, 0.0))-pexp(pi); // ~ (|q_i-p_i|-|q_i|-|p_i|)+|q_i|
-            double normalization = dbnorm;//dbnorm;//std::min(float(total_id_freqs[u.first]), float(query_cloud->size()));
+            double normalization = qnorm;
             if (map_scores.count(u.first) != 0) {
                 map_scores.at(u.first) += residual/normalization;
-                //map_scores.at(u.first) += std::min(pi, qi);
             }
             else {
                 map_scores.insert(std::make_pair(u.first, (dbnorm+residual)/normalization));
-                //map_scores.insert(std::make_pair(u.first, std::min(pi, qi)));
             }
         }
     }
-
-    /*for (pair<const int, double>& s : map_scores) { // DEBUG
-        s.second /= float(common_nodes[s.first]);
-    }*/
 
     // this could probably be optimized a bit also, quite big copy operattion
     scores.insert(scores.end(), map_scores.begin(), map_scores.end());
@@ -381,10 +527,6 @@ void vocabulary_tree<Point, K>::test_partial_similarities(std::vector<cloud_idx_
     if (nbr_results > 0) {
         scores.resize(nbr_results);
     }
-
-    /*for (cloud_idx_score& s : scores) {
-        s.second = proot(s.second);
-    }*/
 }
 
 template <typename Point, size_t K>
@@ -428,107 +570,4 @@ void vocabulary_tree<Point, K>::load(Archive& archive)
     archive(indices);
     archive(db_vector_normalizing_constants);
     archive(N);
-}
-
-template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::pyramid_match_weights_for_node(map<node*, double>& original_weights, node* n, size_t current_depth)
-{
-    if (current_depth >= matching_min_depth) {
-        if (classic_pyramid_match) {
-            original_weights.insert(make_pair(n, n->weight));
-            //n->weight = pow(1.0/double(super::dim), double(super::depth-current_depth));
-            std::map<int, int> source_id_freqs;
-            source_freqs_for_node(source_id_freqs, n);
-            n->weight = 1.0/double(source_id_freqs.size());
-        }
-        else {
-            std::vector<int> cloud_indices;
-            for (size_t i = n->range.first; i < n->range.second; ++i) {
-                leaf* l = super::leaves[i];
-                cloud_indices.insert(cloud_indices.end(), l->inds.begin(), l->inds.end());
-            }
-
-            std::vector<double> distances(cloud_indices.size());
-            for (int ind : cloud_indices) {
-                distances.push_back((eig(n->centroid)-eig(super::cloud->at(ind))).template lpNorm<1>());
-            }
-
-            double m = std::accumulate(distances.begin(), distances.end(), 0.0);
-            m /= double(distances.size());
-
-            double var = 0.0;
-            for (double d : distances) {
-                var += (d - m)*(d - m);
-            }
-
-            n->weight = std::min(1.0/sqrt(var), 200000.0); // need to check what is a good value here, check mean of leaves
-        }
-    }
-
-    if (!n->is_leaf) {
-        for (node* c : n->children) {
-            pyramid_match_weights_for_node(original_weights, c, current_depth+1);
-        }
-    }
-}
-
-template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::compute_pyramid_match_weights(map<node*, double>& original_weights)
-{
-    pyramid_match_weights_for_node(original_weights, &(super::root), 0);
-}
-
-template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::pyramid_match_score_for_node(std::map<int, double>& scores, std::map<int, int>& source_id_freqs,
-                                                             node* n, const PointT& p, int current_depth)
-{
-    if (!n->is_leaf) {
-        node* c = super::get_next_node(n, p);
-        std::map<int, int> child_id_freqs;
-        source_freqs_for_node(child_id_freqs, c);
-        for (std::pair<const int, int>& u : child_id_freqs) {
-            source_id_freqs.at(u.first) -= u.second; // might result in 0 but not less
-        }
-        pyramid_match_score_for_node(scores, child_id_freqs, c, p, current_depth+1);
-    }
-
-    if (current_depth < matching_min_depth) {
-        return;
-    }
-
-    for (pair<const int, int>& u : source_id_freqs) {
-        // but we have to compare this with the value of q also?!
-        scores[u.first] += n->weight*double(u.second);
-    }
-}
-
-template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::top_pyramid_match_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
-{
-    // in the end, this should be just a toggle, use one distance measure or the other
-    map<node*, double> original_weights; // this could be a vector of pairs instead
-    compute_pyramid_match_weights(original_weights);
-
-    std::map<int, double> map_scores;
-    std::map<int, int> source_id_freqs;
-    source_freqs_for_node(source_id_freqs, &(super::root));
-    for (PointT& p : query_cloud->points) {
-        pyramid_match_score_for_node(map_scores, source_id_freqs, &(super::root), p, 0);
-    }
-    /*int query_size = query_cloud->size();
-    if (classic_pyramid_match) {
-        for (pair<const int, double>& s : map_scores) {
-            //s.second *= 1.0/double(std::min(source_id_freqs.at(s.first), query_size));
-        }
-    }*/
-
-    scores.insert(scores.end(), map_scores.begin(), map_scores.end());
-    std::sort(scores.begin(), scores.end(), [](const cloud_idx_score& s1, const cloud_idx_score& s2) {
-        return s1.second > s2.second; // find max elements!
-    });
-    scores.resize(nbr_results);
-
-    for (pair<node* const, double>& w : original_weights) {
-        w.first->weight = w.second;
-    }
 }

@@ -89,7 +89,8 @@ set<Key> add_values(map<Key, Value>& lhs, const map<Key, Value>& rhs)
 template <typename Point, size_t K, typename Data, int Lp>
 float k_means_tree<Point, K, Data, Lp>::norm_func(const PointT& p1, const PointT& p2) const
 {
-    return (eig(p1)-eig(p2)).template lpNorm<desc_norm>();//norm();//(eig(p1)-eig(p2)).array().abs().sum();//-eig(p1).dot(eig(p2));
+    return (eig(p1)-eig(p2)).squaredNorm();//norm();//(eig(p1)-eig(p2)).array().abs().sum();
+    //return (eig(p1)-eig(p2)).template lpNorm<desc_norm>();
 }
 
 template <typename Point, size_t K, typename Data, int Lp>
@@ -196,20 +197,6 @@ vector<size_t> k_means_tree<Point, K, Data, Lp>::sample_with_replacement(size_t 
 
     return result;
 }
-
-/*
-template <typename Point, size_t K>
-typename k_means_tree<Point, K>::map_type k_means_tree<Point, K>::eig(PointT& v) const
-{
-    return map_type(v.histogram);
-}
-
-template <typename Point, size_t K>
-typename k_means_tree<Point, K>::const_map_type k_means_tree<Point, K>::eig(const PointT& v) const
-{
-    return const_map_type(v.histogram);
-}
-*/
 
 template <typename Point, size_t K, typename Data, int Lp>
 bool k_means_tree<Point, K, Data, Lp>::compare_centroids(const Eigen::Matrix<float, rows, dim>& centroids,
@@ -347,121 +334,6 @@ typename k_means_tree<Point, K, Data, Lp>::leaf_range k_means_tree<Point, K, Dat
     return range;
 }
 
-#if 0
-template <typename Point, size_t K, typename Data>
-typename k_means_tree<Point, K, Data>::leaf_range k_means_tree<Point, K, Data>::assign_nodes(CloudPtrT& subcloud, node** nodes, size_t current_depth, const vector<int>& subinds)
-{
-    std::cout << "Now doing level " << current_depth << std::endl;
-    std::cout << subcloud->size() << std::endl;
-
-    // do k-means of the points, iteratively call this again?
-    //PointT centroids[dim];
-    Eigen::Matrix<float, rows, Eigen::Dynamic> points;
-    Eigen::Matrix<float, dim, rows> centroids;
-    Eigen::Matrix<float, dim, Eigen::Dynamic> distances;
-    Eigen::Matrix<int, 1, Eigen::Dynamic> closest;
-    points.resize(rows, subcloud->size());
-    distances.resize(dim, subcloud->size());
-    closest.resize(subcloud->size());
-
-    // first, pick centroids at random
-    vector<size_t> inds = sample_with_replacement(subcloud->size());
-    for (size_t i = 0; i < dim; ++i) {
-        centroids.row(i) = eig(subcloud->points[inds[i]]);
-    }
-
-    size_t counter = 0;
-    for (const PointT& p : subcloud->points) {
-        points.col(counter) = eig(p);
-        ++counter;
-    }
-
-    //float cluster_distances[dim];
-    size_t min_iter = std::max(50, int(subcloud->size()/100));
-    counter = 0;
-    while (true) {
-        // compute closest centroids
-        distances = centroids*points;
-        for (size_t i = 0; i < distances.cols(); ++i) {
-            distances.col(i).maxCoeff(&closest(i));
-        }
-
-        if (counter >= min_iter) {
-            break;
-        }
-
-        // compute new centroids
-        centroids.setZero();
-        size_t normalizations[dim] = {};
-        for (size_t i = 0; i < closest.cols(); ++i) {
-            centroids.row(closest(i)) += points.row(i);
-            normalizations[closest(i)] += 1;
-        }
-        for (size_t i = 0; i < dim; ++i) {
-            if (normalizations[i] == 0) {
-                vector<size_t> temp = sample_with_replacement(subcloud->size());
-                centroids.row(i) = points.row(temp.back());
-            }
-            else {
-                centroids.row(i) *= 1.0f/float(normalizations[i]);
-            }
-        }
-
-        ++counter;
-    }
-
-    std::vector<int> clusters[dim];
-    for (int i = 0; i < closest.cols(); ++i) {
-        clusters[closest(i)].push_back(i);
-    }
-
-    leaf_range range(cloud->size(), 0);
-    for (size_t i = 0; i < dim; ++i) {
-        //std::cout << i << " size: " << clusters[i].size() << std::endl;
-        if (current_depth == depth || clusters[i].size() <= 1) {
-            leaf* l = new leaf;
-            l->inds.resize(clusters[i].size());
-            for (size_t j = 0; j < clusters[i].size(); ++j) {
-                l->inds[j] = subinds[clusters[i][j]];
-            }
-            eig(l->centroid) = centroids.row(i);
-            l->range.first = leaves.size();
-            l->range.second = leaves.size()+1;
-            leaves.push_back(l);
-            nodes[i] = l;
-            range.first = std::min(range.first, l->range.first);
-            range.second = std::max(range.second, l->range.second);
-            continue;
-        }
-        node* n = new node;
-        //n->centroid = centroids[i];
-        eig(n->centroid) = centroids.row(i);
-        CloudPtrT childcloud(new CloudT);
-        childcloud->resize(clusters[i].size());
-        vector<int> childinds(clusters[i].size());
-        for (size_t j = 0; j < clusters[i].size(); ++j) {
-            childcloud->at(j) = subcloud->at(clusters[i][j]);
-            childinds[j] = subinds[clusters[i][j]];
-        }
-        leaf_range rangei = assign_nodes(childcloud, n->children, current_depth+1, childinds);
-        n->range = rangei;
-        nodes[i] = n;
-        range.first = std::min(range.first, rangei.first);
-        range.second = std::max(range.second, rangei.second);
-
-        /*pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
-        inliers->indices = clusters[i];
-        pcl::ExtractIndices<PointT> extract;
-        extract.setInputCloud(subcloud);
-        extract.setIndices(inliers);
-        extract.setNegative(false);
-        extract.filter (*childcloud);*/
-    }
-
-    return range;
-}
-#endif
-
 template <typename Point, size_t K, typename Data, int Lp>
 typename k_means_tree<Point, K, Data, Lp>::leaf* k_means_tree<Point, K, Data, Lp>::get_leaf_for_point(const PointT& point)
 {
@@ -481,10 +353,15 @@ void k_means_tree<Point, K, Data, Lp>::get_path_for_point(vector<node*>& path, c
 template <typename Point, size_t K, typename Data, int Lp>
 typename k_means_tree<Point, K, Data, Lp>::node* k_means_tree<Point, K, Data, Lp>::get_next_node(node* n, const PointT& p)
 {
-    node** closest = std::min_element(n->children, n->children+dim, [this, &p](const node* q1, const node* q2) {
+    /*node** closest = std::min_element(n->children, n->children+dim, [this, &p](const node* q1, const node* q2) {
         return norm_func(p, q1->centroid) < norm_func(p, q2->centroid);
     });
-    return *closest;
+    return *closest;*/
+    double distances[dim];
+    for (size_t i = 0; i < dim; ++i) {
+        distances[i] = norm_func(p, n->children[i]->centroid);
+    }
+    return n->children[std::distance(std::begin(distances), std::min_element(distances, distances+dim))];
 }
 
 template <typename Point, size_t K, typename Data, int Lp>
@@ -573,6 +450,26 @@ void k_means_tree<Point, K, Data, Lp>::append_leaves(node* n)
 }
 
 template <typename Point, size_t K, typename Data, int Lp>
+void k_means_tree<Point, K, Data, Lp>::assign_mapping_recursive(node* n, map<node*, int>& mapping, int& counter)
+{
+    mapping[n] = counter;
+    ++counter;
+    if (n->is_leaf) {
+        return;
+    }
+    for (node* c : n->children) {
+        assign_mapping_recursive(c, mapping, counter);
+    }
+}
+
+template <typename Point, size_t K, typename Data, int Lp>
+void k_means_tree<Point, K, Data, Lp>::get_node_mapping(map<node*, int>& mapping)
+{
+    int counter = 0;
+    assign_mapping_recursive(&root, mapping, counter);
+}
+
+template <typename Point, size_t K, typename Data, int Lp>
 template <class Archive>
 void k_means_tree<Point, K, Data, Lp>::save(Archive& archive) const
 {
@@ -585,8 +482,13 @@ template <typename Point, size_t K, typename Data, int Lp>
 template <class Archive>
 void k_means_tree<Point, K, Data, Lp>::load(Archive& archive)
 {
+    cout << "Reading depth" << endl;
     archive(depth);
+    cout << "Reading points" << endl;
     archive(inserted_points); // this will not work for older file types
+    cout << "Reading tree from root" << endl;
+    archive(root.is_leaf);
     archive(root);
+    cout << "Setting up the leaves vector" << endl;
     append_leaves(&root);
 }

@@ -41,7 +41,7 @@ void reweighted_vocabulary_tree<Point, K>::compute_new_weights(map<int, double>&
 
     for (PointT p : query_cloud->points) {
         std::vector<node*> path;
-        super::get_path_for_point(path, p);
+        k_means_tree::get_path_for_point(path, p);
         for (node* n : path) {
             // if root node, skip since it contributes the same to every
             if (n == &(super::root)) {
@@ -97,7 +97,7 @@ void reweighted_vocabulary_tree<Point, K>::top_similarities_reweighted(vector<cl
     compute_new_weights(original_norm_constants, original_weights, weights, query_cloud);
     //adjust_learned_weights(original_norm_constants, original_weights, weights, query_cloud);
     //super::top_similarities(scores, query_cloud, nbr_results);
-    super::top_partial_similarities(scores, query_cloud, nbr_results);
+    super::top_similarities(scores, query_cloud, nbr_results);
     for (pair<node* const, double> v : original_weights) {
         // restore the node weights
         v.first->weight = v.second;

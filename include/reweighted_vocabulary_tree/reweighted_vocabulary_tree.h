@@ -9,6 +9,7 @@ class reweighted_vocabulary_tree : public vocabulary_tree<Point, K> {
 protected:
 
     using super = vocabulary_tree<Point, K>;
+    using k_means_tree = typename super::super;
     using typename super::PointT;
     using typename super::CloudT;
     using typename super::CloudPtrT;

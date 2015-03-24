@@ -107,11 +107,12 @@ public:
         void load(Archive& archive)
         {
             // a small hack for now, could be solved by moving serialize to save/load functions
-            static bool is_root = true;
+            // this hack does not work when loading multiple trees
+            /*static bool is_root = true;
             if (is_root) {
                 is_root = false;
                 archive(is_leaf);
-            }
+            }*/
             archive(range);
             archive(weight);
             archive(centroid.histogram);
@@ -171,6 +172,7 @@ protected:
     bool compare_centroids(const Eigen::Matrix<float, rows, dim>& centroids,
                            const Eigen::Matrix<float, rows, dim>& last_centroids) const;
     void assign_extra(CloudPtrT& subcloud, node *n, const std::vector<int>& subinds);
+    void assign_mapping_recursive(node* n, std::map<node*, int>& mapping, int& counter);
 
 public:
 
@@ -195,6 +197,7 @@ public:
     void get_cloud_for_point_at_level(CloudPtrT& nodecloud, const PointT& p, size_t level);
     void get_cloud_for_point_at_level_optimized(CloudPtrT& nodecloud, const PointT& p, size_t level);
     size_t points_in_node(node* n);
+    void get_node_mapping(std::map<node*, int>& mapping);
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);
 
