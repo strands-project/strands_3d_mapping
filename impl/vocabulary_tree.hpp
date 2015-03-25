@@ -184,9 +184,6 @@ template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, vector<map<int, double> >& smaller_freqs, vector<double>& pnorms,
                                                             pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, map<node*, int>& mapping) // TODO: const
 {
-    /*chrono::time_point<std::chrono::system_clock> start1, end1;
-    start1 = chrono::system_clock::now();*/
-
     pcl::PointCloud<pcl::PointXYZRGB> remaining_centers;
     remaining_centers += *centers;
     pcl::PointCloud<pcl::PointXYZRGB> included_centers;
@@ -198,19 +195,11 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
 
     map<int, double> source_freqs; // to be filled in
 
-    /*end1 = chrono::system_clock::now();
-    chrono::duration<double> elapsed_seconds1 = end1-start1;
-    cout << "First part took " << elapsed_seconds1.count() << " seconds" << endl;
-
-    chrono::time_point<std::chrono::system_clock> start2, end2;
-    start2 = chrono::system_clock::now();*/
-
     double last_dist = std::numeric_limits<double>::infinity(); // large
     // repeat until the smallest vector is
     while (!smaller_freqs.empty()) {
         double mindist = std::numeric_limits<double>::infinity(); // large
         int minind = -1;
-        //double mincompdist = std::numeric_limits<double>::infinity();
 
         for (size_t i = 0; i < smaller_freqs.size(); ++i) {
             // if added any parts, check if close enough to previous ones
@@ -229,7 +218,6 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
 
             double normalization = 1.0/std::max(pnorms[i] + vnorm, qnorm);
             double dist = 1.0;
-            //double compdist = pnorms[i] + vnorm;
             for (pair<const int, double>& v : cloud_freqs) {
                 // compute the distance that we are interested in
                 double sum_val = 0.0;
@@ -240,18 +228,10 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
                     sum_val += smaller_freqs[i][v.first];
                 }
                 if (sum_val != 0) {
-                    //dist -= std::min(v.second, sum_val);
                     dist -= normalization*std::min(v.second, sum_val);
                 }
-
-                // compute the distance that we use to compare
-                /*if (sum_val != 0) {
-                    compdist += std::max(sum_val - v.second, 0.0) - sum_val; // = max(-v.second, -sum_val) = -min(v.second, sum_val)
-                }*/
             }
-            //compdist /= (pnorms[i] + vnorm);
             if (dist < mindist) {
-                //mincompdist = compdist;
                 mindist = dist;
                 minind = i;
             }
@@ -274,10 +254,6 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
         included_centers.push_back(remaining_centers.at(minind));
         remaining_centers.erase(remaining_centers.begin() + minind);
     }
-
-    /*end2 = chrono::system_clock::now();
-    chrono::duration<double> elapsed_seconds2 = end2-start2;
-    cout << "Second part took " << elapsed_seconds2.count() << " seconds" << endl;*/
 
     return last_dist;
 }
@@ -522,7 +498,7 @@ void vocabulary_tree<Point, K>::compare_vocabulary_vectors(std::map<node*, doubl
     cin >> dummy;
 }
 
-template <typename Point, size_t K>
+/*template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::top_combined_similarities(vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
     vector<cloud_idx_score> larger_scores;
@@ -547,18 +523,14 @@ void vocabulary_tree<Point, K>::top_combined_similarities(vector<cloud_idx_score
         return s1.second < s2.second; // find min elements!
     });
     scores.resize(nbr_results);
-}
+}*/
 
 template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::top_larger_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
+void vocabulary_tree<Point, K>::top_combined_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
     std::map<node*, double> query_id_freqs;
     double qnorm = compute_query_vector(query_id_freqs, query_cloud);
     std::map<int, double> map_scores;
-
-    //std::map<int, int> total_id_freqs;
-    //source_freqs_for_node(total_id_freqs, &(super::root));
-    //compare_vocabulary_vectors(query_id_freqs);
 
     for (std::pair<node* const, double>& v : query_id_freqs) {
         double qi = v.second;
@@ -568,8 +540,44 @@ void vocabulary_tree<Point, K>::top_larger_similarities(std::vector<cloud_idx_sc
         for (std::pair<const int, int>& u : source_id_freqs) {
             double dbnorm = db_vector_normalizing_constants[u.first];
             double pi = v.first->weight*double(u.second);
-            double residual = pexp(std::max(qi-pi, 0.0))-pexp(qi); // ~ (|q_i-p_i|-|q_i|-|p_i|)+|q_i|
-            double normalization = qnorm;//dbnorm;//std::min(float(total_id_freqs[u.first]), float(query_cloud->size()));
+            double normalization = std::max(qnorm, dbnorm);
+            double residual = std::min(pi, qi)/normalization;
+            if (map_scores.count(u.first) != 0) {
+                map_scores.at(u.first) -= residual;
+            }
+            else {
+                map_scores.insert(std::make_pair(u.first, 1.0-residual));
+            }
+        }
+    }
+
+    // this could probably be optimized a bit also, quite big copy operattion
+    scores.insert(scores.end(), map_scores.begin(), map_scores.end());
+    std::sort(scores.begin(), scores.end(), [](const cloud_idx_score& s1, const cloud_idx_score& s2) {
+        return s1.second < s2.second; // find min elements!
+    });
+
+    if (nbr_results > 0) {
+        scores.resize(nbr_results);
+    }
+}
+
+template <typename Point, size_t K>
+void vocabulary_tree<Point, K>::top_larger_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
+{
+    std::map<node*, double> query_id_freqs;
+    double qnorm = compute_query_vector(query_id_freqs, query_cloud);
+    std::map<int, double> map_scores;
+
+    for (std::pair<node* const, double>& v : query_id_freqs) {
+        double qi = v.second;
+        std::map<int, int> source_id_freqs;
+        source_freqs_for_node(source_id_freqs, v.first);
+
+        for (std::pair<const int, int>& u : source_id_freqs) {
+            double pi = v.first->weight*double(u.second);
+            double residual = pexp(std::max(qi-pi, 0.0))-pexp(qi);
+            double normalization = qnorm;
             if (map_scores.count(u.first) == 1) {
                 map_scores.at(u.first) += residual/normalization;
             }
@@ -597,10 +605,6 @@ void vocabulary_tree<Point, K>::top_smaller_similarities(std::vector<cloud_idx_s
     double qnorm = compute_query_vector(query_id_freqs, query_cloud);
     std::map<int, double> map_scores;
 
-    //std::map<int, int> total_id_freqs;
-    //source_freqs_for_node(total_id_freqs, &(super::root));
-    //compare_vocabulary_vectors(query_id_freqs);
-
     for (std::pair<node* const, double>& v : query_id_freqs) {
         double qi = v.second;
         std::map<int, int> source_id_freqs;
@@ -611,7 +615,7 @@ void vocabulary_tree<Point, K>::top_smaller_similarities(std::vector<cloud_idx_s
             double dbnorm = db_vector_normalizing_constants[u.first];
             double pi = v.first->weight*double(u.second);
             double residual = pexp(std::max(pi-qi, 0.0))-pexp(pi); // ~ (|q_i-p_i|-|q_i|-|p_i|)+|q_i|
-            double normalization = qnorm;
+            double normalization = dbnorm;
             if (map_scores.count(u.first) != 0) {
                 map_scores.at(u.first) += residual/normalization;
             }
