@@ -153,6 +153,12 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
 {
     std::cout<<"File name "<<xml_file_name<<std::endl;
 
+    if ( ! boost::filesystem::exists( xml_file_name ) )
+    {
+        ROS_ERROR_STREAM("Xml file does not exist. Aborting.");
+        return;
+    }
+
     SemanticRoomXMLParser<PointType> parser;
     SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(xml_file_name,true);
     aRoom.resetRoomTransform();
