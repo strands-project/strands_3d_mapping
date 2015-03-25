@@ -1242,7 +1242,7 @@ void query_supervoxel_annotations_oversegments(vector<voxel_annotation>& annotat
             continue;
         }
         if (a.annotation != "ajax_1" && a.annotation != "ajax_2" && a.annotation != "ball_1") {
-            continue;
+            //continue;
         }
 
         instance_number_queries[a.annotation] += 1;
@@ -1258,8 +1258,6 @@ void query_supervoxel_annotations_oversegments(vector<voxel_annotation>& annotat
 
         vector<index_score> updated_scores;
         for (size_t i = 0; i < scores.size(); ++i) {
-            /*chrono::time_point<std::chrono::system_clock> start, end;
-            start = chrono::system_clock::now();*/
             CloudT::Ptr voxel_centers(new CloudT);
             vector<double> vocabulary_norms;
             vector<map<int, double> > vocabulary_vectors;
@@ -1269,44 +1267,6 @@ void query_supervoxel_annotations_oversegments(vector<voxel_annotation>& annotat
             //vector<double> dummy_norms;
             //get_oversegmented_voxels_for_scan(voxels, dummy_centers, dummy_norms, scores[i].first, obr_scans);
             get_oversegmented_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first, obr_scans);
-
-            /*for (size_t j = 0; j < vocabulary_norms.size(); ++j) {
-                double norm1 = vocabulary_norms[j];
-                double norm2 = 0.0;
-                for (pair<const int, double>& e : vocabulary_vectors[j]) {
-                    //cout << "(" << e.first << ", " << e.second << ") ";
-                    norm2 += e.second;
-                }
-                //cout << endl;
-                if (fabs(norm1 - norm2) > 1e-7f) {
-                    cout << "Norms not equal: " << norm1 << " != " << norm2 << endl;
-                    exit(0);
-                }
-
-                map<int, double> vocabulary_vector;
-                obr_scans.rvt.compute_query_index_vector(vocabulary_vector, voxels[j], mapping);
-
-                if (vocabulary_vector.size() != vocabulary_vectors[j].size()) {
-                    cout << "Vectors don't have same size: " << vocabulary_vector.size() << " != " << vocabulary_vectors[j].size() << endl;
-                }
-
-                for (pair<const int, double>& u : vocabulary_vectors[j]) {
-                    if (vocabulary_vector.count(u.first) == 0) {
-                        cout << "Missing an element!" << endl;
-                        exit(0);
-                    }
-                    if (fabs(u.second - vocabulary_vector[u.first]) > 1e-7) {
-                        cout << "Vector element not the same: " << u.second << " != " << vocabulary_vector[u.first] << endl;
-                        exit(0);
-                    }
-                }
-            }*/
-            //cout << voxel_centers->at(0) << ", " << voxel_centers->at(1) << endl; // seems normal
-
-            /*cout << "Vocabulary norms size: " << vocabulary_norms.size() << endl;
-            end = chrono::system_clock::now();
-            chrono::duration<double> elapsed_seconds = end-start;
-            cout << "Getting voxels took " << elapsed_seconds.count() << " seconds" << endl;*/
 
             double score = obr_scans.rvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping);
             //double score = obr_scans.rvt.compute_min_combined_dist(features, voxels, dummy_norms, dummy_centers);
@@ -1318,7 +1278,6 @@ void query_supervoxel_annotations_oversegments(vector<voxel_annotation>& annotat
         });
 
         updated_scores.resize(nbr_query);
-        //scores.resize(nbr_query);
 
         int scan_ind = scan_ind_for_supervoxel(a.segment_id, obr);
         calculate_correct_ratio(instance_correct_ratios, a, scan_ind, updated_scores, obr_scans);
