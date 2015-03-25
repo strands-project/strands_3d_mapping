@@ -31,6 +31,8 @@ public:
     using NormalCloudT = pcl::PointCloud<NormalT>;
     using index_score = vocabulary_tree<HistT, 8>::cloud_idx_score;
 
+    using my_vocabulary_tree = vocabulary_tree<HistT, 8>;
+
     static const bool use_color_weights = false;
 
     static std::string feature_vocabulary_file;
@@ -65,6 +67,7 @@ public:
                             string& metadata, size_t segment_id, const std::string& other_segment_path);
     void write_vocabulary(vocabulary_tree<HistT, 8>& vt);
     void write_vocabulary(grouped_vocabulary_tree<HistT, 8>& vt);
+    void read_vocabulary(vocabulary_tree<HistT, 8>& vt, const string& vocabulary_path);
     void read_vocabulary(vocabulary_tree<HistT, 8>& rvt);
     void read_vocabulary(grouped_vocabulary_tree<HistT, 8>& rvt);
     std::pair<double, double> calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,

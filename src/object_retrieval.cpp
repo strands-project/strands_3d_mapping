@@ -214,8 +214,10 @@ void object_retrieval::write_vocabulary(vocabulary_tree<HistT, 8>& vt)
     boost::filesystem::create_directory(base_dir);
     std::string vocabulary_file = base_dir.string() + "/" + feature_vocabulary_file;
     ofstream out(vocabulary_file, std::ios::binary);
-    cereal::BinaryOutputArchive archive_o(out);
-    archive_o(vt);
+    {
+        cereal::BinaryOutputArchive archive_o(out);
+        archive_o(vt);
+    }
 }
 
 void object_retrieval::write_vocabulary(grouped_vocabulary_tree<HistT, 8>& vt)
@@ -224,8 +226,10 @@ void object_retrieval::write_vocabulary(grouped_vocabulary_tree<HistT, 8>& vt)
     boost::filesystem::create_directory(base_dir);
     std::string vocabulary_file = base_dir.string() + "/" + grouped_vocabulary_file;
     ofstream out(vocabulary_file, std::ios::binary);
-    cereal::BinaryOutputArchive archive_o(out);
-    archive_o(vt);
+    {
+        cereal::BinaryOutputArchive archive_o(out);
+        archive_o(vt);
+    }
 }
 
 void object_retrieval::read_vocabulary(vocabulary_tree<HistT, 8>& rvt)
@@ -234,11 +238,24 @@ void object_retrieval::read_vocabulary(vocabulary_tree<HistT, 8>& rvt)
     std::string vocabulary_file = base_dir.string() + "/" + feature_vocabulary_file;
     {
         ifstream in(vocabulary_file, std::ios::binary);
-        cereal::BinaryInputArchive archive_i(in);
-        archive_i(rvt);
+        {
+            cereal::BinaryInputArchive archive_i(in);
+            archive_i(rvt);
+        }
         in.close();
     }
     cout << "Vocabulary size: " << rvt.size() << endl;
+}
+
+void object_retrieval::read_vocabulary(vocabulary_tree<HistT, 8>& vt, const string& vocabulary_path)
+{
+    ifstream in(vocabulary_path, std::ios::binary);
+    {
+        cereal::BinaryInputArchive archive_i(in);
+        archive_i(vt);
+    }
+    in.close();
+    cout << "Vocabulary size: " << vt.size() << endl;
 }
 
 void object_retrieval::read_vocabulary(grouped_vocabulary_tree<HistT, 8>& rvt)
@@ -247,8 +264,10 @@ void object_retrieval::read_vocabulary(grouped_vocabulary_tree<HistT, 8>& rvt)
     std::string vocabulary_file = base_dir.string() + "/" + grouped_vocabulary_file;
     {
         ifstream in(vocabulary_file, std::ios::binary);
-        cereal::BinaryInputArchive archive_i(in);
-        archive_i(rvt);
+        {
+            cereal::BinaryInputArchive archive_i(in);
+            archive_i(rvt);
+        }
         in.close();
     }
     cout << "Vocabulary size: " << rvt.size() << endl;
@@ -794,7 +813,7 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
     if (rvt.empty()) {
         read_vocabulary(rvt);
     }
-    rvt.top_partial_similarities(first_scores, query_cloud, 1*(nbr_query-1)+1);
+    rvt.top_larger_similarities(first_scores, query_cloud, 1*(nbr_query-1)+1);
 
     const int reweight_rounds = 1;
     for (int i = 0; i < reweight_rounds; ++i) { // do the reweighting and querying 1 time to begin with, maybe add caching of matches later

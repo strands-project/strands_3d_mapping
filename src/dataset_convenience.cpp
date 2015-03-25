@@ -421,13 +421,13 @@ string annotation_for_scan(int i, object_retrieval& obr)
         getline(f, metadata);
         f.close();
     }
-    cout << metadata << endl;
+    //cout << metadata << endl;
     boost::filesystem::path metadata_path(metadata);
     string name = metadata_path.stem().string();
     size_t pos = name.find_last_not_of("0123456789");
     int ind = stoi(name.substr(pos+1));
     string annotations_file = metadata_path.parent_path().string() + "/annotation" + to_string(ind) + ".txt";
-    cout << annotations_file << endl;
+    //cout << annotations_file << endl;
     string annotation;
     {
         ifstream f;
