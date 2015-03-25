@@ -179,6 +179,109 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
     return last_dist;
 }
 
+// keep in mind that smaller_freqs will be modified here
+template <typename Point, size_t K>
+double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, vector<map<int, double> >& smaller_freqs, vector<double>& pnorms,
+                                                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, map<node*, int>& mapping) // TODO: const
+{
+    /*chrono::time_point<std::chrono::system_clock> start1, end1;
+    start1 = chrono::system_clock::now();*/
+
+    pcl::PointCloud<pcl::PointXYZRGB> remaining_centers;
+    remaining_centers += *centers;
+    pcl::PointCloud<pcl::PointXYZRGB> included_centers;
+
+    // first compute vectors to describe cloud and smaller_clouds
+    map<int, double> cloud_freqs;
+    double qnorm = compute_query_index_vector(cloud_freqs, cloud, mapping);
+    double vnorm = 0.0;
+
+    map<int, double> source_freqs; // to be filled in
+
+    /*end1 = chrono::system_clock::now();
+    chrono::duration<double> elapsed_seconds1 = end1-start1;
+    cout << "First part took " << elapsed_seconds1.count() << " seconds" << endl;
+
+    chrono::time_point<std::chrono::system_clock> start2, end2;
+    start2 = chrono::system_clock::now();*/
+
+    double last_dist = std::numeric_limits<double>::infinity(); // large
+    // repeat until the smallest vector is
+    while (!smaller_freqs.empty()) {
+        double mindist = std::numeric_limits<double>::infinity(); // large
+        int minind = -1;
+        //double mincompdist = std::numeric_limits<double>::infinity();
+
+        for (size_t i = 0; i < smaller_freqs.size(); ++i) {
+            // if added any parts, check if close enough to previous ones
+            if (!included_centers.empty()) {
+                bool close_enough = false;
+                for (pcl::PointXYZRGB& p : included_centers) {
+                    if ((eig(p) - eig(remaining_centers.at(i))).norm() < 0.2f) {
+                        close_enough = true;
+                        break;
+                    }
+                }
+                if (!close_enough) {
+                    continue;
+                }
+            }
+
+            double normalization = 1.0/std::max(pnorms[i] + vnorm, qnorm);
+            double dist = 1.0;
+            //double compdist = pnorms[i] + vnorm;
+            for (pair<const int, double>& v : cloud_freqs) {
+                // compute the distance that we are interested in
+                double sum_val = 0.0;
+                if (source_freqs.count(v.first) != 0) { // this could be maintained in a map as a pair with cloud_freqs
+                    sum_val += source_freqs[v.first];
+                }
+                if (smaller_freqs[i].count(v.first) != 0) {
+                    sum_val += smaller_freqs[i][v.first];
+                }
+                if (sum_val != 0) {
+                    //dist -= std::min(v.second, sum_val);
+                    dist -= normalization*std::min(v.second, sum_val);
+                }
+
+                // compute the distance that we use to compare
+                /*if (sum_val != 0) {
+                    compdist += std::max(sum_val - v.second, 0.0) - sum_val; // = max(-v.second, -sum_val) = -min(v.second, sum_val)
+                }*/
+            }
+            //compdist /= (pnorms[i] + vnorm);
+            if (dist < mindist) {
+                //mincompdist = compdist;
+                mindist = dist;
+                minind = i;
+            }
+        }
+
+        if (mindist > last_dist) {
+            break;
+        }
+
+        last_dist = mindist;
+        vnorm += pnorms[minind];
+
+        for (pair<const int, double>& v : smaller_freqs[minind]) {
+            source_freqs[v.first] += v.second;
+        }
+
+        // remove the ind that we've used in the score now
+        smaller_freqs.erase(smaller_freqs.begin() + minind);
+        pnorms.erase(pnorms.begin() + minind);
+        included_centers.push_back(remaining_centers.at(minind));
+        remaining_centers.erase(remaining_centers.begin() + minind);
+    }
+
+    /*end2 = chrono::system_clock::now();
+    chrono::duration<double> elapsed_seconds2 = end2-start2;
+    cout << "Second part took " << elapsed_seconds2.count() << " seconds" << endl;*/
+
+    return last_dist;
+}
+
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_vocabulary_norm(CloudPtrT& cloud)
 {
@@ -549,6 +652,17 @@ double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, double>& 
         qnorm += pexp(v.second);
     }
 
+    return qnorm;
+}
+
+template <typename Point, size_t K>
+double vocabulary_tree<Point, K>::compute_query_index_vector(map<int, double>& query_index_freqs, CloudPtrT& query_cloud, map<node*, int>& mapping)
+{
+    map<node*, double> query_node_freqs;
+    double qnorm = compute_query_vector(query_node_freqs, query_cloud);
+    for (pair<node* const, double>& u : query_node_freqs) {
+        query_index_freqs[mapping[u.first]] = u.second;
+    }
     return qnorm;
 }
 

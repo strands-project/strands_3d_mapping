@@ -64,6 +64,8 @@ public:
 
     double compute_vocabulary_norm(CloudPtrT& cloud);
     double compute_min_combined_dist(CloudPtrT& cloud, std::vector<CloudPtrT>& smaller_clouds, std::vector<double>& pnorms, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers);
+    double compute_min_combined_dist(CloudPtrT& cloud, std::vector<std::map<int, double> >& smaller_freqs, std::vector<double>& pnorms,
+                                     pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, std::map<node*, int>& mapping);
 
     void set_min_match_depth(int depth);
     void compute_normalizing_constants(); // this also computes the weights
@@ -77,6 +79,8 @@ public:
     void top_larger_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results);
     void top_smaller_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results);
     void top_combined_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results);
+
+    double compute_query_index_vector(std::map<int, double>& query_index_freqs, CloudPtrT& query_cloud, std::map<node*, int>& mapping);
 
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);
