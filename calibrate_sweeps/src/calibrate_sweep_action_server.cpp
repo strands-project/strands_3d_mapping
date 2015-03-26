@@ -177,7 +177,13 @@ void execute(const calibrate_sweeps::CalibrateSweepsGoalConstPtr& goal, Server* 
         }
         semantic_map_room_utilities::reprojectIntermediateCloudsUsingCorrectedParams<PointType>(aRoom);
         semantic_map_room_utilities::rebuildRegisteredCloud<PointType>(aRoom);
+        // transform to global frame of reference
+        tf::StampedTransform origin = origTransforms[0];
+        CloudPtr completeCloud = aRoom.getCompleteRoomCloud();
+        pcl_ros::transformPointCloud(*completeCloud, *completeCloud,origin);
+        aRoom.setCompleteRoomCloud(completeCloud);
         string room_path = reg_parser.saveRoomAsXML(aRoom);
+        ROS_INFO_STREAM("..done");
         // recompute ORB features
         unsigned found = room_path.find_last_of("/");
         std::string base_path = room_path.substr(0,found+1);
