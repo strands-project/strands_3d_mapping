@@ -15,12 +15,14 @@
 #include "ros/time.h"
 #include "std_msgs/String.h"
 #include <tf/transform_listener.h>
+#include <tf_conversions/tf_eigen.h>
 
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
 
 // Services
 #include <object_manager/DynamicObjectsService.h>
+#include <object_manager/GetDynamicObjectService.h>
 
 // PCL includes
 #include <pcl_ros/point_cloud.h>
@@ -32,15 +34,16 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <pcl/registration/distances.h>
 #include <pcl/search/kdtree.h>
-#include <pcl/visualization/pcl_visualizer.h>
+//#include <pcl/visualization/pcl_visualizer.h>
 #include "load_utilities.h"
 
 #include <geometry_msgs/Point.h>
 #include <pcl/common/centroid.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/frustum_culling.h>
-
 #include <semantic_map/room_xml_parser.h>
+
+#include <cv_bridge/cv_bridge.h>
 
 template <class PointType>
 class ObjectManager {
@@ -51,9 +54,20 @@ public:
     typedef typename object_manager::DynamicObjectsService::Request DynamicObjectsServiceRequest;
     typedef typename object_manager::DynamicObjectsService::Response DynamicObjectsServiceResponse;
 
+    typedef typename object_manager::GetDynamicObjectService::Request GetDynamicObjectServiceRequest;
+    typedef typename object_manager::GetDynamicObjectService::Response GetDynamicObjectServiceResponse;
+
     struct ObjStruct {
         std::string id;
         CloudPtr cloud;
+    };
+
+    struct GetObjStruct
+    {
+        CloudPtr object_cloud;
+        std::vector<int> object_indices;
+        tf::StampedTransform transform_to_map;
+        cv::Mat object_mask;
     };
 
 
@@ -63,11 +77,15 @@ public:
     ~ObjectManager();
 
     bool dynamicObjectsServiceCallback(DynamicObjectsServiceRequest &req, DynamicObjectsServiceResponse &res);
+    bool getDynamicObjectServiceCallback(GetDynamicObjectServiceRequest &req, GetDynamicObjectServiceResponse &res);
     std::vector<ObjectManager<PointType>::ObjStruct>  loadDynamicObjectsFromObservation(std::string obs_file);
-    void returnObjectMask(std::string waypoint, std::string object_id, std::string observation_xml);
+    bool returnObjectMask(std::string waypoint, std::string object_id, std::string observation_xml, GetObjStruct& returned_object);
 
     ros::Publisher                                                              m_PublisherDynamicClusters;
+    ros::Publisher                                                              m_PublisherRequestedObjectCloud;
+    ros::Publisher                                                              m_PublisherRequestedObjectImage;
     ros::ServiceServer                                                          m_DynamicObjectsServiceServer;
+    ros::ServiceServer                                                          m_GetDynamicObjectServiceServer;
 
     static CloudPtr filterGroundClusters(CloudPtr dynamic, double min_height)
     {
@@ -86,6 +104,9 @@ public:
 
 
 private:
+
+    bool updateObjectsAtWaypoint(std::string waypoint_id);
+
     ros::NodeHandle                                                             m_NodeHandle;
     std::string                                                                 m_dataFolder;
     std::map<std::string, std::vector<ObjStruct>>                               m_waypointToObjMap;
@@ -108,7 +129,11 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh)
 
     m_PublisherDynamicClusters = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/object_manager/objects", 1, true);
 
+    m_PublisherRequestedObjectCloud = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/object_manager/requested_object", 1, true);
+    m_PublisherRequestedObjectImage = m_NodeHandle.advertise<sensor_msgs::Image>("/object_manager/requested_object_mask", 1, true);
+
     m_DynamicObjectsServiceServer = m_NodeHandle.advertiseService("ObjectManager/DynamicObjectsService", &ObjectManager::dynamicObjectsServiceCallback, this);
+    m_GetDynamicObjectServiceServer = m_NodeHandle.advertiseService("ObjectManager/GetDynamicObjectService", &ObjectManager::getDynamicObjectServiceCallback, this);
 }
 
 template <class PointType>
@@ -123,75 +148,16 @@ bool ObjectManager<PointType>::dynamicObjectsServiceCallback(DynamicObjectsServi
     ROS_INFO_STREAM("Received a dynamic clusters request for waypoint "<<req.waypoint_id);
 
     using namespace std;
-    std::vector<std::string> matchingObservations = semantic_map_load_utilties::getSweepXmlsForTopologicalWaypoint<PointType>(m_dataFolder, req.waypoint_id);
-    if (matchingObservations.size() == 0)
+
+    std::vector<ObjStruct> currentObjects;
+    bool objects_found = updateObjectsAtWaypoint(req.waypoint_id);
+    if (!objects_found)
     {
-        ROS_INFO_STREAM("No observations for this waypoint "<<req.waypoint_id);
         return false;
     }
-
-    sort(matchingObservations.begin(), matchingObservations.end());
-    reverse(matchingObservations.begin(), matchingObservations.end());
-    string latest = matchingObservations[0];
-    std::vector<ObjStruct> currentObjects;
-
-    ROS_INFO_STREAM("Latest observation "<<latest);
-
-    auto it = m_waypointToSweepFileMap.find(req.waypoint_id);
-    if (it == m_waypointToSweepFileMap.end())
-    {
-        // no dynamic clusters loaded for this waypoint
-        // -> load them
-        std::vector<ObjStruct> dynamicObjects = loadDynamicObjectsFromObservation(latest);
-        if (dynamicObjects.size() == 0)
-        {
-            ROS_INFO_STREAM("No objects detected after clustering.");
-            return true;
-        }
-
-        m_waypointToSweepFileMap[req.waypoint_id] = latest;
-        m_waypointToObjMap[req.waypoint_id] = dynamicObjects;
-
-        currentObjects = m_waypointToObjMap[req.waypoint_id];
-    } else {
-        if (m_waypointToSweepFileMap[req.waypoint_id] != latest)
-        {
-            ROS_INFO_STREAM("Older point cloud loaded in memory. Loading objects from latest observation ...");
-            std::vector<ObjStruct> dynamicObjects = loadDynamicObjectsFromObservation(latest);
-            if (dynamicObjects.size() == 0)
-            {
-                ROS_INFO_STREAM("No objects detected after clustering.");
-                return true;
-            }
-
-            m_waypointToSweepFileMap[req.waypoint_id] = latest;
-            m_waypointToObjMap[req.waypoint_id] = dynamicObjects;
-
-            currentObjects = m_waypointToObjMap[req.waypoint_id];
-        } else {
-            ROS_INFO_STREAM("Objects loaded in memory");
-            auto it2 =  m_waypointToObjMap.find(req.waypoint_id);
-            if (it2 == m_waypointToObjMap.end())
-            {
-                ROS_ERROR_STREAM("Object map is empty. Reload.");
-                std::vector<ObjStruct> dynamicObjects = loadDynamicObjectsFromObservation(latest);
-                if (dynamicObjects.size() == 0)
-                {
-                    ROS_INFO_STREAM("No objects detected after clustering.");
-                    return true;
-                }
-
-                m_waypointToSweepFileMap[req.waypoint_id] = latest;
-                m_waypointToObjMap[req.waypoint_id] = dynamicObjects;
-
-                currentObjects = m_waypointToObjMap[req.waypoint_id];
-            } else {
-                currentObjects = m_waypointToObjMap[req.waypoint_id];
-            }
-        }
-    }
-
+    currentObjects = m_waypointToObjMap[req.waypoint_id];
     ROS_INFO_STREAM("Found "<<currentObjects.size() <<" objects at "<<req.waypoint_id);
+
     // publish objects
     CloudPtr allObjects(new Cloud());
 
@@ -231,11 +197,113 @@ bool ObjectManager<PointType>::dynamicObjectsServiceCallback(DynamicObjectsServi
     res.object_id = id;
     res.centroids = centroids;
 
-    returnObjectMask(req.waypoint_id, "object_1",latest);
-
     return true;
 
 
+}
+
+template <class PointType>
+bool ObjectManager<PointType>::getDynamicObjectServiceCallback(GetDynamicObjectServiceRequest &req, GetDynamicObjectServiceResponse &res)
+{
+    ROS_INFO_STREAM("Received a get dynamic cluster request for waypoint "<<req.waypoint_id);
+
+    using namespace std;
+
+    std::vector<ObjStruct> currentObjects;
+    bool objects_found = updateObjectsAtWaypoint(req.waypoint_id);
+    if (!objects_found)
+    {
+        return false;
+    }
+
+    GetObjStruct object;
+    bool found =returnObjectMask(req.waypoint_id, req.object_id,m_waypointToSweepFileMap[req.waypoint_id], object);
+    if (!found)
+    {
+        return false;
+    }
+
+    res.object_mask = object.object_indices;
+    tf::transformTFToMsg(object.transform_to_map, res.transform_to_map);
+    pcl::toROSMsg(*object.object_cloud, res.object_cloud);
+    res.object_cloud.header.frame_id="/map";
+
+    m_PublisherRequestedObjectCloud.publish(res.object_cloud);
+
+    // convert to sensor_msgs::Image
+    cv_bridge::CvImage aBridgeImage;
+    aBridgeImage.image = object.object_mask;
+    aBridgeImage.encoding = "bgr8";
+    sensor_msgs::ImagePtr rosImage = aBridgeImage.toImageMsg();
+    m_PublisherRequestedObjectImage.publish(rosImage);
+
+    return true;
+}
+
+template <class PointType>
+bool ObjectManager<PointType>::updateObjectsAtWaypoint(std::string waypoint_id)
+{
+    using namespace std;
+    std::vector<std::string> matchingObservations = semantic_map_load_utilties::getSweepXmlsForTopologicalWaypoint<PointType>(m_dataFolder, waypoint_id);
+    if (matchingObservations.size() == 0)
+    {
+        ROS_INFO_STREAM("No observations for this waypoint "<<waypoint_id);
+        return false;
+    }
+
+    sort(matchingObservations.begin(), matchingObservations.end());
+    reverse(matchingObservations.begin(), matchingObservations.end());
+    string latest = matchingObservations[0];
+
+    ROS_INFO_STREAM("Latest observation "<<latest);
+
+    auto it = m_waypointToSweepFileMap.find(waypoint_id);
+    if (it == m_waypointToSweepFileMap.end())
+    {
+        // no dynamic clusters loaded for this waypoint
+        // -> load them
+        std::vector<ObjStruct> dynamicObjects = loadDynamicObjectsFromObservation(latest);
+        if (dynamicObjects.size() == 0)
+        {
+            ROS_INFO_STREAM("No objects detected after clustering.");
+            return false;
+        }
+
+        m_waypointToSweepFileMap[waypoint_id] = latest;
+        m_waypointToObjMap[waypoint_id] = dynamicObjects;
+    } else {
+        if (m_waypointToSweepFileMap[waypoint_id] != latest)
+        {
+            ROS_INFO_STREAM("Older point cloud loaded in memory. Loading objects from latest observation ...");
+            std::vector<ObjStruct> dynamicObjects = loadDynamicObjectsFromObservation(latest);
+            if (dynamicObjects.size() == 0)
+            {
+                ROS_INFO_STREAM("No objects detected after clustering.");
+                return false;
+            }
+
+            m_waypointToSweepFileMap[waypoint_id] = latest;
+            m_waypointToObjMap[waypoint_id] = dynamicObjects;
+        } else {
+            ROS_INFO_STREAM("Objects loaded in memory");
+            auto it2 =  m_waypointToObjMap.find(waypoint_id);
+            if (it2 == m_waypointToObjMap.end())
+            {
+                ROS_ERROR_STREAM("Object map is empty. Reload.");
+                std::vector<ObjStruct> dynamicObjects = loadDynamicObjectsFromObservation(latest);
+                if (dynamicObjects.size() == 0)
+                {
+                    ROS_INFO_STREAM("No objects detected after clustering.");
+                    return false;
+                }
+
+                m_waypointToSweepFileMap[waypoint_id] = latest;
+                m_waypointToObjMap[waypoint_id] = dynamicObjects;
+            }
+        }
+    }
+
+    return true;
 }
 
 template <class PointType>
@@ -290,13 +358,13 @@ std::vector<typename ObjectManager<PointType>::ObjStruct>  ObjectManager<PointTy
 }
 
 template <class PointType>
-void ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::string object_id, std::string observation_xml)
+bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::string object_id, std::string observation_xml, GetObjStruct& returned_object)
 {
     auto it =  m_waypointToObjMap.find(waypoint);
     if (it == m_waypointToObjMap.end() )
     {
         ROS_ERROR_STREAM("No objects loaded for waypoint "+waypoint);
-        return;
+        return false;
     }
 
     std::vector<ObjStruct> objects = m_waypointToObjMap[waypoint];
@@ -315,7 +383,7 @@ void ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
     if (!found)
     {
         ROS_ERROR_STREAM("Cannot find object "+object_id+" at waypoint "+waypoint);
-        return;
+        return false;
     }
 
 
@@ -324,8 +392,8 @@ void ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
 
     int argc = 0;
     char** argv;
-    pcl::visualization::PCLVisualizer* p = new pcl::visualization::PCLVisualizer (argc, argv, "Metaroom consistency");
-    p->addCoordinateSystem();
+//    pcl::visualization::PCLVisualizer* p = new pcl::visualization::PCLVisualizer (argc, argv, "Metaroom consistency");
+//    p->addCoordinateSystem();
     CloudPtr object_cloud(new Cloud());
     *object_cloud = *object.cloud;
 
@@ -334,16 +402,10 @@ void ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
     if (observation.getIntermediateCloudTransforms().size() ==0)
     {
         ROS_ERROR_STREAM("Cannot get transform to origin.");
-        return;
+        return false;
     }
 
     tf::StampedTransform transformToOrigin = observation.getIntermediateCloudTransforms()[0];
-
-//    pcl::transformPointCloud (*object_cloud, *object_cloud, roomTransform.inverse());
-//    pcl_ros::transformPointCloud(*object_cloud, *object_cloud,transformToOrigin.inverse());
-
-
-
 
     std::vector<tf::StampedTransform> allTransforms = observation.getIntermediateCloudTransformsRegistered();
     std::vector<CloudPtr> allClouds = observation.getIntermediateClouds();
@@ -375,11 +437,11 @@ void ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         pcl::PointCloud <PointType> target;
         fc.filter (target);
 
-//        ROS_INFO_STREAM("Overlap "<<target.points.size() <<" max overlap"<<max_overlap);
+        //        ROS_INFO_STREAM("Overlap "<<target.points.size() <<" max overlap"<<max_overlap);
 
         if (target.points.size() > max_overlap)
         {
-//            ROS_INFO_STREAM("Intermediate cloud "<<j<<" contains the current dynamic cluster. No Points "<<target.points.size()<<"  total points "<<object_cloud->points.size());
+            //            ROS_INFO_STREAM("Intermediate cloud "<<j<<" contains the current dynamic cluster. No Points "<<target.points.size()<<"  total points "<<object_cloud->points.size());
             max_overlap = target.points.size();
             best_index = j;
             best_transform = pose_new;
@@ -403,16 +465,16 @@ void ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         typename pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
         tree->setInputCloud (object_cloud);
 
-          // Iterate through the source data set
-          for (int i = 0; i < static_cast<int> (transformedCloud->points.size ()); ++i)
-          {
+        // Iterate through the source data set
+        for (int i = 0; i < static_cast<int> (transformedCloud->points.size ()); ++i)
+        {
             if (!isFinite (transformedCloud->points[i]))
-              continue;
+                continue;
             // Search for the closest point in the target data set (number of neighbors to find = 1)
             if (!tree->nearestKSearch (transformedCloud->points[i], 1, nn_indices, nn_distances))
             {
-              PCL_WARN ("No neighbor found for point %zu (%f %f %f)!\n", i, transformedCloud->points[i].x, transformedCloud->points[i].y, transformedCloud->points[i].z);
-              continue;
+                PCL_WARN ("No neighbor found for point %zu (%f %f %f)!\n", i, transformedCloud->points[i].x, transformedCloud->points[i].y, transformedCloud->points[i].z);
+                continue;
             }
 
             if (nn_distances[0] < 0.001)
@@ -420,10 +482,7 @@ void ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
                 src_indices.push_back (i);
                 filteredFromIntCloudCluster->push_back(transformedCloud->points[i]);
             }
-          }
-
-
-
+        }
 
         ROS_INFO_STREAM("Filtered cluster from int cloud "<<filteredFromIntCloudCluster->points.size()<<"  inliers "<<src_indices.size());
 
@@ -451,39 +510,37 @@ void ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
 
         ROS_INFO_STREAM("Image ROI "<<bottom_y<<" "<<bottom_x<<" "<<top_y - bottom_y<<" "<<top_x - bottom_x);
 
-//        if ((bottom_y < 0) || (bottom_x < 0) || (top_y - bottom_y < 0) || (top_x - bottom_x) < 0)
-//        {
-//        }
-
         cv::Rect rec(bottom_x,bottom_y,top_x - bottom_x, top_y - bottom_y);
         cv::Mat tmp = cluster_image(rec);
 
+//        cv::imwrite("image.jpg", cluster_image);
+        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
 
+        const Eigen::Affine3d eigenTr(best_transform.cast<double>());
+        tf::transformEigenToTF(eigenTr,returned_object.transform_to_map);
+        returned_object.object_cloud = CloudPtr(new Cloud());
+        *returned_object.object_cloud = *allClouds[best_index];
+//        pcl::transformPointCloud (*returned_object.object_cloud, *returned_object.object_cloud, best_transform); // transform to map frame
 
-        cv::imwrite("image.jpg", cluster_image);
+        returned_object.object_indices.insert(returned_object.object_indices.begin(), src_indices.begin(),src_indices.end());
+        returned_object.object_mask = cluster_image;
 
+        // visualization
+//        cv::waitKey(0);                                          // Wait for a keystroke in the window
 
-            cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
-            cv::waitKey(0);                                          // Wait for a keystroke in the window
+//        pcl::visualization::PointCloudColorHandlerCustom<PointType> cluster_handler (object_cloud, 0, 255, 0);
+//        pcl::visualization::PointCloudColorHandlerCustom<PointType> int_handler (transformedCloud, 255, 255, 0);
+//        p->addPointCloud(object_cloud,cluster_handler,"cluster");
+//        p->addPointCloud(transformedCloud,int_handler,"int");
+//        p->spin();
+//        p->removeAllPointClouds();
 
-
-            pcl::visualization::PointCloudColorHandlerCustom<PointType> cluster_handler (object_cloud, 0, 255, 0);
-            pcl::visualization::PointCloudColorHandlerCustom<PointType> int_handler (transformedCloud, 255, 255, 0);
-            p->addPointCloud(object_cloud,cluster_handler,"cluster");
-            p->addPointCloud(transformedCloud,int_handler,"int");
-            p->spin();
-            p->removeAllPointClouds();
-
-            // found a matching intermediate cloud
-//            pcl::visualization::PointCloudColorHandlerCustom<PointType> int_cloud_handler (transformedCloud, 255, 0, 0);
-//            pcl::visualization::PointCloudColorHandlerCustom<PointType> cluster_handler (c, 0, 255, 0);
-//            pcl::visualization::PointCloudColorHandlerCustom<PointType> cluster_from_int_handler (filteredFromIntCloudCluster, 0, 0, 255);
-//            p->addPointCloud (transformedCloud, int_cloud_handler, "int_cloud");
-//            p->addPointCloud (c, cluster_handler, "cluster_cloud");
-//            p->addPointCloud (filteredFromIntCloudCluster, cluster_from_int_handler, "cluster_from_int_cloud_cloud");
-//            p->spin();
-//            p->removeAllPointClouds();
+        return true;
+    } else {
+        return false;
     }
+
+
 
 }
 

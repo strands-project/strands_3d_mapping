@@ -4,7 +4,7 @@ project(object_manager)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build image_geometry cv_bridge semantic_map metaroom_xml_parser)
+find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs geometry_msgs pcl_ros message_generation qt_build image_geometry cv_bridge semantic_map metaroom_xml_parser)
 find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
@@ -23,12 +23,14 @@ rosbuild_prepare_qt4(QtCore QtXml)
 add_service_files(
    FILES
    DynamicObjectsService.srv
+   GetDynamicObjectService.srv
 )
 
 generate_messages(
   DEPENDENCIES
   std_msgs
   sensor_msgs
+  geometry_msgs
 )
 
 catkin_package(
