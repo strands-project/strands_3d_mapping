@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(semantic_map_publisher)
 
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs pcl_ros message_generation qt_build semantic_map metaroom_xml_parser octomap_msgs octomap_ros)
 find_package(octomap REQUIRED)
 
@@ -67,11 +64,6 @@ install(TARGETS semantic_map_publisher
 
 install(DIRECTORY include/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-)
-
-
-install(DIRECTORY launch/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
 )
 
 

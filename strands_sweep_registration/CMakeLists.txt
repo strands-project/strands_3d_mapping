@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(strands_room)
-
-
+project(strands_sweep_registration)
 
 set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3")
 
@@ -81,5 +79,22 @@ target_link_libraries(ProblemFrameConnection_strands_room pair3DError_strands_ro
 
 add_library(RobotContainer_strands_room src/RobotContainer.cpp)
 target_link_libraries(RobotContainer_strands_room ProblemFrameConnection_strands_room pair3DError_strands_room util_strands_room Sweep_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+
+############################# INSTALL TARGETS
+
+install(TARGETS PixelFunction_strands_room Camera_strands_room  Frame_strands_room Sweep_strands_room util_strands_room pair3DError_strands_room ProblemFrameConnection_strands_room RobotContainer_strands_room
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY include/semantic_map/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
+
+install(DIRECTORY launch/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
 
 

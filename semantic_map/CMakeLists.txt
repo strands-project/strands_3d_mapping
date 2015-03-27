@@ -4,7 +4,7 @@ project(semantic_map)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build image_geometry cv_bridge tf_conversions strands_room)
+find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build image_geometry cv_bridge tf_conversions strands_sweep_registration)
 find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
@@ -23,13 +23,6 @@ add_message_files(
   RoomObservation.msg
 )
 
-#add_service_files(
-#   FILES
-#   MetaroomService.srv
-#   DynamicClusterService.srv
-#   ObservationService.srv
-# )
-
 generate_messages(
   DEPENDENCIES
   std_msgs
@@ -39,7 +32,7 @@ generate_messages(
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES semantic_map
-   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge mongodb_store tf_conversions strands_room pcl_ros image_geometry qt_build
+   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge mongodb_store tf_conversions strands_sweep_registration pcl_ros image_geometry qt_build
    DEPENDS PCL qt_ros
 )
 
