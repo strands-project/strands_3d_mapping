@@ -42,6 +42,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/frustum_culling.h>
 #include <semantic_map/room_xml_parser.h>
+#include <semantic_map/reg_transforms.h>
 
 #include <cv_bridge/cv_bridge.h>
 
@@ -68,6 +69,7 @@ public:
         std::vector<int> object_indices;
         tf::StampedTransform transform_to_map;
         cv::Mat object_mask;
+        int pan_angle, tilt_angle;
     };
 
 
@@ -227,6 +229,8 @@ bool ObjectManager<PointType>::getDynamicObjectServiceCallback(GetDynamicObjectS
     tf::transformTFToMsg(object.transform_to_map, res.transform_to_map);
     pcl::toROSMsg(*object.object_cloud, res.object_cloud);
     res.object_cloud.header.frame_id="/map";
+    res.pan_angle = -object.pan_angle;
+    res.tilt_angle = -object.tilt_angle;
 
     m_PublisherRequestedObjectCloud.publish(res.object_cloud);
 
@@ -236,6 +240,9 @@ bool ObjectManager<PointType>::getDynamicObjectServiceCallback(GetDynamicObjectS
     aBridgeImage.encoding = "bgr8";
     sensor_msgs::ImagePtr rosImage = aBridgeImage.toImageMsg();
     m_PublisherRequestedObjectImage.publish(rosImage);
+
+    // Move PTU to the object position
+
 
     return true;
 }
@@ -524,6 +531,14 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
 
         returned_object.object_indices.insert(returned_object.object_indices.begin(), src_indices.begin(),src_indices.end());
         returned_object.object_mask = cluster_image;
+
+        int pan_angle = 0, tilt_angle = 0;
+        semantic_map_registration_transforms::getPtuAnglesForIntPosition(observation.pan_start, observation.pan_step, observation.pan_end,
+                                                                         observation.tilt_start, observation.tilt_step, observation.tilt_end,
+                                                                         best_index, pan_angle, tilt_angle, true);
+
+        returned_object.pan_angle = pan_angle;
+        returned_object.tilt_angle = tilt_angle;
 
         // visualization
 //        cv::waitKey(0);                                          // Wait for a keystroke in the window
