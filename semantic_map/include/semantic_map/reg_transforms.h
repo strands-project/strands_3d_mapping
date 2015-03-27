@@ -19,6 +19,9 @@ namespace semantic_map_registration_transforms
 
     std::string saveCameraParameters(image_geometry::PinholeCameraModel camParams, bool verbose=false, std::string file="camera_params.txt");
     image_geometry::PinholeCameraModel loadCameraParameters(std::string file="default", bool verbose=false);
+
+    void getPtuAnglesForIntPosition(int pan_start, int pan_step, int pan_end, int tilt_start, int tilt_step, int tilt_end,
+                                    int int_position, int& pan_angle, int& tilt_angle, bool verbose = false);
 }
 
 

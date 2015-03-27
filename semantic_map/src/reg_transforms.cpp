@@ -278,3 +278,20 @@ image_geometry::PinholeCameraModel semantic_map_registration_transforms::loadCam
 
     return toRet;
 }
+
+void semantic_map_registration_transforms::getPtuAnglesForIntPosition(int pan_start, int pan_step, int pan_end, int tilt_start, int tilt_step, int tilt_end,
+                                int int_position, int& pan_angle, int& tilt_angle, bool verbose)
+{
+    int pan_steps = ((abs(pan_start)+abs(pan_end))/pan_step) + 1;
+    cout<<"Pan steps "<<pan_steps<<endl;
+    int tilt_steps = ((abs(tilt_start)+abs(tilt_end))/tilt_step) + 1;
+    cout<<"Tilt steps "<<tilt_steps<<endl;
+
+    tilt_angle = (int_position/pan_steps) * tilt_step + tilt_start;
+    pan_angle = (int_position%pan_steps) * pan_step + pan_start;
+
+    if (verbose)
+    {
+        cout<<"For intermediate position "<<int_position<<" the PTU angles are pan: "<<pan_angle<<"  tilt: "<<tilt_angle<<endl;
+    }
+}
