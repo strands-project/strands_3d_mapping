@@ -4,8 +4,7 @@ project(semantic_map_publisher)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build image_geometry cv_bridge semantic_map metaroom_xml_parser octomap_msgs octomap_ros)
-find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs pcl_ros message_generation qt_build semantic_map metaroom_xml_parser octomap_msgs octomap_ros)
 find_package(octomap REQUIRED)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
@@ -38,8 +37,8 @@ generate_messages(
 
 catkin_package(
    INCLUDE_DIRS include
-   LIBRARIES semantic_map
-   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge octomap_msgs octomap_ros
+   LIBRARIES
+   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs octomap_msgs octomap_ros  semantic_map metaroom_xml_parser
    DEPENDS PCL octomap
 )
 
@@ -56,9 +55,6 @@ add_dependencies(semantic_map_publisher semantic_map_generate_messages_cpp primi
  target_link_libraries(semantic_map_publisher
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
-   ${QT_LIBRARIES}
-   ${Boost_LIBRARIES}
-   semantic_map
   )
 
 ############################# INSTALL TARGETS
