@@ -4,7 +4,7 @@ project(cloud_merge)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs tf pcl_ros semantic_map image_geometry image_transport qt_build)
+find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp std_msgs sensor_msgs tf pcl_ros semantic_map image_geometry image_transport qt_build)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
 
@@ -17,7 +17,7 @@ rosbuild_prepare_qt4(QtCore QtXml)
 
 catkin_package(
    INCLUDE_DIRS include
-   CATKIN_DEPENDS mongodb_store
+   CATKIN_DEPENDS mongodb_store semantic_map std_msgs sensor_msgs tf pcl_ros image_geometry image_transport qt_build
 )
 
 include_directories(include
