@@ -4,7 +4,7 @@ project(cloud_merge)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs tf pcl_ros semantic_map image_geometry image_transport qt_build )
+find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs tf pcl_ros semantic_map image_geometry image_transport qt_build)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
 
@@ -27,16 +27,13 @@ include_directories(include
 
 set(HDRS
     include/cloud_merge.h
-    include/cloud_merge_node.h
-    include/mongodb_interface.h)
+    include/cloud_merge_node.h)
 
 set(SRCS
     src/cloud_merge.cpp
-    src/cloud_merge_node.cpp
-    src/mongodb_interface.cpp
-    src/main.cpp)
+    src/cloud_merge_node.cpp)
 
-add_executable(cloud_merge ${HDRS} ${SRCS})
+add_executable(cloud_merge ${HDRS} ${SRCS} src/main.cpp)
 
 add_dependencies(cloud_merge ${catkin_EXPORTED_TARGETS})
 

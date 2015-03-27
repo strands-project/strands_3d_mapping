@@ -48,9 +48,10 @@
 #include <semantic_map/reg_transforms.h>
 #include <semantic_map/reg_features.h>
 #include <semantic_map/room_utilities.h>
+#include <semantic_map/mongodb_interface.h>
 
 #include "cloud_merge.h"
-#include "mongodb_interface.h"
+
 
 
 template <class PointType>

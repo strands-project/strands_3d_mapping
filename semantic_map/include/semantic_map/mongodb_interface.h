@@ -27,8 +27,15 @@ class MongodbInterface {
 public:
 
 
-    MongodbInterface(ros::NodeHandle nh);
-    ~MongodbInterface();
+    MongodbInterface(ros::NodeHandle nh)  : m_messageStoreData(nh,"data","metric_maps"), m_messageStoreSummary(nh,"summary","metric_maps")
+    {
+        m_NodeHandle = nh;
+    }
+
+    ~MongodbInterface()
+    {
+
+    }
 
     template <class PointType>
     bool logRoomToDB(SemanticRoom<PointType> aRoom, std::string roomXMLPath)
