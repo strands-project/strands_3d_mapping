@@ -231,77 +231,77 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
 
     // update metaroom
     // check if the sweep poses have been precomputed
-//    unsigned int x,y;
-//    double*** rawPoses = semantic_map_registration_transforms::loadRegistrationTransforms(x,y);
-//    RegistrationFeatures reg(false);
-//    std::vector<RegistrationFeatures::RegistrationData> mr_features = reg.loadOrbFeatures(matchingMetaroomXML, false);
-//    std::vector<RegistrationFeatures::RegistrationData> room_features = reg.loadOrbFeatures(xml_file_name, false);
-//    std::cout<<"MR features "<<mr_features.size()<<" room features "<<room_features.size()<<std::endl;
-//    std::cout<<"Room xml "<<xml_file_name<<" MR xml "<<matchingMetaroomXML<<std::endl;
+    unsigned int x,y;
+    double*** rawPoses = semantic_map_registration_transforms::loadRegistrationTransforms(x,y);
+    RegistrationFeatures reg(false);
+    std::vector<RegistrationFeatures::RegistrationData> mr_features = reg.loadOrbFeatures(matchingMetaroomXML, false);
+    std::vector<RegistrationFeatures::RegistrationData> room_features = reg.loadOrbFeatures(xml_file_name, false);
+    std::cout<<"MR features "<<mr_features.size()<<" room features "<<room_features.size()<<std::endl;
+    std::cout<<"Room xml "<<xml_file_name<<" MR xml "<<matchingMetaroomXML<<std::endl;
 
-//    if (!found)
-//    {
-//        ROS_INFO_STREAM("Initializing metaroom.");
+    bool do_registration = true;
+    if (!found)
+    {
+        ROS_INFO_STREAM("Initializing metaroom.");
 //        metaroom->updateMetaRoom(aRoom);
-//    } else {
+    } else {
 
-//        if ((rawPoses !=NULL) && (mr_features.size() != 0) && (room_features.size() != 0))
-//        {
-//            ROS_INFO_STREAM("Registering sweep using ORB features.");
-//            unsigned int gx = 17;
-//            unsigned int todox = 17;
-//            unsigned int gy = 3;
-//            unsigned int todoy = 3;
-//            RobotContainer* new_rc = new RobotContainer(gx,todox,gy,todoy);
-//            new_rc->initializeCamera(540.0, 540.0,319.5, 219.5, 640, 480);
-//            for (size_t i=0; i<todox; i++){
-//                for (size_t j=0; j<todoy;j++){
-//                    for (size_t k=0; k<6;k++)
-//                    {
+        if ((rawPoses !=NULL) && (mr_features.size() != 0) && (room_features.size() != 0))
+        {
+            ROS_INFO_STREAM("Registering sweep using ORB features.");
+            unsigned int gx = 17;
+            unsigned int todox = 17;
+            unsigned int gy = 3;
+            unsigned int todoy = 3;
+            RobotContainer* new_rc = new RobotContainer(gx,todox,gy,todoy);
+            new_rc->initializeCamera(540.0, 540.0,319.5, 219.5, 640, 480);
+            for (size_t i=0; i<todox; i++){
+                for (size_t j=0; j<todoy;j++){
+                    for (size_t k=0; k<6;k++)
+                    {
 
-//                        new_rc->poses[i][j][k] = rawPoses[i][j][k];
-//                    }
-//                }
-//            }
-//            new_rc->addToTrainingORBFeatures(matchingMetaroomXML);
-//            new_rc->addToTrainingORBFeatures(xml_file_name);
-//            std::vector<Eigen::Matrix4f> reg_transforms = new_rc->alignAndStoreSweeps();
+                        new_rc->poses[i][j][k] = rawPoses[i][j][k];
+                    }
+                }
+            }
+            new_rc->addToTrainingORBFeatures(matchingMetaroomXML);
+            new_rc->addToTrainingORBFeatures(xml_file_name);
+            std::vector<Eigen::Matrix4f> reg_transforms = new_rc->alignAndStoreSweeps();
 
-//            std::vector<Eigen::Matrix4f> sweepPoses = new_rc->sweeps[1]->getPoseVector();
-//            auto roomTransforms = aRoom.getIntermediateCloudTransforms();
-//            aRoom.clearIntermediateCloudRegisteredTransforms();
+            std::vector<Eigen::Matrix4f> sweepPoses = new_rc->sweeps[1]->getPoseVector();
+            auto roomTransforms = aRoom.getIntermediateCloudTransforms();
+            aRoom.clearIntermediateCloudRegisteredTransforms();
 
-//            for (size_t j=0; j<roomTransforms.size();j++)
-//            {
-//                tf::StampedTransform roomTransform = roomTransforms[j];
-//                const Eigen::Affine3d eigenTr(sweepPoses[j].cast<double>());
-//                tf::Transform tfTr;
-//                tf::transformEigenToTF(eigenTr, tfTr);
+            for (size_t j=0; j<roomTransforms.size();j++)
+            {
+                tf::StampedTransform roomTransform = roomTransforms[j];
+                const Eigen::Affine3d eigenTr(sweepPoses[j].cast<double>());
+                tf::Transform tfTr;
+                tf::transformEigenToTF(eigenTr, tfTr);
 
-//                roomTransform.setOrigin(tfTr.getOrigin());
-//                roomTransform.setBasis(tfTr.getBasis());
+                roomTransform.setOrigin(tfTr.getOrigin());
+                roomTransform.setBasis(tfTr.getBasis());
 
-//                aRoom.addIntermediateRoomCloudRegisteredTransform(roomTransform);
-//            }
+                aRoom.addIntermediateRoomCloudRegisteredTransform(roomTransform);
+            }
 
-//            semantic_map_room_utilities::rebuildRegisteredCloud<PointType>(aRoom);
-//            CloudPtr roomCloud = aRoom.getCompleteRoomCloud();
-//            pcl::transformPointCloud (*roomCloud, *roomCloud, metaroom->getRoomTransform());
+            semantic_map_room_utilities::rebuildRegisteredCloud<PointType>(aRoom);
+            CloudPtr roomCloud = aRoom.getCompleteRoomCloud();
+            pcl::transformPointCloud (*roomCloud, *roomCloud, metaroom->getRoomTransform());
 
-//            aRoom.setCompleteRoomCloud(roomCloud);
-//            parser.saveRoomAsXML(aRoom);
-//            delete new_rc;
-
+            aRoom.setCompleteRoomCloud(roomCloud);
+            parser.saveRoomAsXML(aRoom);
+            delete new_rc;
+            do_registration = false;
 //            metaroom->updateMetaRoom(aRoom, "", false); // already registered, do not use NDT
 
-//        } else {
-//            ROS_INFO_STREAM("Preregistered sweep poses not found or ORB features not computed. Registering with NDT.");
+        } else {
+            ROS_INFO_STREAM("Preregistered sweep poses not found or ORB features not computed. Registering with NDT.");
 //            metaroom->updateMetaRoom(aRoom); // use NDT for registration
-//        }
-//    }
+        }
+    }
 
-//    ROS_INFO_STREAM("Initializing metaroom.");
-    auto updateIteration = metaroom->updateMetaRoom(aRoom);
+    auto updateIteration = metaroom->updateMetaRoom(aRoom,"",do_registration);
 
     // save metaroom
     ROS_INFO_STREAM("Saving metaroom.");
