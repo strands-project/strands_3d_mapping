@@ -7,15 +7,12 @@ set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-co
 
 find_package(catkin REQUIRED COMPONENTS
 	metaroom_xml_parser
-#	semantic_map
 	pcl_ros
         image_geometry
         cpp_common
         roscpp
         rosconsole
         tf_conversions
-        actionlib
-        actionlib_msgs
 )
 
 rosbuild_prepare_qt4(QtCore QtXml)
@@ -36,8 +33,8 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 #Opencv stuff
-link_directories(/usr/lib/x86_64-linux-gnu)
-include_directories(/usr/include/)
+#link_directories(/usr/lib/x86_64-linux-gnu)
+#include_directories(/usr/include/)
 
 #QT
 find_package(Qt4 REQUIRED)
@@ -84,16 +81,5 @@ target_link_libraries(ProblemFrameConnection_strands_room pair3DError_strands_ro
 
 add_library(RobotContainer_strands_room src/RobotContainer.cpp)
 target_link_libraries(RobotContainer_strands_room ProblemFrameConnection_strands_room pair3DError_strands_room util_strands_room Sweep_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
-
-###########################
-##APPS#####################
-###########################
-
-#add_executable(room_reader_rares src/apps/reader_rares.cpp )
-#target_link_libraries(room_reader_rares RobotContainer_strands_room Sweep_strands_room image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
-
-#add_executable(reader src/apps/reader.cpp )
-#target_link_libraries(reader RobotContainer_strands_room Sweep_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
-
 
 
