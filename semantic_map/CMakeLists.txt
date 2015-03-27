@@ -5,7 +5,6 @@ project(semantic_map)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build image_geometry cv_bridge tf_conversions strands_room)
-
 find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
@@ -122,13 +121,6 @@ add_dependencies(semantic_map_node semantic_map_generate_messages_cpp primitive_
    ${Boost_LIBRARIES}
    semantic_map
   )
-
-# target_link_libraries(calibrate_sweep_as
-#   ${catkin_LIBRARIES}
-#   ${PCL_LIBRARIES}
-#   ${QT_LIBRARIES}
-#   ${Boost_LIBRARIES}
-#  )
 
 ############################# INSTALL TARGETS
 
