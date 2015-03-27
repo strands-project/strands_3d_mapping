@@ -40,7 +40,7 @@
 #include "reg_features.h"
 #include "reg_transforms.h"
 #include "room_utilities.h"
-#include "RobotContainer.h"
+#include <strands_sweep_registration/RobotContainer.h>
 
 template <class PointType>
 class SemanticMapNode {

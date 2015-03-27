@@ -13,7 +13,7 @@
 #include <semantic_map/room_utilities.h>
 #include <semantic_map/reg_transforms.h>
 #include "load_utilities.h"
-#include "RobotContainer.h"
+#include <strands_sweep_registration/RobotContainer.h>
 
 typedef pcl::PointXYZRGB PointType;
 typedef pcl::PointCloud<pcl::PointXYZRGB> Cloud;
