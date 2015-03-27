@@ -294,9 +294,10 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         ROS_INFO_STREAM("Cannot update metaroom with this room instance. Metaroom centroid: "<<this->getCentroid()<<" Room centroid: "<<aRoom.getCentroid());
 
         MetaRoomUpdateIteration<PointType> updateIteration;
-        updateIteration.roomLogName = aRoom.getRoomLogName();
-        updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
-        updateIteration.metaRoomInteriorCloud = this->getInteriorRoomCloud();
+//        updateIteration.roomLogName = aRoom.getRoomLogName();
+//        updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
+//        updateIteration.metaRoomInteriorCloud = this->getInteriorRoomCloud();
+        // don't set any data since we couldn't perform the update
         return updateIteration;
     }
 

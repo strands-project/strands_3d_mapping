@@ -306,8 +306,9 @@ public:
                             aEntityStruct.roomXmlFile = xmlReader->readElementText().toStdString();
                         }
                         if (xmlReader->name() == "RoomStringId")
-                        {
+                        {                            
                             aEntityStruct.stringId = xmlReader->readElementText().toStdString();
+                            ROS_INFO_STREAM("Found RoomStringId"<<aEntityStruct.stringId);
                         }
 
                         if (xmlReader->name() == "RoomCentroid")
@@ -349,6 +350,7 @@ public:
                         if (xmlReader->name() == "MetaRoomStringId")
                         {
                             aEntityStruct.stringId = xmlReader->readElementText().toStdString();
+                            ROS_INFO_STREAM("Found MetaRoomStringId"<<aEntityStruct.stringId);
                         }
                         token = xmlReader->readNext();
                     }
@@ -462,6 +464,10 @@ private:
                             xmlWriter->writeCharacters(centroidS);
                             xmlWriter->writeEndElement();
 
+                            xmlWriter->writeStartElement("MetaRoomStringId");
+                            xmlWriter->writeCharacters(savedMetaRoom.m_sMetaroomStringId.c_str());
+                            xmlWriter->writeEndElement();
+
                             xmlWriter->writeEndElement(); // MetaRoom
 
                         }
@@ -550,6 +556,10 @@ private:
                     Eigen::Vector4f centroid = aRoom.getCentroid();
                     QString centroidS = QString::number(centroid(0))+" "+QString::number(centroid(1))+" "+QString::number(centroid(2))+" "+QString::number(centroid(3));
                     xmlWriter->writeCharacters(centroidS);
+                    xmlWriter->writeEndElement();
+
+                    xmlWriter->writeStartElement("RoomStringId");
+                    xmlWriter->writeCharacters(aRoom.getRoomStringId().c_str());
                     xmlWriter->writeEndElement();
 
                     xmlWriter->writeEndElement();

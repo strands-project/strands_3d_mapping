@@ -49,20 +49,9 @@ public:
     typedef typename Cloud::Ptr CloudPtr;
     typedef typename SemanticMapSummaryParser::EntityStruct Entities;
 
-    //    typedef typename semantic_map::MetaroomService::Request MetaroomServiceRequest;
-    //    typedef typename semantic_map::MetaroomService::Response MetaroomServiceResponse;
-    //    typedef typename semantic_map::MetaroomService::Request ObservationServiceRequest;
-    //    typedef typename semantic_map::MetaroomService::Response ObservationServiceResponse;
-    //    typedef typename semantic_map::DynamicClusterService::Request DynamicClusterServiceRequest;
-    //    typedef typename semantic_map::DynamicClusterService::Response DynamicClusterServiceResponse;
-
-
     typedef typename std::map<std::string, boost::shared_ptr<MetaRoom<PointType> > >::iterator WaypointMetaroomMapIterator;
     typedef typename std::map<std::string, SemanticRoom<PointType> >::iterator WaypointRoomMapIterator;
     typedef typename std::map<std::string, CloudPtr>::iterator WaypointPointCloudMapIterator;
-
-//    using pcl::visualization::PointCloudColorHandlerCustom;
-
 
     SemanticMapNode(ros::NodeHandle nh);
     ~SemanticMapNode();
@@ -70,17 +59,11 @@ public:
     void processRoomObservation(std::string xml_file_name);
 
     void roomObservationCallback(const semantic_map::RoomObservationConstPtr& obs_msg);
-    //    bool metaroomServiceCallback(MetaroomServiceRequest &req, MetaroomServiceResponse &res);
-    //    bool dynamicClusterServiceCallback(DynamicClusterServiceRequest &req, DynamicClusterServiceResponse &res);
-    //    bool observationServiceCallback(ObservationServiceRequest &req, ObservationServiceResponse &res);
 
     ros::Subscriber                                                             m_SubscriberRoomObservation;
     ros::Publisher                                                              m_PublisherMetaroom;
     ros::Publisher                                                              m_PublisherObservation;
     ros::Publisher                                                              m_PublisherDynamicClusters;
-    //    ros::ServiceServer                                                          m_MetaroomServiceServer;
-    //    ros::ServiceServer                                                          m_DynamicClusterServiceServer;
-    //    ros::ServiceServer                                                          m_ObservationServiceServer;
 
 private:
     ros::NodeHandle                                                             m_NodeHandle;
@@ -108,11 +91,6 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
     m_PublisherMetaroom = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/metaroom", 1, true);
     m_PublisherDynamicClusters = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/dynamic_clusters", 1, true);
     m_PublisherObservation = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/merged_point_cloud_downsampled", 1, true);
-
-
-    //    m_MetaroomServiceServer = m_NodeHandle.advertiseService("SemanticMap/MetaroomService", &SemanticMapNode::metaroomServiceCallback, this);
-    //    m_DynamicClusterServiceServer = m_NodeHandle.advertiseService("SemanticMap/DynamicClusterService", &SemanticMapNode::dynamicClusterServiceCallback, this);
-    //    m_ObservationServiceServer = m_NodeHandle.advertiseService("SemanticMap/ObservationService", &SemanticMapNode::observationServiceCallback, this);
 
     bool save_intermediate;
     m_NodeHandle.param<bool>("save_intermediate",save_intermediate,false);
@@ -204,11 +182,11 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         }
     }
 
-
     // if not loaded already, look through already saved metarooms
     if (!found)
     {
         std::vector<Entities> allMetarooms = m_SummaryParser.getMetaRooms();
+        ROS_INFO_STREAM("Loaded "<<allMetarooms.size()<<" metarooms.");
         for (size_t i=0; i<allMetarooms.size();i++)
         {
             // compare by waypoint, if set
@@ -324,11 +302,17 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
 
 //    ROS_INFO_STREAM("Initializing metaroom.");
     auto updateIteration = metaroom->updateMetaRoom(aRoom);
+
     // save metaroom
     ROS_INFO_STREAM("Saving metaroom.");
     MetaRoomXMLParser<PointType> meta_parser;
     meta_parser.saveMetaRoomAsXML(*metaroom);
 
+    if (updateIteration.roomRunNumber == -1) // no update performed
+    {
+        ROS_ERROR_STREAM("Could not update metaroom with the room instance.");
+        return;
+    }
     CloudPtr roomCloud = aRoom.getInteriorRoomCloud();
     CloudPtr metaroomCloud = metaroom->getInteriorRoomCloud();
 
@@ -363,7 +347,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     tree->setInputCloud (metaroomCloud);
     segment.setSearchMethod(tree);
     segment.segment(*difference);
-    ROS_INFO_STREAM("Computed differences");
+    ROS_INFO_STREAM("Computed differences " << difference->points.size());
     ROS_INFO_STREAM("Metaroom cloud "<<metaroomCloud->points.size()<<"  room cloud "<<roomCloud->points.size());
 
     if (difference->points.size() == 0)
@@ -375,7 +359,9 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     }
 
     std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.03,800,100000);
+    ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
     metaroom->filterClustersBasedOnDistance(vClusters,3.0);
+    ROS_INFO_STREAM(vClusters.size()<<" different clusters after max distance filtering.");
 
     ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
 
