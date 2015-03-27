@@ -5,7 +5,7 @@
 #include <string>
 #include <stdio.h>
 
-#include "PixelFunction/PixelFunction.h"
+#include "PixelFunction.h"
 
 class Camera {
 	public:

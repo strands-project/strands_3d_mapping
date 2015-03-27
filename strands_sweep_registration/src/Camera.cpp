@@ -1,4 +1,4 @@
-#include "Camera.h"
+#include "strands_sweep_registration/Camera.h"
 #include <fstream>
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv/cv.hpp"

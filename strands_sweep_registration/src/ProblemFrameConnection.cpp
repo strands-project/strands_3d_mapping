@@ -1,4 +1,4 @@
-#include "ProblemFrameConnection.h"
+#include "strands_sweep_registration/ProblemFrameConnection.h"
 
 ProblemFrameConnection::ProblemFrameConnection(ceres::Problem & problem, Frame * src_, Frame * dst_, double * shared_params, double * src_variable_, double * dst_variable_, float weight, bool show){
 	src = src_;

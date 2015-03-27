@@ -1,4 +1,4 @@
-#include "Sweep.h"
+#include "strands_sweep_registration/Sweep.h"
 
 #include "cv.h" 
 #include "highgui.h"

@@ -1,4 +1,4 @@
-#include "PixelFunction.h"
+#include "strands_sweep_registration/PixelFunction.h"
 #include <iostream>
 #include <fstream>
 #include <string>

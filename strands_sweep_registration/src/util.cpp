@@ -1,4 +1,4 @@
-#include "util.h"
+#include "strands_sweep_registration/util.h"
 
 int popcount_lauradoux(uint64_t *buf, uint32_t size) {
 	const uint64_t* data = (uint64_t*) buf;
