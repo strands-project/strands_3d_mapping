@@ -11,6 +11,10 @@ SemanticRoom<PointType>::SemanticRoom(bool saveIntermediateClouds) : RoomBase<Po
     m_RoomLogName = "";
     m_RoomRunNumber = -1;
     m_bIsMetaRoom = false;
+
+    // initialize sweep parameters with defaults
+    pan_start = -160; pan_step = 20; pan_end = 160; // 17 horizontal steps
+    tilt_start = -30; tilt_step = 30; tilt_end = 30; // 3 vertical steps
 }
 
 template <class PointType>

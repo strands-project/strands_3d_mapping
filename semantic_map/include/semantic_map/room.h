@@ -120,6 +120,11 @@ public:
     bool operator==(const SemanticRoom& rhs); // equality operator -> deep comparison of all fields
 
     static Eigen::Vector4f computeCentroid(CloudPtr cloud);
+
+    // public members (should be private ...)
+    int                                              pan_start, pan_step, pan_end;
+    int                                              tilt_start, tilt_step, tilt_end;
+
 };
 
 #include "room.hpp"
