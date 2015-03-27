@@ -308,7 +308,6 @@ public:
                         if (xmlReader->name() == "RoomStringId")
                         {                            
                             aEntityStruct.stringId = xmlReader->readElementText().toStdString();
-                            ROS_INFO_STREAM("Found RoomStringId"<<aEntityStruct.stringId);
                         }
 
                         if (xmlReader->name() == "RoomCentroid")
@@ -350,7 +349,6 @@ public:
                         if (xmlReader->name() == "MetaRoomStringId")
                         {
                             aEntityStruct.stringId = xmlReader->readElementText().toStdString();
-                            ROS_INFO_STREAM("Found MetaRoomStringId"<<aEntityStruct.stringId);
                         }
                         token = xmlReader->readNext();
                     }
