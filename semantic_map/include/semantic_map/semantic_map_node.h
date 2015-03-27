@@ -243,7 +243,6 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     if (!found)
     {
         ROS_INFO_STREAM("Initializing metaroom.");
-//        metaroom->updateMetaRoom(aRoom);
     } else {
 
         if ((rawPoses !=NULL) && (mr_features.size() != 0) && (room_features.size() != 0))
@@ -293,11 +292,8 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
             parser.saveRoomAsXML(aRoom);
             delete new_rc;
             do_registration = false;
-//            metaroom->updateMetaRoom(aRoom, "", false); // already registered, do not use NDT
-
         } else {
             ROS_INFO_STREAM("Preregistered sweep poses not found or ORB features not computed. Registering with NDT.");
-//            metaroom->updateMetaRoom(aRoom); // use NDT for registration
         }
     }
 
