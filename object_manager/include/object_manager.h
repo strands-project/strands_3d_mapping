@@ -521,7 +521,7 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         cv::Mat tmp = cluster_image(rec);
 
 //        cv::imwrite("image.jpg", cluster_image);
-        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
+//        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
 
         const Eigen::Affine3d eigenTr(best_transform.cast<double>());
         tf::transformEigenToTF(eigenTr,returned_object.transform_to_map);
@@ -535,7 +535,7 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         int pan_angle = 0, tilt_angle = 0;
         semantic_map_registration_transforms::getPtuAnglesForIntPosition(observation.pan_start, observation.pan_step, observation.pan_end,
                                                                          observation.tilt_start, observation.tilt_step, observation.tilt_end,
-                                                                         best_index, pan_angle, tilt_angle, true);
+                                                                         best_index, pan_angle, tilt_angle);
 
         returned_object.pan_angle = pan_angle;
         returned_object.tilt_angle = tilt_angle;
