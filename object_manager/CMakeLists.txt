@@ -4,8 +4,7 @@ project(object_manager)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs geometry_msgs pcl_ros message_generation qt_build image_geometry cv_bridge semantic_map metaroom_xml_parser)
-find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs geometry_msgs pcl_ros message_generation qt_build cv_bridge semantic_map metaroom_xml_parser)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
 set(CMAKE_PREFIX_PATH /usr/share/pcl-1.7/ ${CMAKE_PREFIX_PATH})
@@ -36,8 +35,8 @@ generate_messages(
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES semantic_map
-   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge
-   DEPENDS PCL octomap
+   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge semantic_map metaroom_xml_parser qt_build geometry_msgs pcl_ros
+   DEPENDS PCL
 )
 
 include_directories(include
@@ -52,8 +51,6 @@ add_dependencies(object_manager_node object_manager_node_generate_messages_cpp)
  target_link_libraries(object_manager_node
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
-   ${QT_LIBRARIES}
-   ${Boost_LIBRARIES}
   )
 
 ############################# INSTALL TARGETS
