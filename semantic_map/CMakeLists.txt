@@ -10,7 +10,6 @@ find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
 
 set(CMAKE_PREFIX_PATH /usr/share/pcl-1.7/ ${CMAKE_PREFIX_PATH})
-
 set(PCL_DIR /usr/share/pcl-1.7/)
 find_package(PCL 1.7 REQUIRED NO_DEFAULT_PATH)
 include_directories(${PCL_INCLUDE_DIRS})
@@ -40,8 +39,8 @@ generate_messages(
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES semantic_map
-   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge mongodb_store tf_conversions strands_room
-   DEPENDS PCL
+   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge mongodb_store tf_conversions strands_room pcl_ros image_geometry qt_build
+   DEPENDS PCL qt_ros
 )
 
 include_directories(include

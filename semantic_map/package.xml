@@ -33,12 +33,14 @@
   <run_depend>sensor_msgs</run_depend>
   <run_depend>message_runtime</run_depend>
   <run_depend>libqt4-dev</run_depend>
+  <run_depend>qt_build</run_depend>
   <run_depend>qt_ros</run_depend>
   <run_depend>mongodb_store</run_depend>
   <run_depend>libpcl-all</run_depend>
   <run_depend>pcl_ros</run_depend>
   <run_depend>cv_bridge</run_depend>
   <run_depend>tf_conversions</run_depend>
+  <run_depend>image_geometry</run_depend>
   <run_depend>strands_room</run_depend>
 
   <export>
