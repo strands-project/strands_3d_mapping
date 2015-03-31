@@ -1,0 +1,11 @@
+#goal
+int32 min_num_sweeps
+int32 max_num_sweeps
+string sweep_location
+string save_location
+---
+#result
+string calibration_file
+---
+#feedback
+int32 percentage_done

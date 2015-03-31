@@ -57,6 +57,7 @@ private:
     std::vector<bool>                                m_vIntermediateRoomCloudsLoaded;
     std::vector<std::string>                         m_vIntermediateRoomCloudsFilenames;
     std::vector<image_geometry::PinholeCameraModel>  m_vIntermediateRoomCloudsCamParams;
+    std::vector<image_geometry::PinholeCameraModel>  m_vIntermediateRoomCloudsCamParamsCorrected;
 
     // intermediate cloud images
     std::vector<IntermediatePositionImages>                m_vIntermediatePositionImages;
@@ -98,6 +99,9 @@ public:
     std::vector<tf::StampedTransform> getIntermediateCloudTransformsRegistered();
     std::vector<tf::StampedTransform> getIntermediateCloudTransforms();
     std::vector<image_geometry::PinholeCameraModel> getIntermediateCloudCameraParameters();
+    std::vector<image_geometry::PinholeCameraModel> getIntermediateCloudCameraParametersCorrected();
+    void clearIntermediateCloudCameraParametersCorrected();
+    void addIntermediateCloudCameraParametersCorrected(image_geometry::PinholeCameraModel params);
     std::vector<bool>   getIntermediateCloudsLoaded();
     std::vector<std::string>   getIntermediateCloudsFilenames();
 
@@ -116,6 +120,11 @@ public:
     bool operator==(const SemanticRoom& rhs); // equality operator -> deep comparison of all fields
 
     static Eigen::Vector4f computeCentroid(CloudPtr cloud);
+
+    // public members (should be private ...)
+    int                                              pan_start, pan_step, pan_end;
+    int                                              tilt_start, tilt_step, tilt_end;
+
 };
 
 #include "room.hpp"

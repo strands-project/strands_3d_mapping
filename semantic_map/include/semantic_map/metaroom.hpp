@@ -1,4 +1,8 @@
 #include "semantic_map/metaroom.h"
+#include "semantic_map/reg_features.h"
+#include "metaroom_xml_parser.h"
+
+#include <tf_conversions/tf_eigen.h>
 
 template <class PointType>
 MetaRoom<PointType>::MetaRoom(bool saveIntermediateSteps) : RoomBase<PointType>(), m_SensorOrigin(0.0,0.0,0.0), m_ConsistencyUpdateCloud(new Cloud()), m_bSaveIntermediateSteps(saveIntermediateSteps),
@@ -12,6 +16,7 @@ MetaRoom<PointType>::MetaRoom(bool saveIntermediateSteps) : RoomBase<PointType>(
     m_MetaRoomFloorPrimitiveDirection = false;
     m_ConsistencyUpdateCloudLoaded = false;
     m_ConsistencyUpdateCloudFilename = "";
+    m_sMetaroomStringId = "";
 }
 
 template <class PointType>
@@ -195,7 +200,7 @@ void MetaRoom<PointType>::setSensorOrigin(tf::Vector3 so)
 }
 
 template <class PointType>
-bool    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std::string savePath)
+MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std::string savePath, bool registerRoom)
 {
     // check if meta room is initialized
     if (!this->m_CompleteRoomCloudLoaded && this->m_CompleteRoomCloudFilename == "")
@@ -209,14 +214,21 @@ bool    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std:
         ROS_INFO_STREAM("Room run number "<<aRoom.getRoomRunNumber());
 //            ROS_INFO_STREAM("Room centroid "<<aRoom.getCentroid());
         std::vector<tf::StampedTransform> roomTransforms = aRoom.getIntermediateCloudTransforms();
+        std::vector<tf::StampedTransform> roomRegisteredTransforms = aRoom.getIntermediateCloudTransformsRegistered();
+        if (roomRegisteredTransforms.size() != 0)
+        {
+           roomTransforms = roomRegisteredTransforms;
+        }
+
         if (roomTransforms.size() == 0)
         {
             ROS_INFO_STREAM("No intermediate transforms saved. Sensor origin will be set as the origin");
             this->m_SensorOrigin = tf::Vector3(0.0,0.0,0.0);
         } else {
 
-            tf::StampedTransform middleTransform = roomTransforms[(int)floor(roomTransforms.size()/2)];
-            this->m_SensorOrigin = middleTransform.getOrigin();
+//            tf::StampedTransform middleTransform = roomTransforms[(int)floor(roomTransforms.size()/2)];
+//            this->m_SensorOrigin = middleTransform.getOrigin();
+            this->m_SensorOrigin = aRoom.getIntermediateCloudTransforms()[0].getOrigin(); // transform to map frame
         }
         // filter down metaroom point cloud
         CloudPtr cloud_filtered = MetaRoom<PointType>::downsampleCloud(this->getCompleteRoomCloud()->makeShared());
@@ -244,8 +256,31 @@ bool    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std:
         SemanticRoomXMLParser<PointType> parser(rootFolderPath.toStdString());
         parser.saveRoomAsXML(aRoom);
 
+        // Save ORB features in metaroom folder. Will be used later on for registration with other sweeps
+        MetaRoomXMLParser<PointType> meta_parser;
+        QString meta_folder = meta_parser.findMetaRoomLocation(this);
+        RegistrationFeatures reg(true);
+        reg.saveOrbFeatures<pcl::PointXYZRGB>(aRoom,meta_folder.toStdString());
 
-        return true;
+        if (aRoom.getIntermediateCloudTransforms().size() >0)
+        {
+            tf::StampedTransform sweep_to_map = aRoom.getIntermediateCloudTransforms()[0];
+            Eigen::Affine3d eigen_affine; tf::transformTFToEigen(sweep_to_map, eigen_affine);
+            Eigen::Matrix4f eigen_matrix(eigen_affine.matrix().cast<float>());
+            this->setRoomTransform(eigen_matrix);
+        }
+
+        if (aRoom.getRoomStringId() != "")
+        {
+            this->m_sMetaroomStringId = aRoom.getRoomStringId();
+        }
+
+
+        MetaRoomUpdateIteration<PointType> updateIteration;
+        updateIteration.roomLogName = aRoom.getRoomLogName();
+        updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
+        updateIteration.metaRoomInteriorCloud = this->getInteriorRoomCloud();
+        return updateIteration;
     }
 
     // update with semantic room
@@ -257,56 +292,65 @@ bool    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std:
     {
         // this room is not a match for this metaroom
         ROS_INFO_STREAM("Cannot update metaroom with this room instance. Metaroom centroid: "<<this->getCentroid()<<" Room centroid: "<<aRoom.getCentroid());
-        return false;
+
+        MetaRoomUpdateIteration<PointType> updateIteration;
+//        updateIteration.roomLogName = aRoom.getRoomLogName();
+//        updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
+//        updateIteration.metaRoomInteriorCloud = this->getInteriorRoomCloud();
+        // don't set any data since we couldn't perform the update
+        return updateIteration;
     }
 
 
     // check if semantic room needs to be transformed into the metaroom frame of reference
     Eigen::Matrix4f roomTransform = aRoom.getRoomTransform();
-    if (roomTransform == Eigen::Matrix4f::Identity())
+    CloudPtr transformedRoomCloud(new Cloud);
+    *transformedRoomCloud = *aRoom.getCompleteRoomCloud();; // initialize with room cloud
+    if (registerRoom && (roomTransform == Eigen::Matrix4f::Identity()))
     { // identity transform -> needs to be updated
         ROS_INFO_STREAM("Transforming semantic room into metaroom frame of reference.");
         CloudPtr output(new Cloud);
         Eigen::Matrix4f finalTransform;
         CloudPtr roomCloud = aRoom.getCompleteRoomCloud();
 
-        CloudPtr transformedRoomCloud(new Cloud);
-        transformedRoomCloud = NdtRegistration<PointType>::registerClouds(roomCloud, this->getCompleteRoomCloud(),finalTransform);
-
-        ROS_INFO_STREAM("Room alignment complete.");
-
-        // extract noise and re-align rooms (hoping to get a better alignment without the noise outside the walls).
-        CloudPtr roomDownsampledCloud = MetaRoom<PointType>::downsampleCloud(transformedRoomCloud);
-
-        aRoom.setDeNoisedRoomCloud(roomDownsampledCloud);
-
+        transformedRoomCloud = NdtRegistration<PointType>::registerClouds(roomCloud, this->getInteriorRoomCloud(),finalTransform);
+        // Update room XML file to reflect new transformation
         aRoom.setRoomTransform(finalTransform);
-
-        // Update room XML file to reflect new transformation, and new point clouds
+        ROS_INFO_STREAM("Room alignment complete.");
         ROS_INFO_STREAM("Updating room xml with new transform to metaroom.");
-        aRoom.setInteriorRoomCloud(roomDownsampledCloud);
-
-        QString rootFolderPath;
-
-        if (savePath == "")
-        {
-            // save room in the correct folder
-            QString roomXml(aRoom.getCompleteRoomCloudFilename().c_str());
-            int date = roomXml.indexOf("201");
-            rootFolderPath = roomXml.left(date);
-        } else {
-            rootFolderPath = QString(savePath.c_str()) + QString("/");
-        }
-
-        ROS_INFO_STREAM("Initializeing room xml parser with root folder "<<rootFolderPath.toStdString());
-        SemanticRoomXMLParser<PointType> parser(rootFolderPath.toStdString());
-        parser.saveRoomAsXML(aRoom);
+        ROS_INFO_STREAM("Final transform "<<finalTransform);
     }
+
+
+    // set interior room cloud as downsampled original cloud (after transformation, if registration is enabled)
+    CloudPtr roomDownsampledCloud = MetaRoom<PointType>::downsampleCloud(transformedRoomCloud);
+    aRoom.setDeNoisedRoomCloud(roomDownsampledCloud);
+    aRoom.setInteriorRoomCloud(roomDownsampledCloud);
+
+    QString rootFolderPath;
+
+    if (savePath == "")
+    {
+       // save room in the correct folder
+       QString roomXml(aRoom.getCompleteRoomCloudFilename().c_str());
+       int date = roomXml.indexOf("201");
+       rootFolderPath = roomXml.left(date);
+    } else {
+       rootFolderPath = QString(savePath.c_str()) + QString("/");
+    }
+
+    ROS_INFO_STREAM("Initializeing room xml parser with root folder "<<rootFolderPath.toStdString());
+    SemanticRoomXMLParser<PointType> parser(rootFolderPath.toStdString());
+    parser.saveRoomAsXML(aRoom);
 
     if (!m_bUpdateMetaroom)
     {
         // stop here, don't update the metaroom with the room observation
-        return true;
+        MetaRoomUpdateIteration<PointType> updateIteration;
+        updateIteration.roomLogName = aRoom.getRoomLogName();
+        updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
+        updateIteration.metaRoomInteriorCloud = this->getInteriorRoomCloud();
+        return updateIteration;
     }
 
     // compute differences between the two (aligned) points clouds
@@ -351,78 +395,126 @@ bool    MetaRoom<PointType>::updateMetaRoom(SemanticRoom<PointType>& aRoom, std:
         *differenceRoomToMetaRoomFiltered = *differenceRoomToMetaRoom;
         *differenceMetaRoomToRoomFiltered = *differenceMetaRoomToRoom;
 
+        CloudPtr toBeAdded(new Cloud());
+        CloudPtr toBeRemoved(new Cloud());
+
         // Cluster objects
-//        std::vector<CloudPtr> vDifferenceMetaRoomToRoomClusters = this->clusterPointCloud(differenceMetaRoomToRoomFiltered,0.05,65,100000);
-//        std::vector<CloudPtr> vDifferenceRoomToMetaRoomClusters = this->clusterPointCloud(differenceRoomToMetaRoomFiltered,0.05,65,100000);
+        std::vector<CloudPtr> vDifferenceMetaRoomToRoomClusters = this->clusterPointCloud(differenceMetaRoomToRoomFiltered,0.05,65,100000);
+        std::vector<CloudPtr> vDifferenceRoomToMetaRoomClusters = this->clusterPointCloud(differenceRoomToMetaRoomFiltered,0.05,65,100000);
 
 
-//        // filter clusters based on distance
+        // filter clusters based on distance
 //        double maxDistance = 3.0; // max of 3 meters
 //        this->filterClustersBasedOnDistance(vDifferenceRoomToMetaRoomClusters, maxDistance);
 //        this->filterClustersBasedOnDistance(vDifferenceMetaRoomToRoomClusters, maxDistance);
 
-//        // check cluster occlusions
+        // check cluster occlusions
 //        OcclusionChecker<PointType> occlusionChecker;
 //        occlusionChecker.setSensorOrigin(m_SensorOrigin);
-//        std::vector<CloudPtr> clustersToBeAdded = occlusionChecker.checkOcclusions(vDifferenceMetaRoomToRoomClusters, vDifferenceRoomToMetaRoomClusters);
+//        std::vector<CloudPtr> clustersToBeAdded = occlusionChecker.checkOcclusions(vDifferenceMetaRoomToRoomClusters, vDifferenceRoomToMetaRoomClusters, 720);
 //        ROS_INFO_STREAM("Finished checking occlusions.");
 
 //        // add all the clusters together for subtraction
 //        int pointsAdded =0, pointsRemoved = 0;
-//        CloudPtr allClusters(new Cloud());
+
 //        for (size_t i=0; i<vDifferenceMetaRoomToRoomClusters.size();i++)
 //        {
-//            *allClusters += *vDifferenceMetaRoomToRoomClusters[i];
+//            *toBeRemoved += *vDifferenceMetaRoomToRoomClusters[i];
 //            pointsRemoved += vDifferenceMetaRoomToRoomClusters[i]->points.size();
 //        }
 
 //        // update metaroom by subracting the difference to the room
 //        CloudPtr updatedMetaRoomCloud(new Cloud());
 //        segment.setInputCloud(this->getInteriorRoomCloud());
-//        segment.setTargetCloud(allClusters);
+//        segment.setTargetCloud(toBeRemoved);
 //        segment.segment(*updatedMetaRoomCloud);
 
-//        CloudPtr cloudToBeAdded(new Cloud());
+
 //        // add ocluded clusters from the room
 //        for (size_t i=0; i<clustersToBeAdded.size(); i++)
 //        {
-//            *cloudToBeAdded += *clustersToBeAdded[i];
+//            *toBeAdded += *clustersToBeAdded[i];
 //            pointsAdded += clustersToBeAdded[i]->points.size();
 //        }
-//        *updatedMetaRoomCloud += *cloudToBeAdded;
+//        *updatedMetaRoomCloud += *toBeAdded;
 
-        //        ROS_INFO_STREAM("Metaroom update. Points removed: "<<pointsRemoved<<"   Points added: "<<pointsAdded);
+//        ROS_INFO_STREAM("Metaroom update. Points removed: "<<pointsRemoved<<"   Points added: "<<pointsAdded);
+
+        MetaRoomUpdateIteration<PointType> updateIteration;
+        updateIteration.roomLogName = aRoom.getRoomLogName();
+        updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
+        if (differenceMetaRoomToRoomFiltered->points.size()!=0) {
+        updateIteration.setDifferenceMetaRoomToRoom(differenceMetaRoomToRoomFiltered);
+        }
+
+        if (differenceRoomToMetaRoomFiltered->points.size() != 0) {
+        updateIteration.setDifferenceRoomToMetaRoom(differenceRoomToMetaRoomFiltered);
+        }
+
+//        // Combine clusters into difference point cloud
+//        CloudPtr combinedDifferenceMRtoR(new Cloud());
+//        CloudPtr combinedDifferenceRtoMR(new Cloud());
+//        for (size_t i=0; i<vDifferenceMetaRoomToRoomClusters.size();i++)
+//        {
+//            *combinedDifferenceMRtoR += *vDifferenceMetaRoomToRoomClusters[i];
+//        }
+//        for (size_t i=0; i<vDifferenceRoomToMetaRoomClusters.size();i++)
+//        {
+//            *combinedDifferenceRtoMR += *vDifferenceRoomToMetaRoomClusters[i];
+//        }
 
         OcclusionChecker<PointType> occlusionChecker;
         occlusionChecker.setSensorOrigin(m_SensorOrigin);
         typename OcclusionChecker<PointType>::occluded_points occlusions;
         occlusions = occlusionChecker.checkOcclusions(differenceMetaRoomToRoom,differenceRoomToMetaRoom, 720 );
+//        occlusions = occlusionChecker.checkOcclusions(combinedDifferenceMRtoR,combinedDifferenceRtoMR, 720 );
+        *toBeAdded = *occlusions.toBeAdded;
+        *toBeRemoved = *occlusions.toBeRemoved;
+        ROS_INFO_STREAM("To be added "<<toBeAdded->points.size()<<"  to be removed  "<<toBeRemoved->points.size());
 
-        CloudPtr updatedMetaRoomCloud(new Cloud());
-        segment.setInputCloud(this->getInteriorRoomCloud());
-        segment.setTargetCloud(occlusions.toBeRemoved);
-        segment.segment(*updatedMetaRoomCloud);
-        *updatedMetaRoomCloud += *occlusions.toBeAdded;
-        ROS_INFO_STREAM("Metaroom update. Points removed: "<<occlusions.toBeRemoved->points.size()<<"   Points added: "<<occlusions.toBeAdded->points.size());
-
-        this->setInteriorRoomCloud(updatedMetaRoomCloud);
-
-        if (m_bSaveIntermediateSteps)
+//        if ((toBeRemoved->points.size() > 0.1*this->getInteriorRoomCloud()->points.size()) ||
+//                (toBeAdded->points.size() > 0.1*this->getInteriorRoomCloud()->points.size()))
+//        {
+//            ROS_INFO_STREAM("Metaroom update. Points removed: "<<toBeRemoved->points.size()<<"   Points added: "<<toBeAdded->points.size()<<" Skipping this observations as it would add/remove too many points. Something may have gone wrong.");
+//            this->setInteriorRoomCloud(this->getInteriorRoomCloud());
+//            return updateIteration;
+//        } else
         {
-            if ((differenceMetaRoomToRoomFiltered->points.size()!=0) && (differenceRoomToMetaRoomFiltered->points.size() != 0))
-            {
-                MetaRoomUpdateIteration<PointType> updateIteration;
-                updateIteration.roomLogName = aRoom.getRoomLogName();
-                updateIteration.roomRunNumber = aRoom.getRoomRunNumber();
-                updateIteration.setDifferenceMetaRoomToRoom(differenceMetaRoomToRoomFiltered);
-                updateIteration.setDifferenceRoomToMetaRoom(differenceRoomToMetaRoomFiltered);
-//                updateIteration.setClustersToBeAdded(cloudToBeAdded);
-//                updateIteration.setClustersToBeRemoved(allClusters);
-                updateIteration.setClustersToBeAdded(occlusions.toBeAdded);
-                updateIteration.setClustersToBeRemoved(occlusions.toBeRemoved);
-                updateIteration.setMetaRoomInteriorCloud(updatedMetaRoomCloud);
-                m_MetaRoomUpdateIterations.push_back(updateIteration);
+            CloudPtr updatedMetaRoomCloud(new Cloud());
+            segment.setInputCloud(this->getInteriorRoomCloud());
+            segment.setTargetCloud(toBeRemoved);
+            segment.segment(*updatedMetaRoomCloud);
+            if (toBeAdded->points.size()){
+                *updatedMetaRoomCloud += *toBeAdded;
             }
+//            ROS_INFO_STREAM("Metaroom update. Points removed: "<<toBeRemoved->points.size()<<"   Points added: "<<toBeAdded->points.size());
+//            {
+//                // apply a statistical noise removal filter
+//                CloudPtr updatedMetaRoomCloudFiltered(new Cloud());
+//                pcl::StatisticalOutlierRemoval<PointType> sor;
+//                sor.setInputCloud (updatedMetaRoomCloud);
+//                sor.setMeanK (50);
+//                sor.setStddevMulThresh (10);
+//                sor.filter (*updatedMetaRoomCloudFiltered);
+//                *updatedMetaRoomCloud = *updatedMetaRoomCloudFiltered;
+//            }
+
+            this->setInteriorRoomCloud(updatedMetaRoomCloud);
+
+            if (toBeAdded->points.size() != 0) {
+            updateIteration.setClustersToBeAdded(toBeAdded);
+            }
+            if (toBeRemoved->points.size() != 0) {
+            updateIteration.setClustersToBeRemoved(toBeRemoved);
+            }
+            updateIteration.setMetaRoomInteriorCloud(updatedMetaRoomCloud);
+
+            if (m_bSaveIntermediateSteps)
+            {
+                    m_MetaRoomUpdateIterations.push_back(updateIteration);
+            }
+
+            return updateIteration;
         }
 
     }

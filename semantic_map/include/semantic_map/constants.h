@@ -1,7 +1,7 @@
 #ifndef __SEMANTIC_MAP_CONSTANTS__H
 #define __SEMANTIC_MAP_CONSTANTS__H
 
-const double ROOM_CENTROID_DISTANCE = 1;   // meters
+const double ROOM_CENTROID_DISTANCE = 1.5;   // meters
 
 enum SEMANTIC_MAP_ENTITY_TYPE
 {

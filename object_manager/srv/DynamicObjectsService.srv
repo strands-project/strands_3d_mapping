@@ -1,0 +1,5 @@
+string waypoint_id
+---
+string[] object_id
+sensor_msgs/PointCloud2[] objects
+geometry_msgs/Point[] centroids

@@ -1,0 +1,3 @@
+---
+string[] waypoint_id
+int32[] observation_count

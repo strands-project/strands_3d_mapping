@@ -24,8 +24,9 @@ std::vector<SimpleSummaryParser::EntityStruct> SimpleSummaryParser::getRooms()
 }
 
 
-bool SimpleSummaryParser::createSummaryXML(std::string rootFolder)
+bool SimpleSummaryParser::createSummaryXML(std::string rootFolder, bool verbose)
 {
+    ROS_INFO_STREAM("Reading observations from "<<rootFolder);
     rootFolder+=std::string("/"); // just to make sure, doesn't matter if there are two /
 
     QString qrootFolder;
@@ -60,76 +61,19 @@ bool SimpleSummaryParser::createSummaryXML(std::string rootFolder)
     xmlWriter->writeStartDocument();
     xmlWriter->writeStartElement("SemanticMap");
 
-    saveSemanticRooms(xmlWriter, qrootFolder);
+    saveSemanticRooms(xmlWriter, qrootFolder, verbose);
 
     xmlWriter->writeEndElement(); // SemanticMap
     xmlWriter->writeEndDocument();
 
-    ROS_INFO_STREAM("Created semantic map summary xml.");
-
+    ROS_INFO_STREAM("Done looking for observations. Found "<<m_vAllRooms.size()<<" observations.");
 
     return true;
 }
 
-void SimpleSummaryParser::saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString qrootFolder)
+void SimpleSummaryParser::saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString qrootFolder, bool verbose)
 {
     xmlWriter->writeStartElement("SemanticRooms");
-
-//    // parse folder structure and look for semantic objects
-//    QStringList dateFolders = QDir(qrootFolder).entryList(QStringList("*"),
-//                                                    QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time);
-
-//    for (size_t i=0; i<dateFolders.size(); i++)
-//    {
-//        bool isValidDate = true;
-//        // check that this is indeed a data folder (there might be other folders)
-//        if (dateFolders[i].size() != 8 )
-//        {
-//            isValidDate = false;
-//        } else {
-//            for (size_t letter_count = 0; letter_count<dateFolders[i].size(); letter_count++)
-//            {
-//                if (!dateFolders[i].at(letter_count).isDigit())
-//                {
-//                    isValidDate = false;
-//                    break;
-//                }
-//            }
-//        }
-
-//        if (!isValidDate)
-//        {
-//            std::cout<<"Skipping folder "<<dateFolders[i].toStdString()<<" as it doesn't have the right format."<<std::endl;
-//            continue;
-//        }
-
-//        QString dateFolder = qrootFolder+dateFolders[i];
-//        QStringList patrolFolders = QDir(dateFolder).entryList(QStringList("*"),
-//                                                                QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
-//        for (size_t j=0; j<patrolFolders.size(); j++)
-//        {
-//            QString patrolFolder = dateFolder + "/" + patrolFolders[j];
-//            QStringList roomFolders = QDir(patrolFolder).entryList(QStringList("*"),
-//                                                                 QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot,QDir::Time| QDir::Reversed);
-//            for (size_t k=0; k<roomFolders.size(); k++)
-//            {
-
-//                // parse XML file and extract some important fields with which to populate the index.html file
-//                QString roomXmlFile = patrolFolder+"/"+roomFolders[k] + "/room.xml";
-
-//                xmlWriter->writeStartElement("RoomXMLFile");
-//                xmlWriter->writeCharacters(roomXmlFile);
-//                xmlWriter->writeEndElement();
-
-//                xmlWriter->writeEndElement();
-//                ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
-
-//                EntityStruct aRoom;
-//                aRoom.roomXmlFile = roomXmlFile.toStdString();
-//                m_vAllRooms.push_back(aRoom);
-//            }
-//        }
-//    }
 
     std::vector<QString> allXmls = listXmlInFolder(qrootFolder,0);
 
@@ -161,7 +105,10 @@ void SimpleSummaryParser::saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString
             xmlWriter->writeEndElement();
 
             xmlWriter->writeEndElement();
-            ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
+            if (verbose)
+            {
+                ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
+            }
 
             EntityStruct aRoom;
             aRoom.roomXmlFile = roomXmlFile.toStdString();

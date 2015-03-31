@@ -11,7 +11,6 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include "tf/tf.h"
 
-#include "metaroom.h"
 #include "constants.h"
 #include "metaroom_update_iteration.h"
 
@@ -19,6 +18,10 @@
 #include <QFile>
 #include <QDir>
 #include <QXmlStreamWriter>
+
+
+template <class PointType>
+class MetaRoom;
 
 template <class PointType>
 class MetaRoomXMLParser {
@@ -35,9 +38,8 @@ public:
 
     static MetaRoom<PointType> loadMetaRoomFromXML(const std::string& xmlFile, bool deepLoad=true);
 
+    QString findMetaRoomLocation(MetaRoom<PointType>* aMetaRoom);
 private:
-    QString findMetaRoomLocation(MetaRoom<PointType>& aMetaRoom);
-
 
     QString                                 m_RootFolder;
 };

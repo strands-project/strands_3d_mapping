@@ -4,15 +4,16 @@
 #include <algorithm>
 #include "cv.h"
 #include "highgui.h"
-#include <opencv.hpp>
+#include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/features2d/features2d.hpp>
-#include <opencv2/nonfree/features2d.hpp>
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
-#include <opencv2/gpu/gpu.hpp>
-#include <opencv2/nonfree/gpu.hpp>
+//#include <opencv2/gpu/gpu.hpp>
+// opencv nonfree includes
+//#include <opencv2/nonfree/features2d.hpp>
+//#include <opencv2/nonfree/gpu.hpp>
 //#include "opencv2/ocl/ocl.hpp"
 //#include "opencv2/nonfree/nonfree.hpp"
 
@@ -35,7 +36,7 @@ KeyPointSet * SurfExtractor::getKeyPointSet(FrameInput * fi){
 	struct timeval start, end;
 	gettimeofday(&start, NULL);
 	KeyPointSet * keypoints = new KeyPointSet();
-
+/*
 	IplImage * rgb_img = fi->get_rgb_img();
 	cv::Mat img(rgb_img);
 	
@@ -141,5 +142,7 @@ KeyPointSet * SurfExtractor::getKeyPointSet(FrameInput * fi){
 		cvWaitKey(0);
 		cvReleaseImage(&img_combine);
 	}
+    */
 	return keypoints;
+
 }

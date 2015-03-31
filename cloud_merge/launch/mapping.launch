@@ -2,11 +2,11 @@
 
   <arg name="save_intermediate_clouds" default="true" />
   <arg name="save_intermediate_images" default="false" />
-  <arg name="log_to_db" default="true" />
+  <arg name="log_to_db" default="false" />
   <arg name="cleanup" default="false" />
   <arg name="cache_old_data" default="false" />
   <arg name="max_instances" default="2" />
-  <arg name="update_metaroom" default="false" />
+  <arg name="update_metaroom" default="true" />
 
   <arg name="machine" default="localhost" />
   <arg name="user" default="" />

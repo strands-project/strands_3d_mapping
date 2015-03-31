@@ -5,6 +5,10 @@
 #include <iosfwd>
 #include <stdlib.h>
 #include <string>
+#include <sys/types.h>
+#include <pwd.h>
+#include <boost/filesystem.hpp>
+
 
 // ROS includes
 #include "ros/ros.h"
@@ -41,6 +45,9 @@
 #include <semantic_map/room.h>
 #include <semantic_map/room_xml_parser.h>
 #include <semantic_map/semantic_map_summary_parser.h>
+#include <semantic_map/reg_transforms.h>
+#include <semantic_map/reg_features.h>
+#include <semantic_map/room_utilities.h>
 #include <semantic_map/mongodb_interface.h>
 
 #include "cloud_merge.h"
@@ -120,6 +127,8 @@ private:
 
     double                                                                      m_VoxelSizeTabletop;
     double                                                                      m_VoxelSizeObservation;
+    bool                                                                        m_bRegisterAndCorrectSweep;
+    std::string                                                                 m_sRegisteredPoseLocation;
 
 };
 
@@ -307,6 +316,41 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
     ROS_INFO_STREAM("Voxel size for the observation and metaroom point cloud is "<<m_VoxelSizeObservation);
     ROS_INFO_STREAM("Point cutoff distance set to "<<cutoffDistance);
 
+
+    m_NodeHandle.param<bool>("register_and_correct_sweep",m_bRegisterAndCorrectSweep,true);
+    if (m_bRegisterAndCorrectSweep)
+    {
+         m_NodeHandle.param<std::string>("registered_poses_location",m_sRegisteredPoseLocation,"");
+         if ((m_sRegisteredPoseLocation == "") || (m_sRegisteredPoseLocation == "default"))
+         {
+             // default path
+             passwd* pw = getpwuid(getuid());
+             std::string path(pw->pw_dir);
+             path+="/.ros/semanticMap/registration_transforms.txt";
+             if ( ! boost::filesystem::exists( path ) )
+             {
+                 ROS_INFO_STREAM("File containing precalibrated sweep positions cannot be found at "<<path);
+                 m_bRegisterAndCorrectSweep = false;
+             } else {
+               m_sRegisteredPoseLocation = path;
+             }
+         } else {
+             if ( ! boost::filesystem::exists( m_sRegisteredPoseLocation ) )
+             {
+                 ROS_INFO_STREAM("File containing precalibrated sweep positions cannot be found at "<<m_sRegisteredPoseLocation);
+                 m_bRegisterAndCorrectSweep = false;
+             }
+         }
+
+    } else {
+        ROS_INFO_STREAM("Will not correct the intermediate point clouds of the sweeps using precalibrated sweep positions.");
+    }
+
+    if (m_bRegisterAndCorrectSweep)
+    {
+        ROS_INFO_STREAM("Precalibrated sweep positions will be loaded from "<<m_sRegisteredPoseLocation<<". The sweep intermediate point clouds will be corrected.");
+    }
+
 }
 template <class PointType>
 CloudMergeNode<PointType>::~CloudMergeNode()
@@ -403,16 +447,19 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             pcl::toROSMsg(*merged_cloud, msg_cloud);
             m_PublisherMergedCloud.publish(msg_cloud);
 
-	    // subsample again for visualization and metaroom purposes
-            m_CloudMerge.subsampleMergedCloud(m_VoxelSizeObservation,m_VoxelSizeObservation,m_VoxelSizeObservation);
+
             CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
+            // add complete cloud to semantic room
+            aSemanticRoom.setCompleteRoomCloud(merged_cloud);
+
+            // subsample again for visualization and metaroom purposes
+            m_CloudMerge.subsampleMergedCloud(m_VoxelSizeObservation,m_VoxelSizeObservation,m_VoxelSizeObservation);
+            merged_cloud = m_CloudMerge.getMergedCloud();
             pcl::toROSMsg(*merged_cloud, msg_cloud);
             m_PublisherMergedCloudDownsampled.publish(msg_cloud);
 
             // set room end time
             aSemanticRoom.setRoomLogEndTime(ros::Time::now().toBoost());
-            // add complete cloud to semantic room
-            aSemanticRoom.setCompleteRoomCloud(merged_cloud);
 
             // set room patrol number and room id
             int roomId, runNumber;
@@ -444,6 +491,59 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             ROS_INFO_STREAM("Saving semantic room file");
             std::string roomXMLPath = parser.saveRoomAsXML(aSemanticRoom);
             ROS_INFO_STREAM("Saved semantic room");
+
+            if (m_bRegisterAndCorrectSweep)
+            {
+                // load precalibrated camera poses
+                std::vector<tf::StampedTransform> regTransforms = semantic_map_registration_transforms::loadRegistrationTransforms("default", true);
+                if (regTransforms.size() != aSemanticRoom.getIntermediateClouds().size())
+                {
+                    ROS_ERROR_STREAM("Cannot correct sweep as the number of precalibrated sweep poses is not the same as the number of intermediate point clouds in this sweep "/*<<regTransforms.size<<"  "<<aSemanticRoom.getIntermediateClouds().size()*/);
+                } else {
+                    // create corrected camera parameters
+                    // TODO load this from file
+                    ROS_INFO_STREAM("Reprojecting and registering sweep...");
+
+                    image_geometry::PinholeCameraModel aCameraModel = semantic_map_registration_transforms::loadCameraParameters();
+                    if (aCameraModel.fx() == -1)
+                    {
+                        // no cam model loaded. set defaults
+                        ROS_INFO_STREAM("Could not find camera parameters file. Setting defaults.");
+                        sensor_msgs::CameraInfo camInfo;
+                        camInfo.P = {540.0, 0.0, 319.5, 0.0, 0.0, 540.0, 219.5, 0.0,0.0, 0.0, 1.0,0.0};
+                        camInfo.D = {0,0,0,0,0};
+                        aCameraModel.fromCameraInfo(camInfo);
+                    }
+
+
+                    auto origTransforms = aSemanticRoom.getIntermediateCloudTransforms();
+                    tf::StampedTransform origin = origTransforms[0];
+                    aSemanticRoom.clearIntermediateCloudRegisteredTransforms(); // just in case they had already been set
+                    for (size_t i=0; i<origTransforms.size(); i++)
+                    {
+                        tf::StampedTransform transform = origTransforms[i];
+                        transform.setOrigin(regTransforms[i].getOrigin());
+                        transform.setBasis(regTransforms[i].getBasis());
+                        aSemanticRoom.addIntermediateCloudCameraParametersCorrected(aCameraModel);
+                        aSemanticRoom.addIntermediateRoomCloudRegisteredTransform(transform);
+                    }
+                    // reproject individual clouds
+                    semantic_map_room_utilities::reprojectIntermediateCloudsUsingCorrectedParams<PointType>(aSemanticRoom);
+                    // rebuild merged cloud
+                    semantic_map_room_utilities::rebuildRegisteredCloud<PointType>(aSemanticRoom);
+                    // transform merged cloud to map frame
+                    CloudPtr completeCloud = aSemanticRoom.getCompleteRoomCloud();
+                    pcl_ros::transformPointCloud(*completeCloud, *completeCloud,origin);
+                    ROS_INFO_STREAM("..done");
+                    aSemanticRoom.setCompleteRoomCloud(completeCloud);
+                    std::string roomXMLPath = parser.saveRoomAsXML(aSemanticRoom);
+                    unsigned found = roomXMLPath.find_last_of("/");
+                    std::string base_path = roomXMLPath.substr(0,found+1);
+                    RegistrationFeatures reg(true);
+                    reg.saveOrbFeatures<PointType>(aSemanticRoom,base_path);
+
+                }
+            }
 
             // Pulbish room observation
             semantic_map::RoomObservation obs_msg;

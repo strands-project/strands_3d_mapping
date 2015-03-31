@@ -1,3 +1,6 @@
+#ifndef __SEMANTIC_MAP_LOAD_UTILITIES__
+#define __SEMANTIC_MAP_LOAD_UTILITIES__
+
 #include "simple_summary_parser.h"
 #include "simple_xml_parser.h"
 
@@ -79,3 +82,21 @@ namespace semantic_map_load_utilties
 #include "load_utilities.hpp"
 
 }
+
+
+namespace semantic_map_registration_features
+{
+
+    struct RegistrationFeatures
+    {
+        std::vector<cv::KeyPoint> keypoints;
+        std::vector<double> depths;
+        cv::Mat descriptors;
+    };
+
+    std::vector<RegistrationFeatures> loadRegistrationFeaturesFromSingleSweep(std::string sweepXmlPath, bool verbose = false, std::string registrationFeaturesFilename = "registration_features.yml");
+
+}
+
+#endif
+

@@ -11,6 +11,10 @@ SemanticRoom<PointType>::SemanticRoom(bool saveIntermediateClouds) : RoomBase<Po
     m_RoomLogName = "";
     m_RoomRunNumber = -1;
     m_bIsMetaRoom = false;
+
+    // initialize sweep parameters with defaults
+    pan_start = -160; pan_step = 20; pan_end = 160; // 17 horizontal steps
+    tilt_start = -30; tilt_step = 30; tilt_end = 30; // 3 vertical steps
 }
 
 template <class PointType>
@@ -196,6 +200,25 @@ std::vector<image_geometry::PinholeCameraModel> SemanticRoom<PointType>::getInte
 {
     return m_vIntermediateRoomCloudsCamParams;
 }
+
+template <class PointType>
+std::vector<image_geometry::PinholeCameraModel> SemanticRoom<PointType>::getIntermediateCloudCameraParametersCorrected()
+{
+    return m_vIntermediateRoomCloudsCamParamsCorrected;
+}
+
+template <class PointType>
+void SemanticRoom<PointType>::addIntermediateCloudCameraParametersCorrected(image_geometry::PinholeCameraModel params)
+{
+    m_vIntermediateRoomCloudsCamParamsCorrected.push_back(params);
+}
+
+template <class PointType>
+void SemanticRoom<PointType>::clearIntermediateCloudCameraParametersCorrected()
+{
+   m_vIntermediateRoomCloudsCamParamsCorrected.clear();
+}
+
 
 template <class PointType>
 std::vector<bool>   SemanticRoom<PointType>::getIntermediateCloudsLoaded()

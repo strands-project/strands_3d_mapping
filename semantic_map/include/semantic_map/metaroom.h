@@ -29,6 +29,7 @@
 #include "occlusion_checker.h"
 #include "metaroom_update_iteration.h"
 
+
 template <class PointType>
 class MetaRoom : public RoomBase<PointType> {
 public:
@@ -55,6 +56,7 @@ private:
     bool                                                                m_bUpdateMetaroom;
 
 public:
+    std::string                                                         m_sMetaroomStringId;
 
 
     MetaRoom(bool saveIntermediateSteps=true);
@@ -86,13 +88,14 @@ public:
     tf::Vector3 getSensorOrigin();
     void setSensorOrigin(tf::Vector3 so);
 
-    bool    updateMetaRoom(SemanticRoom<PointType>& aRoom, std::string savePath="");
+    MetaRoomUpdateIteration<PointType>    updateMetaRoom(SemanticRoom<PointType>& aRoom, std::string savePath="", bool registerRoom = true);
 
     void filterClustersBasedOnDistance(std::vector<CloudPtr>& clusters, double maxDistance);
     static std::vector<CloudPtr> clusterPointCloud(CloudPtr input_cloud, double tolerance = 0.05, int min_cluster_size = 100, int max_cluster_size=100000);
-    static CloudPtr downsampleCloud(CloudPtr input, double leafSize = 0.01f);
+    static CloudPtr downsampleCloud(CloudPtr input, double leafSize = 0.02f);
 
 };
+
 
 #include "metaroom.hpp"
 

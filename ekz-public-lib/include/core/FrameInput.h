@@ -11,7 +11,7 @@
 //Opencv
 #include "cv.h"
 #include "highgui.h"
-#include <opencv.hpp>
+#include <opencv2/opencv.hpp>
 
 #include <Eigen/Core>
 

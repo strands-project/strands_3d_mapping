@@ -35,11 +35,13 @@ public:
     typedef typename SemanticRoom<PointType>::IntermediatePositionImages IntermediatePositionImages;
 
     struct IntermediateCloudData{
-        std::string                     filename;
-        tf::StampedTransform            transform;
-        sensor_msgs::CameraInfo         camInfo;
-        tf::StampedTransform            regTransform;
-        bool                            hasRegTransform;
+        std::string                                filename;
+        tf::StampedTransform                       transform;
+        tf::StampedTransform                       regTransform;
+        sensor_msgs::CameraInfo                    camInfo;
+        image_geometry::PinholeCameraModel         corCamInfo;
+        bool                                       hasRegTransform;
+        bool                                       hasCorCamInfo;
     };
 
 
@@ -47,11 +49,11 @@ public:
     ~SemanticRoomXMLParser();
 
     bool setRootFolderFromRoomXml(std::string roomXml);
-    std::string saveRoomAsXML(SemanticRoom<PointType>& aRoom, std::string xmlFile="room.xml");
+    std::string saveRoomAsXML(SemanticRoom<PointType>& aRoom, std::string xmlFile="room.xml", bool verbose = false);
     void  saveIntermediateImagesToXML(SemanticRoom<PointType>& aRoom, QXmlStreamWriter* xmlWriter, std::string roomFolder);
 
 
-    static SemanticRoom<PointType> loadRoomFromXML(const std::string& xmlFile, bool deepLoad=true);
+    static SemanticRoom<PointType> loadRoomFromXML(const std::string& xmlFile, bool deepLoad=true, bool verbose = false);
 
 private:
 

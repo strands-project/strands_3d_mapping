@@ -1,0 +1,8 @@
+string waypoint_id
+string object_id
+---
+sensor_msgs/PointCloud2 object_cloud
+int32[] object_mask
+geometry_msgs/Transform transform_to_map
+int32 pan_angle
+int32 tilt_angle

@@ -37,6 +37,7 @@ public:
     struct EntityStruct{
         std::string roomXmlFile;
         std::string roomLogName;
+        std::string stringId;
         boost::posix_time::ptime roomLogStartTime, roomLogEndTime;
         Eigen::Vector4f centroid;
         bool    hasCentroid;
@@ -50,6 +51,7 @@ public:
             hasCentroid = false;
             centroid = Eigen::Vector4f::Zero();
             isMetaRoom = false;
+            stringId = "";
         }
     };
 
@@ -303,6 +305,10 @@ public:
                         {
                             aEntityStruct.roomXmlFile = xmlReader->readElementText().toStdString();
                         }
+                        if (xmlReader->name() == "RoomStringId")
+                        {                            
+                            aEntityStruct.stringId = xmlReader->readElementText().toStdString();
+                        }
 
                         if (xmlReader->name() == "RoomCentroid")
                         {
@@ -339,6 +345,10 @@ public:
                             centroid(0) = centroidSlist[0].toDouble();centroid(1) = centroidSlist[1].toDouble();
                             centroid(2) = centroidSlist[2].toDouble();centroid(3) = centroidSlist[3].toDouble();
                             aEntityStruct.centroid = centroid;
+                        }
+                        if (xmlReader->name() == "MetaRoomStringId")
+                        {
+                            aEntityStruct.stringId = xmlReader->readElementText().toStdString();
                         }
                         token = xmlReader->readNext();
                     }
@@ -452,6 +462,10 @@ private:
                             xmlWriter->writeCharacters(centroidS);
                             xmlWriter->writeEndElement();
 
+                            xmlWriter->writeStartElement("MetaRoomStringId");
+                            xmlWriter->writeCharacters(savedMetaRoom.m_sMetaroomStringId.c_str());
+                            xmlWriter->writeEndElement();
+
                             xmlWriter->writeEndElement(); // MetaRoom
 
                         }
@@ -511,6 +525,11 @@ private:
                     // parse XML file and extract some important fields with which to populate the index.html file
                     QString roomXmlFile = patrolFolder+"/"+roomFolders[k] + "/room.xml";
                     SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(roomXmlFile.toStdString(), false);
+                    if ((aRoom.getRoomRunNumber()== -1) && (aRoom.getRoomStringId()=="") && (aRoom.getRoomLogName()==""))
+                    {
+                        // skip this room - parsing didn't work
+                        continue;
+                    }
                     xmlWriter->writeStartElement("SemanticRoom");
 
                     xmlWriter->writeStartElement("RoomLogName");
@@ -535,6 +554,10 @@ private:
                     Eigen::Vector4f centroid = aRoom.getCentroid();
                     QString centroidS = QString::number(centroid(0))+" "+QString::number(centroid(1))+" "+QString::number(centroid(2))+" "+QString::number(centroid(3));
                     xmlWriter->writeCharacters(centroidS);
+                    xmlWriter->writeEndElement();
+
+                    xmlWriter->writeStartElement("RoomStringId");
+                    xmlWriter->writeCharacters(aRoom.getRoomStringId().c_str());
                     xmlWriter->writeEndElement();
 
                     xmlWriter->writeEndElement();

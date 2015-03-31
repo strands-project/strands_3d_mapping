@@ -1,3 +1,4 @@
+#include "semantic_map/metaroom.h"
 #include "semantic_map/metaroom_xml_parser.h"
 
 template <class PointType>
@@ -36,7 +37,7 @@ std::string MetaRoomXMLParser<PointType>::saveMetaRoomAsXML(MetaRoom<PointType>&
         return "";
     }
 
-    QString metaRoomLocation = findMetaRoomLocation(aMetaRoom);
+    QString metaRoomLocation = findMetaRoomLocation(&aMetaRoom);
     ROS_INFO_STREAM("Metaroom will be saved in folder "<<metaRoomLocation.toStdString());
 
     // save metaroom
@@ -109,6 +110,11 @@ std::string MetaRoomXMLParser<PointType>::saveMetaRoomAsXML(MetaRoom<PointType>&
         pcl::io::savePCDFileBinary(consistencyUpdateCloudFilename.toStdString(), *aMetaRoom.getConsistencyUpdateCloud());
         ROS_INFO_STREAM("Saving consistency update cloud file name "<<consistencyUpdateCloudFilename.toStdString());
     }
+
+    // MetaroomStringId
+    xmlWriter->writeStartElement("MetaRoomStringId");
+    xmlWriter->writeCharacters(aMetaRoom.m_sMetaroomStringId.c_str());
+    xmlWriter->writeEndElement();
 
     // RoomCentroid
     xmlWriter->writeStartElement("Centroid");
@@ -288,7 +294,6 @@ std::string MetaRoomXMLParser<PointType>::saveMetaRoomAsXML(MetaRoom<PointType>&
     xmlWriter->writeEndDocument();
 
     delete xmlWriter;
-    return xmlFile;
 
     return metaRoomXMLFile.toStdString();
 
@@ -519,6 +524,12 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
                 aMetaRoom.setCentroid(centroid);
             }
 
+            if (xmlReader->name() == "MetaRoomStringId")
+            {
+                QString metaroomStringId = xmlReader->readElementText();
+                aMetaRoom.m_sMetaroomStringId = (metaroomStringId.toStdString());
+            }
+
             if (xmlReader->name() == "SensorOrigin")
             {
                 QString soS = xmlReader->readElementText();
@@ -693,7 +704,7 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
 }
 
 template <class PointType>
-QString MetaRoomXMLParser<PointType>::findMetaRoomLocation(MetaRoom<PointType>& aMetaRoom)
+QString MetaRoomXMLParser<PointType>::findMetaRoomLocation(MetaRoom<PointType>* aMetaRoom)
 {
     // list the folders in the home folder of the semantic map and look for the metarooms folder
     QStringList rootFolders = QDir(m_RootFolder).entryList(QStringList("*"),
@@ -752,7 +763,7 @@ QString MetaRoomXMLParser<PointType>::findMetaRoomLocation(MetaRoom<PointType>& 
             } else {
                 QString savedMetaRoomXMLFile = tempMetaRoomFolder+tempMetaRoomFolderFiles[0]; // TODO for now I am assuming there is only 1 xml file in the metaroom folder. Maybe later there will be more.
                 MetaRoom<PointType> savedMetaRoom = MetaRoomXMLParser::loadMetaRoomFromXML(savedMetaRoomXMLFile.toStdString(),false);
-                double centroidDistance = pcl::distances::l2(savedMetaRoom.getCentroid(),aMetaRoom.getCentroid());
+                double centroidDistance = pcl::distances::l2(savedMetaRoom.getCentroid(),aMetaRoom->getCentroid());
                 ROS_INFO_STREAM("Comparing with saved metaroom. Centroid distance "<<centroidDistance);
                 if (centroidDistance < ROOM_CENTROID_DISTANCE)
                 {

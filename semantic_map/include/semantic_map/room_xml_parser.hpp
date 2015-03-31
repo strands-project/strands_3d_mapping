@@ -51,8 +51,8 @@ bool SemanticRoomXMLParser<PointType>::setRootFolderFromRoomXml(std::string room
 }
 
 template <class PointType>
-std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointType>& aRoom, std::string xmlFile)
-{
+std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointType>& aRoom, std::string xmlFile, bool verbose )
+{    
     // create folder structure
     QString roomLogName(aRoom.getRoomLogName().c_str());
     int index = roomLogName.indexOf('_');
@@ -78,7 +78,7 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
     }
 
     xmlFile = roomFolder.toStdString() + xmlFile;
-    ROS_INFO_STREAM("Room xml file "<<xmlFile);
+    ROS_INFO_STREAM("Saving room at "<<xmlFile);
 
     QFile file(xmlFile.c_str());
     if (file.exists())
@@ -142,7 +142,10 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
             if (aRoom.getCompleteRoomCloud()->points.size()>0)
             {
                 pcl::io::savePCDFileBinary(completeCloudFilename.toStdString(), *aRoom.getCompleteRoomCloud());
-                ROS_INFO_STREAM("Saving complete cloud file name "<<completeCloudFilename.toStdString());
+                if (verbose)
+                {
+                    ROS_INFO_STREAM("Saving complete cloud file name "<<completeCloudFilename.toStdString());
+                }
             }
         }
     }
@@ -156,12 +159,15 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
     if (aRoom.getInteriorRoomCloudLoaded()) // only save the cloud file if it's been loaded
     {
         QFile file(interiorCloudFilename);
-        if (!file.exists())
+//        if (!file.exists())
         {
             if (aRoom.getInteriorRoomCloud()->points.size()>0)
             {
                 pcl::io::savePCDFileBinary(interiorCloudFilename.toStdString(), *aRoom.getInteriorRoomCloud());
-                ROS_INFO_STREAM("Saving interior cloud file name "<<interiorCloudFilename.toStdString());
+                if (verbose)
+                {
+                    ROS_INFO_STREAM("Saving interior cloud file name "<<interiorCloudFilename.toStdString());
+                }
             }
         }
         aRoom.setInteriorRoomCloud(interiorCloudFilename.toStdString());
@@ -181,7 +187,10 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
             if (aRoom.getDeNoisedRoomCloud()->points.size())
             {
                 pcl::io::savePCDFileBinary(denoisedCloudFilename.toStdString(), *aRoom.getDeNoisedRoomCloud());
-                ROS_INFO_STREAM("Saving denoised cloud file name "<<denoisedCloudFilename.toStdString());
+                if (verbose)
+                {
+                    ROS_INFO_STREAM("Saving denoised cloud file name "<<denoisedCloudFilename.toStdString());
+                }
             }
         }
     }
@@ -196,7 +205,11 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
         //            if (!dynamicClustersFile.exists())
         //            {
         pcl::io::savePCDFileBinary(dynamicClustersFilename.toStdString(), *aRoom.getDynamicClustersCloud());
-        ROS_INFO_STREAM("Saving dynamic clusters cloud file name "<<dynamicClustersFilename.toStdString());
+
+        if (verbose)
+        {
+            ROS_INFO_STREAM("Saving dynamic clusters cloud file name "<<dynamicClustersFilename.toStdString());
+        }
         //            }
 
         xmlWriter->writeStartElement("RoomDynamicClusters");
@@ -233,9 +246,15 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
 
     // RoomIntermediateClouds
     xmlWriter->writeStartElement("RoomIntermediateClouds");
+    xmlWriter->writeAttribute("pan_start",QString::number(aRoom.pan_start));
+    xmlWriter->writeAttribute("pan_step",QString::number(aRoom.pan_step));
+    xmlWriter->writeAttribute("pan_end",QString::number(aRoom.pan_end));
+    xmlWriter->writeAttribute("tilt_start",QString::number(aRoom.tilt_start));
+    xmlWriter->writeAttribute("tilt_step",QString::number(aRoom.tilt_step));
+    xmlWriter->writeAttribute("tilt_end",QString::number(aRoom.tilt_end));
+
     std::vector<CloudPtr> roomIntermediateClouds = aRoom.getIntermediateClouds();
-    std::vector<tf::StampedTransform> roomIntermediateCloudTransforms = aRoom.getIntermediateCloudTransforms();
-    std::vector<tf::StampedTransform> roomIntermediateCloudTransformsRegistered = aRoom.getIntermediateCloudTransformsRegistered();
+    std::vector<tf::StampedTransform> roomIntermediateCloudTransforms = aRoom.getIntermediateCloudTransforms();    
     std::vector<image_geometry::PinholeCameraModel> roomIntermediateCloudCameraParameters = aRoom.getIntermediateCloudCameraParameters();
     std::vector<bool>   roomIntermediateCloudsLoaded = aRoom.getIntermediateCloudsLoaded();
     for (size_t i=0; i<roomIntermediateCloudTransforms.size(); i++)
@@ -259,7 +278,10 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
             if (!file.exists())
             {
                 pcl::io::savePCDFileBinary(intermediateCloudPath.toStdString(), *roomIntermediateClouds[i]);
-                ROS_INFO_STREAM("Saving intermediate cloud file name "<<intermediateCloudPath.toStdString());
+                if (verbose)
+                {
+                    ROS_INFO_STREAM("Saving intermediate cloud file name "<<intermediateCloudPath.toStdString());
+                }
             }
         }
 
@@ -318,10 +340,20 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
         xmlWriter->writeEndElement(); // RoomIntermediateCloudTransform
 
         // RoomIntermediateCloudRegisteredTransform
-
-        if (roomIntermediateCloudTransformsRegistered.size() == roomIntermediateCloudTransforms.size())
+        std::vector<tf::StampedTransform> roomIntermediateCloudTransformsRegistered = aRoom.getIntermediateCloudTransformsRegistered();
+        // TODO: this is not the case as I might be registering only the lower sweep.
+//        if (roomIntermediateCloudTransformsRegistered.size() == roomIntermediateCloudTransforms.size())
+        if (roomIntermediateCloudTransformsRegistered.size() > i)
         {
             saveTfStampedTransfromToXml(roomIntermediateCloudTransformsRegistered[i], xmlWriter, "RoomIntermediateCloudTransformRegistered");
+        }
+
+        // RoomIntermediateRoomCloudsCamParamsCorrected
+        std::vector<image_geometry::PinholeCameraModel> roomIntermediateCloudCameraParametersCorrected = aRoom.getIntermediateCloudCameraParametersCorrected();
+//        if (roomIntermediateCloudCameraParametersCorrected.size() == roomIntermediateCloudCameraParameters.size()) // consistency check
+        if (roomIntermediateCloudCameraParametersCorrected.size() > i) // consistency check
+        {
+           saveCameraParametersToXML(roomIntermediateCloudCameraParametersCorrected[i], xmlWriter, "RoomIntermediateRoomCameraParametersCorrected");
         }
 
         Eigen::IOFormat CommaInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", ", ", "", "", " << ", "");
@@ -394,6 +426,7 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
     xmlWriter->writeEndDocument();
     delete xmlWriter;
 
+    ROS_INFO_STREAM("... done saving.");
     return xmlFile;
 
 }
@@ -459,8 +492,9 @@ void SemanticRoomXMLParser<PointType>::saveIntermediateImagesToXML(SemanticRoom<
 
 
 template <class PointType>
-SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const std::string& xmlFile, bool deepLoad)
+SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const std::string& xmlFile, bool deepLoad, bool verbose)
 {
+    ROS_INFO_STREAM("Loading room from "<<xmlFile);
     SemanticRoom<PointType> aRoom;
 
 
@@ -545,7 +579,10 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
 
                     if (deepLoad && file)
                     {
-                        std::cout<<"Loading complete cloud file name "<<roomCompleteCloudFile.toStdString()<<std::endl;
+                        if (verbose)
+                        {
+                            std::cout<<"Loading complete cloud file name "<<roomCompleteCloudFile.toStdString()<<std::endl;
+                        }
                         pcl::PCDReader reader;
                         CloudPtr cloud (new Cloud);
                         reader.read (roomCompleteCloudFile.toStdString(), *cloud);
@@ -573,7 +610,10 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
                     std::ifstream file(roomInteriorCloudFile.toStdString().c_str());
                     if (deepLoad && file)
                     {
-                        std::cout<<"Loading interior cloud file name "<<roomInteriorCloudFile.toStdString()<<std::endl;
+                        if (verbose)
+                        {
+                            std::cout<<"Loading interior cloud file name "<<roomInteriorCloudFile.toStdString()<<std::endl;
+                        }
                         pcl::PCDReader reader;
                         CloudPtr cloud (new Cloud);
                         reader.read (roomInteriorCloudFile.toStdString(), *cloud);
@@ -602,7 +642,10 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
                     std::ifstream file(roomDenoisedCloudFile.toStdString().c_str());
                     if (deepLoad && file)
                     {
-                        std::cout<<"Loading denoised cloud file name "<<roomDenoisedCloudFile.toStdString()<<std::endl;
+                        if (verbose)
+                        {
+                            std::cout<<"Loading denoised cloud file name "<<roomDenoisedCloudFile.toStdString()<<std::endl;
+                        }
                         pcl::PCDReader reader;
                         CloudPtr cloud (new Cloud);
                         reader.read (roomDenoisedCloudFile.toStdString(), *cloud);
@@ -631,7 +674,10 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
                     std::ifstream file(roomDynamicClustersFile.toStdString().c_str());
                     if (deepLoad && file)
                     {
-                        std::cout<<"Loading dynamic clusters cloud file name "<<roomDynamicClustersFile.toStdString()<<std::endl;
+                        if (verbose)
+                        {
+                            std::cout<<"Loading dynamic clusters cloud file name "<<roomDynamicClustersFile.toStdString()<<std::endl;
+                        }
                         pcl::PCDReader reader;
                         CloudPtr cloud (new Cloud);
                         reader.read (roomDynamicClustersFile.toStdString(), *cloud);
@@ -667,6 +713,40 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
                 aRoom.setRoomTransform(transform);
             }
 
+            if (xmlReader->name() == "RoomIntermediateClouds")
+            {
+                QXmlStreamAttributes attributes = xmlReader->attributes();
+                if (attributes.hasAttribute("pan_start"))
+                {
+                    QString val = attributes.value("pan_start").toString();
+                    aRoom.pan_start = val.toInt();
+                }
+                if (attributes.hasAttribute("pan_step"))
+                {
+                    QString val = attributes.value("pan_step").toString();
+                    aRoom.pan_step = val.toInt();
+                }
+                if (attributes.hasAttribute("pan_end"))
+                {
+                    QString val = attributes.value("pan_end").toString();
+                    aRoom.pan_end = val.toInt();
+                }
+                if (attributes.hasAttribute("tilt_start"))
+                {
+                    QString val = attributes.value("tilt_start").toString();
+                    aRoom.tilt_start = val.toInt();
+                }
+                if (attributes.hasAttribute("tilt_step"))
+                {
+                    QString val = attributes.value("tilt_step").toString();
+                    aRoom.tilt_step = val.toInt();
+                }
+                if (attributes.hasAttribute("tilt_end"))
+                {
+                    QString val = attributes.value("tilt_end").toString();
+                    aRoom.tilt_end = val.toInt();
+                }
+            }
 
 
             if (xmlReader->name() == "RoomIntermediateCloud")
@@ -686,7 +766,10 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
                 std::ifstream file(intermediateCloudData.filename.c_str());
                 if (deepLoad && file)
                 {
-                    std::cout<<"Loading intermediate cloud file name "<<intermediateCloudData.filename<<std::endl;
+                    if (verbose)
+                    {
+                        std::cout<<"Loading intermediate cloud file name "<<intermediateCloudData.filename<<std::endl;
+                    }
                     pcl::PCDReader reader;
                     CloudPtr cloud (new Cloud);
                     reader.read (intermediateCloudData.filename, *cloud);
@@ -698,6 +781,11 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
                 if (intermediateCloudData.hasRegTransform)
                 {
                     aRoom.addIntermediateRoomCloudRegisteredTransform(intermediateCloudData.regTransform);
+                }
+
+                if (intermediateCloudData.hasCorCamInfo)
+                {
+                   aRoom.addIntermediateCloudCameraParametersCorrected(intermediateCloudData.corCamInfo);
                 }
 
             }
@@ -714,6 +802,7 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
     delete xmlReader;
 
 
+    ROS_INFO_STREAM("... finished loading.");
     return aRoom;
 }
 
@@ -726,8 +815,10 @@ typename SemanticRoomXMLParser<PointType>::IntermediateCloudData SemanticRoomXML
     geometry_msgs::TransformStamped tfmsg;
     tf::StampedTransform regTfmsg;
     sensor_msgs::CameraInfo camInfo;
+    image_geometry::PinholeCameraModel corCamParam;
     bool camInfoError = false;
     bool regTfmsgError = true;
+    bool corCamParamError = true;
 
     SemanticRoomXMLParser<PointType>::IntermediateCloudData       structToRet;
     structToRet.hasRegTransform = false;
@@ -831,6 +922,13 @@ typename SemanticRoomXMLParser<PointType>::IntermediateCloudData SemanticRoomXML
             {
                 regTfmsg = readTfStampedTransformFromXml(&xmlReader, "RoomIntermediateCloudTransformRegistered", regTfmsgError);
             }
+
+            if (xmlReader.name() == "RoomIntermediateRoomCameraParametersCorrected")
+            {
+                corCamParam = readCamParamsFromXml(&xmlReader, "RoomIntermediateRoomCameraParametersCorrected", corCamParamError);
+            }
+
+
 
             // camera parameters
             if (xmlReader.name() == "RoomIntermediateCameraParameters")
@@ -970,6 +1068,14 @@ typename SemanticRoomXMLParser<PointType>::IntermediateCloudData SemanticRoomXML
         structToRet.hasRegTransform = true;
     } else {
         structToRet.hasRegTransform = false;
+    }
+
+    if (!corCamParamError)
+    {
+      structToRet.corCamInfo = corCamParam;
+      structToRet.hasCorCamInfo = true;
+    } else {
+      structToRet.hasCorCamInfo = false;
     }
 
     tf::transformStampedMsgToTF(tfmsg, transform);
@@ -1209,6 +1315,8 @@ typename image_geometry::PinholeCameraModel SemanticRoomXMLParser<PointType>::re
     {
         toRet.fromCameraInfo(camInfo);
     }
+
+    errorReading = camInfoError;
 
     return toRet;
 
