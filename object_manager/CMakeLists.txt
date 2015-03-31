@@ -7,15 +7,21 @@ project(object_manager)
 find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs geometry_msgs pcl_ros message_generation qt_build cv_bridge semantic_map metaroom_xml_parser)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
-set(CMAKE_PREFIX_PATH /usr/share/pcl-1.7/ ${CMAKE_PREFIX_PATH})
-set(PCL_DIR /usr/share/pcl-1.7/)
-find_package(PCL 1.7 REQUIRED NO_DEFAULT_PATH)
+
+find_package(PCL 1.7 REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-include_directories(${OCTOMAP_INCLUDE_DIRS})
-link_libraries(${OCTOMAP_LIBRARIES})
+# OpenMP
+find_package(OpenMP)
+if(OPENMP_FOUND)
+message (STATUS “OpenMP found”)
+set(CMAKE_CXX_FLAGS "${OpenMP_CXX_FLAGS} ${CMAKE_CXX_FLAGS}")
+set(CMAKE_C_FLAGS "${OpenMP_C_FLAGS} ${CMAKE_C_FLAGS}")
+else(OPENMP_FOUND)
+message (STATUS “OpenMP not found”)
+endif()
 
 rosbuild_prepare_qt4(QtCore QtXml)
 
@@ -39,12 +45,21 @@ catkin_package(
    DEPENDS PCL
 )
 
+set(HDRS
+    include/object_manager.h
+    include/dynamic_object.h
+)
+
+set(SRCS
+    src/object_manager.cpp
+    src/dynamic_object.cpp
+)
+
 include_directories(include
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(object_manager_node include/object_manager.h src/object_manager.cpp src/object_manager_main.cpp)
-
+add_executable(object_manager_node   ${HDRS} ${SRCS} src/object_manager_main.cpp)
 add_dependencies(object_manager_node object_manager_node_generate_messages_cpp)
 
 
