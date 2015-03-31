@@ -42,6 +42,7 @@ include_directories(
 )
 
 add_executable(calibrate_sweep_as src/calibrate_sweep_action_server.cpp )
+add_dependencies(calibrate_sweep_as calibrate_sweep_as_generate_messages_cpp)
 
  target_link_libraries(calibrate_sweep_as
    ${catkin_LIBRARIES}
