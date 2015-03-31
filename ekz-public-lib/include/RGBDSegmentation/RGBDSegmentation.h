@@ -4,7 +4,7 @@
 //#include "../Frame_input.h"
 //#include "cv.h"
 //#include "highgui.h"
-#include <opencv.hpp>
+#include <opencv2/opencv.hpp>
 #include <stdlib.h>
 #include <math.h>
 #include <sys/types.h>

@@ -18,19 +18,8 @@ add_definitions(${PCL_DEFINITIONS})
 
 # OpenCV
 find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
 
-#OPENCV
-link_directories(/opt/ros/hydro/lib)
-include_directories(/opt/ros/hydro/include)
-include_directories(/opt/ros/hydro/include/opencv)
-include_directories(/opt/ros/hydro/include/opencv2)
-
-#OPENCV
-#link_directories(/opt/ros/groovy/lib)
-#include_directories(/opt/ros/groovy/include)
-#include_directories(/opt/ros/groovy/include/opencv)
-#include_directories(/opt/ros/groovy/include/opencv2)
-#include_directories(include)
 include_directories(include)
 #include_directories(src/apps)
 include_directories(include/FeatureDescriptor)
@@ -50,7 +39,7 @@ include_directories(include/Map)
 ####################################################
 
 add_library(frameinput_ekzpublic src/core/FrameInput.cpp)
-target_link_libraries(frameinput_ekzpublic opencv_calib3d opencv_gpu opencv_nonfree opencv_ts opencv_contrib opencv_highgui opencv_objdetect opencv_video opencv_core opencv_imgproc opencv_photo opencv_videostab opencv_features2d opencv_legacy   opencv_stitching opencv_flann opencv_ml opencv_superres ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(frameinput_ekzpublic ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 add_library(FeatureDescriptor_ekzpublic
 src/FeatureDescriptor/FeatureDescriptor.cpp
@@ -70,7 +59,6 @@ target_link_libraries(FeatureExtractor_ekzpublic mygeometry_ekzpublic frameinput
 target_link_libraries(FeatureExtractor_ekzpublic FeatureDescriptor_ekzpublic)
 target_link_libraries(FeatureExtractor_ekzpublic ${PCL_LIBRARIES})
 target_link_libraries(FeatureExtractor_ekzpublic ${OpenCV_LIBRARIES})
-target_link_libraries(FeatureExtractor_ekzpublic opencv_calib3d opencv_core opencv_flann opencv_highgui opencv_legacy opencv_contrib opencv_features2d opencv_gpu  opencv_imgproc opencv_ml opencv_objdetect opencv_video)
 
 add_library(RGBDSegmentation_ekzpublic src/RGBDSegmentation/RGBDSegmentation.cpp)
 

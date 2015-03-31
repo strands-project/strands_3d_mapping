@@ -4,7 +4,7 @@
 #include <algorithm>
 //#include "cv.h"
 //#include "highgui.h"
-//#include <opencv.hpp>
+//#include <opencv2/opencv.hpp>
 #include <Eigen/LU>
 #include <Eigen/Eigenvalues> 
 #include <Eigen/Eigen>

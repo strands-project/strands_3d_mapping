@@ -1,3 +1,5 @@
+------------- WARNING - SURF features disabled in this version ----------------
+
 Section 1: License
 Section 2: Dependencies
 Section 3: BUILD

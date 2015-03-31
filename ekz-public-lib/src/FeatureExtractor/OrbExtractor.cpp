@@ -4,7 +4,7 @@
 #include <algorithm>
 #include "cv.h"
 #include "highgui.h"
-#include <opencv.hpp>
+#include <opencv2/opencv.hpp>
 
 using namespace std;
 bool comparison_orb (KeyPoint * i,KeyPoint * j) { return (i->stabilety>j->stabilety); }
