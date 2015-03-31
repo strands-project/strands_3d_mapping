@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package>
+  <name>semantic_map_launcher</name>
+  <version>0.0.0</version>
+  <description>The semantic_map_launcher package</description>
+  <maintainer email="raambrus@kth.se">Rares Ambrus</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>semantic_map</build_depend>
+  <build_depend>calibrate_sweeps</build_depend>
+  <build_depend>cloud_merge</build_depend>
+  <build_depend>object_manager</build_depend>
+  <build_depend>semantic_map_publisher</build_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>semantic_map</run_depend>
+  <run_depend>calibrate_sweeps</run_depend>
+  <run_depend>cloud_merge</run_depend>
+  <run_depend>object_manager</run_depend>
+  <run_depend>semantic_map_publisher</run_depend>
+</package>
