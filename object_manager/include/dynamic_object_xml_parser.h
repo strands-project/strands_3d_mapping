@@ -21,7 +21,7 @@ public:
     DynamicObjectXMLParser(std::string rootFolder = "", bool verbose = false);
     ~DynamicObjectXMLParser();
 
-    std::string saveAsXML(DynamicObject::Ptr object, std::string filename, std::string cloud_filename);
+    std::string saveAsXML(DynamicObject::Ptr object, std::string xml_filename = "", std::string cloud_filename = "");
     DynamicObject::Ptr loadFromXML(std::string filename);
 
     std::string m_rootFolderPath;

@@ -16,8 +16,22 @@ DynamicObjectXMLParser::~DynamicObjectXMLParser()
 
 std::string DynamicObjectXMLParser::saveAsXML(DynamicObject::Ptr object, std::string filename, std::string cloud_filename)
 {
+    if (filename == "")
+    {
+        filename = object->m_label+".xml";
+    }
+    if (cloud_filename == "")
+    {
+        cloud_filename = object->m_label+".pcd";
+    }
+
    string path = m_rootFolderPath + "/" + filename;
    string cloud_path = m_rootFolderPath + "/" + cloud_filename;
+
+   if (m_verbose)
+   {
+       cout<<"Saving dynamic object xml at "<<path<<"  and point cloud at "<<cloud_path<<". Point cloud size "<<object->m_points->points.size()<<endl;
+   }
 
    QFile file(path.c_str());
    if (file.exists())

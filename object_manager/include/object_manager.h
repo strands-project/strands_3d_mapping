@@ -11,10 +11,9 @@
 
 
 // ROS includes
-#include "ros/ros.h"
-#include "ros/time.h"
-#include "std_msgs/String.h"
-#include <tf/transform_listener.h>
+#include <ros/ros.h>
+#include <ros/time.h>
+#include <std_msgs/String.h>
 #include <tf_conversions/tf_eigen.h>
 
 #include <sensor_msgs/PointCloud2.h>
@@ -34,8 +33,7 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <pcl/registration/distances.h>
 #include <pcl/search/kdtree.h>
-//#include <pcl/visualization/pcl_visualizer.h>
-#include "load_utilities.h"
+#include <pcl/visualization/pcl_visualizer.h>
 
 #include <geometry_msgs/Point.h>
 #include <pcl/common/centroid.h>
@@ -45,6 +43,12 @@
 #include <semantic_map/reg_transforms.h>
 
 #include <cv_bridge/cv_bridge.h>
+
+// application includes
+#include "load_utilities.h"
+#include "dynamic_object.h"
+#include "dynamic_object_xml_parser.h"
+#include "dynamic_object_utilities.h"
 
 template <class PointType>
 class ObjectManager {
@@ -58,10 +62,10 @@ public:
     typedef typename object_manager::GetDynamicObjectService::Request GetDynamicObjectServiceRequest;
     typedef typename object_manager::GetDynamicObjectService::Response GetDynamicObjectServiceResponse;
 
-    struct ObjStruct {
-        std::string id;
-        CloudPtr cloud;
-    };
+//    struct ObjStruct {
+//        std::string id;
+//        CloudPtr cloud;
+//    };
 
     struct GetObjStruct
     {
@@ -80,7 +84,7 @@ public:
 
     bool dynamicObjectsServiceCallback(DynamicObjectsServiceRequest &req, DynamicObjectsServiceResponse &res);
     bool getDynamicObjectServiceCallback(GetDynamicObjectServiceRequest &req, GetDynamicObjectServiceResponse &res);
-    std::vector<ObjectManager<PointType>::ObjStruct>  loadDynamicObjectsFromObservation(std::string obs_file);
+    std::vector<DynamicObject::Ptr>  loadDynamicObjectsFromObservation(std::string obs_file);
     bool returnObjectMask(std::string waypoint, std::string object_id, std::string observation_xml, GetObjStruct& returned_object);
 
     ros::Publisher                                                              m_PublisherDynamicClusters;
@@ -111,7 +115,7 @@ private:
 
     ros::NodeHandle                                                             m_NodeHandle;
     std::string                                                                 m_dataFolder;
-    std::map<std::string, std::vector<ObjStruct>>                               m_waypointToObjMap;
+    std::map<std::string, std::vector<DynamicObject::Ptr>>                               m_waypointToObjMap;
     std::map<std::string, std::string>                                          m_waypointToSweepFileMap;
 };
 
@@ -151,7 +155,7 @@ bool ObjectManager<PointType>::dynamicObjectsServiceCallback(DynamicObjectsServi
 
     using namespace std;
 
-    std::vector<ObjStruct> currentObjects;
+    std::vector<DynamicObject::Ptr> currentObjects;
     bool objects_found = updateObjectsAtWaypoint(req.waypoint_id);
     if (!objects_found)
     {
@@ -165,7 +169,7 @@ bool ObjectManager<PointType>::dynamicObjectsServiceCallback(DynamicObjectsServi
 
     for (auto cloudObj : currentObjects)
     {
-        *allObjects += *(cloudObj.cloud);
+        *allObjects += *(cloudObj->m_points);
     }
 
     sensor_msgs::PointCloud2 msg_objects;
@@ -181,15 +185,15 @@ bool ObjectManager<PointType>::dynamicObjectsServiceCallback(DynamicObjectsServi
     for (auto cloudObj : currentObjects)
     {
         sensor_msgs::PointCloud2 msg_objects;
-        pcl::toROSMsg(*cloudObj.cloud, msg_objects);
+        pcl::toROSMsg(*cloudObj->m_points, msg_objects);
         msg_objects.header.frame_id="/map";
 
         clouds.push_back(msg_objects);
-        id.push_back(cloudObj.id);
+        id.push_back(cloudObj->m_label);
 
 
         Eigen::Vector4f centroid;
-        pcl::compute3DCentroid(*cloudObj.cloud, centroid);
+        pcl::compute3DCentroid(*cloudObj->m_points, centroid);
 
         geometry_msgs::Point ros_centroid; ros_centroid.x = centroid[0];ros_centroid.y = centroid[1];ros_centroid.z = centroid[2];
         centroids.push_back(ros_centroid);
@@ -211,7 +215,7 @@ bool ObjectManager<PointType>::getDynamicObjectServiceCallback(GetDynamicObjectS
 
     using namespace std;
 
-    std::vector<ObjStruct> currentObjects;
+    std::vector<DynamicObject::Ptr> currentObjects;
     bool objects_found = updateObjectsAtWaypoint(req.waypoint_id);
     if (!objects_found)
     {
@@ -269,7 +273,7 @@ bool ObjectManager<PointType>::updateObjectsAtWaypoint(std::string waypoint_id)
     {
         // no dynamic clusters loaded for this waypoint
         // -> load them
-        std::vector<ObjStruct> dynamicObjects = loadDynamicObjectsFromObservation(latest);
+        std::vector<DynamicObject::Ptr> dynamicObjects = loadDynamicObjectsFromObservation(latest);
         if (dynamicObjects.size() == 0)
         {
             ROS_INFO_STREAM("No objects detected after clustering.");
@@ -282,7 +286,7 @@ bool ObjectManager<PointType>::updateObjectsAtWaypoint(std::string waypoint_id)
         if (m_waypointToSweepFileMap[waypoint_id] != latest)
         {
             ROS_INFO_STREAM("Older point cloud loaded in memory. Loading objects from latest observation ...");
-            std::vector<ObjStruct> dynamicObjects = loadDynamicObjectsFromObservation(latest);
+            std::vector<DynamicObject::Ptr> dynamicObjects = loadDynamicObjectsFromObservation(latest);
             if (dynamicObjects.size() == 0)
             {
                 ROS_INFO_STREAM("No objects detected after clustering.");
@@ -297,7 +301,7 @@ bool ObjectManager<PointType>::updateObjectsAtWaypoint(std::string waypoint_id)
             if (it2 == m_waypointToObjMap.end())
             {
                 ROS_ERROR_STREAM("Object map is empty. Reload.");
-                std::vector<ObjStruct> dynamicObjects = loadDynamicObjectsFromObservation(latest);
+                std::vector<DynamicObject::Ptr> dynamicObjects = loadDynamicObjectsFromObservation(latest);
                 if (dynamicObjects.size() == 0)
                 {
                     ROS_INFO_STREAM("No objects detected after clustering.");
@@ -314,9 +318,22 @@ bool ObjectManager<PointType>::updateObjectsAtWaypoint(std::string waypoint_id)
 }
 
 template <class PointType>
-std::vector<typename ObjectManager<PointType>::ObjStruct>  ObjectManager<PointType>::loadDynamicObjectsFromObservation(std::string obs_file)
+std::vector<DynamicObject::Ptr>  ObjectManager<PointType>::loadDynamicObjectsFromObservation(std::string obs_file)
 {
-    std::vector<ObjStruct> dynamicObjects;
+    std::vector<DynamicObject::Ptr> dynamicObjects;
+
+    // check if the objects have been computed already
+    {
+        unsigned found = obs_file.find_last_of("/");
+        std::string obs_folder = obs_file.substr(0,found+1);
+        dynamicObjects = dynamic_object_utilities::loadDynamicObjects(obs_folder);
+        if (dynamicObjects.size() != 0)
+        {
+            ROS_INFO_STREAM("Dyanmic objects previously saved. Loading them from disk. Loaded "<<dynamicObjects.size()<<" objects.");
+            return dynamicObjects;
+        }
+    }
+
     auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(obs_file, std::vector<std::string>{"RoomDynamicClusters"},false);
     if (sweep.dynamicClusterCloud->points.size() == 0)
     {
@@ -352,12 +369,30 @@ std::vector<typename ObjectManager<PointType>::ObjStruct>  ObjectManager<PointTy
         cloud_cluster->is_dense = true;
 
         std::stringstream ss;ss<<"object_";ss<<j;
-        ObjStruct object;
-        object.cloud = cloud_cluster;
-        object.id = ss.str();
+//        ObjStruct object;
+//        object.cloud = cloud_cluster;
+//        object.id = ss.str();
 
-        dynamicObjects.push_back(object);
 
+
+        // create and save dynamic object
+        DynamicObject::Ptr roomObject(new DynamicObject());
+        roomObject->setCloud(cloud_cluster);
+        roomObject->setTime(sweep.roomLogStartTime);
+        roomObject->m_roomLogString = sweep.roomLogName;
+        roomObject->m_roomStringId = sweep.roomWaypointId;
+        // create label from room log time; could be useful later on, and would resolve ambiguities
+        std::stringstream ss_obj;
+        ss_obj<<boost::posix_time::to_simple_string(sweep.roomLogStartTime);
+        ss_obj<<"_object_";ss_obj<<j;
+        roomObject->m_label = ss_obj.str();
+        // save dynamic object
+        unsigned found = obs_file.find_last_of("/");
+        std::string obs_folder = obs_file.substr(0,found+1);
+        DynamicObjectXMLParser parser(obs_folder, true);
+        parser.saveAsXML(roomObject);
+
+        dynamicObjects.push_back(roomObject);
         j++;
     }
 
@@ -374,12 +409,12 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         return false;
     }
 
-    std::vector<ObjStruct> objects = m_waypointToObjMap[waypoint];
-    ObjStruct object;
+    std::vector<DynamicObject::Ptr> objects = m_waypointToObjMap[waypoint];
+    DynamicObject::Ptr object;
     bool found = false;
     for (auto objectStruct : objects)
     {
-        if (objectStruct.id == object_id)
+        if (objectStruct->m_label == object_id)
         {
             found = true;
             object = objectStruct;
@@ -397,12 +432,12 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
     // load observation and individual clouds
     SemanticRoom<PointType> observation = SemanticRoomXMLParser<PointType>::loadRoomFromXML(observation_xml,true);
 
-    int argc = 0;
-    char** argv;
-//    pcl::visualization::PCLVisualizer* p = new pcl::visualization::PCLVisualizer (argc, argv, "Metaroom consistency");
+//    int argc = 0;
+//    char** argv;
+//    pcl::visualization::PCLVisualizer* p = new pcl::visualization::PCLVisualizer (argc, argv, "object manager");
 //    p->addCoordinateSystem();
     CloudPtr object_cloud(new Cloud());
-    *object_cloud = *object.cloud;
+    *object_cloud = *object->m_points;
 
     // transform into the camera frame of ref (to compare with the individual clusters)
     Eigen::Matrix4f roomTransform = observation.getRoomTransform();
@@ -520,8 +555,8 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         cv::Rect rec(bottom_x,bottom_y,top_x - bottom_x, top_y - bottom_y);
         cv::Mat tmp = cluster_image(rec);
 
-//        cv::imwrite("image.jpg", cluster_image);
-//        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
+        cv::imwrite("image.jpg", cluster_image);
+        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
 
         const Eigen::Affine3d eigenTr(best_transform.cast<double>());
         tf::transformEigenToTF(eigenTr,returned_object.transform_to_map);
