@@ -16,6 +16,8 @@ using namespace std;
 
 DynamicObject::DynamicObject(bool verbose) : m_points(new Cloud()), m_normals(new NormalCloud), m_label("unknown"), m_bVerbose(verbose)
 {
+    m_roomLogString = "";
+    m_roomStringId = "";
 }
 
 DynamicObject::~DynamicObject()
@@ -143,6 +145,23 @@ void DynamicObject::computeFitness(CloudPtr one, CloudPtr other, double& fitness
 
 bool DynamicObject::operator==(const DynamicObject& rhs)
 {
+    if (m_roomLogString != rhs.m_roomLogString)
+    {
+        if (m_bVerbose)
+        {
+            cout<<"Room log string not the same "<<endl;
+        }
+        return false;
+    }
+    if (m_roomStringId != rhs.m_roomStringId)
+    {
+        if (m_bVerbose)
+        {
+            cout<<"Room string id not the same "<<endl;
+        }
+        return false;
+    }
+
     if (m_label != rhs.m_label)
     {
         if (m_bVerbose)

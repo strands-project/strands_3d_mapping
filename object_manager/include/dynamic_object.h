@@ -53,6 +53,8 @@ public:
 private:
 
 public:
+   std::string                      m_roomLogString;
+   std::string                      m_roomStringId; // waypoint_#
    CloudPtr                         m_points;
    NormalCloudPtr                   m_normals;
    std::string                      m_label;

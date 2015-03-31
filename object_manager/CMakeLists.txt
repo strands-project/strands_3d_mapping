@@ -48,11 +48,13 @@ catkin_package(
 set(HDRS
     include/object_manager.h
     include/dynamic_object.h
+    include/dynamic_object_xml_parser.h
 )
 
 set(SRCS
     src/object_manager.cpp
     src/dynamic_object.cpp
+    src/dynamic_object_xml_parser.cpp
 )
 
 include_directories(include
