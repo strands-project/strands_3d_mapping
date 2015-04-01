@@ -164,6 +164,7 @@ protected:
     //std::vector<size_t> sample_with_replacement(size_t upper) const;
     leaf_range assign_nodes(CloudPtrT& subcloud, node** nodes, size_t current_depth, const std::vector<int>& subinds);
     void unfold_nodes(std::vector<node*>& path, node* nodes, const PointT& p);
+    void unfold_nodes(std::vector<std::pair<node*, int> >& depth_path, node* n, const PointT& p, int current_depth);
     void flatten_nodes(CloudPtrT& nodecloud, node* n);
     void flatten_nodes_optimized(CloudPtrT& nodecloud, node* n);
     node* get_next_node(node* n, const PointT& p);
@@ -194,6 +195,7 @@ public:
     void add_points_from_input_cloud();
     leaf* get_leaf_for_point(const PointT& point);
     void get_path_for_point(std::vector<node*>& path, const PointT &point);
+    void get_path_for_point(std::vector<std::pair<node*, int> >& depth_path, const PointT& point);
     void get_cloud_for_point_at_level(CloudPtrT& nodecloud, const PointT& p, size_t level);
     void get_cloud_for_point_at_level_optimized(CloudPtrT& nodecloud, const PointT& p, size_t level);
     size_t points_in_node(node* n);

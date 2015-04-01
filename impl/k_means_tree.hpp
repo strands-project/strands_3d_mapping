@@ -351,12 +351,15 @@ void k_means_tree<Point, K, Data, Lp>::get_path_for_point(vector<node*>& path, c
 }
 
 template <typename Point, size_t K, typename Data, int Lp>
+void k_means_tree<Point, K, Data, Lp>::get_path_for_point(vector<pair<node*, int> >& depth_path, const PointT& point)
+{
+    depth_path.push_back(make_pair(&root, 0)); // this is needed for the distance in vocabulary_tree
+    unfold_nodes(depth_path, &root, point, 1);
+}
+
+template <typename Point, size_t K, typename Data, int Lp>
 typename k_means_tree<Point, K, Data, Lp>::node* k_means_tree<Point, K, Data, Lp>::get_next_node(node* n, const PointT& p)
 {
-    /*node** closest = std::min_element(n->children, n->children+dim, [this, &p](const node* q1, const node* q2) {
-        return norm_func(p, q1->centroid) < norm_func(p, q2->centroid);
-    });
-    return *closest;*/
     double distances[dim];
     for (size_t i = 0; i < dim; ++i) {
         distances[i] = norm_func(p, n->children[i]->centroid);
@@ -373,6 +376,17 @@ void k_means_tree<Point, K, Data, Lp>::unfold_nodes(vector<node*>& path, node* n
     node* closest = get_next_node(n, p);
     path.push_back(closest);
     unfold_nodes(path, closest, p);
+}
+
+template <typename Point, size_t K, typename Data, int Lp>
+void k_means_tree<Point, K, Data, Lp>::unfold_nodes(vector<pair<node*, int> >& depth_path, node* n, const PointT& p, int current_depth)
+{
+    if (n->is_leaf) {
+        return;
+    }
+    node* closest = get_next_node(n, p);
+    depth_path.push_back(make_pair(closest, current_depth));
+    unfold_nodes(depth_path, closest, p, current_depth+1);
 }
 
 template <typename Point, size_t K, typename Data, int Lp>

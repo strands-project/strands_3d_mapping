@@ -49,6 +49,7 @@ protected:
     double pexp(const double v) const;
     double proot(const double v) const;
     double compute_query_vector(std::map<node*, double>& query_id_freqs, CloudPtrT& query_cloud);
+    double compute_query_vector(std::map<node*, std::pair<double, int> >& query_id_freqs, CloudPtrT& query_cloud);
     void source_freqs_for_node(std::map<int, int>& source_id_freqs, node* n) const;
     size_t nbr_sources_for_freqs(std::map<int, int>& source_id_freqs) const;
     void normalizing_constants_for_node(std::map<int, int>& normalizing_constants, node* n, int current_depth);
@@ -65,7 +66,7 @@ public:
     double compute_vocabulary_norm(CloudPtrT& cloud);
     double compute_min_combined_dist(CloudPtrT& cloud, std::vector<CloudPtrT>& smaller_clouds, std::vector<double>& pnorms, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers);
     double compute_min_combined_dist(CloudPtrT& cloud, std::vector<std::map<int, double> >& smaller_freqs, std::vector<double>& pnorms,
-                                     pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, std::map<node*, int>& mapping);
+                                     pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, std::map<node*, int>& mapping, int hint = -1);
 
     void set_min_match_depth(int depth);
     void compute_normalizing_constants(); // this also computes the weights
@@ -81,6 +82,7 @@ public:
     void top_combined_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results);
 
     double compute_query_index_vector(std::map<int, double>& query_index_freqs, CloudPtrT& query_cloud, std::map<node*, int>& mapping);
+    size_t deep_count_sets();
 
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);

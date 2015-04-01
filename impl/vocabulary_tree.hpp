@@ -182,7 +182,7 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
 // keep in mind that smaller_freqs will be modified here
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, vector<map<int, double> >& smaller_freqs, vector<double>& pnorms,
-                                                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, map<node*, int>& mapping) // TODO: const
+                                                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, map<node*, int>& mapping, int hint) // TODO: const
 {
     pcl::PointCloud<pcl::PointXYZRGB> remaining_centers;
     remaining_centers += *centers;
@@ -194,6 +194,14 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
     double vnorm = 0.0;
 
     map<int, double> source_freqs; // to be filled in
+
+    if (hint != -1) {
+        if (hint >= centers->size()) {
+            cout << "Using hint = " << hint << endl;
+            cout << "We have total voxels: " << centers->size() << endl;
+            //exit(0);
+        }
+    }
 
     double last_dist = std::numeric_limits<double>::infinity(); // large
     // repeat until the smallest vector is
@@ -215,6 +223,9 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
                     continue;
                 }
             }
+            else if (hint != -1) {
+                i = hint;
+            }
 
             double normalization = 1.0/std::max(pnorms[i] + vnorm, qnorm);
             double dist = 1.0;
@@ -234,6 +245,10 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
             if (dist < mindist) {
                 mindist = dist;
                 minind = i;
+            }
+
+            if (hint != -1 && included_centers.empty()) {
+                break;
             }
         }
 
@@ -361,16 +376,6 @@ void vocabulary_tree<Point, K>::add_points_from_input_cloud(bool save_cloud)
 
     if (!save_cloud) {
         super::cloud->clear();
-    }
-}
-
-template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::source_freqs_for_node(std::map<int, int>& source_id_freqs, node* n) const
-{
-    for (int i = n->range.first; i < n->range.second; ++i) {
-        for (std::pair<const int, int>& v : super::leaves[i]->data->source_id_freqs) {
-            source_id_freqs[v.first] += v.second;
-        }
     }
 }
 
@@ -660,6 +665,31 @@ double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, double>& 
 }
 
 template <typename Point, size_t K>
+double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, pair<double, int> >& query_id_freqs, CloudPtrT& query_cloud)
+{
+    for (PointT p : query_cloud->points) {
+        std::vector<node*> path;
+        super::get_path_for_point(path, p);
+        int current_depth = 0;
+        for (node* n : path) {
+            if (current_depth >= matching_min_depth) {
+                pair<double, int>& value = query_id_freqs[n];
+                value.first += 1.0f;
+                value.second = current_depth;
+            }
+            ++current_depth;
+        }
+    }
+    double qnorm = 0.0f;
+    for (std::pair<node* const, pair<double, int> >& v : query_id_freqs) {
+        v.second.second = v.first->weight*v.second.second;
+        qnorm += pexp(v.second.second);
+    }
+
+    return qnorm;
+}
+
+template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_query_index_vector(map<int, double>& query_index_freqs, CloudPtrT& query_cloud, map<node*, int>& mapping)
 {
     map<node*, double> query_node_freqs;
@@ -688,4 +718,17 @@ void vocabulary_tree<Point, K>::load(Archive& archive)
     archive(indices);
     archive(db_vector_normalizing_constants);
     archive(N);
+}
+
+template <typename Point, size_t K>
+size_t vocabulary_tree<Point, K>::deep_count_sets()
+{
+    unordered_set<int> indices_ids;
+    for (leaf* l : super::leaves) {
+        for (const pair<int, int>& i : l->data->source_id_freqs) {
+            indices_ids.insert(i.first);
+        }
+    }
+    cout << "cloud size: " << indices.size() << endl;
+    return indices_ids.size();
 }
