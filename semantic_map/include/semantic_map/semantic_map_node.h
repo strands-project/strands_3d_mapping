@@ -289,6 +289,13 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
             pcl::transformPointCloud (*roomCloud, *roomCloud, metaroom->getRoomTransform());
 
             aRoom.setCompleteRoomCloud(roomCloud);
+
+            // update room transform
+            tf::StampedTransform sweep_to_map = aRoom.getIntermediateCloudTransforms()[0];
+            Eigen::Affine3d eigen_affine; tf::transformTFToEigen(sweep_to_map, eigen_affine);
+            Eigen::Matrix4f eigen_matrix(eigen_affine.matrix().cast<float>());
+            aRoom.setRoomTransform(metaroom->getRoomTransform() * eigen_matrix.inverse());
+
             parser.saveRoomAsXML(aRoom);
             delete new_rc;
             do_registration = false;

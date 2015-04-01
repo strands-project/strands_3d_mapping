@@ -58,6 +58,8 @@ public:
         boost::shared_ptr<pcl::PointCloud<PointType>>                                         completeRoomCloud;
         boost::shared_ptr<pcl::PointCloud<PointType>>                                         dynamicClusterCloud;
         std::string                                                                           roomWaypointId;
+        std::string                                                                           roomLogName;
+        boost::posix_time::ptime                                                              roomLogStartTime;
         std::vector<IntermediatePositionImages>                                               vIntermediatePositionImages;
 
         RoomData(){
@@ -206,6 +208,19 @@ public:
                     QString roomWaypointId = xmlReader->readElementText();
                     aRoom.roomWaypointId = roomWaypointId.toStdString();
                 }
+                if (xmlReader->name() == "RoomLogName")
+                {
+                    QString roomLogName = xmlReader->readElementText();
+                    aRoom.roomLogName = roomLogName.toStdString();
+                }
+
+                if (xmlReader->name() == "RoomLogStartTime")
+                {
+                    QString roomLogStartTime = xmlReader->readElementText();
+                    boost::posix_time::ptime roomStartTime = boost::posix_time::time_from_string(roomLogStartTime.toStdString());
+                    aRoom.roomLogStartTime = roomStartTime;
+                }
+
 
                 if ((xmlReader->name() == "RoomIntermediateCloud") &&
                         (std::find(xmlNodesToParse.begin(), xmlNodesToParse.end(), "RoomIntermediateCloud") != xmlNodesToParse.end()))
