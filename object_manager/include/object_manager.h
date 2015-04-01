@@ -136,7 +136,13 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh)
     m_DynamicObjectsServiceServer = m_NodeHandle.advertiseService("ObjectManager/DynamicObjectsService", &ObjectManager::dynamicObjectsServiceCallback, this);
     m_GetDynamicObjectServiceServer = m_NodeHandle.advertiseService("ObjectManager/GetDynamicObjectService", &ObjectManager::getDynamicObjectServiceCallback, this);
 
-    m_bLogToDB = true;
+    m_NodeHandle.param<bool>("log_objects_to_db",m_bLogToDB,true);
+    if (m_bLogToDB)
+    {
+        ROS_INFO_STREAM("The dynamic objects will be logged to the database.");
+    } else {
+        ROS_INFO_STREAM("The dynamic objects will NOT be logged to the database.");
+    }
 }
 
 template <class PointType>
