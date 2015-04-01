@@ -561,8 +561,8 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         cv::Rect rec(bottom_x,bottom_y,top_x - bottom_x, top_y - bottom_y);
         cv::Mat tmp = cluster_image(rec);
 
-        cv::imwrite("image.jpg", cluster_image);
-        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
+//        cv::imwrite("image.jpg", cluster_image);
+//        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
 
         const Eigen::Affine3d eigenTr(best_transform.cast<double>());
         tf::transformEigenToTF(eigenTr,returned_object.transform_to_map);
