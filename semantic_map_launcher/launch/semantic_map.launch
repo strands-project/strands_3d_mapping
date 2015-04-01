@@ -8,6 +8,8 @@
   <arg name="cache_old_data" default="false" />
   <arg name="max_instances" default="5" />
   <arg name="update_metaroom" default="true" />
+  <arg name="newest_dynamic_clusters" default="true" />
+
 
   <arg name="machine" default="localhost" />
   <arg name="user" default="" />
@@ -37,6 +39,7 @@
         <arg name="update_metaroom" value="$(arg update_metaroom)"/>
     	<arg name="machine" value="$(arg mapping_ip)"/>
 	<arg name="user" value="$(arg mapping_user)" />  
+	<arg name="newest_dynamic_clusters" value="$(arg newest_dynamic_clusters)" />  
     </include>
 
     <node machine="$(arg machine)" pkg="calibrate_sweeps" type="calibrate_sweep_as" name="calibrate_sweep_as" output="screen" respawn="true"/>

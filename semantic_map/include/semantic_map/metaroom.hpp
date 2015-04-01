@@ -245,16 +245,18 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         if (savePath == "")
         {
             // save room in the correct folder
-            QString roomXml(aRoom.getCompleteRoomCloudFilename().c_str());
-            int date = roomXml.indexOf("201");
-            rootFolderPath = roomXml.left(date);
-        } else {
+//            QString roomXml(aRoom.getCompleteRoomCloudFilename().c_str());
+//            int date = roomXml.indexOf("201");
+//            rootFolderPath = roomXml.left(date);
+            SemanticRoomXMLParser<PointType> parser;
+            std::string saved_xml = parser.saveRoomAsXML(aRoom);
+        } else {            
             rootFolderPath = QString(savePath.c_str()) + QString("/");
-        }
 
-        ROS_INFO_STREAM("Initializeing room xml parser with root folder "<<rootFolderPath.toStdString());
-        SemanticRoomXMLParser<PointType> parser(rootFolderPath.toStdString());
-        parser.saveRoomAsXML(aRoom);
+            ROS_INFO_STREAM("Initializing room xml parser with root folder "<<rootFolderPath.toStdString());
+            SemanticRoomXMLParser<PointType> parser(rootFolderPath.toStdString());
+            parser.saveRoomAsXML(aRoom);
+        }
 
         // Save ORB features in metaroom folder. Will be used later on for registration with other sweeps
         MetaRoomXMLParser<PointType> meta_parser;
