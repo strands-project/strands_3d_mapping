@@ -46,7 +46,7 @@ catkin_package(
 )
 
 set(HDRS
-    include/object_manager.h
+
     include/dynamic_object.h
     include/dynamic_object_utilities.h
     include/dynamic_object_xml_parser.h
@@ -54,7 +54,7 @@ set(HDRS
 )
 
 set(SRCS
-    src/object_manager.cpp
+
     src/dynamic_object.cpp
     src/dynamic_object_utilities.cpp
     src/dynamic_object_xml_parser.cpp
@@ -65,11 +65,11 @@ include_directories(include
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(object_manager_node   ${HDRS} ${SRCS} src/object_manager_main.cpp)
+add_executable(object_manager_node   ${HDRS} ${SRCS} include/object_manager.h src/object_manager.cpp src/object_manager_main.cpp)
 add_dependencies(object_manager_node object_manager_node_generate_messages_cpp)
 
 add_executable(load_objects_from_mongo ${HDRS} ${SRCS} src/load_objects_from_mongo.cpp)
-add_dependencies(load_objects_from_mongo object_manager_node_generate_messages_cpp)
+add_dependencies(load_objects_from_mongo load_objects_from_mongo_generate_messages_cpp)
 
  target_link_libraries(object_manager_node
    ${catkin_LIBRARIES}
