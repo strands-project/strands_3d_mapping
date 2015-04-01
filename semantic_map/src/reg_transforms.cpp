@@ -283,9 +283,7 @@ void semantic_map_registration_transforms::getPtuAnglesForIntPosition(int pan_st
                                 int int_position, int& pan_angle, int& tilt_angle, bool verbose)
 {
     int pan_steps = ((abs(pan_start)+abs(pan_end))/pan_step) + 1;
-    cout<<"Pan steps "<<pan_steps<<endl;
     int tilt_steps = ((abs(tilt_start)+abs(tilt_end))/tilt_step) + 1;
-    cout<<"Tilt steps "<<tilt_steps<<endl;
 
     tilt_angle = (int_position/pan_steps) * tilt_step + tilt_start;
     pan_angle = (int_position%pan_steps) * pan_step + pan_start;

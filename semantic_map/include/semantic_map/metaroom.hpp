@@ -557,7 +557,7 @@ std::vector<typename pcl::PointCloud<PointType>::Ptr> MetaRoom<PointType>::clust
 }
 
 template <class PointType>
-void MetaRoom<PointType>::filterClustersBasedOnDistance(std::vector<CloudPtr>& clusters, double maxDistance)
+void MetaRoom<PointType>::filterClustersBasedOnDistance(tf::Vector3 sensor_origin, std::vector<CloudPtr>& clusters, double maxDistance)
 {
     typename std::vector<CloudPtr>::iterator cluster_iterator = clusters.begin();
 
@@ -566,7 +566,7 @@ void MetaRoom<PointType>::filterClustersBasedOnDistance(std::vector<CloudPtr>& c
         Eigen::Vector4f centroid;
         pcl::compute3DCentroid(*(*cluster_iterator), centroid);
 
-        Eigen::Vector4f roomCenter(m_SensorOrigin.x(), m_SensorOrigin.y(), m_SensorOrigin.z(),0.0);
+        Eigen::Vector4f roomCenter(sensor_origin.x(), sensor_origin.y(), sensor_origin.z(),0.0);
 
         double distance = pcl::distances::l2(centroid,roomCenter);
         if (distance > maxDistance)

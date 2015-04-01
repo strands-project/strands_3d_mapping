@@ -66,6 +66,9 @@ public:
     ros::Publisher                                                              m_PublisherDynamicClusters;
 
 private:
+    bool processRoomObservationWithMetaroom(SemanticRoom<PointType>& newRoom, std::string xml_file_name, CloudPtr difference);
+    //    bool processRoomObservationWithMetaroom(SemanticRoom<PointType>& newRoom, CloudPtr difference);
+
     ros::NodeHandle                                                             m_NodeHandle;
     SemanticMapSummaryParser                                         m_SummaryParser;
     bool                                                                        m_bSaveIntermediateData;
@@ -76,6 +79,7 @@ private:
     std::map<std::string, SemanticRoom<PointType> >                             m_WaypointToRoomMap;
     std::map<std::string, CloudPtr>                                             m_WaypointToDynamicClusterMap;
     bool                                                                        m_bUpdateMetaroom;
+    bool                                                                        m_bNewestClusters;
 
 };
 
@@ -117,6 +121,13 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
         ROS_INFO_STREAM("The metarooms will NOT be updated with new room observations.");
     }
 
+    m_NodeHandle.param<bool>("newest_dynamic_clusters",m_bNewestClusters,false);
+    if (m_bNewestClusters)
+    {
+        ROS_INFO_STREAM("Only the latest dynamic clusters will be computed (comapring with previous observations).");
+    } else {
+        ROS_INFO_STREAM("All the dynamic clusters will be computer (comparing with the metaroom).");
+    }
 }
 
 template <class PointType>
@@ -150,7 +161,88 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     ROS_INFO_STREAM("Summary XML created.");
 
 
+    CloudPtr difference (new Cloud());
+    bool computed_clusters = false;
+    if (!m_bNewestClusters)
+    {
+        computed_clusters = processRoomObservationWithMetaroom(aRoom, xml_file_name, difference);
+    }
 
+    if (!computed_clusters)
+    {
+        return;
+    }
+
+    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.03,800,100000);
+    ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
+    MetaRoom<PointType>::filterClustersBasedOnDistance(aRoom.getIntermediateCloudTransforms()[0].getOrigin(), vClusters,3.0);
+    ROS_INFO_STREAM(vClusters.size()<<" different clusters after max distance filtering.");
+
+    ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
+
+    // Check cluster planarity and discard the absolutely planar ones (usually parts of walls, floor, ceiling).
+    CloudPtr dynamicClusters(new Cloud());
+    for (size_t i=0; i<vClusters.size(); i++)
+    {
+        pcl::SACSegmentation<PointType> seg;
+        pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+        pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+
+        seg.setOptimizeCoefficients (true);
+        seg.setModelType (pcl::SACMODEL_PLANE);
+        seg.setMethodType (pcl::SAC_RANSAC);
+        seg.setMaxIterations (100);
+        seg.setDistanceThreshold (0.02);
+
+        seg.setInputCloud (vClusters[i]);
+        seg.segment (*inliers, *coefficients);
+        if (inliers->indices.size () > 0.9 * vClusters[i]->points.size())
+        {
+            ROS_INFO_STREAM("Discarding planar dynamic cluster");
+        } else {
+            *dynamicClusters += *vClusters[i];
+        }
+    }
+
+    // publish dynamic clusters
+    sensor_msgs::PointCloud2 msg_clusters;
+    pcl::toROSMsg(*dynamicClusters, msg_clusters);
+    msg_clusters.header.frame_id="/map";
+    m_PublisherDynamicClusters.publish(msg_clusters);
+    ROS_INFO_STREAM("Published differences "<<dynamicClusters->points.size());
+
+    aRoom.setDynamicClustersCloud(dynamicClusters);
+    // save updated room
+    parser.saveRoomAsXML(aRoom);
+
+    if (aRoom.getRoomStringId() != "") // waypoint id set, update the map
+    {
+        m_WaypointToDynamicClusterMap[aRoom.getRoomStringId()] = dynamicClusters;
+        ROS_INFO_STREAM("Updated map with new dynamic clusters for waypoint "<<aRoom.getRoomStringId());
+    }
+
+    if (m_bLogToDB)
+    {
+        QString databaseName = QString(aRoom.getRoomLogName().c_str()) + QString("/room_")+ QString::number(aRoom.getRoomRunNumber()) +QString("/dynamic_clusters");
+        std::string id(m_messageStore.insertNamed(databaseName.toStdString(), msg_clusters));
+        ROS_INFO_STREAM("Dynamic clusters \""<<databaseName.toStdString()<<"\" inserted with id "<<id);
+
+        std::vector< boost::shared_ptr<sensor_msgs::PointCloud2> > results;
+        if(m_messageStore.queryNamed<sensor_msgs::PointCloud2>(databaseName.toStdString(), results)) {
+
+            BOOST_FOREACH( boost::shared_ptr<sensor_msgs::PointCloud2> p,  results)
+            {
+                CloudPtr databaseCloud(new Cloud());
+                pcl::fromROSMsg(*p,*databaseCloud);
+                ROS_INFO_STREAM("Got pointcloud by name. No points: " << databaseCloud->points.size());
+            }
+        }
+    }
+}
+
+template <class PointType>
+bool SemanticMapNode<PointType>::processRoomObservationWithMetaroom(SemanticRoom<PointType>& aRoom, std::string xml_file_name, CloudPtr difference)
+{
     boost::shared_ptr<MetaRoom<PointType> > metaroom;
     bool found = false;
 
@@ -296,6 +388,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
             Eigen::Matrix4f eigen_matrix(eigen_affine.matrix().cast<float>());
             aRoom.setRoomTransform(metaroom->getRoomTransform() * eigen_matrix.inverse());
 
+            SemanticRoomXMLParser<PointType> parser;
             parser.saveRoomAsXML(aRoom);
             delete new_rc;
             do_registration = false;
@@ -314,9 +407,9 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     if (updateIteration.roomRunNumber == -1) // no update performed
     {
         ROS_ERROR_STREAM("Could not update metaroom with the room instance.");
-        return;
+        return false;
     }
-    CloudPtr roomCloud = aRoom.getInteriorRoomCloud();
+
     CloudPtr metaroomCloud = metaroom->getInteriorRoomCloud();
 
     // publish data
@@ -326,7 +419,6 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     m_PublisherMetaroom.publish(msg_metaroom);
     m_vLoadedMetarooms.push_back(metaroom);
     ROS_INFO_STREAM("Published metaroom");
-
 
     if (aRoom.getRoomStringId() != "") // waypoint id set, update the map
     {
@@ -338,9 +430,10 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     }
 
 
+    CloudPtr roomCloud = aRoom.getInteriorRoomCloud();
     // compute differences
     ROS_INFO_STREAM("Computing differences");
-    CloudPtr difference(new Cloud());
+//    CloudPtr difference(new Cloud());
 
     pcl::SegmentDifferences<PointType> segment;
     segment.setInputCloud(roomCloud);
@@ -358,94 +451,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         // metaroom and room observation are identical -> no dynamic clusters can be computed
 
         ROS_INFO_STREAM("No dynamic clusters.");
-        return;
-    }
-
-    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.03,800,100000);
-    ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
-    metaroom->filterClustersBasedOnDistance(vClusters,3.0);
-    ROS_INFO_STREAM(vClusters.size()<<" different clusters after max distance filtering.");
-
-    ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
-
-    // Check cluster planarity and discard the absolutely planar ones (usually parts of walls, floor, ceiling).
-    CloudPtr dynamicClusters(new Cloud());
-    for (size_t i=0; i<vClusters.size(); i++)
-    {
-        pcl::SACSegmentation<PointType> seg;
-        pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-        pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-
-        seg.setOptimizeCoefficients (true);
-        seg.setModelType (pcl::SACMODEL_PLANE);
-        seg.setMethodType (pcl::SAC_RANSAC);
-        seg.setMaxIterations (100);
-        seg.setDistanceThreshold (0.02);
-        //        seg.setAxis(Eigen::Vector3f(0,0,1));
-        //        seg.setEpsAngle (0.1);
-
-        seg.setInputCloud (vClusters[i]);
-        seg.segment (*inliers, *coefficients);
-        if (inliers->indices.size () > 0.9 * vClusters[i]->points.size())
-        {
-            ROS_INFO_STREAM("Discarding planar dynamic cluster");
-        } else {
-            *dynamicClusters += *vClusters[i];
-        }
-    }
-
-//    *dynamicClusters = *difference;
-
-    //    // Filter out ceiling and floor clusters
-    //    pcl::PassThrough<PointType> lower_pass;
-    //    CloudPtr temp_cloud (new Cloud);
-    //    lower_pass.setInputCloud (dynamicClusters);
-    //    lower_pass.setFilterFieldName ("z");
-    //    lower_pass.setFilterLimits (-.5, .5);
-    ////    lower_pass.filter (*temp_cloud);
-    ////    *dynamicClusters = *temp_cloud;
-
-    //    pcl::PassThrough<PointType> upper_pass;
-    //    upper_pass.setInputCloud (dynamicClusters);
-    //    upper_pass.setFilterFieldName ("z");
-    //    upper_pass.setFilterLimits (0.1, 2.5);
-    //    upper_pass.filter (*temp_cloud);
-    //    *dynamicClusters = *temp_cloud;
-    // cluster planarity
-
-    // publish dynamic clusters
-    sensor_msgs::PointCloud2 msg_clusters;
-    pcl::toROSMsg(*dynamicClusters, msg_clusters);
-    msg_clusters.header.frame_id="/map";
-    m_PublisherDynamicClusters.publish(msg_clusters);
-    ROS_INFO_STREAM("Published differences "<<dynamicClusters->points.size());
-
-    aRoom.setDynamicClustersCloud(dynamicClusters);
-    // save updated room
-    parser.saveRoomAsXML(aRoom);
-
-    if (aRoom.getRoomStringId() != "") // waypoint id set, update the map
-    {
-        m_WaypointToDynamicClusterMap[aRoom.getRoomStringId()] = dynamicClusters;
-        ROS_INFO_STREAM("Updated map with new dynamic clusters for waypoint "<<aRoom.getRoomStringId());
-    }
-
-    if (m_bLogToDB)
-    {
-        QString databaseName = QString(aRoom.getRoomLogName().c_str()) + QString("/room_")+ QString::number(aRoom.getRoomRunNumber()) +QString("/dynamic_clusters");
-        std::string id(m_messageStore.insertNamed(databaseName.toStdString(), msg_clusters));
-        ROS_INFO_STREAM("Dynamic clusters \""<<databaseName.toStdString()<<"\" inserted with id "<<id);
-
-        std::vector< boost::shared_ptr<sensor_msgs::PointCloud2> > results;
-        if(m_messageStore.queryNamed<sensor_msgs::PointCloud2>(databaseName.toStdString(), results)) {
-
-            BOOST_FOREACH( boost::shared_ptr<sensor_msgs::PointCloud2> p,  results)
-            {
-                CloudPtr databaseCloud(new Cloud());
-                pcl::fromROSMsg(*p,*databaseCloud);
-                ROS_INFO_STREAM("Got pointcloud by name. No points: " << databaseCloud->points.size());
-            }
-        }
+        return false;
     }
 }
 

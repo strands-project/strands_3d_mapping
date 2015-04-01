@@ -90,7 +90,7 @@ public:
 
     MetaRoomUpdateIteration<PointType>    updateMetaRoom(SemanticRoom<PointType>& aRoom, std::string savePath="", bool registerRoom = true);
 
-    void filterClustersBasedOnDistance(std::vector<CloudPtr>& clusters, double maxDistance);
+    static void filterClustersBasedOnDistance(tf::Vector3 sensor_origin, std::vector<CloudPtr>& clusters, double maxDistance);
     static std::vector<CloudPtr> clusterPointCloud(CloudPtr input_cloud, double tolerance = 0.05, int min_cluster_size = 100, int max_cluster_size=100000);
     static CloudPtr downsampleCloud(CloudPtr input, double leafSize = 0.02f);
 
