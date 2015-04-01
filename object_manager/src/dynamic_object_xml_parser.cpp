@@ -84,7 +84,7 @@ std::string DynamicObjectXMLParser::saveAsXML(DynamicObject::Ptr object, std::st
    return path;
 }
 
-DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename)
+DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool load_cloud)
 {
    DynamicObject::Ptr object(new DynamicObject());
    QFile file(filename.c_str());
@@ -155,12 +155,15 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename)
 
               if (attributes.hasAttribute("filename"))
               {
-                  QString fileS = objectFolder + "/" + attributes.value("filename").toString();
+                  if (load_cloud)
+                  {
+                      QString fileS = objectFolder + "/" + attributes.value("filename").toString();
 
-                  pcl::PCDReader reader;
-                  CloudPtr cloud (new Cloud);
-                  reader.read (fileS.toStdString(), *cloud);
-                  object->setCloud(cloud);
+                      pcl::PCDReader reader;
+                      CloudPtr cloud (new Cloud);
+                      reader.read (fileS.toStdString(), *cloud);
+                      object->setCloud(cloud);
+                  }
 
               } else {
                   std::cerr<<"Object xml node does not have filename attribute. Aborting."<<std::endl;

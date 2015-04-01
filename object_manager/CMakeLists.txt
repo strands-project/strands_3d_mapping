@@ -68,15 +68,22 @@ include_directories(include
 add_executable(object_manager_node   ${HDRS} ${SRCS} src/object_manager_main.cpp)
 add_dependencies(object_manager_node object_manager_node_generate_messages_cpp)
 
+add_executable(load_objects_from_mongo ${HDRS} ${SRCS} src/load_objects_from_mongo.cpp)
+add_dependencies(load_objects_from_mongo object_manager_node_generate_messages_cpp)
 
  target_link_libraries(object_manager_node
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
   )
 
+ target_link_libraries(load_objects_from_mongo
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+  )
+
 ############################# INSTALL TARGETS
 
-install(TARGETS object_manager_node 
+install(TARGETS object_manager_node load_objects_from_mongo
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
