@@ -54,6 +54,7 @@ std::string DynamicObjectXMLParser::saveAsXML(DynamicObject::Ptr object, std::st
    xmlWriter->writeAttribute("label",object->m_label.c_str());
    xmlWriter->writeAttribute("roomLogString",object->m_roomLogString.c_str());
    xmlWriter->writeAttribute("roomStringId",object->m_roomStringId.c_str());
+   xmlWriter->writeAttribute("roomRunNumber",QString::number(object->m_roomRunNumber));
    xmlWriter->writeAttribute("filename",cloud_filename.c_str());
    pcl::io::savePCDFileBinary(cloud_path, *object->m_points);
 
@@ -83,7 +84,7 @@ std::string DynamicObjectXMLParser::saveAsXML(DynamicObject::Ptr object, std::st
    return path;
 }
 
-DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename)
+DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool load_cloud)
 {
    DynamicObject::Ptr object(new DynamicObject());
    QFile file(filename.c_str());
@@ -144,16 +145,25 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename)
               } else {
                   std::cerr<<"Object xml node does not have roomStringId attribute."<<std::endl; // leaving blank
               }
+              if (attributes.hasAttribute("roomRunNumber"))
+              {
+                  object->m_roomRunNumber = attributes.value("roomRunNumber").toString().toInt();
+              } else {
+                  std::cerr<<"Object xml node does not have roomRunNumber attribute."<<std::endl; // leaving blank
+              }
 
 
               if (attributes.hasAttribute("filename"))
               {
-                  QString fileS = objectFolder + "/" + attributes.value("filename").toString();
+                  if (load_cloud)
+                  {
+                      QString fileS = objectFolder + "/" + attributes.value("filename").toString();
 
-                  pcl::PCDReader reader;
-                  CloudPtr cloud (new Cloud);
-                  reader.read (fileS.toStdString(), *cloud);
-                  object->setCloud(cloud);
+                      pcl::PCDReader reader;
+                      CloudPtr cloud (new Cloud);
+                      reader.read (fileS.toStdString(), *cloud);
+                      object->setCloud(cloud);
+                  }
 
               } else {
                   std::cerr<<"Object xml node does not have filename attribute. Aborting."<<std::endl;

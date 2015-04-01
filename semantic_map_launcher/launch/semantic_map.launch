@@ -3,6 +3,7 @@
   <arg name="save_intermediate_clouds" default="true" />
   <arg name="save_intermediate_images" default="false" />
   <arg name="log_to_db" default="false" />
+  <arg name="log_objects_to_db" default="false" />
   <arg name="cleanup" default="false" />
   <arg name="cache_old_data" default="false" />
   <arg name="max_instances" default="5" />
@@ -42,7 +43,9 @@
     
     <node machine="$(arg machine)" pkg="semantic_map_publisher" type="semantic_map_publisher" name="semantic_map_publisher" output="screen" respawn="true"/>
     
-    <node machine="$(arg machine)" pkg="object_manager" type="object_manager_node" name="object_manager_node" output="screen" respawn="true"/>
+    <node machine="$(arg machine)" pkg="object_manager" type="object_manager_node" name="object_manager_node" output="screen" respawn="true">
+        <param name="log_objects_to_db" value="$(arg log_objects_to_db)"/>
+    </node>
 	
     <!-- Action server for executing the PTU sweeps 
     <include file="$(find scitos_ptu)/launch/ptu_action_server_metric_map.launch"> 

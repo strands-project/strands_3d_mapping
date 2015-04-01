@@ -49,6 +49,7 @@
 #include "dynamic_object.h"
 #include "dynamic_object_xml_parser.h"
 #include "dynamic_object_utilities.h"
+#include "dynamic_object_mongodb_interface.h"
 
 template <class PointType>
 class ObjectManager {
@@ -62,11 +63,6 @@ public:
     typedef typename object_manager::GetDynamicObjectService::Request GetDynamicObjectServiceRequest;
     typedef typename object_manager::GetDynamicObjectService::Response GetDynamicObjectServiceResponse;
 
-//    struct ObjStruct {
-//        std::string id;
-//        CloudPtr cloud;
-//    };
-
     struct GetObjStruct
     {
         CloudPtr object_cloud;
@@ -75,9 +71,6 @@ public:
         cv::Mat object_mask;
         int pan_angle, tilt_angle;
     };
-
-
-
 
     ObjectManager(ros::NodeHandle nh);
     ~ObjectManager();
@@ -92,6 +85,7 @@ public:
     ros::Publisher                                                              m_PublisherRequestedObjectImage;
     ros::ServiceServer                                                          m_DynamicObjectsServiceServer;
     ros::ServiceServer                                                          m_GetDynamicObjectServiceServer;
+
 
     static CloudPtr filterGroundClusters(CloudPtr dynamic, double min_height)
     {
@@ -115,8 +109,9 @@ private:
 
     ros::NodeHandle                                                             m_NodeHandle;
     std::string                                                                 m_dataFolder;
-    std::map<std::string, std::vector<DynamicObject::Ptr>>                               m_waypointToObjMap;
+    std::map<std::string, std::vector<DynamicObject::Ptr>>                      m_waypointToObjMap;
     std::map<std::string, std::string>                                          m_waypointToSweepFileMap;
+    bool                                                                        m_bLogToDB;
 };
 
 template <class PointType>
@@ -140,6 +135,14 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh)
 
     m_DynamicObjectsServiceServer = m_NodeHandle.advertiseService("ObjectManager/DynamicObjectsService", &ObjectManager::dynamicObjectsServiceCallback, this);
     m_GetDynamicObjectServiceServer = m_NodeHandle.advertiseService("ObjectManager/GetDynamicObjectService", &ObjectManager::getDynamicObjectServiceCallback, this);
+
+    m_NodeHandle.param<bool>("log_objects_to_db",m_bLogToDB,true);
+    if (m_bLogToDB)
+    {
+        ROS_INFO_STREAM("The dynamic objects will be logged to the database.");
+    } else {
+        ROS_INFO_STREAM("The dynamic objects will NOT be logged to the database.");
+    }
 }
 
 template <class PointType>
@@ -381,6 +384,7 @@ std::vector<DynamicObject::Ptr>  ObjectManager<PointType>::loadDynamicObjectsFro
         roomObject->setTime(sweep.roomLogStartTime);
         roomObject->m_roomLogString = sweep.roomLogName;
         roomObject->m_roomStringId = sweep.roomWaypointId;
+        roomObject->m_roomRunNumber = sweep.roomRunNumber;
         // create label from room log time; could be useful later on, and would resolve ambiguities
         std::stringstream ss_obj;
         ss_obj<<boost::posix_time::to_simple_string(sweep.roomLogStartTime);
@@ -390,11 +394,19 @@ std::vector<DynamicObject::Ptr>  ObjectManager<PointType>::loadDynamicObjectsFro
         unsigned found = obs_file.find_last_of("/");
         std::string obs_folder = obs_file.substr(0,found+1);
         DynamicObjectXMLParser parser(obs_folder, true);
-        parser.saveAsXML(roomObject);
+        std::string xml_file = parser.saveAsXML(roomObject);
+
+        if (m_bLogToDB)
+        {
+                DynamicObjectMongodbInterface mongo_inteface(m_NodeHandle, true);
+                mongo_inteface.logToDB(roomObject, xml_file);
+        }
 
         dynamicObjects.push_back(roomObject);
         j++;
     }
+
+
 
     return dynamicObjects;
 }
@@ -555,8 +567,8 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         cv::Rect rec(bottom_x,bottom_y,top_x - bottom_x, top_y - bottom_y);
         cv::Mat tmp = cluster_image(rec);
 
-        cv::imwrite("image.jpg", cluster_image);
-        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
+//        cv::imwrite("image.jpg", cluster_image);
+//        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
 
         const Eigen::Affine3d eigenTr(best_transform.cast<double>());
         tf::transformEigenToTF(eigenTr,returned_object.transform_to_map);
