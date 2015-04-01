@@ -49,6 +49,7 @@
 #include "dynamic_object.h"
 #include "dynamic_object_xml_parser.h"
 #include "dynamic_object_utilities.h"
+#include "dynamic_object_mongodb_interface.h"
 
 template <class PointType>
 class ObjectManager {
@@ -62,11 +63,6 @@ public:
     typedef typename object_manager::GetDynamicObjectService::Request GetDynamicObjectServiceRequest;
     typedef typename object_manager::GetDynamicObjectService::Response GetDynamicObjectServiceResponse;
 
-//    struct ObjStruct {
-//        std::string id;
-//        CloudPtr cloud;
-//    };
-
     struct GetObjStruct
     {
         CloudPtr object_cloud;
@@ -75,9 +71,6 @@ public:
         cv::Mat object_mask;
         int pan_angle, tilt_angle;
     };
-
-
-
 
     ObjectManager(ros::NodeHandle nh);
     ~ObjectManager();
@@ -92,6 +85,7 @@ public:
     ros::Publisher                                                              m_PublisherRequestedObjectImage;
     ros::ServiceServer                                                          m_DynamicObjectsServiceServer;
     ros::ServiceServer                                                          m_GetDynamicObjectServiceServer;
+
 
     static CloudPtr filterGroundClusters(CloudPtr dynamic, double min_height)
     {
@@ -115,8 +109,9 @@ private:
 
     ros::NodeHandle                                                             m_NodeHandle;
     std::string                                                                 m_dataFolder;
-    std::map<std::string, std::vector<DynamicObject::Ptr>>                               m_waypointToObjMap;
+    std::map<std::string, std::vector<DynamicObject::Ptr>>                      m_waypointToObjMap;
     std::map<std::string, std::string>                                          m_waypointToSweepFileMap;
+    bool                                                                        m_bLogToDB;
 };
 
 template <class PointType>
@@ -140,6 +135,8 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh)
 
     m_DynamicObjectsServiceServer = m_NodeHandle.advertiseService("ObjectManager/DynamicObjectsService", &ObjectManager::dynamicObjectsServiceCallback, this);
     m_GetDynamicObjectServiceServer = m_NodeHandle.advertiseService("ObjectManager/GetDynamicObjectService", &ObjectManager::getDynamicObjectServiceCallback, this);
+
+    m_bLogToDB = true;
 }
 
 template <class PointType>
@@ -390,11 +387,19 @@ std::vector<DynamicObject::Ptr>  ObjectManager<PointType>::loadDynamicObjectsFro
         unsigned found = obs_file.find_last_of("/");
         std::string obs_folder = obs_file.substr(0,found+1);
         DynamicObjectXMLParser parser(obs_folder, true);
-        parser.saveAsXML(roomObject);
+        std::string xml_file = parser.saveAsXML(roomObject);
+
+        if (m_bLogToDB)
+        {
+                DynamicObjectMongodbInterface mongo_inteface(m_NodeHandle, true);
+                mongo_inteface.logToDB(roomObject, xml_file);
+        }
 
         dynamicObjects.push_back(roomObject);
         j++;
     }
+
+
 
     return dynamicObjects;
 }

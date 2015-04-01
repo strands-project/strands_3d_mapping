@@ -50,6 +50,7 @@ set(HDRS
     include/dynamic_object.h
     include/dynamic_object_utilities.h
     include/dynamic_object_xml_parser.h
+    include/dynamic_object_mongodb_interface.h
 )
 
 set(SRCS
@@ -57,6 +58,7 @@ set(SRCS
     src/dynamic_object.cpp
     src/dynamic_object_utilities.cpp
     src/dynamic_object_xml_parser.cpp
+    src/dynamic_object_mongodb_interface.cpp
 )
 
 include_directories(include
