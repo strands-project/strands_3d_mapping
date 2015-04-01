@@ -18,6 +18,8 @@
 #include <cereal/types/string.hpp>
 #include <cereal/types/vector.hpp>
 #include <cereal/types/map.hpp>
+#include <cereal/types/unordered_map.hpp>
+#include <cereal/types/utility.hpp>
 
 using namespace std;
 using namespace dataset_convenience;
@@ -1302,6 +1304,224 @@ void query_supervoxel_annotations_oversegments(vector<voxel_annotation>& annotat
     }
 }
 
+void change_supervoxel_groups(object_retrieval& obr_voxels)
+{
+    map<int, int> number_features_in_group;
+
+    int current_ind = -1;
+    int current_offset = 0;
+    map<int, int> temp(obr_voxels.gvt.index_group.begin(), obr_voxels.gvt.index_group.end());
+    int nbr_groups = 0;
+    int counter = 0;
+    for (pair<const int, int>& p : temp) {
+        //cout << p.second << endl;
+        int scan_ind = scan_ind_for_supervoxel(p.second, obr_voxels);
+        number_features_in_group[scan_ind] += 1;
+        if (scan_ind != current_ind) {
+            current_ind = scan_ind;
+            current_offset = p.first;
+            ++nbr_groups;
+            counter = 0;
+        }
+        obr_voxels.gvt.group_subgroup.insert(make_pair(p.first, make_pair(scan_ind, counter)));//p.first-current_offset)));
+        ++counter;
+    }
+
+    vector<pair<int, int> > max_features_in_group;
+    max_features_in_group.insert(max_features_in_group.end(), number_features_in_group.begin(), number_features_in_group.end());
+    std::sort(max_features_in_group.begin(), max_features_in_group.end(), [](const pair<int, int>& p1, const pair<int, int>& p2) {
+       return  p1.second < p2.second;
+    });
+
+    for (int i = 0; i < 1000; ++i) {
+        cout << max_features_in_group[i].first << ": " << max_features_in_group[i].second << endl;
+    }
+
+    cout << "number of scans: " << number_features_in_group.size() << endl;
+    cout << "number of supervoxels: " << obr_voxels.gvt.index_group.size() << endl;
+    cout << "deep count supervoxels: " << obr_voxels.gvt.deep_count_sets() << endl;
+    cout << "number of groups: " << nbr_groups << endl;
+
+    string root_path = obr_voxels.segment_path;
+    string group_file = root_path + "/group_subgroup.cereal";
+    ofstream out(group_file, std::ios::binary);
+    {
+        cereal::BinaryOutputArchive archive_o(out);
+        archive_o(obr_voxels.gvt.group_subgroup);
+    }
+
+}
+
+void read_supervoxel_groups(object_retrieval& obr_voxels)
+{
+    string root_path = obr_voxels.segment_path;
+    string group_file = root_path + "/group_subgroup.cereal";
+    ifstream in(group_file, std::ios::binary);
+    {
+        cereal::BinaryInputArchive archive_i(in);
+        archive_i(obr_voxels.gvt.group_subgroup);
+    }
+}
+
+void get_max_supervoxel_features(object_retrieval& obr_scans)
+{
+    int max_features = 0;
+    for (int i = 0; ; ++i) {
+        string scan_path = obr_scans.get_folder_for_segment_id(i);
+        if (!boost::filesystem::is_directory(scan_path)) {
+            break;
+        }
+        vector<HistCloudT::Ptr> voxels;
+        CloudT::Ptr voxel_centers(new CloudT);
+        vector<double> vocabulary_norms;
+        get_oversegmented_voxels_for_scan(voxels, voxel_centers, vocabulary_norms, i, obr_scans);
+        for (HistCloudT::Ptr& v : voxels) {
+            max_features = std::max(max_features, int(v->size()));
+        }
+    }
+    cout << "Highest number of features: " << max_features << endl;
+}
+
+void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen::Matrix3f& K,
+                                   object_retrieval& obr, object_retrieval& obr_scans)
+{
+    const int nbr_query = 11;
+    const int nbr_intial_query = 300;
+
+    if (obr_scans.rvt.empty()) {
+        obr_scans.read_vocabulary(obr_scans.rvt);
+    }
+    obr_scans.rvt.set_min_match_depth(1);
+    obr_scans.rvt.compute_normalizing_constants();
+
+    map<vocabulary_tree<HistT, 8>::node*, int> mapping;
+    obr_scans.rvt.get_node_mapping(mapping);
+
+    if (obr.gvt.empty()) {
+        obr.read_vocabulary(obr.gvt);
+    }
+    obr.gvt.set_min_match_depth(1);
+    obr.gvt.compute_normalizing_constants();
+    obr.gvt.compute_leaf_vocabulary_vectors();
+    //obr.gvt.compute_min_group_indices();
+    //obr.gvt.compute_intermediate_node_vocabulary_vectors();
+
+    //get_max_supervoxel_features(obr_scans);
+    //change_supervoxel_groups(obr);
+    //exit(0);
+    read_supervoxel_groups(obr);
+
+    map<string, int> nbr_full_instances;
+    map<string, pair<float, int> > instance_correct_ratios;
+    //map<string, pair<float, int> > first_correct_ratios;
+    map<string, pair<float, int> > usual_correct_ratios;
+
+    map<string, pair<int, int> > instance_mean_features;
+
+    map<string, int> instance_number_queries;
+
+    chrono::time_point<std::chrono::system_clock> start, end;
+    start = chrono::system_clock::now();
+
+    double total_time1 = 0.0;
+    double total_time2 = 0.0;
+
+    int counter = 0;
+    for (voxel_annotation& a : annotations) {
+        if (counter > 10) {
+            break;
+        }
+        if (a.full) {
+            nbr_full_instances[a.annotation] += 1;
+        }
+        if (!a.full || !a.annotation_covered || !a.segment_covered) {
+            continue;
+        }
+        if (a.annotation != "ajax_1" && a.annotation != "ajax_2" && a.annotation != "ball_1") {
+            //continue;
+        }
+
+        instance_number_queries[a.annotation] += 1;
+
+        CloudT::Ptr cloud(new CloudT);
+        pcl::io::loadPCDFile(a.segment_file, *cloud);
+
+        HistCloudT::Ptr features(new HistCloudT);
+        obr.load_features_for_segment(features, a.segment_id);
+        vector<tuple<int, int, double> > tuple_scores;
+
+        chrono::time_point<std::chrono::system_clock> start1, end1;
+        start1 = chrono::system_clock::now();
+
+        // this also takes care of the scan association
+        obr.gvt.top_optimized_similarities(tuple_scores, features, nbr_intial_query);
+        //obr.gvt.top_combined_similarities(scores, features, nbr_intial_query);
+
+        vector<index_score> scores;
+        vector<int> hints;
+        for (const tuple<int, int, double>& t : tuple_scores) {
+            scores.push_back(index_score(get<0>(t), get<2>(t)));
+            hints.push_back(get<1>(t));
+        }
+
+        end1 = chrono::system_clock::now();
+        chrono::duration<double> elapsed_seconds1 = end1-start1;
+
+        chrono::time_point<std::chrono::system_clock> start2, end2;
+        start2 = chrono::system_clock::now();
+
+        vector<index_score> updated_scores;
+        for (size_t i = 0; i < scores.size(); ++i) {
+            CloudT::Ptr voxel_centers(new CloudT);
+            vector<double> vocabulary_norms;
+            vector<map<int, double> > vocabulary_vectors;
+            get_oversegmented_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, get<0>(scores[i]), obr_scans);
+            double score = obr_scans.rvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
+            updated_scores.push_back(index_score(get<0>(scores[i]), score));
+        }
+
+        end2 = chrono::system_clock::now();
+        chrono::duration<double> elapsed_seconds2 = end2-start2;
+
+        total_time1 += elapsed_seconds1.count();
+        total_time2 += elapsed_seconds2.count();
+
+        std::sort(updated_scores.begin(), updated_scores.end(), [](const index_score& s1, const index_score& s2) {
+            return s1.second < s2.second; // find min elements!
+        });
+
+        updated_scores.resize(nbr_query);
+
+        int scan_ind = scan_ind_for_supervoxel(a.segment_id, obr);
+        calculate_correct_ratio(instance_correct_ratios, a, scan_ind, updated_scores, obr_scans);
+        //calculate_correct_ratio(first_correct_ratios, a, scan_ind, scores, obr_scans, false);
+        scores.resize(nbr_query);
+        calculate_correct_ratio(usual_correct_ratios, a, scan_ind, scores, obr_scans);
+        cout << "Number of features: " << features->size() << endl;
+
+        instance_mean_features[a.annotation].first += features->size();
+        instance_mean_features[a.annotation].second += 1;
+
+        ++counter;
+    }
+
+    end = chrono::system_clock::now();
+    chrono::duration<double> elapsed_seconds = end-start;
+
+    cout << "Benchmark took " << elapsed_seconds.count() << " seconds" << endl;
+    cout << "First part took " << total_time1 << " seconds" << endl;
+    cout << "Second part took " << total_time2 << " seconds" << endl;
+
+    cout << "First round correct ratios: " << endl;
+    for (pair<const string, pair<float, int> > c : instance_correct_ratios) {
+        cout << c.first << " correct ratio: " << c.second.first/float(c.second.second) << endl;
+        cout << c.first << " usual correct ratio: " << usual_correct_ratios[c.first].first/float(usual_correct_ratios[c.first].second) << endl;
+        //cout << c.first << " first round correct ratio: " << first_correct_ratios[c.first].first/float(first_correct_ratios[c.first].second) << endl;
+        cout << "Mean features: " << float(instance_mean_features[c.first].first)/float(instance_mean_features[c.first].second) << endl;
+        cout << "Number of queries: " << instance_number_queries[c.first] << endl;
+    }
+}
+
 vector<index_score> top_combined_similarities(map<int, double>& larger_map, map<int, double>& smaller_map, int nbr_query, float& ratio, int nbr_features)
 {
     double larger_mean = 1.0;
@@ -1563,7 +1783,8 @@ int main(int argc, char** argv)
     //query_supervoxel_annotations(annotations, obr_voxels);
     //query_supervoxel_and_scan_annotations(annotations, obr_voxels, obr);
     //query_supervoxel_annotations_scans(annotations, Kall, obr_voxels, obr);
-    query_supervoxel_annotations_oversegments(annotations, Kall, obr_voxels, obr);
+    //query_supervoxel_annotations_oversegments(annotations, Kall, obr_voxels, obr);
+    query_supervoxel_oversegments(annotations, Kall, obr_voxels, obr);
     //save_sift_features_for_supervoxels(Kall, obr_voxels);
     //save_pfhrgb_features_for_supervoxels(obr_voxels);
     //convert_voxels_to_binary(obr);

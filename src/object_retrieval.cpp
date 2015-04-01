@@ -32,7 +32,7 @@ using namespace std;
 
 // using PFH
 string object_retrieval::feature_vocabulary_file = "vocabulary_pfhrgb.cereal";
-string object_retrieval::grouped_vocabulary_file = "vocabulary_grouped.cereal";
+string object_retrieval::grouped_vocabulary_file = "vocabulary_grouped_2.cereal";
 string object_retrieval::feature_segment_file = "pfhrgb_cloud.pcd";
 string object_retrieval::indices_segment_file = "indices_pfhrgb.cereal";
 
