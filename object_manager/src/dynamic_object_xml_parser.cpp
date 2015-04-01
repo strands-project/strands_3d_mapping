@@ -54,6 +54,7 @@ std::string DynamicObjectXMLParser::saveAsXML(DynamicObject::Ptr object, std::st
    xmlWriter->writeAttribute("label",object->m_label.c_str());
    xmlWriter->writeAttribute("roomLogString",object->m_roomLogString.c_str());
    xmlWriter->writeAttribute("roomStringId",object->m_roomStringId.c_str());
+   xmlWriter->writeAttribute("roomRunNumber",QString::number(object->m_roomRunNumber));
    xmlWriter->writeAttribute("filename",cloud_filename.c_str());
    pcl::io::savePCDFileBinary(cloud_path, *object->m_points);
 
@@ -143,6 +144,12 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename)
                   object->m_roomStringId = labelS.toStdString();
               } else {
                   std::cerr<<"Object xml node does not have roomStringId attribute."<<std::endl; // leaving blank
+              }
+              if (attributes.hasAttribute("roomRunNumber"))
+              {
+                  object->m_roomRunNumber = attributes.value("roomRunNumber").toString().toInt();
+              } else {
+                  std::cerr<<"Object xml node does not have roomRunNumber attribute."<<std::endl; // leaving blank
               }
 
 

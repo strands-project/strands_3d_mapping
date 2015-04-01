@@ -378,6 +378,7 @@ std::vector<DynamicObject::Ptr>  ObjectManager<PointType>::loadDynamicObjectsFro
         roomObject->setTime(sweep.roomLogStartTime);
         roomObject->m_roomLogString = sweep.roomLogName;
         roomObject->m_roomStringId = sweep.roomWaypointId;
+        roomObject->m_roomRunNumber = sweep.roomRunNumber;
         // create label from room log time; could be useful later on, and would resolve ambiguities
         std::stringstream ss_obj;
         ss_obj<<boost::posix_time::to_simple_string(sweep.roomLogStartTime);
