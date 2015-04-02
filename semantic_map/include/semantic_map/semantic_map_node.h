@@ -40,7 +40,10 @@
 #include "reg_features.h"
 #include "reg_transforms.h"
 #include "room_utilities.h"
+#include "load_utilities.h"
+
 #include <strands_sweep_registration/RobotContainer.h>
+
 
 template <class PointType>
 class SemanticMapNode {
@@ -48,6 +51,7 @@ public:
     typedef pcl::PointCloud<PointType> Cloud;
     typedef typename Cloud::Ptr CloudPtr;
     typedef typename SemanticMapSummaryParser::EntityStruct Entities;
+    typedef pcl::search::KdTree<PointType> Tree;
 
     typedef typename std::map<std::string, boost::shared_ptr<MetaRoom<PointType> > >::iterator WaypointMetaroomMapIterator;
     typedef typename std::map<std::string, SemanticRoom<PointType> >::iterator WaypointRoomMapIterator;
@@ -66,6 +70,7 @@ public:
     ros::Publisher                                                              m_PublisherDynamicClusters;
 
 private:
+
     ros::NodeHandle                                                             m_NodeHandle;
     SemanticMapSummaryParser                                         m_SummaryParser;
     bool                                                                        m_bSaveIntermediateData;
@@ -76,6 +81,7 @@ private:
     std::map<std::string, SemanticRoom<PointType> >                             m_WaypointToRoomMap;
     std::map<std::string, CloudPtr>                                             m_WaypointToDynamicClusterMap;
     bool                                                                        m_bUpdateMetaroom;
+    bool                                                                        m_bNewestClusters;
 
 };
 
@@ -117,6 +123,13 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
         ROS_INFO_STREAM("The metarooms will NOT be updated with new room observations.");
     }
 
+    m_NodeHandle.param<bool>("newest_dynamic_clusters",m_bNewestClusters,false);
+    if (m_bNewestClusters)
+    {
+        ROS_INFO_STREAM("Only the latest dynamic clusters will be computed (comapring with previous observations).");
+    } else {
+        ROS_INFO_STREAM("All the dynamic clusters will be computer (comparing with the metaroom).");
+    }
 }
 
 template <class PointType>
@@ -148,8 +161,6 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     m_SummaryParser.refresh();
 
     ROS_INFO_STREAM("Summary XML created.");
-
-
 
     boost::shared_ptr<MetaRoom<PointType> > metaroom;
     bool found = false;
@@ -296,6 +307,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
             Eigen::Matrix4f eigen_matrix(eigen_affine.matrix().cast<float>());
             aRoom.setRoomTransform(metaroom->getRoomTransform() * eigen_matrix.inverse());
 
+            SemanticRoomXMLParser<PointType> parser;
             parser.saveRoomAsXML(aRoom);
             delete new_rc;
             do_registration = false;
@@ -316,7 +328,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         ROS_ERROR_STREAM("Could not update metaroom with the room instance.");
         return;
     }
-    CloudPtr roomCloud = aRoom.getInteriorRoomCloud();
+
     CloudPtr metaroomCloud = metaroom->getInteriorRoomCloud();
 
     // publish data
@@ -327,31 +339,97 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     m_vLoadedMetarooms.push_back(metaroom);
     ROS_INFO_STREAM("Published metaroom");
 
-
     if (aRoom.getRoomStringId() != "") // waypoint id set, update the map
     {
         m_WaypointToMetaroomMap[aRoom.getRoomStringId()] = metaroom;
         ROS_INFO_STREAM("Updated map with new metaroom for waypoint "<<aRoom.getRoomStringId());
-
-        //        boost::shared_ptr<SemanticRoom<PointType> > roomPtr(&aRoom);
         m_WaypointToRoomMap[aRoom.getRoomStringId()] = aRoom;
     }
 
 
-    // compute differences
+    CloudPtr roomCloud = aRoom.getInteriorRoomCloud();
     ROS_INFO_STREAM("Computing differences");
     CloudPtr difference(new Cloud());
+    // compute differences
+    if (!m_bNewestClusters)
+    {
+        pcl::SegmentDifferences<PointType> segment;
+        segment.setInputCloud(roomCloud);
+        segment.setTargetCloud(metaroomCloud);
+        segment.setDistanceThreshold(0.001);
+        typename pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
+        tree->setInputCloud (metaroomCloud);
+        segment.setSearchMethod(tree);
+        segment.segment(*difference);
+        ROS_INFO_STREAM("Computed differences " << difference->points.size());
+        ROS_INFO_STREAM("Comparison cloud "<<metaroomCloud->points.size()<<"  room cloud "<<roomCloud->points.size());
+    } else {
+        // compare with previous observation
 
-    pcl::SegmentDifferences<PointType> segment;
-    segment.setInputCloud(roomCloud);
-    segment.setTargetCloud(metaroomCloud);
-    segment.setDistanceThreshold(0.001);
-    typename pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
-    tree->setInputCloud (metaroomCloud);
-    segment.setSearchMethod(tree);
-    segment.segment(*difference);
-    ROS_INFO_STREAM("Computed differences " << difference->points.size());
-    ROS_INFO_STREAM("Metaroom cloud "<<metaroomCloud->points.size()<<"  room cloud "<<roomCloud->points.size());
+        // look for the previous observation in ~/.semanticMap/
+        passwd* pw = getpwuid(getuid());
+        std::string dataPath(pw->pw_dir);
+        dataPath+="/.semanticMap";
+
+        std::vector<std::string> matchingObservations = semantic_map_load_utilties::getSweepXmlsForTopologicalWaypoint<PointType>(dataPath, aRoom.getRoomStringId());
+        if (matchingObservations.size() == 0)
+        {
+            ROS_ERROR_STREAM("No observations for this waypoint saved on the disk "+aRoom.getRoomStringId()+" cannot compare with previous observation.");
+            return;
+        }
+        if (matchingObservations.size() == 1)
+        {
+            ROS_INFO_STREAM("No dynamic clusters.");
+            return;
+        }
+
+        sort(matchingObservations.begin(), matchingObservations.end());
+        reverse(matchingObservations.begin(), matchingObservations.end());
+        std::string latest = matchingObservations[0];
+        if (latest != xml_file_name)
+        {
+            ROS_WARN_STREAM("The xml file for the latest observations "+latest+" is different from the one provided "+xml_file_name+" Aborting");
+        }
+
+        std::string previous = matchingObservations[1];
+        ROS_INFO_STREAM("Comparing with "<<previous);
+        SemanticRoomXMLParser<PointType> parser;
+        SemanticRoom<PointType> prevRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(previous,true);
+
+        CloudPtr prevCloud = prevRoom.getInteriorRoomCloud();
+
+        // compute differences and check occlusions
+        CloudPtr differenceRoomToPrevRoom(new Cloud);
+        CloudPtr differencePrevRoomToRoom(new Cloud);
+
+        // compute the differences
+        pcl::SegmentDifferences<PointType> segment;
+        segment.setInputCloud(roomCloud);
+        segment.setTargetCloud(prevCloud);
+        segment.setDistanceThreshold(0.001);
+        typename Tree::Ptr tree (new pcl::search::KdTree<PointType>);
+        tree->setInputCloud (prevCloud);
+        segment.setSearchMethod(tree);
+        segment.segment(*differenceRoomToPrevRoom);
+
+        segment.setInputCloud(prevCloud);
+        segment.setTargetCloud(roomCloud);
+        tree->setInputCloud(roomCloud);
+
+        segment.segment(*differencePrevRoomToRoom);
+
+        CloudPtr toBeAdded(new Cloud());
+        CloudPtr toBeRemoved(new Cloud());
+
+        OcclusionChecker<PointType> occlusionChecker;
+        occlusionChecker.setSensorOrigin(metaroom->getSensorOrigin()); // since it's already transformed in the metaroom frame of ref
+        auto occlusions = occlusionChecker.checkOcclusions(differenceRoomToPrevRoom,differencePrevRoomToRoom, 720 );
+        *difference = *occlusions.toBeRemoved;
+
+    }
+
+
+
 
     if (difference->points.size() == 0)
     {
@@ -361,9 +439,10 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         return;
     }
 
+
     std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.03,800,100000);
     ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
-    metaroom->filterClustersBasedOnDistance(vClusters,3.0);
+    MetaRoom<PointType>::filterClustersBasedOnDistance(aRoom.getIntermediateCloudTransforms()[0].getOrigin(), vClusters,3.0);
     ROS_INFO_STREAM(vClusters.size()<<" different clusters after max distance filtering.");
 
     ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
@@ -381,8 +460,6 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         seg.setMethodType (pcl::SAC_RANSAC);
         seg.setMaxIterations (100);
         seg.setDistanceThreshold (0.02);
-        //        seg.setAxis(Eigen::Vector3f(0,0,1));
-        //        seg.setEpsAngle (0.1);
 
         seg.setInputCloud (vClusters[i]);
         seg.segment (*inliers, *coefficients);
@@ -393,25 +470,6 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
             *dynamicClusters += *vClusters[i];
         }
     }
-
-//    *dynamicClusters = *difference;
-
-    //    // Filter out ceiling and floor clusters
-    //    pcl::PassThrough<PointType> lower_pass;
-    //    CloudPtr temp_cloud (new Cloud);
-    //    lower_pass.setInputCloud (dynamicClusters);
-    //    lower_pass.setFilterFieldName ("z");
-    //    lower_pass.setFilterLimits (-.5, .5);
-    ////    lower_pass.filter (*temp_cloud);
-    ////    *dynamicClusters = *temp_cloud;
-
-    //    pcl::PassThrough<PointType> upper_pass;
-    //    upper_pass.setInputCloud (dynamicClusters);
-    //    upper_pass.setFilterFieldName ("z");
-    //    upper_pass.setFilterLimits (0.1, 2.5);
-    //    upper_pass.filter (*temp_cloud);
-    //    *dynamicClusters = *temp_cloud;
-    // cluster planarity
 
     // publish dynamic clusters
     sensor_msgs::PointCloud2 msg_clusters;
@@ -449,98 +507,11 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     }
 }
 
-
 template <class PointType>
 void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::RoomObservationConstPtr& obs_msg)
 {
     std::cout<<"Room obs message received"<<std::endl;
     this->processRoomObservation(obs_msg->xml_file_name);
 }
-
-/*
-template <class PointType>
-bool SemanticMapNode<PointType>::metaroomServiceCallback(MetaroomServiceRequest &req, MetaroomServiceResponse &res)
-{
-    ROS_INFO_STREAM("Received a metaroom request for waypoint "<<req.waypoint_id);
-
-    WaypointMetaroomMapIterator it;
-    it = m_WaypointToMetaroomMap.find(req.waypoint_id);
-
-    if (it != m_WaypointToMetaroomMap.end())
-    {
-        ROS_INFO_STREAM("Metaroom found, it will be published on the /local_metric_map/metaroom topic.");
-        res.reply = "OK";
-
-        CloudPtr metaroomCloud = m_WaypointToMetaroomMap[req.waypoint_id]->getInteriorRoomCloud();
-        sensor_msgs::PointCloud2 msg_metaroom;
-        pcl::toROSMsg(*metaroomCloud, msg_metaroom);
-        msg_metaroom.header.frame_id="/map";
-        m_PublisherMetaroom.publish(msg_metaroom);
-
-        return true;
-    } else
-    {
-        ROS_INFO_STREAM("Metaroom not found, it will not be published.");
-        res.reply = "failure";
-        return false;
-    }
-}
-
-template <class PointType>
-bool SemanticMapNode<PointType>::observationServiceCallback(ObservationServiceRequest &req, ObservationServiceResponse &res)
-{
-    ROS_INFO_STREAM("Received an observation request for waypoint "<<req.waypoint_id);
-
-    WaypointRoomMapIterator it;
-    it = m_WaypointToRoomMap.find(req.waypoint_id);
-
-    if (it != m_WaypointToRoomMap.end())
-    {
-        ROS_INFO_STREAM("Observation found, it will be published on the local_metric_map/merged_point_cloud_downsampled topic.");
-        res.reply = "OK";
-
-        CloudPtr observationCloud = m_WaypointToRoomMap[req.waypoint_id].getInteriorRoomCloud();
-        sensor_msgs::PointCloud2 msg_observation;
-        pcl::toROSMsg(*observationCloud, msg_observation);
-        msg_observation.header.frame_id="/map";
-        m_PublisherObservation.publish(msg_observation);
-
-        return true;
-    } else
-    {
-        ROS_INFO_STREAM("Observation not found, it will not be published.");
-        res.reply = "failure";
-        return false;
-    }
-}
-
-template <class PointType>
-bool SemanticMapNode<PointType>::dynamicClusterServiceCallback(DynamicClusterServiceRequest &req, DynamicClusterServiceResponse &res)
-{
-    ROS_INFO_STREAM("Received a dynamic clusters request for waypoint "<<req.waypoint_id);
-
-    WaypointPointCloudMapIterator it;
-    it = m_WaypointToDynamicClusterMap.find(req.waypoint_id);
-
-    if (it != m_WaypointToDynamicClusterMap.end())
-    {
-        ROS_INFO_STREAM("Dynamic clusters found, it will be published on the /local_metric_map/dynamic_clusters topic.");
-        res.reply = "OK";
-
-        // publish dynamic clusters
-        sensor_msgs::PointCloud2 msg_clusters;
-        pcl::toROSMsg(*m_WaypointToDynamicClusterMap[req.waypoint_id], msg_clusters);
-        msg_clusters.header.frame_id="/map";
-        m_PublisherDynamicClusters.publish(msg_clusters);
-
-        return true;
-    } else
-    {
-        ROS_INFO_STREAM("Dynamic clusters not found, it will not be published.");
-        res.reply = "failure";
-        return false;
-    }
-}
-*/
 
 #endif
