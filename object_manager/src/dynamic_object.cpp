@@ -18,6 +18,7 @@ DynamicObject::DynamicObject(bool verbose) : m_points(new Cloud()), m_normals(ne
 {
     m_roomLogString = "";
     m_roomStringId = "";
+    m_noAdditionalViews = 0;
 }
 
 DynamicObject::~DynamicObject()
@@ -35,6 +36,17 @@ void DynamicObject::setCloud(CloudPtr cloud)
     m_points = cloud->makeShared();
     computeCentroid();
     computeBbox();
+}
+
+auto DynamicObject::getAdditionalViews() -> decltype(m_vAdditionalViews)
+{
+    return m_vAdditionalViews;
+}
+
+void DynamicObject::addAdditionalView(CloudPtr view)
+{
+    m_vAdditionalViews.push_back(view);
+    m_noAdditionalViews++;
 }
 
 void DynamicObject::updateAllData()

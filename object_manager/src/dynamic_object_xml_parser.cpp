@@ -56,7 +56,24 @@ std::string DynamicObjectXMLParser::saveAsXML(DynamicObject::Ptr object, std::st
    xmlWriter->writeAttribute("roomStringId",object->m_roomStringId.c_str());
    xmlWriter->writeAttribute("roomRunNumber",QString::number(object->m_roomRunNumber));
    xmlWriter->writeAttribute("filename",cloud_filename.c_str());
+   xmlWriter->writeAttribute("additionalViews",QString::number(object->m_noAdditionalViews));
    pcl::io::savePCDFileBinary(cloud_path, *object->m_points);
+
+   // save additional views
+   if (object->m_vAdditionalViews.size() > 0)
+   {
+       if (object->m_vAdditionalViews.size() != object->m_noAdditionalViews)
+       {
+           std::cerr<<"Number of additional views is set to "<<object->m_noAdditionalViews<<" however only "<<object->m_vAdditionalViews.size()<<" loaded in memory."<<std::endl;
+       }
+
+       for (size_t i=0; i<object->m_vAdditionalViews.size(); i++)
+       {
+           stringstream ss;ss<<i;
+           string view_path = m_rootFolderPath + "/" + object->m_label + "_additional_view_"+ss.str()+".pcd";
+           pcl::io::savePCDFileBinary(view_path, *object->m_vAdditionalViews[i]);
+        }
+   }
 
 
    xmlWriter->writeStartElement("Centroid");
@@ -169,6 +186,33 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool loa
                   std::cerr<<"Object xml node does not have filename attribute. Aborting."<<std::endl;
                   return object;
               }
+
+              if (attributes.hasAttribute("additionalViews"))
+              {
+                  int additionalViews = attributes.value("additionalViews").toString().toInt();
+                  // load clouds
+                  for (size_t i=0; i<additionalViews; i++)
+                  {
+                      stringstream ss;ss<<i;
+                      string view_path = objectFolder.toStdString() + "/" + object->m_label + "_additional_view_"+ss.str()+".pcd";
+                      pcl::PCDReader reader;
+                      CloudPtr cloud (new Cloud);
+                      reader.read (view_path, *cloud);
+                      if (cloud->points.size() != 0)
+                      {
+                          object->addAdditionalView(cloud);
+                          if (m_verbose)
+                          {
+                              std::cout<<"Loaded additional view cloud "<<view_path<<std::endl;
+                          }
+                      } else {
+                          std::cerr<<"Could not load additional view cloud "<<view_path<<std::endl;
+                      }
+                   }
+              } else {
+                  // additional views not set
+              }
+
            }
 
            if (xmlReader->name() == "Centroid")
