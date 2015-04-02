@@ -78,7 +78,7 @@ public:
     bool dynamicObjectsServiceCallback(DynamicObjectsServiceRequest &req, DynamicObjectsServiceResponse &res);
     bool getDynamicObjectServiceCallback(GetDynamicObjectServiceRequest &req, GetDynamicObjectServiceResponse &res);
     std::vector<DynamicObject::Ptr>  loadDynamicObjectsFromObservation(std::string obs_file);
-    bool getDynamicObject(std::string waypoint, std::string object_id, DynamicObject::Ptr object, std::string& object_observation);
+    bool getDynamicObject(std::string waypoint, std::string object_id, DynamicObject::Ptr& object, std::string& object_observation);
     bool returnObjectMask(std::string waypoint, std::string object_id, std::string observation_xml, GetObjStruct& returned_object);
     void additionalViewsCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
     void additionalViewsStatusCallback(const std_msgs::String& msg);
@@ -154,12 +154,12 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh)
     }
 
     m_NodeHandle.param<std::string>("additional_views_topic",m_additionalViewsTopic,"/object_learning/object_view");
-    ROS_INFO_STREAM("The additioan views topic is "<<m_additionalViewsTopic);
+    ROS_INFO_STREAM("The additional views topic is "<<m_additionalViewsTopic);
     m_SubscriberAdditionalObjectViews = m_NodeHandle.subscribe(m_additionalViewsTopic,1, &ObjectManager<PointType>::additionalViewsCallback,this);
 
     m_NodeHandle.param<std::string>("additional_views_status_topic",m_additionalViewsStatusTopic,"/object_learning/status");
-    ROS_INFO_STREAM("The additioan views status topic is "<<m_additionalViewsStatusTopic);
-    m_SubscriberAdditionalObjectViews = m_NodeHandle.subscribe(m_additionalViewsStatusTopic,1, &ObjectManager<PointType>::additionalViewsStatusCallback,this);
+    ROS_INFO_STREAM("The additional views status topic is "<<m_additionalViewsStatusTopic);
+    m_SubscriberAdditionalObjectViewsStatus = m_NodeHandle.subscribe(m_additionalViewsStatusTopic,1, &ObjectManager<PointType>::additionalViewsStatusCallback,this);
     m_objectTracked = NULL;
     m_objectTrackedObservation = "";
     m_bTrackingStarted = false;
@@ -174,7 +174,6 @@ ObjectManager<PointType>::~ObjectManager()
 template <class PointType>
 void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::String& controlString)
 {
-
     if (m_objectTracked == NULL)
     {
         ROS_ERROR_STREAM("Received an additional views status message but a dynamic object hasn't been selected yet");
@@ -197,6 +196,15 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
         DynamicObjectXMLParser parser(obs_folder, true);
         std::string xml_file = parser.saveAsXML(m_objectTracked);
         ROS_INFO_STREAM("Object saved at "<<xml_file);
+
+        if (m_bLogToDB)
+        {
+                DynamicObjectMongodbInterface mongo_inteface(m_NodeHandle, true);
+                mongo_inteface.logToDB(m_objectTracked, xml_file);
+        }
+
+        // reset object
+        m_objectTracked = NULL;
     }
 }
 
@@ -284,7 +292,7 @@ bool ObjectManager<PointType>::dynamicObjectsServiceCallback(DynamicObjectsServi
 }
 
 template <class PointType>
-bool ObjectManager<PointType>::getDynamicObject(std::string waypoint, std::string object_id, DynamicObject::Ptr object, std::string& object_observation)
+bool ObjectManager<PointType>::getDynamicObject(std::string waypoint, std::string object_id, DynamicObject::Ptr& object, std::string& object_observation)
 {
     auto it =  m_waypointToObjMap.find(waypoint);
     if (it == m_waypointToObjMap.end() )

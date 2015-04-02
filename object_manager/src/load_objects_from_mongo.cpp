@@ -130,7 +130,7 @@ int main(int argc, char** argv)
             {
                 for (size_t i=0; i<parsed->m_noAdditionalViews; i++)
                 {
-                    stringstream ss;ss<<object_name.toStdString();ss<<"additional_view_";ss<<i;
+                    stringstream ss;ss<<object_name.toStdString();ss<<"___additional_view_";ss<<i;
 
                     sensor_msgs::PointCloud2 msg_cloud;
                     std::vector< boost::shared_ptr<sensor_msgs::PointCloud2> > results;
@@ -146,7 +146,7 @@ int main(int argc, char** argv)
                             try {
                                 if (databaseCloud->points.size()>0)
                                 {
-                                    parsed->addAdditionalView(databaseCloud);
+                                    parsed->m_vAdditionalViews.push_back(databaseCloud);
                                 }
                             } catch (...)
                             {
