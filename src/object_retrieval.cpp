@@ -364,6 +364,29 @@ void object_retrieval::process_segments_incremental()
     }
 }
 
+int object_retrieval::scan_ind_for_segment(int i)
+{
+    string segment_folder = get_folder_for_segment_id(i);
+
+    if (!boost::filesystem::is_directory(segment_folder)) {
+        return -1;
+    }
+
+    string metadata_file = segment_folder + "/metadata.txt";
+    string metadata; // in this dataset, this is the path to the scan
+    {
+        ifstream f;
+        f.open(metadata_file);
+        getline(f, metadata);
+        f.close();
+    }
+    string scan_name = boost::filesystem::path(metadata).parent_path().stem().string();
+    size_t pos = scan_name.find_last_not_of("0123456789");
+    int ind = stoi(scan_name.substr(pos+1));
+
+    return ind;
+}
+
 void object_retrieval::train_grouped_vocabulary(int max_segments, bool simply_train)
 {
     int min_features = 20;
@@ -384,9 +407,16 @@ void object_retrieval::train_grouped_vocabulary(int max_segments, bool simply_tr
                     continue;
                 }
             }
+
+            int scan_ind = scan_ind_for_segment(counter);
+            if (scan_ind == -1) {
+                are_done = true;
+                break;
+            }
+
             HistCloudT::Ptr features_i(new HistCloudT);
             vector<pair<int, int> > indices_i;
-            if (!load_grouped_features_for_segment(features_i, indices_i, counter)) {
+            if (!load_grouped_features_for_segment(features_i, indices_i, counter, scan_ind)) {
                 are_done = true;
                 break;
             }
@@ -421,9 +451,16 @@ void object_retrieval::train_grouped_vocabulary(int max_segments, bool simply_tr
                     continue;
                 }
             }
+
+            int scan_ind = scan_ind_for_segment(counter);
+            if (scan_ind == -1) {
+                are_done = true;
+                break;
+            }
+
             HistCloudT::Ptr features_i(new HistCloudT);
             vector<pair<int, int> > indices_i;
-            if (!load_grouped_features_for_segment(features_i, indices_i, counter)) {
+            if (!load_grouped_features_for_segment(features_i, indices_i, counter, scan_ind)) {
                 are_done = true;
                 break;
             }
@@ -440,6 +477,8 @@ void object_retrieval::train_grouped_vocabulary(int max_segments, bool simply_tr
     }
 
     write_vocabulary(vt1);
+    string group_file = segment_path + "/group_subgroup.cereal";
+    vt1.save_group_associations(group_file);
 }
 
 // this should probably be max_features instead
@@ -921,7 +960,7 @@ bool object_retrieval::load_features_for_segment(HistCloudT::Ptr& features, int 
     return (pcl::io::loadPCDFile<HistT>(features_file, *features) != -1);
 }
 
-bool object_retrieval::load_grouped_features_for_segment(HistCloudT::Ptr& features, vector<pair<int, int> >& indices, int ind)
+bool object_retrieval::load_grouped_features_for_segment(HistCloudT::Ptr& features, vector<pair<int, int> >& indices, int ind, int opt_ind)
 {
    string segment_folder = segment_path + "/" + segment_name + to_string(ind) + "/";
    if (!boost::filesystem::is_directory(segment_folder)) {
@@ -936,7 +975,12 @@ bool object_retrieval::load_grouped_features_for_segment(HistCloudT::Ptr& featur
        }
        features->insert(features->end(), featuresi->begin(), featuresi->end());
        for (int j = 0; j < featuresi->size(); ++j) {
-           indices.push_back(make_pair(ind, i));
+           if (opt_ind != -1) {
+               indices.push_back(make_pair(opt_ind, i));
+           }
+           else {
+               indices.push_back(make_pair(ind, i));
+           }
        }
    }
 

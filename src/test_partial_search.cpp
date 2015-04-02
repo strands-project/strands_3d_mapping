@@ -690,6 +690,34 @@ void get_voxels_for_scan(vector<int>& voxels, int i, object_retrieval& obr_scans
     }
 }
 
+void get_just_oversegmented_voxels_for_scan(vector<HistCloudT::Ptr>& voxels, int i, object_retrieval& obr_scans)
+{
+    string scan_path = obr_scans.get_folder_for_segment_id(i);
+    string segment_paths_file = scan_path + "/segment_paths.txt";
+    vector<string> voxel_paths;
+    {
+        ifstream f;
+        string metadata;
+        f.open(segment_paths_file);
+        while (getline(f, metadata)) {
+            voxel_paths.push_back(metadata);
+        }
+    }
+    for (const string& voxel_path : voxel_paths) {
+        for (int i = 0; ; ++i) {
+            string oversegment_path = voxel_path + "/split_features" + to_string(i) + ".pcd";
+            if (!boost::filesystem::is_regular_file(oversegment_path)) {
+                break;
+            }
+            voxels.push_back(HistCloudT::Ptr(new HistCloudT));
+            if (pcl::io::loadPCDFile(oversegment_path, *voxels.back()) == -1) {
+                cout << "Could not read oversegment file " << oversegment_path << endl;
+                exit(0);
+            }
+        }
+    }
+}
+
 void get_oversegmented_voxels_for_scan(vector<HistCloudT::Ptr>& voxels, CloudT::Ptr& voxel_centers,
                                        vector<double>& vocabulary_norms, int i, object_retrieval& obr_scans)
 {
@@ -757,6 +785,32 @@ void get_oversegmented_vectors_for_scan(CloudT::Ptr& voxel_centers, vector<doubl
     }
 
     string vectors_file = scan_path + "/vocabulary_vectors.cereal";
+    ifstream inv(vectors_file, std::ios::binary);
+    {
+        cereal::BinaryInputArchive archive_i(inv);
+        archive_i(vocabulary_vectors);
+    }
+}
+
+void get_grouped_oversegmented_vectors_for_scan(CloudT::Ptr& voxel_centers, vector<double>& vocabulary_norms,
+                                                vector<map<int, double> >& vocabulary_vectors, int i, object_retrieval& obr_scans)
+{
+    string scan_path = obr_scans.get_folder_for_segment_id(i);
+
+    string centers_file = scan_path + "/split_centers.pcd";
+    if (pcl::io::loadPCDFile(centers_file, *voxel_centers) == -1) {
+        cout << "Could not read file " << centers_file << endl;
+        exit(0);
+    }
+
+    string norms_file = scan_path + "/grouped_vocabulary_norms.cereal";
+    ifstream inn(norms_file, std::ios::binary);
+    {
+        cereal::BinaryInputArchive archive_i(inn);
+        archive_i(vocabulary_norms);
+    }
+
+    string vectors_file = scan_path + "/grouped_vocabulary_vectors.cereal";
     ifstream inv(vectors_file, std::ios::binary);
     {
         cereal::BinaryInputArchive archive_i(inv);
@@ -1208,6 +1262,45 @@ void save_oversegmented_vocabulary_index_vectors(object_retrieval& obr_scans)
     }
 }
 
+void save_oversegmented_grouped_vocabulary_index_vectors(object_retrieval& obr_scans, object_retrieval& obr_voxels)
+{
+    map<vocabulary_tree<HistT, 8>::node*, int> mapping;
+    obr_voxels.gvt.get_node_mapping(mapping);
+
+    for (int i = 0; ; ++i) {
+        string path = obr_scans.get_folder_for_segment_id(i);
+        if (!boost::filesystem::is_directory(path)) {
+            break;
+        }
+        vector<HistCloudT::Ptr> voxels;
+        CloudT::Ptr voxel_centers(new CloudT);
+        vector<double> voxel_norms;
+        get_oversegmented_voxels_for_scan(voxels, voxel_centers, voxel_norms, i, obr_scans);
+        vector<map<int, double> > vocabulary_vectors;
+        vector<double> vocabulary_norms;
+        for (HistCloudT::Ptr& voxel : voxels) {
+            if (voxel->size() < 20) {
+                continue;
+            }
+            vocabulary_vectors.push_back(map<int, double>());
+            double pnorm = obr_voxels.gvt.compute_query_index_vector(vocabulary_vectors.back(), voxel, mapping);
+            vocabulary_norms.push_back(pnorm);
+        }
+        string vectors_file = path + "/grouped_vocabulary_vectors.cereal";
+        ofstream outv(vectors_file, std::ios::binary);
+        {
+            cereal::BinaryOutputArchive archive_o(outv);
+            archive_o(vocabulary_vectors);
+        }
+        string norms_file = path + "/grouped_vocabulary_norms.cereal";
+        ofstream outn(norms_file, std::ios::binary);
+        {
+            cereal::BinaryOutputArchive archive_o(outn);
+            archive_o(vocabulary_norms);
+        }
+    }
+}
+
 void query_supervoxel_annotations_oversegments(vector<voxel_annotation>& annotations, Eigen::Matrix3f& K,
                                                object_retrieval& obr, object_retrieval& obr_scans)
 {
@@ -1313,13 +1406,14 @@ void change_supervoxel_groups(object_retrieval& obr_voxels)
     map<int, int> temp(obr_voxels.gvt.index_group.begin(), obr_voxels.gvt.index_group.end());
     int nbr_groups = 0;
     int counter = 0;
+    vector<HistCloudT::Ptr> voxels;
     for (pair<const int, int>& p : temp) {
         //cout << p.second << endl;
-        int scan_ind = scan_ind_for_supervoxel(p.second, obr_voxels);
+        int scan_ind = scan_ind_for_supervoxel(p.second, obr_voxels); // the second is the actual segment
         number_features_in_group[scan_ind] += 1;
         if (scan_ind != current_ind) {
             current_ind = scan_ind;
-            current_offset = p.first;
+            current_offset = p.first; // this is the first oversegmented in the group
             ++nbr_groups;
             counter = 0;
         }
@@ -1382,39 +1476,54 @@ void get_max_supervoxel_features(object_retrieval& obr_scans)
     cout << "Highest number of features: " << max_features << endl;
 }
 
+void test_supervoxel_ordering(object_retrieval& obr, object_retrieval& obr_scans)
+{
+
+}
+
 void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen::Matrix3f& K,
                                    object_retrieval& obr, object_retrieval& obr_scans)
 {
     const int nbr_query = 11;
-    const int nbr_intial_query = 300;
+    const int nbr_intial_query = 0;
 
-    if (obr_scans.rvt.empty()) {
+    /*if (obr_scans.rvt.empty()) {
         obr_scans.read_vocabulary(obr_scans.rvt);
     }
-    obr_scans.rvt.set_min_match_depth(1);
-    obr_scans.rvt.compute_normalizing_constants();
+    obr_scans.rvt.set_min_match_depth(2);
+    obr_scans.rvt.compute_normalizing_constants();*/
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
-    obr_scans.rvt.get_node_mapping(mapping);
+    //obr_scans.rvt.get_node_mapping(mapping);
 
     if (obr.gvt.empty()) {
         obr.read_vocabulary(obr.gvt);
     }
-    obr.gvt.set_min_match_depth(1);
+    obr.gvt.set_min_match_depth(2);
     obr.gvt.compute_normalizing_constants();
+
+    read_supervoxel_groups(obr);
+    //obr.gvt.compute_group_normalizing_constants();
+
     obr.gvt.compute_leaf_vocabulary_vectors();
+
+    obr.gvt.get_node_mapping(mapping);
     //obr.gvt.compute_min_group_indices();
     //obr.gvt.compute_intermediate_node_vocabulary_vectors();
+
+    //save_oversegmented_grouped_vocabulary_index_vectors(obr_scans, obr);
+    //exit(0);
 
     //get_max_supervoxel_features(obr_scans);
     //change_supervoxel_groups(obr);
     //exit(0);
-    read_supervoxel_groups(obr);
+
 
     map<string, int> nbr_full_instances;
     map<string, pair<float, int> > instance_correct_ratios;
     //map<string, pair<float, int> > first_correct_ratios;
     map<string, pair<float, int> > usual_correct_ratios;
+    map<string, pair<float, int> > total_correct_ratios;
 
     map<string, pair<int, int> > instance_mean_features;
 
@@ -1425,10 +1534,11 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
 
     double total_time1 = 0.0;
     double total_time2 = 0.0;
+    double total_timec = 0.0;
 
     int counter = 0;
     for (voxel_annotation& a : annotations) {
-        if (counter > 10) {
+        if (counter > 5) {
             break;
         }
         if (a.full) {
@@ -1454,7 +1564,12 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         start1 = chrono::system_clock::now();
 
         // this also takes care of the scan association
-        obr.gvt.top_optimized_similarities(tuple_scores, features, nbr_intial_query);
+        map<vocabulary_tree<HistT, 8>::node*, double> first_node_vector = obr.gvt.top_optimized_similarities(tuple_scores, features, nbr_intial_query);
+        map<int, double> first_ind_vector;
+        for (const pair<vocabulary_tree<HistT, 8>::node*, double>& u : first_node_vector) {
+            first_ind_vector[mapping[u.first]] = u.second;
+        }
+        //cout << normalizing_constants.size() << endl;
         //obr.gvt.top_combined_similarities(scores, features, nbr_intial_query);
 
         vector<index_score> scores;
@@ -1471,13 +1586,102 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         start2 = chrono::system_clock::now();
 
         vector<index_score> updated_scores;
+        vector<index_score> total_scores;
         for (size_t i = 0; i < scores.size(); ++i) {
             CloudT::Ptr voxel_centers(new CloudT);
             vector<double> vocabulary_norms;
             vector<map<int, double> > vocabulary_vectors;
-            get_oversegmented_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, get<0>(scores[i]), obr_scans);
-            double score = obr_scans.rvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
+            //get_oversegmented_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, get<0>(scores[i]), obr_scans);
+            get_grouped_oversegmented_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, get<0>(scores[i]), obr_scans);
+
+            set<int> subgroups;
+            obr.gvt.get_subgroups_for_group(subgroups, scores[i].first);
+            vector<double> computed_norms;
+            for (int k : subgroups) {
+                computed_norms.push_back(obr.gvt.get_norm_for_group_subgroup(scores[i].first, k));
+            }
+            std::sort(computed_norms.begin(), computed_norms.end());
+            std::sort(vocabulary_norms.begin(), vocabulary_norms.end());
+
+            cout << "Subgroups size: " << computed_norms.size() << endl;
+            cout << "Vocabulary size: " << vocabulary_norms.size() << endl;
+
+            for (double v : computed_norms) {
+                cout << v << " ";
+            }
+            cout << endl;
+
+            for (double v : vocabulary_norms) {
+                cout << v << " ";
+            }
+            cout << endl;
+
+
+            /*vector<double> computed_norms(vocabulary_norms.size());
+            for (int j = 0; j < vocabulary_norms.size(); ++j) {
+                computed_norms[j] = obr.gvt.get_norm_for_group_subgroup(scores[i].first, j);
+                cout << vocabulary_norms[j] << ", " << computed_norms[j] << endl;
+            }
+
+            exit(0);*/
+
+            vector<HistCloudT::Ptr> voxels;
+            get_just_oversegmented_voxels_for_scan(voxels, get<0>(scores[i]), obr_scans);
+            cout << "Saved first norm: " <<  vocabulary_norms[hints[i]] << endl;
+            cout << "Hint: " << scores[i].first << ", " << hints[i] << endl;
+            //cout << "Original norm: " << normalizing_constants[i] << endl;
+            chrono::time_point<std::chrono::system_clock> startc, endc;
+            startc = chrono::system_clock::now();
+
+            // compare the hint vector with the previous one:
+            int j = hints[i]; {
+                cout << "Looking at vector " << j << endl;
+                cout << "Hint: " << hints[i] << endl;
+                cout << "Vector norm: " << vocabulary_norms[j] << endl;
+                cout << "saved vector size: " << vocabulary_vectors[j].size() << endl;
+                cout << "computed vector size: " << first_ind_vector.size() << endl;
+
+                //map<vocabulary_tree<HistT, 8>::node*, double> recomputed_node_vector;
+                map<int, double> recomputed_saved_vector;
+                double pnorm = obr.gvt.compute_query_index_vector(recomputed_saved_vector, voxels[j], mapping);
+                //obr.gvt.compute_vocabulary_vector_for_group_with_subgroup(recomputed_node_vector, scores[i].first, j);
+                /*for (const pair<vocabulary_tree<HistT, 8>::node*, double>& u : recomputed_node_vector) {
+                    recomputed_saved_vector[mapping[u.first]] = u.second;
+                }*/
+
+                //cout << "Recomputed saved vector norm: " << pnorm << endl;
+
+                for (const pair<int, double>& u : first_ind_vector) {
+                    if (vocabulary_vectors[j].count(u.first) > 0) {
+                        cout << "Index: " << u.first << "stored one: " << u.second << ", computed: " << vocabulary_vectors[j][u.first] << endl;
+                    }
+                    else {
+                        cout << u.first << " with value " << u.second << " not present " << endl;
+                    }
+                }
+            }
+
+            // the hints are sometimes the same index and then the scores are the same (naturally)
+            // otherwise the second one is lower, it would be interesting to look at the score of the hint also
+            // at least the norms seem to be the same for the saved vectors
+
+            cout << "Hint score: " << scores[i].second << endl;
+
+            vector<map<int, double> > vocabulary_vectors_copy = vocabulary_vectors;
+            vector<double> vocabulary_norms_copy = vocabulary_norms;
+            CloudT::Ptr voxel_centers_copy(new CloudT);
+            *voxel_centers_copy = *voxel_centers;
+            //double score = obr_scans.rvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
+            double score = obr.gvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
             updated_scores.push_back(index_score(get<0>(scores[i]), score));
+
+            double total_score = obr.gvt.compute_min_combined_dist(features, vocabulary_vectors_copy, vocabulary_norms_copy, voxel_centers_copy, mapping, -1);
+            total_scores.push_back(index_score(get<0>(scores[i]), total_score));
+            endc = chrono::system_clock::now();
+            chrono::duration<double> elapsed_secondsc = endc-startc;
+            total_timec += elapsed_secondsc.count();
+
+            exit(0);
         }
 
         end2 = chrono::system_clock::now();
@@ -1492,11 +1696,17 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
 
         updated_scores.resize(nbr_query);
 
+        std::sort(total_scores.begin(), total_scores.end(), [](const index_score& s1, const index_score& s2) {
+            return s1.second < s2.second; // find min elements!
+        });
+        total_scores.resize(nbr_query);
+
         int scan_ind = scan_ind_for_supervoxel(a.segment_id, obr);
         calculate_correct_ratio(instance_correct_ratios, a, scan_ind, updated_scores, obr_scans);
         //calculate_correct_ratio(first_correct_ratios, a, scan_ind, scores, obr_scans, false);
         scores.resize(nbr_query);
         calculate_correct_ratio(usual_correct_ratios, a, scan_ind, scores, obr_scans);
+        calculate_correct_ratio(total_correct_ratios, a, scan_ind, total_scores, obr_scans);
         cout << "Number of features: " << features->size() << endl;
 
         instance_mean_features[a.annotation].first += features->size();
@@ -1511,10 +1721,12 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
     cout << "Benchmark took " << elapsed_seconds.count() << " seconds" << endl;
     cout << "First part took " << total_time1 << " seconds" << endl;
     cout << "Second part took " << total_time2 << " seconds" << endl;
+    cout << "Calculation of second part took: " << total_timec << " seconds" << endl;
 
     cout << "First round correct ratios: " << endl;
     for (pair<const string, pair<float, int> > c : instance_correct_ratios) {
         cout << c.first << " correct ratio: " << c.second.first/float(c.second.second) << endl;
+        cout << c.first << " total correct ratio: " << total_correct_ratios[c.first].first/float(total_correct_ratios[c.first].second) << endl;
         cout << c.first << " usual correct ratio: " << usual_correct_ratios[c.first].first/float(usual_correct_ratios[c.first].second) << endl;
         //cout << c.first << " first round correct ratio: " << first_correct_ratios[c.first].first/float(first_correct_ratios[c.first].second) << endl;
         cout << "Mean features: " << float(instance_mean_features[c.first].first)/float(instance_mean_features[c.first].second) << endl;
@@ -1797,7 +2009,7 @@ int main(int argc, char** argv)
     //obr.train_vocabulary_incremental(5000, false);
     //obr_voxels.train_vocabulary_incremental(12000, false);
     //save_split_features(obr_voxels);
-    //obr_voxels.train_grouped_vocabulary(12000, false);
+    //obr_voxels.train_grouped_vocabulary(4000, false);
     exit(0);
 
     // make sure there is a vocabulary to query from

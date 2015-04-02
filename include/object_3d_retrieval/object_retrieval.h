@@ -86,7 +86,7 @@ public:
 
     void save_features(HistCloudT::Ptr& features, std::vector<int>& indices);
     bool load_features(HistCloudT::Ptr& features, std::vector<int>& indices);
-    bool load_grouped_features_for_segment(HistCloudT::Ptr& features, std::vector<std::pair<int, int> >& indices, int ind);
+    bool load_grouped_features_for_segment(HistCloudT::Ptr& features, std::vector<std::pair<int, int> >& indices, int ind, int opt_ind = -1);
     void save_features_for_segment(HistCloudT::Ptr& features, int i);
     bool load_features_for_segment(HistCloudT::Ptr& features, int i);
     bool load_features_for_other_segment(HistCloudT::Ptr& features, const std::string& other_segment_path, int i);
@@ -94,6 +94,7 @@ public:
     std::string get_folder_for_segment_id(int i) const;
     void read_scan(CloudT::Ptr& cloud, int i);
     std::string get_scan_file(int i);
+    int scan_ind_for_segment(int i);
 
     object_retrieval(const std::string& segment_path);
     ~object_retrieval();
