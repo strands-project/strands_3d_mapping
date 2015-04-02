@@ -37,6 +37,9 @@ public:
    void setTime(boost::posix_time::ptime);
    void setCloud(CloudPtr);
 
+   std::vector<CloudPtr> getAdditionalViews();
+   void addAdditionalView(CloudPtr view);
+
    void updateAllData();
    void computeCentroid();
    void computeBbox();
@@ -58,6 +61,8 @@ public:
    int                              m_roomRunNumber; // room_#
 
    CloudPtr                         m_points;
+   std::vector<CloudPtr>            m_vAdditionalViews;
+   int                              m_noAdditionalViews;
    NormalCloudPtr                   m_normals;
    std::string                      m_label;
    PointType                        m_bboxHighest, m_bboxLowest;

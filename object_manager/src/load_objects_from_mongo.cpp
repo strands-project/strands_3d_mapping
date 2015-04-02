@@ -126,6 +126,43 @@ int main(int argc, char** argv)
                 }
             }
 
+            // additonal views cloud
+            {
+                for (size_t i=0; i<parsed->m_noAdditionalViews; i++)
+                {
+                    stringstream ss;ss<<object_name.toStdString();ss<<"___additional_view_";ss<<i;
+
+                    sensor_msgs::PointCloud2 msg_cloud;
+                    std::vector< boost::shared_ptr<sensor_msgs::PointCloud2> > results;
+
+                    if(message_store_data.queryNamed<sensor_msgs::PointCloud2>(ss.str(), results,false)) {
+                        if (results.size() == 1)
+                        {
+                            ROS_INFO_STREAM("Found "<<ss.str());
+                            CloudPtr databaseCloud(new Cloud());
+                            pcl::fromROSMsg(*results[0],*databaseCloud);
+                            QString cloud_name = full_room + "/"+QString("complete_cloud.pcd");
+
+                            try {
+                                if (databaseCloud->points.size()>0)
+                                {
+                                    parsed->m_vAdditionalViews.push_back(databaseCloud);
+                                }
+                            } catch (...)
+                            {
+
+                            }
+
+                        } else {
+                            ROS_WARN_STREAM("Found multiple matches for element named "<<ss.str());
+                        }
+
+                    } else {
+                        ROS_WARN_STREAM("Cannot find element named "<<ss.str());
+                    }
+                }
+            }
+
             DynamicObjectXMLParser save_parser(full_room.toStdString());
             string saved_xml = save_parser.saveAsXML(parsed);
 
