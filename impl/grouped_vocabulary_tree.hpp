@@ -1,6 +1,8 @@
 #include "grouped_vocabulary_tree/grouped_vocabulary_tree.h"
 
 #include <cereal/types/unordered_map.hpp>
+#include <cereal/types/utility.hpp>
+#include <cereal/archives/binary.hpp>
 
 using namespace std;
 
@@ -37,11 +39,12 @@ void grouped_vocabulary_tree<Point, K>::set_input_cloud(CloudPtrT& new_cloud, ve
     pair<int, int> previous_p = make_pair(-1, -1);
     int index_group_ind = -1;
     int counter = 0;
-    for (pair<int, int>& p : temp_indices) {
+    for (const pair<int, int>& p : temp_indices) {
         // everything with this index pair should have the same label, assume ordered
         if (p != previous_p) {
             ++index_group_ind;
-            index_group[index_group_ind] = p.first;
+            index_group[index_group_ind] = p.first; // these two really should be vectors instead
+            group_subgroup[index_group_ind] = p;
             previous_p = p;
         }
         new_indices[counter] = index_group_ind;
@@ -82,11 +85,12 @@ void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vec
     pair<int, int> previous_p = make_pair(-1, -1);
     int index_group_ind = nbr_groups - 1;
     int counter = 0;
-    for (pair<int, int>& p : temp_indices) {
+    for (const pair<int, int>& p : temp_indices) {
         // everything with this index pair should have the same label, assume ordered
         if (p != previous_p) {
             ++index_group_ind;
             index_group[index_group_ind] = p.first;
+            group_subgroup[index_group_ind] = p;
             previous_p = p;
         }
         new_indices[counter] = index_group_ind;
@@ -261,7 +265,77 @@ void grouped_vocabulary_tree<Point, K>::compute_node_vocabulary_vector(unordered
 }
 
 template <typename Point, size_t K>
-void grouped_vocabulary_tree<Point, K>::top_optimized_similarities(vector<tuple<int, int, double> >& scores, CloudPtrT& query_cloud, size_t nbr_results)
+void grouped_vocabulary_tree<Point, K>::recursive_create_vocabulary_vector_from_ind(map<node*, double>& vvector, int i, node* n, int current_depth)
+{
+    if (current_depth >= super::matching_min_depth) {
+        map<int, int> source_id_freqs;
+        super::source_freqs_for_node(source_id_freqs, n);
+        if (source_id_freqs.count(i) > 0) {
+            vvector[n] = n->weight*double(source_id_freqs[i]);
+        }
+    }
+
+    if (n->is_leaf) {
+        return;
+    }
+
+    for (node* c : n->children) {
+        recursive_create_vocabulary_vector_from_ind(vvector, i, c, current_depth + 1);
+    }
+}
+
+template <typename Point, size_t K>
+void grouped_vocabulary_tree<Point, K>::create_vocabulary_vector_from_ind(map<node*, double>& vvector, int i)
+{
+    // simply go through all of the nodes, get the source freqs and populate vvector if present
+    recursive_create_vocabulary_vector_from_ind(vvector, i, &(super::root), 0);
+}
+
+template <typename Point, size_t K>
+int grouped_vocabulary_tree<Point, K>::get_id_for_group_subgroup(int group_id, int subgroup_id)
+{
+    pair<int, int> query(group_id, subgroup_id);
+    int ind = -1;
+    for (const pair<int, pair<int, int> >& p : group_subgroup) {
+        if (p.second == query) {
+            ind = p.first;
+            break;
+        }
+    }
+    if (ind == -1) {
+        cout << "Could not find id corresponding to group/subgroup..." << endl;
+        exit(0);
+    }
+    return ind;
+}
+
+template <typename Point, size_t K>
+double grouped_vocabulary_tree<Point, K>::get_norm_for_group_subgroup(int group_id, int subgroup_id)
+{
+    int ind = get_id_for_group_subgroup(group_id, subgroup_id);
+    return super::db_vector_normalizing_constants[ind];
+}
+
+template <typename Point, size_t K>
+void grouped_vocabulary_tree<Point, K>::compute_vocabulary_vector_for_group_with_subgroup(map<node*, double>& vvector, int group_id, int subgroup_id)
+{
+    int ind = get_id_for_group_subgroup(group_id, subgroup_id);
+    create_vocabulary_vector_from_ind(vvector, ind);
+}
+
+template<typename Point, size_t K>
+void grouped_vocabulary_tree<Point, K>::get_subgroups_for_group(set<int>& subgroups, int group_id)
+{
+    for (const pair<int, pair<int, int> >& p : group_subgroup) {
+        if (p.second.first == group_id) {
+            subgroups.insert(p.second.second);
+        }
+    }
+}
+
+template <typename Point, size_t K>
+map<typename grouped_vocabulary_tree<Point, K>::node*, double> grouped_vocabulary_tree<Point, K>::top_optimized_similarities(vector<tuple<int, int, double> >& scores,
+                                                                                                                             CloudPtrT& query_cloud, size_t nbr_results)
 {
     std::map<node*, double> query_id_freqs;
     double qnorm = super::compute_query_vector(query_id_freqs, query_cloud);
@@ -272,10 +346,10 @@ void grouped_vocabulary_tree<Point, K>::top_optimized_similarities(vector<tuple<
     int skipped = 0;
     for (pair<node* const, double>& v : query_id_freqs) {
 
-        if (v.first->weight < epsilon) {
+        /*if (v.first->weight < epsilon) {
             ++skipped;
             continue;
-        }
+        }*/
 
         unordered_map<int, double> node_vocabulary_vector; // includes weights
         compute_node_vocabulary_vector(node_vocabulary_vector, v.first);
@@ -289,20 +363,24 @@ void grouped_vocabulary_tree<Point, K>::top_optimized_similarities(vector<tuple<
     cout << "Skipped " << float(skipped)/float(query_id_freqs.size()) << " nodes" << endl;
 
     for (pair<const int, double>& u : vocabulary_difference) {
+        //cout << super::db_vector_normalizing_constants[u.first] << endl; // this is always 0
         u.second = 1.0 - u.second/std::max(qnorm, super::db_vector_normalizing_constants[u.first]);
     }
 
     unordered_map<int, pair<int, double> > map_scores;
+    unordered_map<int, int> original_inds;
     for (const pair<int, double>& s : vocabulary_difference) {
         pair<int, int> grouped_ind = group_subgroup[s.first];
         if (map_scores.count(grouped_ind.first) > 0) {
             pair<int, double>& value = map_scores[grouped_ind.first];
             if (s.second < value.second) {
                 value = make_pair(grouped_ind.second, s.second);
+                original_inds[grouped_ind.first] = s.first;
             }
         }
         else {
             map_scores.insert(make_pair(grouped_ind.first, make_pair(grouped_ind.second, s.second)));
+            original_inds[grouped_ind.first] = s.first;
         }
     }
 
@@ -319,6 +397,17 @@ void grouped_vocabulary_tree<Point, K>::top_optimized_similarities(vector<tuple<
     if (nbr_results > 0) {
         scores.resize(nbr_results);
     }
+
+
+    cout << "Norm in original tree: " << super::db_vector_normalizing_constants[original_inds[get<0>(scores[0])]] << endl;
+
+
+    // now, compute and print vector of first part
+    map<node*, double> rtn;
+
+    create_vocabulary_vector_from_ind(rtn, original_inds[get<0>(scores[0])]);
+
+    return rtn;
 
     /*for (tuple<int, int, double>& t : scores) {
         //cout << "min value index: " << endl;
@@ -494,6 +583,58 @@ void grouped_vocabulary_tree<Point, K>::top_grouped_similarities(vector<cloud_id
 }
 
 template <typename Point, size_t K>
+void grouped_vocabulary_tree<Point, K>::group_normalizing_constants_for_node(std::map<int, int>& normalizing_constants, node* n, int current_depth)
+{
+    if (n->is_leaf) {
+        int leaf_ind = n->range.first;
+        for (const pair<int, int>& u : super::leaves[leaf_ind]->data->source_id_freqs) {
+            normalizing_constants[group_subgroup[u.first].first] += u.second;
+        }
+        //normalizing_constants = super::leaves[leaf_ind]->data->source_id_freqs;
+    }
+    else {
+        for (node* c : n->children) {
+            // here we need one set of normalizing constants for every child to not mess up scores between subtrees
+            std::map<int, int> child_normalizing_constants;
+            group_normalizing_constants_for_node(child_normalizing_constants, c, current_depth+1);
+            for (const pair<int, int>& v : child_normalizing_constants) {
+                normalizing_constants[v.first] += v.second;
+            }
+        }
+    }
+
+    n->weight = log(super::N / double(normalizing_constants.size()));
+
+    // this could be further up if we do not want to e.g. calculate weights for upper nodes
+    if (current_depth < super::matching_min_depth) {
+        return;
+    }
+
+    map<int, int> source_id_freqs;
+    super::source_freqs_for_node(source_id_freqs, n);
+    for (const pair<int, int>& v : source_id_freqs) {
+        super::db_vector_normalizing_constants[v.first] += super::pexp(n->weight*v.second); // hope this is inserting 0
+    }
+}
+
+// do it one image at a time
+// need to integrate the weights somehow... could have the accumulated weights in each leaf?
+template <typename Point, size_t K>
+void grouped_vocabulary_tree<Point, K>::compute_group_normalizing_constants()
+{
+    // first, update super::N, i.e. the number of scans
+    set<int> groups;
+    for (const pair<int, pair<int, int> >& u : group_subgroup) {
+        groups.insert(u.second.first);
+    }
+    super::N = groups.size();
+
+    super::db_vector_normalizing_constants.clear(); // this should be safe...
+    std::map<int, int> normalizing_constants;
+    group_normalizing_constants_for_node(normalizing_constants, &(super::root), 0);
+}
+
+template <typename Point, size_t K>
 template <class Archive>
 void grouped_vocabulary_tree<Point, K>::load(Archive& archive)
 {
@@ -507,4 +648,24 @@ void grouped_vocabulary_tree<Point, K>::save(Archive& archive) const
 {
     super::save(archive);
     archive(index_group, nbr_points, nbr_groups);
+}
+
+template <typename Point, size_t K>
+void grouped_vocabulary_tree<Point, K>::save_group_associations(const string& group_file)
+{
+    ofstream out(group_file, std::ios::binary);
+    {
+        cereal::BinaryOutputArchive archive_o(out);
+        archive_o(group_subgroup);
+    }
+}
+
+template <typename Point, size_t K>
+void grouped_vocabulary_tree<Point, K>::load_group_associations(const string& group_file)
+{
+    ifstream in(group_file, std::ios::binary);
+    {
+        cereal::BinaryInputArchive archive_i(in);
+        archive_i(group_subgroup);
+    }
 }

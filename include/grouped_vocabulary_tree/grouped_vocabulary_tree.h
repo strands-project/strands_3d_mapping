@@ -52,26 +52,39 @@ protected:
     //void compute_node_vocabulary_vector(Eigen::SparseVector<int> &node_vector, node* n);
     void compute_node_vocabulary_vector(unordered_map<int, double>& node_vector, node* n);
     leaf_range compute_vector_for_nodes_at_depth(node* n, int depth, int current_depth);
+    void group_normalizing_constants_for_node(std::map<int, int>& normalizing_constants, node* n, int current_depth);
+
+    void recursive_create_vocabulary_vector_from_ind(std::map<node*, double>& vvector, int i, node* n, int current_depth);
 
 public:
+
+    void get_subgroups_for_group(std::set<int>& subgroups, int group_id);
+    int get_id_for_group_subgroup(int group_id, int subgroup_id);
+    double get_norm_for_group_subgroup(int group_id, int subgroup_id);
+    void create_vocabulary_vector_from_ind(std::map<node*, double>& vvector, int i);
+    void compute_vocabulary_vector_for_group_with_subgroup(std::map<node*, double>& vvector, int group_id, int subgroup_id);
 
     void merge_maps(std::map<int, int>& map1, const std::map<int, int>& map2); // should be protected
 
     void compute_leaf_vocabulary_vectors();
     void compute_intermediate_node_vocabulary_vectors();
     void compute_min_group_indices();
+    void compute_group_normalizing_constants();
 
     void set_input_cloud(CloudPtrT& new_cloud, std::vector<pair<int, int> >& indices);
     void append_cloud(CloudPtrT& extra_cloud, vector<pair<int, int> >& indices, bool store_points = true);
     void add_points_from_input_cloud(bool save_cloud = true);
     void top_grouped_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results = 20);
     void top_combined_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results);
-    void top_optimized_similarities(std::vector<std::tuple<int, int, double> >& scores, CloudPtrT& query_cloud, size_t nbr_results);
+    map<node*, double> top_optimized_similarities(std::vector<std::tuple<int, int, double> >& scores, CloudPtrT& query_cloud, size_t nbr_results);
     //void compute_node_difference(std::map<int, int>& sub_freqs, std::map<int, double>& map_scores,
     //                             node* n, std::map<node*, double>& qvec, int current_depth);
 
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);
+
+    void save_group_associations(const string& group_file);
+    void load_group_associations(const string& group_file);
 
     grouped_vocabulary_tree() : super(), nbr_points(0), nbr_groups(0) {}
 };

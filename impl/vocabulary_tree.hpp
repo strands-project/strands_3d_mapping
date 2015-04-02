@@ -213,7 +213,7 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
             // if added any parts, check if close enough to previous ones
             if (!included_centers.empty()) {
                 bool close_enough = false;
-                for (pcl::PointXYZRGB& p : included_centers) {
+                for (const pcl::PointXYZRGB& p : included_centers) {
                     if ((eig(p) - eig(remaining_centers.at(i))).norm() < 0.2f) {
                         close_enough = true;
                         break;
@@ -229,7 +229,7 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
 
             double normalization = 1.0/std::max(pnorms[i] + vnorm, qnorm);
             double dist = 1.0;
-            for (pair<const int, double>& v : cloud_freqs) {
+            for (const pair<const int, double>& v : cloud_freqs) {
                 // compute the distance that we are interested in
                 double sum_val = 0.0;
                 if (source_freqs.count(v.first) != 0) { // this could be maintained in a map as a pair with cloud_freqs
@@ -250,6 +250,15 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
             if (hint != -1 && included_centers.empty()) {
                 break;
             }
+        }
+
+        if (included_centers.empty()) {
+            cout << "Using " << minind << " with dist " << mindist << " as first voxel..." << endl;
+            /*double accum = 0;
+            for (const pair<int, double>& u : smaller_freqs[minind]) {
+                accum += u.second;
+            }
+            cout << "Re-computed norm: " << accum << endl;*/
         }
 
         if (mindist > last_dist) {
@@ -644,18 +653,26 @@ void vocabulary_tree<Point, K>::top_smaller_similarities(std::vector<cloud_idx_s
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, double>& query_id_freqs, CloudPtrT& query_cloud)
 {
+    Eigen::Matrix<float, super::rows, 1> pe;
+
     for (PointT p : query_cloud->points) {
+        pe = eig(p);
+        if (std::find_if(pe.data(), pe.data()+super::rows, [] (float f) {
+            return std::isnan(f) || std::isinf(f);
+        }) != pe.data()+super::rows) {
+            continue;
+        }
         std::vector<node*> path;
         super::get_path_for_point(path, p);
         int current_depth = 0;
         for (node* n : path) {
             if (current_depth >= matching_min_depth) {
-                query_id_freqs[n] += 1.0f;
+                query_id_freqs[n] += 1.0;
             }
             ++current_depth;
         }
     }
-    double qnorm = 0.0f;
+    double qnorm = 0.0;
     for (std::pair<node* const, double>& v : query_id_freqs) {
         v.second = v.first->weight*v.second;
         qnorm += pexp(v.second);

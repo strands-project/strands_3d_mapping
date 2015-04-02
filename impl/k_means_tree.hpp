@@ -89,7 +89,8 @@ set<Key> add_values(map<Key, Value>& lhs, const map<Key, Value>& rhs)
 template <typename Point, size_t K, typename Data, int Lp>
 float k_means_tree<Point, K, Data, Lp>::norm_func(const PointT& p1, const PointT& p2) const
 {
-    return (eig(p1)-eig(p2)).squaredNorm();//norm();//(eig(p1)-eig(p2)).array().abs().sum();
+    //return (eig(p1)-eig(p2)).squaredNorm();//norm();
+    return (eig(p1)-eig(p2)).array().abs().sum();
     //return (eig(p1)-eig(p2)).template lpNorm<desc_norm>();
 }
 
@@ -137,7 +138,7 @@ void k_means_tree<Point, K, Data, Lp>::assign_extra(CloudPtrT& subcloud, node* n
         int closest;
         //distances = eig(p).transpose()*centroids;
         distances = (centroids.colwise()-eig(p)).array().abs().colwise().sum();
-        //distances = (centroids.colwise()-eig(p)).colwise().norm();
+        //distances = (centroids.colwise()-eig(p)).colwise().squaredNorm();
         distances.minCoeff(&closest);
         clusters[closest].push_back(ind);
     }
@@ -248,7 +249,7 @@ typename k_means_tree<Point, K, Data, Lp>::leaf_range k_means_tree<Point, K, Dat
             // Wrap these two calls with some nice inlining
             //distances = eig(p).transpose()*centroids;
             distances = (centroids.colwise()-eig(p)).array().abs().colwise().sum();
-            //distances = (centroids.colwise()-eig(p)).colwise().norm();
+            //distances = (centroids.colwise()-eig(p)).colwise().squaredNorm();
             distances.minCoeff(&closest);
             clusters[closest].push_back(ind);
         }
