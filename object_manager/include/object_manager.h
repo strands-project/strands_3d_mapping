@@ -78,14 +78,10 @@ public:
     bool dynamicObjectsServiceCallback(DynamicObjectsServiceRequest &req, DynamicObjectsServiceResponse &res);
     bool getDynamicObjectServiceCallback(GetDynamicObjectServiceRequest &req, GetDynamicObjectServiceResponse &res);
     std::vector<DynamicObject::Ptr>  loadDynamicObjectsFromObservation(std::string obs_file);
+    bool getDynamicObject(std::string waypoint, std::string object_id, DynamicObject::Ptr object, std::string& object_observation);
     bool returnObjectMask(std::string waypoint, std::string object_id, std::string observation_xml, GetObjStruct& returned_object);
-
-    ros::Publisher                                                              m_PublisherDynamicClusters;
-    ros::Publisher                                                              m_PublisherRequestedObjectCloud;
-    ros::Publisher                                                              m_PublisherRequestedObjectImage;
-    ros::ServiceServer                                                          m_DynamicObjectsServiceServer;
-    ros::ServiceServer                                                          m_GetDynamicObjectServiceServer;
-
+    void additionalViewsCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
+    void additionalViewsStatusCallback(const std_msgs::String& msg);
 
     static CloudPtr filterGroundClusters(CloudPtr dynamic, double min_height)
     {
@@ -108,10 +104,23 @@ private:
     bool updateObjectsAtWaypoint(std::string waypoint_id);
 
     ros::NodeHandle                                                             m_NodeHandle;
+    ros::Publisher                                                              m_PublisherDynamicClusters;
+    ros::Publisher                                                              m_PublisherRequestedObjectCloud;
+    ros::Publisher                                                              m_PublisherRequestedObjectImage;
+    ros::Subscriber                                                             m_SubscriberAdditionalObjectViews;
+    ros::Subscriber                                                             m_SubscriberAdditionalObjectViewsStatus;
+    ros::ServiceServer                                                          m_DynamicObjectsServiceServer;
+    ros::ServiceServer                                                          m_GetDynamicObjectServiceServer;
+
+    std::string                                                                 m_additionalViewsTopic;
+    std::string                                                                 m_additionalViewsStatusTopic;
     std::string                                                                 m_dataFolder;
     std::map<std::string, std::vector<DynamicObject::Ptr>>                      m_waypointToObjMap;
     std::map<std::string, std::string>                                          m_waypointToSweepFileMap;
     bool                                                                        m_bLogToDB;
+    bool                                                                        m_bTrackingStarted;
+    DynamicObject::Ptr                                                          m_objectTracked;
+    std::string                                                                 m_objectTrackedObservation; // for saving
 };
 
 template <class PointType>
@@ -143,11 +152,74 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh)
     } else {
         ROS_INFO_STREAM("The dynamic objects will NOT be logged to the database.");
     }
+
+    m_NodeHandle.param<std::string>("additional_views_topic",m_additionalViewsTopic,"/object_learning/object_view");
+    ROS_INFO_STREAM("The additioan views topic is "<<m_additionalViewsTopic);
+    m_SubscriberAdditionalObjectViews = m_NodeHandle.subscribe(m_additionalViewsTopic,1, &ObjectManager<PointType>::additionalViewsCallback,this);
+
+    m_NodeHandle.param<std::string>("additional_views_status_topic",m_additionalViewsStatusTopic,"/object_learning/status");
+    ROS_INFO_STREAM("The additioan views status topic is "<<m_additionalViewsStatusTopic);
+    m_SubscriberAdditionalObjectViews = m_NodeHandle.subscribe(m_additionalViewsStatusTopic,1, &ObjectManager<PointType>::additionalViewsStatusCallback,this);
+    m_objectTracked = NULL;
+    m_objectTrackedObservation = "";
+    m_bTrackingStarted = false;
 }
 
 template <class PointType>
 ObjectManager<PointType>::~ObjectManager()
 {
+
+}
+
+template <class PointType>
+void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::String& controlString)
+{
+
+    if (m_objectTracked == NULL)
+    {
+        ROS_ERROR_STREAM("Received an additional views status message but a dynamic object hasn't been selected yet");
+        return;
+    }
+
+    if (controlString.data == "start_viewing")
+    {
+        ROS_INFO_STREAM("Starting viewing of object "<<m_objectTracked->m_label);
+        m_bTrackingStarted = true;
+    }
+
+    if (controlString.data == "stop_viewing")
+    {
+        ROS_INFO_STREAM("Stopping viewing of object "<<m_objectTracked->m_label);
+        m_bTrackingStarted = false;
+        // save object
+        unsigned found = m_objectTrackedObservation.find_last_of("/");
+        std::string obs_folder = m_objectTrackedObservation.substr(0,found+1);
+        DynamicObjectXMLParser parser(obs_folder, true);
+        std::string xml_file = parser.saveAsXML(m_objectTracked);
+        ROS_INFO_STREAM("Object saved at "<<xml_file);
+    }
+}
+
+template <class PointType>
+void ObjectManager<PointType>::additionalViewsCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
+{
+    if (m_objectTracked == NULL)
+    {
+        ROS_ERROR_STREAM("Received an additional views message but a dynamic object hasn't been selected yet");
+        return;
+    }
+
+    if (m_bTrackingStarted)
+    {
+        CloudPtr new_cloud(new Cloud());
+        pcl::fromROSMsg(*msg, *new_cloud);
+        new_cloud->header = pcl_conversions::toPCL(msg->header);
+
+        m_objectTracked->addAdditionalView(new_cloud);
+    } else {
+        ROS_ERROR_STREAM("Received an additional view when we're not viewing an object.");
+    }
+
 
 }
 
@@ -212,6 +284,31 @@ bool ObjectManager<PointType>::dynamicObjectsServiceCallback(DynamicObjectsServi
 }
 
 template <class PointType>
+bool ObjectManager<PointType>::getDynamicObject(std::string waypoint, std::string object_id, DynamicObject::Ptr object, std::string& object_observation)
+{
+    auto it =  m_waypointToObjMap.find(waypoint);
+    if (it == m_waypointToObjMap.end() )
+    {
+        ROS_ERROR_STREAM("No objects loaded for waypoint "+waypoint);
+        return false;
+    }
+
+    std::vector<DynamicObject::Ptr> objects = m_waypointToObjMap[waypoint];
+    bool found = false;
+    for (auto objectStruct : objects)
+    {
+        if (objectStruct->m_label == object_id)
+        {
+            found = true;
+            object = objectStruct;
+            object_observation = m_waypointToSweepFileMap[waypoint];
+            break;
+        }
+    }
+    return true;
+}
+
+template <class PointType>
 bool ObjectManager<PointType>::getDynamicObjectServiceCallback(GetDynamicObjectServiceRequest &req, GetDynamicObjectServiceResponse &res)
 {
     ROS_INFO_STREAM("Received a get dynamic cluster request for waypoint "<<req.waypoint_id);
@@ -248,7 +345,13 @@ bool ObjectManager<PointType>::getDynamicObjectServiceCallback(GetDynamicObjectS
     sensor_msgs::ImagePtr rosImage = aBridgeImage.toImageMsg();
     m_PublisherRequestedObjectImage.publish(rosImage);
 
-    // Move PTU to the object position
+    // update tracked object
+    bool trackedUpdated = getDynamicObject(req.waypoint_id, req.object_id, m_objectTracked, m_objectTrackedObservation);
+    if (!trackedUpdated)
+    {
+        ROS_ERROR_STREAM("Could not find object for viewing");
+    }
+
     return true;
 }
 
