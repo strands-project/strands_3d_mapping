@@ -55,5 +55,28 @@ bool DynamicObjectMongodbInterface::logToDB(DynamicObject::Ptr object, std::stri
         }
     }
 
+    // save additional views
+    if (object->m_noAdditionalViews > 0)
+    {
+        for (size_t i=0;i <object->m_vAdditionalViews.size(); i++)
+        {
+            std::stringstream ss;
+            ss<<object_label;ss<<"___";ss<<"additional_view_";ss<<i;
+
+            mongo::BSONObjBuilder builder;
+            builder.append("name", ss.str());
+            mongo::BSONObj obj = builder.obj();
+
+            sensor_msgs::PointCloud2 msg_cloud;
+            pcl::toROSMsg(*object->m_vAdditionalViews[i], msg_cloud);
+
+            std::string id(m_messageStoreData.insert(msg_cloud, "metric_maps" ,"data" ,obj));
+            if (m_verbose)
+            {
+                ROS_INFO_STREAM("Object additional view cloud \""<<ss.str()<<"\" inserted with id "<<id);
+            }
+        }
+    }
+
     return true;
 }
