@@ -68,6 +68,7 @@ public:
     ros::Publisher                                                              m_PublisherMetaroom;
     ros::Publisher                                                              m_PublisherObservation;
     ros::Publisher                                                              m_PublisherDynamicClusters;
+    ros::Publisher                                                              m_PublisherStatus;
 
 private:
 
@@ -130,6 +131,11 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
     } else {
         ROS_INFO_STREAM("All the dynamic clusters will be computer (comparing with the metaroom).");
     }
+
+    std::string statusTopic;
+    m_NodeHandle.param<std::string>("status_topic",statusTopic,"/local_metric_map/status");
+    ROS_INFO_STREAM("The status topic is "<<statusTopic);
+    m_PublisherStatus = m_NodeHandle.advertise<std_msgs::String>(statusTopic, 1000);
 }
 
 template <class PointType>
@@ -147,6 +153,9 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     if ( ! boost::filesystem::exists( xml_file_name ) )
     {
         ROS_ERROR_STREAM("Xml file does not exist. Aborting.");
+        std_msgs::String msg;
+        msg.data = "error_processing_observation";
+        m_PublisherStatus.publish(msg);
         return;
     }
 
@@ -326,6 +335,9 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     if (updateIteration.roomRunNumber == -1) // no update performed
     {
         ROS_ERROR_STREAM("Could not update metaroom with the room instance.");
+        std_msgs::String msg;
+        msg.data = "error_processing_observation";
+        m_PublisherStatus.publish(msg);
         return;
     }
 
@@ -375,11 +387,17 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         if (matchingObservations.size() == 0)
         {
             ROS_ERROR_STREAM("No observations for this waypoint saved on the disk "+aRoom.getRoomStringId()+" cannot compare with previous observation.");
+            std_msgs::String msg;
+            msg.data = "finished_processing_observation";
+            m_PublisherStatus.publish(msg);
             return;
         }
         if (matchingObservations.size() == 1)
         {
             ROS_INFO_STREAM("No dynamic clusters.");
+            std_msgs::String msg;
+            msg.data = "finished_processing_observation";
+            m_PublisherStatus.publish(msg);
             return;
         }
 
@@ -436,6 +454,9 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         // metaroom and room observation are identical -> no dynamic clusters can be computed
 
         ROS_INFO_STREAM("No dynamic clusters.");
+        std_msgs::String msg;
+        msg.data = "finished_processing_observation";
+        m_PublisherStatus.publish(msg);
         return;
     }
 
@@ -505,6 +526,11 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
             }
         }
     }
+
+    std_msgs::String msg;
+    msg.data = "finished_processing_observation";
+    m_PublisherStatus.publish(msg);
+    return;
 }
 
 template <class PointType>
