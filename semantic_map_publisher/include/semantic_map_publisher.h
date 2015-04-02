@@ -142,7 +142,7 @@ bool SemanticMapPublisher<PointType>::observationServiceCallback(ObservationServ
     if (matchingObservations.size() == 0)
     {
         ROS_INFO_STREAM("No observations for this waypoint "<<req.waypoint_id);
-        return false;
+        return true;
     }
     sort(matchingObservations.begin(), matchingObservations.end());
     reverse(matchingObservations.begin(), matchingObservations.end());
@@ -224,7 +224,7 @@ bool SemanticMapPublisher<PointType>::observationOctomapServiceCallback(Observat
     if (matchingObservations.size() == 0)
     {
         ROS_INFO_STREAM("No observations for this waypoint "<<req.waypoint_id);
-        return false;
+        return true;
     }
 
     sort(matchingObservations.begin(), matchingObservations.end());

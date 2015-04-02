@@ -162,7 +162,7 @@ bool ObjectManager<PointType>::dynamicObjectsServiceCallback(DynamicObjectsServi
     bool objects_found = updateObjectsAtWaypoint(req.waypoint_id);
     if (!objects_found)
     {
-        return false;
+        return true;
     }
     currentObjects = m_waypointToObjMap[req.waypoint_id];
     ROS_INFO_STREAM("Found "<<currentObjects.size() <<" objects at "<<req.waypoint_id);
@@ -222,14 +222,14 @@ bool ObjectManager<PointType>::getDynamicObjectServiceCallback(GetDynamicObjectS
     bool objects_found = updateObjectsAtWaypoint(req.waypoint_id);
     if (!objects_found)
     {
-        return false;
+        return true;
     }
 
     GetObjStruct object;
     bool found =returnObjectMask(req.waypoint_id, req.object_id,m_waypointToSweepFileMap[req.waypoint_id], object);
     if (!found)
     {
-        return false;
+        return true;
     }
 
     res.object_mask = object.object_indices;
@@ -249,8 +249,6 @@ bool ObjectManager<PointType>::getDynamicObjectServiceCallback(GetDynamicObjectS
     m_PublisherRequestedObjectImage.publish(rosImage);
 
     // Move PTU to the object position
-
-
     return true;
 }
 
