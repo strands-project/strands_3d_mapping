@@ -88,96 +88,6 @@ void shot_features_for_segment(HistCloudT::Ptr& desc_cloud, CloudT::Ptr& cloud, 
     sf.compute_shot_features(desc_cloud, cloud, points != 0, points);
 }
 
-void save_supervoxel_features(object_retrieval& obr)
-{
-    using Graph = supervoxel_segmentation::Graph;
-
-    string base_path = boost::filesystem::path(obr.segment_path).parent_path().string();
-    string segment_path = base_path + "/supervoxel_segments";
-    boost::filesystem::create_directory(segment_path);
-
-    Eigen::Matrix3f K; // dummy
-
-    bool found = false;
-    int counter = 0;
-    for (int i = 0; ; ++i) {
-        string folder = obr.get_folder_for_segment_id(i);
-        if (!boost::filesystem::is_directory(folder)) {
-            return;
-        }
-        CloudT::Ptr cloud(new CloudT);
-        string scan_file = obr.get_scan_file(i);
-        if (!found) {
-            if (scan_file != "/home/nbore/Data/Instances//muesli_1/patrol_run_5/room_1/intermediate_cloud0010.pcd") {
-                ++counter;
-                continue;
-            }
-            else {
-                found = true;
-                counter = 28114;
-            }
-        }
-
-        cout << "Finally got scan " << scan_file << endl;
-        obr.read_scan(cloud, i);
-        //obr.visualize_cloud(cloud);
-        string graph_file = folder + "/graph.cereal";
-
-        supervoxel_segmentation ss;
-        vector<CloudT::Ptr> supervoxels;
-        //ss.create_supervoxel_graph(supervoxels, cloud);
-        Graph* g = ss.compute_convex_oversegmentation(supervoxels, cloud);
-        ss.save_graph(*g, graph_file);
-        delete g;
-        vector<string> segment_folders;
-        int j = 0;
-        for (CloudT::Ptr& sv : supervoxels) {
-            cout << "Segment size: " << sv->size() << endl;
-
-            HistCloudT::Ptr desc_cloud(new HistCloudT);
-            shot_features_for_segment(desc_cloud, sv, K);
-
-            if (desc_cloud->empty()) {
-                ++j;
-                continue;
-            }
-
-            string segment_folder = segment_path + "/segment" + to_string(counter);
-            boost::filesystem::create_directory(segment_folder);
-            segment_folders.push_back(segment_folder);
-
-            // save features, maybe also save the segment itself? yes
-            string features_file = segment_folder + "/features.pcd";
-            pcl::io::savePCDFileBinary(features_file, *desc_cloud);
-
-            string cloud_file = segment_folder + "/segment.pcd";
-            pcl::io::savePCDFileBinary(cloud_file, *sv);
-
-            string metadata_file = segment_folder + "/metadata.txt";
-            {
-                ofstream f;
-                f.open(metadata_file);
-                f << folder << "\n";
-                f << scan_file << "\n";
-                f << "Vertex nbr: " << j << "\n";
-                f.close();
-            }
-            ++counter;
-            ++j;
-        }
-
-        string segment_folders_file = folder + "/segment_paths.txt";
-        {
-            ofstream f;
-            f.open(segment_folders_file);
-            for (string& sf : segment_folders) {
-                f << sf << "\n";
-            }
-            f.close();
-        }
-    }
-}
-
 void cloud_for_scan(CloudT::Ptr& cloud, int i, object_retrieval& obr)
 {
     string folder = obr.get_folder_for_segment_id(i);
@@ -363,43 +273,6 @@ void save_sift_features_for_supervoxels(Eigen::Matrix3f& K, object_retrieval& ob
     }
 }
 
-void save_pfhrgb_features_for_supervoxels(object_retrieval& obr)
-{
-    for (int i = 0; ; ++i) {
-        string segment_folder = obr.get_folder_for_segment_id(i);
-        if (!boost::filesystem::is_directory(segment_folder)) {
-            break;
-        }
-        string cloud_file = segment_folder + "/segment.pcd";
-        CloudT::Ptr cloud(new CloudT);
-        if (pcl::io::loadPCDFile(cloud_file, *cloud) == -1) {
-            cout << "Could not load " << cloud_file << endl;
-            exit(0);
-        }
-        PfhRgbCloudT::Ptr desc_cloud(new PfhRgbCloudT);
-        CloudT::Ptr kp_cloud(new CloudT);
-        pfhrgb_estimation::compute_pfhrgb_features(desc_cloud, kp_cloud, cloud, false);
-
-        string pfhrgb_file = segment_folder + "/pfhrgb_cloud_2.pcd";
-        string pfhrgb_points_file = segment_folder + "/pfhrgb_points_file_2.pcd";
-
-        if (desc_cloud->empty()) {
-            // push back one inf point on descriptors and keypoints
-            PfhRgbT sp;
-            for (int i = 0; i < 250; ++i) {
-                sp.histogram[i] = std::numeric_limits<float>::infinity();
-            }
-            desc_cloud->push_back(sp);
-            PointT p;
-            p.x = p.y = p.z = std::numeric_limits<float>::infinity();
-            kp_cloud->push_back(p);
-        }
-
-        pcl::io::savePCDFileBinary(pfhrgb_file, *desc_cloud);
-        pcl::io::savePCDFileBinary(pfhrgb_points_file, *kp_cloud);
-    }
-}
-
 void save_split_features(object_retrieval& obr)
 {
     for (int i = 0; ; ++i) {
@@ -539,6 +412,116 @@ void save_oversegmented_points(object_retrieval& obr_scans)
             break;
         }
         save_oversegmented_voxels_for_scan(i, obr_scans);
+    }
+}
+
+// OK
+void save_pfhrgb_features_for_supervoxels(object_retrieval& obr_segments)
+{
+    for (int i = 0; ; ++i) {
+        string segment_folder = obr_segments.get_folder_for_segment_id(i);
+        if (!boost::filesystem::is_directory(segment_folder)) {
+            break;
+        }
+        string cloud_file = segment_folder + "/segment.pcd";
+        CloudT::Ptr cloud(new CloudT);
+        if (pcl::io::loadPCDFile(cloud_file, *cloud) == -1) {
+            cout << "Could not load " << cloud_file << endl;
+            exit(0);
+        }
+        PfhRgbCloudT::Ptr desc_cloud(new PfhRgbCloudT);
+        CloudT::Ptr kp_cloud(new CloudT);
+        pfhrgb_estimation::compute_pfhrgb_features(desc_cloud, kp_cloud, cloud, false);
+
+        string pfhrgb_file = segment_folder + "/pfhrgb_cloud.pcd";
+        string pfhrgb_points_file = segment_folder + "/pfhrgb_points_file.pcd";
+
+        if (desc_cloud->empty()) {
+            // push back one inf point on descriptors and keypoints
+            PfhRgbT sp;
+            for (int i = 0; i < 250; ++i) {
+                sp.histogram[i] = std::numeric_limits<float>::infinity();
+            }
+            desc_cloud->push_back(sp);
+            PointT p;
+            p.x = p.y = p.z = std::numeric_limits<float>::infinity();
+            kp_cloud->push_back(p);
+        }
+
+        pcl::io::savePCDFileBinary(pfhrgb_file, *desc_cloud);
+        pcl::io::savePCDFileBinary(pfhrgb_points_file, *kp_cloud);
+    }
+}
+
+// OK
+void compute_and_save_segments(object_retrieval& obr_scans)
+{
+    using Graph = supervoxel_segmentation::Graph;
+
+    string base_path = boost::filesystem::path(obr_scans.segment_path).parent_path().string();
+    string segment_path = base_path + "/supervoxel_segments";
+    boost::filesystem::create_directory(segment_path);
+
+    Eigen::Matrix3f K; // dummy
+
+    int counter = 0;
+    for (int i = 0; ; ++i) {
+        string folder = obr_scans.get_folder_for_segment_id(i);
+        if (!boost::filesystem::is_directory(folder)) {
+            return;
+        }
+        CloudT::Ptr cloud(new CloudT);
+        string scan_file = obr_scans.get_scan_file(i);
+
+        cout << "Finally got scan " << scan_file << endl;
+        obr_scans.read_scan(cloud, i);
+        //obr.visualize_cloud(cloud);
+        string graph_file = folder + "/graph.cereal";
+
+        supervoxel_segmentation ss;
+        vector<CloudT::Ptr> supervoxels;
+        //ss.create_supervoxel_graph(supervoxels, cloud);
+        Graph* g = ss.compute_convex_oversegmentation(supervoxels, cloud);
+        ss.save_graph(*g, graph_file);
+        delete g;
+        vector<string> segment_folders;
+        int j = 0;
+        for (CloudT::Ptr& sv : supervoxels) {
+            cout << "Segment size: " << sv->size() << endl;
+            if (sv->empty()) {
+                ++j;
+                continue;
+            }
+
+            string segment_folder = segment_path + "/segment" + to_string(counter);
+            boost::filesystem::create_directory(segment_folder);
+            segment_folders.push_back(segment_folder);
+
+            string cloud_file = segment_folder + "/segment.pcd";
+            pcl::io::savePCDFileBinary(cloud_file, *sv);
+
+            string metadata_file = segment_folder + "/metadata.txt";
+            {
+                ofstream f;
+                f.open(metadata_file);
+                f << folder << "\n";
+                f << scan_file << "\n";
+                f << "Vertex nbr: " << j << "\n";
+                f.close();
+            }
+            ++counter;
+            ++j;
+        }
+
+        string segment_folders_file = folder + "/segment_paths.txt";
+        {
+            ofstream f;
+            f.open(segment_folders_file);
+            for (string& sf : segment_folders) {
+                f << sf << "\n";
+            }
+            f.close();
+        }
     }
 }
 
@@ -1017,7 +1000,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         start2 = chrono::system_clock::now();
 
         vector<index_score> updated_scores;
-        vector<index_score> total_scores;
+        //vector<index_score> total_scores;
         for (size_t i = 0; i < scores.size(); ++i) {
             CloudT::Ptr voxel_centers(new CloudT);
             vector<double> vocabulary_norms;
@@ -1100,6 +1083,10 @@ int main(int argc, char** argv)
     string aggregate_path = root_path + "scan_segments";
     string voxels_path = root_path + "supervoxel_segments";
 
+    string noise_root_path = "/home/nbore/Data/semantic_map/";
+    string noise_scan_path = noise_root_path + "scan_segments";
+    string noise_segment_path = noise_root_path + "supervoxel_segments";
+
     map<int, string> annotated;
     map<int, string> full_annotated;
 
@@ -1111,6 +1098,15 @@ int main(int argc, char** argv)
     object_retrieval obr(aggregate_path);
     obr.segment_name = "scan";
     //aggregate_pfhrgb_features(obr);
+
+    object_retrieval obr_scans_noise(noise_scan_path);
+    obr_scans_noise.segment_name = "scan";
+    object_retrieval obr_segments_noise(noise_segment_path);
+
+    compute_and_save_segments(obr_scans_noise);
+    exit(0);
+
+    save_pfhrgb_features_for_supervoxels(obr_segments_noise);
 
     Eigen::Matrix3f Kall;
     {

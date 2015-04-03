@@ -78,6 +78,8 @@ target_link_libraries(pfhrgb_estimation ${PCL_LIBRARIES})
 #add_executable(test_count_annotated src/test_count_annotated.cpp)
 #target_link_libraries(test_count_annotated dataset_convenience ${PCL_LIBRARIES})
 
+add_executable(create_scan_folders src/create_scan_folders.cpp)
+target_link_libraries(create_scan_folders metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(test_global_search src/test_global_search.cpp)
 target_link_libraries(test_global_search dataset_convenience sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
 add_executable(test_partial_search src/test_partial_search.cpp)
