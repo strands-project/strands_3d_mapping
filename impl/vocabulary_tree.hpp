@@ -199,7 +199,7 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
         if (hint >= centers->size()) {
             cout << "Using hint = " << hint << endl;
             cout << "We have total voxels: " << centers->size() << endl;
-            //exit(0);
+            exit(0);
         }
     }
 
@@ -250,15 +250,6 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
             if (hint != -1 && included_centers.empty()) {
                 break;
             }
-        }
-
-        if (included_centers.empty()) {
-            cout << "Using " << minind << " with dist " << mindist << " as first voxel..." << endl;
-            /*double accum = 0;
-            for (const pair<int, double>& u : smaller_freqs[minind]) {
-                accum += u.second;
-            }
-            cout << "Re-computed norm: " << accum << endl;*/
         }
 
         if (mindist > last_dist) {

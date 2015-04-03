@@ -334,15 +334,14 @@ void grouped_vocabulary_tree<Point, K>::get_subgroups_for_group(set<int>& subgro
 }
 
 template <typename Point, size_t K>
-map<typename grouped_vocabulary_tree<Point, K>::node*, double> grouped_vocabulary_tree<Point, K>::top_optimized_similarities(vector<tuple<int, int, double> >& scores,
-                                                                                                                             CloudPtrT& query_cloud, size_t nbr_results)
+void grouped_vocabulary_tree<Point, K>::top_optimized_similarities(vector<tuple<int, int, double> >& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
     std::map<node*, double> query_id_freqs;
     double qnorm = super::compute_query_vector(query_id_freqs, query_cloud);
 
     unordered_map<int, double> vocabulary_difference(max_index);
 
-    double epsilon = 7;
+    //double epsilon = 7;
     int skipped = 0;
     for (pair<node* const, double>& v : query_id_freqs) {
 
@@ -368,19 +367,16 @@ map<typename grouped_vocabulary_tree<Point, K>::node*, double> grouped_vocabular
     }
 
     unordered_map<int, pair<int, double> > map_scores;
-    unordered_map<int, int> original_inds;
     for (const pair<int, double>& s : vocabulary_difference) {
         pair<int, int> grouped_ind = group_subgroup[s.first];
         if (map_scores.count(grouped_ind.first) > 0) {
             pair<int, double>& value = map_scores[grouped_ind.first];
             if (s.second < value.second) {
                 value = make_pair(grouped_ind.second, s.second);
-                original_inds[grouped_ind.first] = s.first;
             }
         }
         else {
             map_scores.insert(make_pair(grouped_ind.first, make_pair(grouped_ind.second, s.second)));
-            original_inds[grouped_ind.first] = s.first;
         }
     }
 
@@ -397,26 +393,6 @@ map<typename grouped_vocabulary_tree<Point, K>::node*, double> grouped_vocabular
     if (nbr_results > 0) {
         scores.resize(nbr_results);
     }
-
-
-    cout << "Norm in original tree: " << super::db_vector_normalizing_constants[original_inds[get<0>(scores[0])]] << endl;
-
-
-    // now, compute and print vector of first part
-    map<node*, double> rtn;
-
-    create_vocabulary_vector_from_ind(rtn, original_inds[get<0>(scores[0])]);
-
-    return rtn;
-
-    /*for (tuple<int, int, double>& t : scores) {
-        //cout << "min value index: " << endl;
-        //cout << get<1>(t) << endl;
-        //cout << "min group index: " << endl;
-        //cout << min_group_index[get<0>(t)] << endl;
-        get<1>(t) = group_subgroup[get<0>(t)].second;//-= min_group_index[get<0>(t)]; // we don't know which supervoxel it belongs to anymore, just the image
-        // let's see if we can change this
-    }*/
 }
 
 /*template <typename Point, size_t K>
