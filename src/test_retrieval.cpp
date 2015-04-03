@@ -946,7 +946,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
                                    object_retrieval& obr, object_retrieval& obr_scans)
 {
     const int nbr_query = 11;
-    const int nbr_intial_query = 0;
+    const int nbr_intial_query = 200;
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
 
@@ -973,7 +973,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
     map<string, pair<float, int> > instance_correct_ratios;
     //map<string, pair<float, int> > first_correct_ratios;
     map<string, pair<float, int> > usual_correct_ratios;
-    map<string, pair<float, int> > total_correct_ratios;
+    //map<string, pair<float, int> > total_correct_ratios;
 
     map<string, pair<int, int> > instance_mean_features;
 
@@ -1041,15 +1041,15 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
             chrono::time_point<std::chrono::system_clock> startc, endc;
             startc = chrono::system_clock::now();
 
-            vector<map<int, double> > vocabulary_vectors_copy = vocabulary_vectors;
+            /*vector<map<int, double> > vocabulary_vectors_copy = vocabulary_vectors;
             vector<double> vocabulary_norms_copy = vocabulary_norms;
             CloudT::Ptr voxel_centers_copy(new CloudT);
-            *voxel_centers_copy = *voxel_centers;
+            *voxel_centers_copy = *voxel_centers;*/
             double score = obr.gvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
             updated_scores.push_back(index_score(get<0>(scores[i]), score));
 
-            double total_score = obr.gvt.compute_min_combined_dist(features, vocabulary_vectors_copy, vocabulary_norms_copy, voxel_centers_copy, mapping, -1);
-            total_scores.push_back(index_score(get<0>(scores[i]), total_score));
+            /*double total_score = obr.gvt.compute_min_combined_dist(features, vocabulary_vectors_copy, vocabulary_norms_copy, voxel_centers_copy, mapping, -1);
+            total_scores.push_back(index_score(get<0>(scores[i]), total_score));*/
             endc = chrono::system_clock::now();
             chrono::duration<double> elapsed_secondsc = endc-startc;
             total_timec += elapsed_secondsc.count();
@@ -1068,17 +1068,17 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
 
         updated_scores.resize(nbr_query);
 
-        std::sort(total_scores.begin(), total_scores.end(), [](const index_score& s1, const index_score& s2) {
+        /*std::sort(total_scores.begin(), total_scores.end(), [](const index_score& s1, const index_score& s2) {
             return s1.second < s2.second; // find min elements!
         });
-        total_scores.resize(nbr_query);
+        total_scores.resize(nbr_query);*/
 
         int scan_ind = scan_ind_for_supervoxel(a.segment_id, obr);
         calculate_correct_ratio(instance_correct_ratios, a, scan_ind, updated_scores, obr_scans);
         //calculate_correct_ratio(first_correct_ratios, a, scan_ind, scores, obr_scans, false);
         scores.resize(nbr_query);
         calculate_correct_ratio(usual_correct_ratios, a, scan_ind, scores, obr_scans);
-        calculate_correct_ratio(total_correct_ratios, a, scan_ind, total_scores, obr_scans);
+        //calculate_correct_ratio(total_correct_ratios, a, scan_ind, total_scores, obr_scans);
         cout << "Number of features: " << features->size() << endl;
 
         instance_mean_features[a.annotation].first += features->size();
@@ -1098,7 +1098,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
     cout << "First round correct ratios: " << endl;
     for (pair<const string, pair<float, int> > c : instance_correct_ratios) {
         cout << c.first << " correct ratio: " << c.second.first/float(c.second.second) << endl;
-        cout << c.first << " total correct ratio: " << total_correct_ratios[c.first].first/float(total_correct_ratios[c.first].second) << endl;
+        //cout << c.first << " total correct ratio: " << total_correct_ratios[c.first].first/float(total_correct_ratios[c.first].second) << endl;
         cout << c.first << " usual correct ratio: " << usual_correct_ratios[c.first].first/float(usual_correct_ratios[c.first].second) << endl;
         //cout << c.first << " first round correct ratio: " << first_correct_ratios[c.first].first/float(first_correct_ratios[c.first].second) << endl;
         cout << "Mean features: " << float(instance_mean_features[c.first].first)/float(instance_mean_features[c.first].second) << endl;

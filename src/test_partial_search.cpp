@@ -1564,11 +1564,8 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         start1 = chrono::system_clock::now();
 
         // this also takes care of the scan association
-        map<vocabulary_tree<HistT, 8>::node*, double> first_node_vector = obr.gvt.top_optimized_similarities(tuple_scores, features, nbr_intial_query);
-        map<int, double> first_ind_vector;
-        for (const pair<vocabulary_tree<HistT, 8>::node*, double>& u : first_node_vector) {
-            first_ind_vector[mapping[u.first]] = u.second;
-        }
+        obr.gvt.top_optimized_similarities(tuple_scores, features, nbr_intial_query);
+
         //cout << normalizing_constants.size() << endl;
         //obr.gvt.top_combined_similarities(scores, features, nbr_intial_query);
 
@@ -1639,7 +1636,6 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
                 cout << "Hint: " << hints[i] << endl;
                 cout << "Vector norm: " << vocabulary_norms[j] << endl;
                 cout << "saved vector size: " << vocabulary_vectors[j].size() << endl;
-                cout << "computed vector size: " << first_ind_vector.size() << endl;
 
                 //map<vocabulary_tree<HistT, 8>::node*, double> recomputed_node_vector;
                 map<int, double> recomputed_saved_vector;
@@ -1651,7 +1647,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
 
                 //cout << "Recomputed saved vector norm: " << pnorm << endl;
 
-                for (const pair<int, double>& u : first_ind_vector) {
+                for (const pair<int, double>& u : recomputed_saved_vector) {
                     if (vocabulary_vectors[j].count(u.first) > 0) {
                         cout << "Index: " << u.first << "stored one: " << u.second << ", computed: " << vocabulary_vectors[j][u.first] << endl;
                     }
