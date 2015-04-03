@@ -28,10 +28,6 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (pcl::Histogram<128>,
                                    (float[128], histogram, histogram)
 )
 
-POINT_CLOUD_REGISTER_POINT_STRUCT (pcl::Histogram<256>,
-                                   (float[256], histogram, histogram)
-)
-
 POINT_CLOUD_REGISTER_POINT_STRUCT (pcl::Histogram<250>,
                                    (float[250], histogram, histogram)
 )
@@ -313,22 +309,6 @@ pair<bool, bool> supervoxel_is_correct(CloudT::Ptr& cloud, const Eigen::Matrix3f
     return make_pair(annotation_cover > 0.75, segment_cover > 0.5);
 }
 
-struct voxel_annotation {
-    int segment_id;
-    string segment_file;
-    string scan_folder;
-    int scan_id;
-    string annotation;
-    bool full;
-    bool segment_covered;
-    bool annotation_covered;
-    template <typename Archive>
-    void serialize(Archive& archive)
-    {
-        archive(segment_id, segment_file, scan_folder, scan_id, annotation, full, segment_covered, annotation_covered);
-    }
-};
-
 int scan_ind_for_supervoxel(int i, object_retrieval& obr)
 {
     string segment_folder = obr.get_folder_for_segment_id(i);
@@ -344,121 +324,6 @@ int scan_ind_for_supervoxel(int i, object_retrieval& obr)
     size_t pos = scan_name.find_last_not_of("0123456789");
     int ind = stoi(scan_name.substr(pos+1));
     return ind;
-}
-
-// scan folder, scan number, annotation, covered
-voxel_annotation scan_for_supervoxel(int i, const Eigen::Matrix3f& K, object_retrieval& obr)
-{
-    string segment_folder = obr.get_folder_for_segment_id(i);
-    string metadata_file = segment_folder + "/metadata.txt";
-    string metadata; // in this dataset, this is the path to the scan
-    {
-        ifstream f;
-        f.open(metadata_file);
-        getline(f, metadata);
-        getline(f, metadata);
-        f.close();
-    }
-    string scan_folder = boost::filesystem::path(metadata).parent_path().string();
-    string scan_name = boost::filesystem::path(metadata).stem().string();
-    size_t pos = scan_name.find_last_not_of("0123456789");
-    int ind = stoi(scan_name.substr(pos+1));
-    string annotation_file = scan_folder + "/annotation" + to_string(ind) + ".txt";
-    string annotation; // in this dataset, this is the path to the scan
-    {
-        ifstream f;
-        f.open(annotation_file);
-        getline(f, annotation);
-        f.close();
-    }
-    bool annotation_covered = false;
-    bool segment_covered = false;
-    bool full = false;
-    string cloud_file = segment_folder + "/segment.pcd";
-    if (annotation != "null") {
-        vector<string> strs;
-        boost::split(strs, annotation, boost::is_any_of(" \t\n"));
-        annotation = strs[0];
-        full = (strs[1] == "full");
-        int minx = stoi(strs[2]);
-        int maxx = stoi(strs[3]);
-        int miny = stoi(strs[4]);
-        int maxy = stoi(strs[5]);
-        CloudT::Ptr cloud(new CloudT);
-        pcl::io::loadPCDFile(cloud_file, *cloud);
-        tie(segment_covered, annotation_covered) = supervoxel_is_correct(cloud, K, minx, maxx, miny, maxy);
-    }
-
-    return voxel_annotation { i, cloud_file, scan_folder, ind, annotation, full, segment_covered, annotation_covered };
-}
-
-string annotation_for_supervoxel(int i, object_retrieval& obr)
-{
-    string segment_folder = obr.get_folder_for_segment_id(i);
-    string metadata_file = segment_folder + "/metadata.txt";
-    string metadata; // in this dataset, this is the path to the scan
-    {
-        ifstream f;
-        f.open(metadata_file);
-        getline(f, metadata);
-        getline(f, metadata);
-        f.close();
-    }
-    string scan_folder = boost::filesystem::path(metadata).parent_path().string();
-    string scan_name = boost::filesystem::path(metadata).stem().string();
-    size_t pos = scan_name.find_last_not_of("0123456789");
-    int ind = stoi(scan_name.substr(pos+1));
-    string annotation_file = scan_folder + "/annotation" + to_string(ind) + ".txt";
-    string annotation; // in this dataset, this is the path to the scan
-    {
-        ifstream f;
-        f.open(annotation_file);
-        getline(f, annotation);
-        f.close();
-    }
-    if (annotation != "null") {
-        vector<string> strs;
-        boost::split(strs, annotation, boost::is_any_of(" \t\n"));
-        annotation = strs[0];
-    }
-    return annotation;
-}
-
-void list_annotated_supervoxels(vector<voxel_annotation>& annotations, const string& annotations_file,
-                                const Eigen::Matrix3f& K, object_retrieval& obr)
-{
-    if (boost::filesystem::is_regular_file(annotations_file)) {
-        ifstream in(annotations_file, std::ios::binary);
-        cereal::BinaryInputArchive archive_i(in);
-        archive_i(annotations);
-        return;
-    }
-    for (int i = 0; ; ++i) {
-        string segment_folder = obr.get_folder_for_segment_id(i);
-        if (!boost::filesystem::is_directory(segment_folder)) {
-            break;
-        }
-        voxel_annotation annotation = scan_for_supervoxel(i, K, obr);
-        annotations.push_back(annotation);
-    }
-    {
-        ofstream out(annotations_file, std::ios::binary);
-        cereal::BinaryOutputArchive archive_o(out);
-        archive_o(annotations);
-    }
-}
-
-void visualize_supervoxel_annotation(vector<voxel_annotation>& annotations, object_retrieval& obr)
-{
-    for (voxel_annotation& a : annotations) {
-        if (!a.annotation_covered || !a.segment_covered) {
-            continue;
-        }
-        CloudT::Ptr cloud(new CloudT);
-        pcl::io::loadPCDFile(a.segment_file, *cloud);
-        cout << "Showing " << a.segment_file << " with annotation " << a.annotation << endl;
-        obr.visualize_cloud(cloud);
-    }
 }
 
 void save_sift_features_for_supervoxels(Eigen::Matrix3f& K, object_retrieval& obr)
@@ -591,32 +456,6 @@ void get_voxels_for_scan(vector<int>& voxels, int i, object_retrieval& obr_scans
     }
 }
 
-void get_grouped_oversegmented_vectors_for_scan(CloudT::Ptr& voxel_centers, vector<double>& vocabulary_norms,
-                                                vector<map<int, double> >& vocabulary_vectors, int i, object_retrieval& obr_scans)
-{
-    string scan_path = obr_scans.get_folder_for_segment_id(i);
-
-    string centers_file = scan_path + "/split_centers.pcd";
-    if (pcl::io::loadPCDFile(centers_file, *voxel_centers) == -1) {
-        cout << "Could not read file " << centers_file << endl;
-        exit(0);
-    }
-
-    string norms_file = scan_path + "/grouped_vocabulary_norms.cereal";
-    ifstream inn(norms_file, std::ios::binary);
-    {
-        cereal::BinaryInputArchive archive_i(inn);
-        archive_i(vocabulary_norms);
-    }
-
-    string vectors_file = scan_path + "/grouped_vocabulary_vectors.cereal";
-    ifstream inv(vectors_file, std::ios::binary);
-    {
-        cereal::BinaryInputArchive archive_i(inv);
-        archive_i(vocabulary_vectors);
-    }
-}
-
 void save_oversegmented_voxels_for_scan(int i, object_retrieval& obr_scans)
 {
     vector<HistCloudT::Ptr> voxels;
@@ -704,6 +543,127 @@ void save_oversegmented_points(object_retrieval& obr_scans)
 }
 
 // OK
+struct voxel_annotation {
+    int segment_id;
+    string segment_file;
+    string scan_folder;
+    int scan_id;
+    string annotation;
+    bool full;
+    bool segment_covered;
+    bool annotation_covered;
+    template <typename Archive>
+    void serialize(Archive& archive)
+    {
+        archive(segment_id, segment_file, scan_folder, scan_id, annotation, full, segment_covered, annotation_covered);
+    }
+};
+
+// OK
+voxel_annotation scan_for_supervoxel(int i, const Eigen::Matrix3f& K, object_retrieval& obr)
+{
+    string segment_folder = obr.get_folder_for_segment_id(i);
+    string metadata_file = segment_folder + "/metadata.txt";
+    string metadata; // in this dataset, this is the path to the scan
+    {
+        ifstream f;
+        f.open(metadata_file);
+        getline(f, metadata);
+        getline(f, metadata);
+        f.close();
+    }
+    string scan_folder = boost::filesystem::path(metadata).parent_path().string();
+    string scan_name = boost::filesystem::path(metadata).stem().string();
+    size_t pos = scan_name.find_last_not_of("0123456789");
+    int ind = stoi(scan_name.substr(pos+1));
+    string annotation_file = scan_folder + "/annotation" + to_string(ind) + ".txt";
+    string annotation; // in this dataset, this is the path to the scan
+    {
+        ifstream f;
+        f.open(annotation_file);
+        getline(f, annotation);
+        f.close();
+    }
+    bool annotation_covered = false;
+    bool segment_covered = false;
+    bool full = false;
+    string cloud_file = segment_folder + "/segment.pcd";
+    if (annotation != "null") {
+        vector<string> strs;
+        boost::split(strs, annotation, boost::is_any_of(" \t\n"));
+        annotation = strs[0];
+        full = (strs[1] == "full");
+        int minx = stoi(strs[2]);
+        int maxx = stoi(strs[3]);
+        int miny = stoi(strs[4]);
+        int maxy = stoi(strs[5]);
+        CloudT::Ptr cloud(new CloudT);
+        pcl::io::loadPCDFile(cloud_file, *cloud);
+        tie(segment_covered, annotation_covered) = supervoxel_is_correct(cloud, K, minx, maxx, miny, maxy);
+    }
+
+    return voxel_annotation { i, cloud_file, scan_folder, ind, annotation, full, segment_covered, annotation_covered };
+}
+
+// OK
+string annotation_for_supervoxel(int i, object_retrieval& obr)
+{
+    string segment_folder = obr.get_folder_for_segment_id(i);
+    string metadata_file = segment_folder + "/metadata.txt";
+    string metadata; // in this dataset, this is the path to the scan
+    {
+        ifstream f;
+        f.open(metadata_file);
+        getline(f, metadata);
+        getline(f, metadata);
+        f.close();
+    }
+    string scan_folder = boost::filesystem::path(metadata).parent_path().string();
+    string scan_name = boost::filesystem::path(metadata).stem().string();
+    size_t pos = scan_name.find_last_not_of("0123456789");
+    int ind = stoi(scan_name.substr(pos+1));
+    string annotation_file = scan_folder + "/annotation" + to_string(ind) + ".txt";
+    string annotation; // in this dataset, this is the path to the scan
+    {
+        ifstream f;
+        f.open(annotation_file);
+        getline(f, annotation);
+        f.close();
+    }
+    if (annotation != "null") {
+        vector<string> strs;
+        boost::split(strs, annotation, boost::is_any_of(" \t\n"));
+        annotation = strs[0];
+    }
+    return annotation;
+}
+
+// OK
+void list_annotated_supervoxels(vector<voxel_annotation>& annotations, const string& annotations_file,
+                                const Eigen::Matrix3f& K, object_retrieval& obr)
+{
+    if (boost::filesystem::is_regular_file(annotations_file)) {
+        ifstream in(annotations_file, std::ios::binary);
+        cereal::BinaryInputArchive archive_i(in);
+        archive_i(annotations);
+        return;
+    }
+    for (int i = 0; ; ++i) {
+        string segment_folder = obr.get_folder_for_segment_id(i);
+        if (!boost::filesystem::is_directory(segment_folder)) {
+            break;
+        }
+        voxel_annotation annotation = scan_for_supervoxel(i, K, obr);
+        annotations.push_back(annotation);
+    }
+    {
+        ofstream out(annotations_file, std::ios::binary);
+        cereal::BinaryOutputArchive archive_o(out);
+        archive_o(annotations);
+    }
+}
+
+// OK
 void calculate_correct_ratio(map<string, pair<float, int> >& instance_correct_ratios, voxel_annotation& a,
                              int scan_ind, vector<index_score>& scores, object_retrieval& obr_scans, const bool verbose = true)
 {
@@ -751,6 +711,33 @@ void calculate_correct_ratio(map<string, pair<float, int> >& instance_correct_ra
         cout << "Showing " << a.segment_file << " with annotation " << a.annotation << endl;
         cout << "Correct ratio: " << correct_ratio << endl;
         cout << "Partial ratio: " << float(partial_counter)/float(counter) << endl;
+    }
+}
+
+// OK
+void get_voxel_vectors_for_scan(CloudT::Ptr& voxel_centers, vector<double>& vocabulary_norms,
+                                vector<map<int, double> >& vocabulary_vectors, int i, object_retrieval& obr_scans)
+{
+    string scan_path = obr_scans.get_folder_for_segment_id(i);
+
+    string centers_file = scan_path + "/split_centers.pcd";
+    if (pcl::io::loadPCDFile(centers_file, *voxel_centers) == -1) {
+        cout << "Could not read file " << centers_file << endl;
+        exit(0);
+    }
+
+    string norms_file = scan_path + "/grouped_vocabulary_norms.cereal";
+    ifstream inn(norms_file, std::ios::binary);
+    {
+        cereal::BinaryInputArchive archive_i(inn);
+        archive_i(vocabulary_norms);
+    }
+
+    string vectors_file = scan_path + "/grouped_vocabulary_vectors.cereal";
+    ifstream inv(vectors_file, std::ios::binary);
+    {
+        cereal::BinaryInputArchive archive_i(inv);
+        archive_i(vocabulary_vectors);
     }
 }
 
@@ -1036,7 +1023,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
             vector<double> vocabulary_norms;
             vector<map<int, double> > vocabulary_vectors;
 
-            get_grouped_oversegmented_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, get<0>(scores[i]), obr_scans);
+            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, get<0>(scores[i]), obr_scans);
 
             chrono::time_point<std::chrono::system_clock> startc, endc;
             startc = chrono::system_clock::now();
