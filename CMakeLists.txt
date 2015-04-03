@@ -82,6 +82,8 @@ add_executable(test_global_search src/test_global_search.cpp)
 target_link_libraries(test_global_search dataset_convenience sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
 add_executable(test_partial_search src/test_partial_search.cpp)
 target_link_libraries(test_partial_search dataset_convenience sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
+add_executable(test_retrieval src/test_retrieval.cpp)
+target_link_libraries(test_retrieval dataset_convenience sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
