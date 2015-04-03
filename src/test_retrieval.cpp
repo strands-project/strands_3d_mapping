@@ -88,23 +88,6 @@ void shot_features_for_segment(HistCloudT::Ptr& desc_cloud, CloudT::Ptr& cloud, 
     sf.compute_shot_features(desc_cloud, cloud, points != 0, points);
 }
 
-void cloud_for_scan(CloudT::Ptr& cloud, int i, object_retrieval& obr)
-{
-    string folder = obr.get_folder_for_segment_id(i);
-    string metadata_file = folder + "/metadata.txt";
-    string metadata; // in this dataset, this is the path to the scan
-    {
-        ifstream f;
-        f.open(metadata_file);
-        getline(f, metadata);
-        f.close();
-    }
-    if (pcl::io::loadPCDFile(metadata, *cloud) == -1) {
-        cout << "Could not load scan point cloud..." << endl;
-        exit(-1);
-    }
-}
-
 void save_sift_features(object_retrieval& obr)
 {
     for (int i = 0; ; ++i) {
@@ -183,59 +166,6 @@ void sift_features_for_segment(SiftCloudT::Ptr& desc_cloud, CloudT::Ptr& kp_clou
     }
 }
 
-bool scan_contains_segment(int i, int segment, object_retrieval& obr)
-{
-    string folder = obr.get_folder_for_segment_id(i);
-    string metadata_file = folder + "/metadata.txt";
-    string metadata; // in this dataset, this is the path to the scan
-    {
-        ifstream f;
-        f.open(metadata_file);
-        getline(f, metadata);
-        getline(f, metadata);
-        f.close();
-    }
-    stringstream ss(metadata);
-    vector<int> numbers((istream_iterator<int>(ss)), istream_iterator<int>());
-    return (find(numbers.begin(), numbers.end(), segment) != numbers.end());
-}
-
-pair<bool, bool> supervoxel_is_correct(CloudT::Ptr& cloud, const Eigen::Matrix3f& K, int minx, int maxx, int miny, int maxy)
-{
-    cv::Mat cover = cv::Mat::zeros(maxy - miny + 1, maxx - minx + 1, CV_32SC1);
-    size_t counter = 0;
-    for (PointT& p : cloud->points) {
-        Eigen::Vector3f q = K*p.getVector3fMap();
-        int x = int(q(0)/q(2) + 0.5f);
-        int y = int(q(1)/q(2) + 0.5f);
-        if (x >= minx && x <= maxx && y >= miny && y <= maxy) {
-            cover.at<int>(y - miny, x - minx) = 1;
-            ++counter;
-        }
-    }
-    int allpixels = cv::sum(cover)[0];
-    float segment_cover = float(allpixels)/float((maxx-minx)*(maxy-miny));
-    float annotation_cover = float(counter)/float(cloud->size());
-    return make_pair(annotation_cover > 0.75, segment_cover > 0.5);
-}
-
-int scan_ind_for_supervoxel(int i, object_retrieval& obr)
-{
-    string segment_folder = obr.get_folder_for_segment_id(i);
-    string metadata_file = segment_folder + "/metadata.txt";
-    string metadata; // in this dataset, this is the path to the scan
-    {
-        ifstream f;
-        f.open(metadata_file);
-        getline(f, metadata);
-        f.close();
-    }
-    string scan_name = boost::filesystem::path(metadata).parent_path().stem().string();
-    size_t pos = scan_name.find_last_not_of("0123456789");
-    int ind = stoi(scan_name.substr(pos+1));
-    return ind;
-}
-
 void save_sift_features_for_supervoxels(Eigen::Matrix3f& K, object_retrieval& obr)
 {
     for (int i = 0; ; ++i) {
@@ -273,10 +203,29 @@ void save_sift_features_for_supervoxels(Eigen::Matrix3f& K, object_retrieval& ob
     }
 }
 
-void save_split_features(object_retrieval& obr)
+// OK
+int scan_ind_for_segment(int i, object_retrieval& obr_segments)
+{
+    string segment_folder = obr_segments.get_folder_for_segment_id(i);
+    string metadata_file = segment_folder + "/metadata.txt";
+    string metadata; // in this dataset, this is the path to the scan
+    {
+        ifstream f;
+        f.open(metadata_file);
+        getline(f, metadata);
+        f.close();
+    }
+    string scan_name = boost::filesystem::path(metadata).parent_path().stem().string();
+    size_t pos = scan_name.find_last_not_of("0123456789");
+    int ind = stoi(scan_name.substr(pos+1));
+    return ind;
+}
+
+// OK
+void save_split_features(object_retrieval& obr_segments)
 {
     for (int i = 0; ; ++i) {
-        string segment_folder = obr.get_folder_for_segment_id(i);
+        string segment_folder = obr_segments.get_folder_for_segment_id(i);
         if (!boost::filesystem::is_directory(segment_folder)) {
             break;
         }
@@ -294,10 +243,13 @@ void save_split_features(object_retrieval& obr)
             exit(0);
         }
         vector<PfhRgbCloudT::Ptr> split_features;
-        pfhrgb_estimation::split_descriptor_points(split_features, desc_cloud, kp_cloud, 30);
+        vector<CloudT::Ptr> split_keypoints;
+        pfhrgb_estimation::split_descriptor_points(split_features, split_keypoints, desc_cloud, kp_cloud, 30);
         int counter = 0;
+        int j = 0;
         for (PfhRgbCloudT::Ptr& split_cloud : split_features) {
             if (split_cloud->empty()) {
+                ++j;
                 continue;
             }
             if (desc_cloud->size() >= 20 && split_cloud->size() < 20) {
@@ -306,112 +258,12 @@ void save_split_features(object_retrieval& obr)
                 exit(0);
             }
             string split_file = segment_folder + "/split_features" + to_string(counter) + ".pcd";
-            pcl::io::savePCDFile(split_file, *split_cloud);
+            string split_points_file = segment_folder + "/split_points" + to_string(counter) + ".pcd";
+            pcl::io::savePCDFileBinary(split_file, *split_cloud);
+            pcl::io::savePCDFileBinary(split_points_file, *split_keypoints[j]);
+            ++j;
             ++counter;
         }
-    }
-}
-
-void get_voxels_for_scan(vector<int>& voxels, int i, object_retrieval& obr_scans)
-{
-    string scan_path = obr_scans.get_folder_for_segment_id(i);
-    string segment_paths_file = scan_path + "/segment_paths.txt";
-    string metadata; // in this dataset, this is the path to the scan
-    {
-        ifstream f;
-        f.open(segment_paths_file);
-        while (getline(f, metadata)) {
-            size_t pos = metadata.find_last_not_of("0123456789");
-            int ind = stoi(metadata.substr(pos+1));
-            voxels.push_back(ind);
-        }
-        f.close();
-    }
-}
-
-void save_oversegmented_voxels_for_scan(int i, object_retrieval& obr_scans)
-{
-    vector<HistCloudT::Ptr> voxels;
-
-    string scan_path = obr_scans.get_folder_for_segment_id(i);
-    string segment_paths_file = scan_path + "/segment_paths.txt";
-
-    vector<string> voxel_paths;
-    {
-        ifstream f;
-        string metadata;
-        f.open(segment_paths_file);
-        while (getline(f, metadata)) {
-            voxel_paths.push_back(metadata);
-        }
-    }
-    for (const string& voxel_path : voxel_paths) {
-        string features_path = voxel_path + "/pfhrgb_cloud.pcd";
-        HistCloudT::Ptr features(new HistCloudT);
-        if (pcl::io::loadPCDFile(features_path, *features) == -1) {
-            cout << "Could not read features file " << features_path << endl;
-            exit(0);
-        }
-
-        string point_path = voxel_path + "/pfhrgb_points_file.pcd";
-        CloudT::Ptr points(new CloudT);
-        if (pcl::io::loadPCDFile(point_path, *points) == -1) {
-            cout << "Could not read points file " << point_path << endl;
-            exit(0);
-        }
-
-        for (int i = 0; ; ++i) {
-            string oversegment_path = voxel_path + "/split_features" + to_string(i) + ".pcd";
-            if (!boost::filesystem::is_regular_file(oversegment_path)) {
-                break;
-            }
-            voxels.push_back(HistCloudT::Ptr(new HistCloudT));
-            if (pcl::io::loadPCDFile(oversegment_path, *voxels.back()) == -1) {
-                cout << "Could not read oversegment file " << oversegment_path << endl;
-                exit(0);
-            }
-
-            string oversegments_points_path = voxel_path + "/split_points" + to_string(i) + ".pcd";
-            CloudT::Ptr split_points(new CloudT);
-            for (HistT& h : voxels.back()->points) {
-                // find h in features
-                bool found = false;
-                for (int j = 0; j < features->size(); ++j) {
-                    if ((eig(h).isApprox(eig(features->at(j)), 1e-30))) {
-                        split_points->push_back(points->at(j));
-                        /*cout << "Found matching points:" << endl;
-                        cout << eig(h).transpose() << endl;
-                        cout << eig(features->at(j)).transpose() << endl;*/
-                        found = true;
-                        break;
-                    }
-                }
-                if (features->size() > 0 && !found) {
-                    cout << "Could not find point in global cloud " << features_path << endl;
-                    cout << "Global cloud size: " << features->size() << endl;
-                    cout << eig(h).transpose() << endl;
-                    //exit(0);
-                    PointT p;
-                    p.x = std::numeric_limits<float>::infinity();
-                    p.y = std::numeric_limits<float>::infinity();
-                    p.z = std::numeric_limits<float>::infinity();
-                    split_points->push_back(p);
-                }
-            }
-
-            pcl::io::savePCDFileBinary(oversegments_points_path, *split_points);
-        }
-    }
-}
-
-void save_oversegmented_points(object_retrieval& obr_scans)
-{
-    for (int i = 0; ; ++i) {
-        string path = obr_scans.get_folder_for_segment_id(i);
-        if (!boost::filesystem::is_directory(path)) {
-            break;
-        }
-        save_oversegmented_voxels_for_scan(i, obr_scans);
     }
 }
 
@@ -541,6 +393,26 @@ struct voxel_annotation {
         archive(segment_id, segment_file, scan_folder, scan_id, annotation, full, segment_covered, annotation_covered);
     }
 };
+
+// OK
+pair<bool, bool> supervoxel_is_correct(CloudT::Ptr& cloud, const Eigen::Matrix3f& K, int minx, int maxx, int miny, int maxy)
+{
+    cv::Mat cover = cv::Mat::zeros(maxy - miny + 1, maxx - minx + 1, CV_32SC1);
+    size_t counter = 0;
+    for (PointT& p : cloud->points) {
+        Eigen::Vector3f q = K*p.getVector3fMap();
+        int x = int(q(0)/q(2) + 0.5f);
+        int y = int(q(1)/q(2) + 0.5f);
+        if (x >= minx && x <= maxx && y >= miny && y <= maxy) {
+            cover.at<int>(y - miny, x - minx) = 1;
+            ++counter;
+        }
+    }
+    int allpixels = cv::sum(cover)[0];
+    float segment_cover = float(allpixels)/float((maxx-minx)*(maxy-miny));
+    float annotation_cover = float(counter)/float(cloud->size());
+    return make_pair(annotation_cover > 0.75, segment_cover > 0.5);
+}
 
 // OK
 voxel_annotation scan_for_supervoxel(int i, const Eigen::Matrix3f& K, object_retrieval& obr)
@@ -859,10 +731,10 @@ void change_supervoxel_groups(object_retrieval& obr_voxels)
     map<int, int> temp(obr_voxels.gvt.index_group.begin(), obr_voxels.gvt.index_group.end());
     int nbr_groups = 0;
     int counter = 0;
-    vector<HistCloudT::Ptr> voxels;
+
     for (pair<const int, int>& p : temp) {
         //cout << p.second << endl;
-        int scan_ind = scan_ind_for_supervoxel(p.second, obr_voxels); // the second is the actual segment
+        int scan_ind = scan_ind_for_segment(p.second, obr_voxels); // the second is the actual segment
         number_features_in_group[scan_ind] += 1;
         if (scan_ind != current_ind) {
             current_ind = scan_ind;
@@ -1043,7 +915,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         });
         total_scores.resize(nbr_query);*/
 
-        int scan_ind = scan_ind_for_supervoxel(a.segment_id, obr);
+        int scan_ind = scan_ind_for_segment(a.segment_id, obr);
         calculate_correct_ratio(instance_correct_ratios, a, scan_ind, updated_scores, obr_scans);
         //calculate_correct_ratio(first_correct_ratios, a, scan_ind, scores, obr_scans, false);
         scores.resize(nbr_query);
@@ -1090,23 +962,22 @@ int main(int argc, char** argv)
     map<int, string> annotated;
     map<int, string> full_annotated;
 
-    //aggregate the features of the segments into features of scans
     object_retrieval obr_segments(segments_path);
     list_all_annotated_segments(annotated, full_annotated, segments_path);
-    //aggregate_features(obr_segments, aggregate_path);
 
     object_retrieval obr(aggregate_path);
     obr.segment_name = "scan";
-    //aggregate_pfhrgb_features(obr);
 
     object_retrieval obr_scans_noise(noise_scan_path);
     obr_scans_noise.segment_name = "scan";
     object_retrieval obr_segments_noise(noise_segment_path);
 
-    compute_and_save_segments(obr_scans_noise);
-    exit(0);
+    //compute_and_save_segments(obr_scans_noise);
 
-    save_pfhrgb_features_for_supervoxels(obr_segments_noise);
+    //save_pfhrgb_features_for_supervoxels(obr_segments_noise);
+
+    save_split_features(obr_segments_noise);
+    exit(0);
 
     Eigen::Matrix3f Kall;
     {

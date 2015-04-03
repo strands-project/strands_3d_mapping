@@ -195,7 +195,8 @@ void visualize_split_keypoints(vector<CloudT::Ptr>& split_keypoints)
     }
 }
 
-void split_descriptor_points(vector<PfhRgbCloudT::Ptr>& split_features, PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints, int expected_cluster_size)
+void split_descriptor_points(vector<PfhRgbCloudT::Ptr>& split_features, vector<CloudT::Ptr> split_keypoints,
+                             PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints, int expected_cluster_size)
 {
     // first, decide how many clusters we want
     const int nbr_original_features = features->size();
@@ -271,60 +272,6 @@ void split_descriptor_points(vector<PfhRgbCloudT::Ptr>& split_features, PfhRgbCl
     max_iter = 1000;
     int iter = 0;
     while (iter < max_iter) {
-
-//        int previous_smallest = -1;
-//        int smallest = -1;
-//        while (previous_smallest == -1 || smallest == previous_smallest) {
-//            previous_smallest = smallest;
-//            group_size.minCoeff(&smallest);
-//            smallest = groups[smallest];
-//            distances = (centroids.colwise()-centroids.col(smallest)).colwise().norm();
-//            for (size_t i = 0; i < expected_nbr_clusters; ++i) {
-//                if (groups[i] == smallest) {
-//                    distances(smallest) = 1000.0f; // very large
-//                }
-//            }
-//            distances.minCoeff(&closest);
-//            closest = groups[closest];
-//            float mindist = 1000.0f; // very large
-//            int minind;
-//            int smallest_ind;
-//            counter = 0;
-//            for (int j : closest_centroids) {
-//                if (groups[j] != closest || !pcl::isFinite(keypoints->at(counter))) {
-//                    ++counter;
-//                    continue;
-//                }
-//                distances = (centroids.colwise()-keypoints->at(counter).getVector3fMap()).colwise().norm();
-//                for (size_t i = 0; i < expected_nbr_clusters; ++i) {
-//                    if (groups[i] != smallest) {
-//                        distances(smallest) = 1000.0f; // very large
-//                    }
-//                }
-//                int ind;
-//                distances.minCoeff(ind);
-//                if (distances(ind) < mindist) {
-//                    mindist = distances(ind);
-//                    minind = counter;
-//                    smallest_ind = ind;
-//                }
-//                ++counter;
-//            }
-//            closest_counts(smallest_ind) += 1;
-//            closest_counts(closest_centroids[minind]) -= 1;
-
-//            closest_centroids[minind] = smallest_ind;
-
-//            group_size(smallest) += 1;
-//            group_size(closest) -= 1;
-//        }
-
-//        // re-form groups
-//        for (size_t i = 0; i < expected_nbr_clusters-1; ++i) {
-//            for (size_t j = i+1; j < expected_nbr_clusters; ++j) {
-
-//            }
-//        }
 
         for (size_t i = 0; i < expected_nbr_clusters; ++i) {
             bool large = closest_counts(i) >= expected_cluster_size;
@@ -429,7 +376,6 @@ void split_descriptor_points(vector<PfhRgbCloudT::Ptr>& split_features, PfhRgbCl
         ++iter;
     }
 
-    vector<CloudT::Ptr> split_keypoints;
     for (size_t i = 0; i < expected_nbr_clusters; ++i) {
         split_features.push_back(PfhRgbCloudT::Ptr(new PfhRgbCloudT));
         split_keypoints.push_back(CloudT::Ptr(new CloudT));

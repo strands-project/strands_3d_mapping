@@ -653,7 +653,8 @@ void save_split_features(object_retrieval& obr)
             exit(0);
         }
         vector<PfhRgbCloudT::Ptr> split_features;
-        pfhrgb_estimation::split_descriptor_points(split_features, desc_cloud, kp_cloud, 30);
+        vector<CloudT::Ptr> split_keypoints;
+        pfhrgb_estimation::split_descriptor_points(split_features, split_keypoints, desc_cloud, kp_cloud, 30);
         int counter = 0;
         for (PfhRgbCloudT::Ptr& split_cloud : split_features) {
             if (split_cloud->empty()) {
