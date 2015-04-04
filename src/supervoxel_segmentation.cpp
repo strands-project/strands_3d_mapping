@@ -308,9 +308,10 @@ void supervoxel_segmentation::recursive_split(vector<Graph*>& graphs_out, Graph&
     // then find the parts that are large enough and have a high enough split score
     size_t _graphs_out_size = graphs_out.size();
     for (size_t i = 0; i < _graphs_out_size; ++i) {
-        if (graph_size(*graphs_out[i]) <= 5) {
+        if (graph_size(*graphs_out[i]) <= 6) {
             continue;
         }
+        cout << "Graph i size: " << graph_size(*graphs_out[i]) << endl;
         // split these segments using graph cuts
         vector<Graph*> second_graphs;
         graph_cut(second_graphs, *graphs_out[i], -0.1);//*mean_graph_weight(*graphs_out[i]));
@@ -321,9 +322,13 @@ void supervoxel_segmentation::recursive_split(vector<Graph*>& graphs_out, Graph&
         }
     }
 
+    cout << "Graphs 2" << endl;
+
     if (!changed) {
         return;
     }
+
+    cout << "Graphs 2.5" << endl;
 
     for (size_t i : boost::adaptors::reverse(delete_indices)) {
         delete graphs_out[i];

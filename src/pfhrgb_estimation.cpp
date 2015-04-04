@@ -195,7 +195,7 @@ void visualize_split_keypoints(vector<CloudT::Ptr>& split_keypoints)
     }
 }
 
-void split_descriptor_points(vector<PfhRgbCloudT::Ptr>& split_features, vector<CloudT::Ptr> split_keypoints,
+void split_descriptor_points(vector<PfhRgbCloudT::Ptr>& split_features, vector<CloudT::Ptr>& split_keypoints,
                              PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints, int expected_cluster_size)
 {
     // first, decide how many clusters we want
@@ -206,6 +206,8 @@ void split_descriptor_points(vector<PfhRgbCloudT::Ptr>& split_features, vector<C
     if (expected_nbr_clusters == 1 || float(expected_cluster_size) > 1.7f*float(nbr_original_features)) {
         split_features.push_back(PfhRgbCloudT::Ptr(new PfhRgbCloudT));
         *split_features.back() += *features;
+        split_keypoints.push_back(CloudT::Ptr(new CloudT));
+        *split_keypoints.back() += *keypoints;
         return;
     }
 

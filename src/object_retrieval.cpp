@@ -32,7 +32,7 @@ using namespace std;
 
 // using PFH
 string object_retrieval::feature_vocabulary_file = "vocabulary_pfhrgb.cereal";
-string object_retrieval::grouped_vocabulary_file = "vocabulary_grouped_2.cereal";
+string object_retrieval::grouped_vocabulary_file = "vocabulary_grouped_3.cereal";
 string object_retrieval::feature_segment_file = "pfhrgb_cloud.pcd";
 string object_retrieval::indices_segment_file = "indices_pfhrgb.cereal";
 
@@ -395,6 +395,8 @@ void object_retrieval::train_grouped_vocabulary(int max_segments, bool simply_tr
     size_t counter = 0;
     bool are_done = false;
 
+    int current_scan_ind = -1;
+    int current_scan_group = 0;
     {
         HistCloudT::Ptr features(new HistCloudT);
         vector<pair<int, int> > indices;
@@ -413,10 +415,15 @@ void object_retrieval::train_grouped_vocabulary(int max_segments, bool simply_tr
                 are_done = true;
                 break;
             }
+            if (current_scan_ind != scan_ind) {
+                current_scan_ind = scan_ind;
+                current_scan_group = 0;
+            }
 
             HistCloudT::Ptr features_i(new HistCloudT);
             vector<pair<int, int> > indices_i;
-            if (!load_grouped_features_for_segment(features_i, indices_i, counter, scan_ind)) {
+            int groups_loaded = load_grouped_features_for_segment(features_i, indices_i, counter, scan_ind, current_scan_group);
+            if (groups_loaded == -1) {
                 are_done = true;
                 break;
             }
@@ -424,6 +431,7 @@ void object_retrieval::train_grouped_vocabulary(int max_segments, bool simply_tr
                 ++counter;
                 continue;
             }
+            current_scan_group += groups_loaded;
             features->insert(features->end(), features_i->begin(), features_i->end());
             indices.insert(indices.end(), indices_i.begin(), indices_i.end());
             ++counter;
@@ -457,10 +465,15 @@ void object_retrieval::train_grouped_vocabulary(int max_segments, bool simply_tr
                 are_done = true;
                 break;
             }
+            if (current_scan_ind != scan_ind) {
+                current_scan_ind = scan_ind;
+                current_scan_group = 0;
+            }
 
             HistCloudT::Ptr features_i(new HistCloudT);
             vector<pair<int, int> > indices_i;
-            if (!load_grouped_features_for_segment(features_i, indices_i, counter, scan_ind)) {
+            int groups_loaded = load_grouped_features_for_segment(features_i, indices_i, counter, scan_ind, current_scan_group);
+            if (groups_loaded == -1) {
                 are_done = true;
                 break;
             }
@@ -468,17 +481,91 @@ void object_retrieval::train_grouped_vocabulary(int max_segments, bool simply_tr
                 ++counter;
                 continue;
             }
+            current_scan_group += groups_loaded;
             features->insert(features->end(), features_i->begin(), features_i->end());
             indices.insert(indices.end(), indices_i.begin(), indices_i.end());
             ++counter;
         }
 
-        vt1.append_cloud(features, indices, false);
+        if (features->size() > 0) {
+            vt1.append_cloud(features, indices, false);
+        }
     }
 
     write_vocabulary(vt1);
     string group_file = segment_path + "/group_subgroup.cereal";
     vt1.save_group_associations(group_file);
+}
+
+int object_retrieval::add_others_to_grouped_vocabulary(int max_segments, object_retrieval& obr_segments, int previous_scan_size)
+{
+    int min_features = 20;
+    string group_file = segment_path + "/group_subgroup.cereal";
+
+    if (gvt.empty()) {
+        read_vocabulary(gvt);
+    }
+    gvt.load_group_associations(group_file);
+
+    size_t counter = 0;
+    bool are_done = false;
+
+    int current_scan_ind = -1;
+    int current_scan_group = 0;
+    while (!are_done) {
+        HistCloudT::Ptr features(new HistCloudT);
+        vector<pair<int, int> > indices;
+
+        // as long as we can keep them all in memory, no upper bound on features here
+        for (size_t i = 0; i < max_segments && features->size() < 2000000; ++i) {
+            if (!exclude_set.empty()) {
+                if (exclude_set.count(counter) != 0) {
+                    ++counter;
+                    continue;
+                }
+            }
+
+            // TODO: add a method to check how many scans we have in this folder
+            // we could also add a method to grouped vocabulary tree to do the same
+            int scan_ind = obr_segments.scan_ind_for_segment(counter) + previous_scan_size; // this is to add above the ones already in there
+            if (scan_ind == -1) {
+                are_done = true;
+                break;
+            }
+            if (current_scan_ind != scan_ind) {
+                current_scan_ind = scan_ind;
+                current_scan_group = 0;
+            }
+
+            HistCloudT::Ptr features_i(new HistCloudT);
+            vector<pair<int, int> > indices_i;
+            int groups_loaded = obr_segments.load_grouped_features_for_segment(features_i, indices_i, counter, scan_ind, current_scan_group);
+            if (groups_loaded == -1) {
+                are_done = true;
+                break;
+            }
+            if (features_i->size() < min_features) {
+                ++counter;
+                continue;
+            }
+            current_scan_group += groups_loaded;
+            features->insert(features->end(), features_i->begin(), features_i->end());
+            indices.insert(indices.end(), indices_i.begin(), indices_i.end());
+            ++counter;
+        }
+
+        cout << "Features size: " << features->size() << endl;
+        cout << "Current scan ind: " << current_scan_ind << endl;
+        if (features->size() > 0) {
+            gvt.append_cloud(features, indices, false);
+        }
+    }
+
+    write_vocabulary(gvt);
+    gvt.save_group_associations(group_file);
+    //gvt.save_group_associations(segment_path + "/group_subgroup_1.cereal");
+
+    return previous_scan_size;
 }
 
 // this should probably be max_features instead
@@ -960,23 +1047,24 @@ bool object_retrieval::load_features_for_segment(HistCloudT::Ptr& features, int 
     return (pcl::io::loadPCDFile<HistT>(features_file, *features) != -1);
 }
 
-bool object_retrieval::load_grouped_features_for_segment(HistCloudT::Ptr& features, vector<pair<int, int> >& indices, int ind, int opt_ind)
+int object_retrieval::load_grouped_features_for_segment(HistCloudT::Ptr& features, vector<pair<int, int> >& indices, int ind, int opt_ind, int current_group)
 {
    string segment_folder = segment_path + "/" + segment_name + to_string(ind) + "/";
    if (!boost::filesystem::is_directory(segment_folder)) {
-       return false;
+       return -1;
    }
-   for (int i = 0; ;  ++i) {
+   int i;
+   for (i = 0; ;  ++i) {
        std::string features_file = segment_folder + "split_features" + to_string(i) + ".pcd";
        HistCloudT::Ptr featuresi(new HistCloudT);
        //cout << features_file << endl;
        if (pcl::io::loadPCDFile<HistT>(features_file, *featuresi) == -1) {
-           return true;
+           return i;
        }
        features->insert(features->end(), featuresi->begin(), featuresi->end());
        for (int j = 0; j < featuresi->size(); ++j) {
            if (opt_ind != -1) {
-               indices.push_back(make_pair(opt_ind, i));
+               indices.push_back(make_pair(opt_ind, current_group + i));
            }
            else {
                indices.push_back(make_pair(ind, i));
@@ -984,7 +1072,7 @@ bool object_retrieval::load_grouped_features_for_segment(HistCloudT::Ptr& featur
        }
    }
 
-   return true; // won't reach
+   return i; // won't reach
 }
 
 bool object_retrieval::load_features_for_other_segment(HistCloudT::Ptr& features, const std::string& other_segment_path, int i)

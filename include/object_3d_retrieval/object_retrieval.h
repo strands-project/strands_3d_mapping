@@ -77,6 +77,7 @@ public:
     void process_segments_incremental();
     void train_vocabulary_incremental(int max_segments, bool simply_train = false);
     void train_grouped_vocabulary(int max_segments, bool simply_train = false);
+    int add_others_to_grouped_vocabulary(int max_segments, object_retrieval& obr_segments, int previous_scan_size);
     void query_vocabulary(vector<index_score>& scores, size_t query_ind, size_t nbr_query, bool visualize_query = false, int number_original_features = 0, const string &other_segments_path = "");
     void query_reweight_vocabulary(vector<index_score>& first_scores, vector<index_score>& reweight_scores,
                                    size_t query_ind, size_t nbr_query, bool visualize_query = false,
@@ -86,7 +87,7 @@ public:
 
     void save_features(HistCloudT::Ptr& features, std::vector<int>& indices);
     bool load_features(HistCloudT::Ptr& features, std::vector<int>& indices);
-    bool load_grouped_features_for_segment(HistCloudT::Ptr& features, std::vector<std::pair<int, int> >& indices, int ind, int opt_ind = -1);
+    int load_grouped_features_for_segment(HistCloudT::Ptr& features, std::vector<std::pair<int, int> >& indices, int ind, int opt_ind = -1, int current_group = -1);
     void save_features_for_segment(HistCloudT::Ptr& features, int i);
     bool load_features_for_segment(HistCloudT::Ptr& features, int i);
     bool load_features_for_other_segment(HistCloudT::Ptr& features, const std::string& other_segment_path, int i);

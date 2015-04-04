@@ -245,6 +245,8 @@ void save_split_features(object_retrieval& obr_segments)
         vector<PfhRgbCloudT::Ptr> split_features;
         vector<CloudT::Ptr> split_keypoints;
         pfhrgb_estimation::split_descriptor_points(split_features, split_keypoints, desc_cloud, kp_cloud, 30);
+        cout << "Split features size: " << split_features.size() << endl;
+        cout << "Split keypoint size: " << split_keypoints.size() << endl;
         int counter = 0;
         int j = 0;
         for (PfhRgbCloudT::Ptr& split_cloud : split_features) {
@@ -257,10 +259,12 @@ void save_split_features(object_retrieval& obr_segments)
                 cout << "Split cloud had size: " << split_cloud->size() << endl;
                 exit(0);
             }
+            cout << "Saving features and keypoints..." << endl;
             string split_file = segment_folder + "/split_features" + to_string(counter) + ".pcd";
             string split_points_file = segment_folder + "/split_points" + to_string(counter) + ".pcd";
             pcl::io::savePCDFileBinary(split_file, *split_cloud);
             pcl::io::savePCDFileBinary(split_points_file, *split_keypoints[j]);
+            cout << "Done saving..." << endl;
             ++j;
             ++counter;
         }
@@ -313,8 +317,6 @@ void compute_and_save_segments(object_retrieval& obr_scans)
     string base_path = boost::filesystem::path(obr_scans.segment_path).parent_path().string();
     string segment_path = base_path + "/supervoxel_segments";
     boost::filesystem::create_directory(segment_path);
-
-    Eigen::Matrix3f K; // dummy
 
     int counter = 0;
     for (int i = 0; ; ++i) {
@@ -520,15 +522,22 @@ void list_annotated_supervoxels(vector<voxel_annotation>& annotations, const str
 
 // OK
 void calculate_correct_ratio(map<string, pair<float, int> >& instance_correct_ratios, voxel_annotation& a,
-                             int scan_ind, vector<index_score>& scores, object_retrieval& obr_scans, const bool verbose = true)
+                             int scan_ind, vector<index_score>& scores, object_retrieval& obr_scans, int noise_scans_size, const bool verbose = true)
 {
     bool found = false;
     int counter = 0;
     int partial_counter = 0;
     bool last_match;
     for (index_score s : scores) {
-        string instance = annotation_for_scan(s.first, obr_scans);
-        if (s.first == scan_ind) {
+        if (s.first < noise_scans_size) { // is noise
+            cout << "This was noise, false" << endl;
+            cout << "Score: " << s.second << endl;
+            last_match = false;
+            continue;
+        }
+        int query_ind = s.first - noise_scans_size;
+        string instance = annotation_for_scan(query_ind, obr_scans);
+        if (query_ind == scan_ind) {
             found = true;
             continue;
         }
@@ -545,7 +554,7 @@ void calculate_correct_ratio(map<string, pair<float, int> >& instance_correct_ra
             if (verbose) cout << "This was false." << endl;
         }
         HistCloudT::Ptr features_match(new HistCloudT);
-        obr_scans.load_features_for_segment(features_match, s.first);
+        obr_scans.load_features_for_segment(features_match, query_ind);
         if (verbose) {
             cout << "Score: " << s.second << endl;
             cout << "Number of features: " << features_match->size() << endl;
@@ -575,20 +584,20 @@ void get_voxel_vectors_for_scan(CloudT::Ptr& voxel_centers, vector<double>& voca
 {
     string scan_path = obr_scans.get_folder_for_segment_id(i);
 
-    string centers_file = scan_path + "/split_centers.pcd";
+    string centers_file = scan_path + "/split_centers_1.pcd";
     if (pcl::io::loadPCDFile(centers_file, *voxel_centers) == -1) {
         cout << "Could not read file " << centers_file << endl;
         exit(0);
     }
 
-    string norms_file = scan_path + "/grouped_vocabulary_norms.cereal";
+    string norms_file = scan_path + "/grouped_vocabulary_norms_1.cereal";
     ifstream inn(norms_file, std::ios::binary);
     {
         cereal::BinaryInputArchive archive_i(inn);
         archive_i(vocabulary_norms);
     }
 
-    string vectors_file = scan_path + "/grouped_vocabulary_vectors.cereal";
+    string vectors_file = scan_path + "/grouped_vocabulary_vectors_1.cereal";
     ifstream inv(vectors_file, std::ios::binary);
     {
         cereal::BinaryInputArchive archive_i(inv);
@@ -674,12 +683,12 @@ void get_voxels_and_points_for_scan(vector<HistCloudT::Ptr>& voxels, vector<Clou
 }
 
 // OK
-void save_oversegmented_grouped_vocabulary_index_vectors(object_retrieval& obr_scans, object_retrieval& obr_voxels)
+void save_oversegmented_grouped_vocabulary_index_vectors(object_retrieval& obr_scans, object_retrieval& obr_segments)
 {
     int min_features = 20;
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
-    obr_voxels.gvt.get_node_mapping(mapping);
+    obr_segments.gvt.get_node_mapping(mapping);
 
     for (int i = 0; ; ++i) {
         string path = obr_scans.get_folder_for_segment_id(i);
@@ -698,16 +707,16 @@ void save_oversegmented_grouped_vocabulary_index_vectors(object_retrieval& obr_s
                 continue;
             }
             vocabulary_vectors.push_back(map<int, double>());
-            double pnorm = obr_voxels.gvt.compute_query_index_vector(vocabulary_vectors.back(), voxel, mapping);
+            double pnorm = obr_segments.gvt.compute_query_index_vector(vocabulary_vectors.back(), voxel, mapping);
             vocabulary_norms.push_back(pnorm);
         }
-        string vectors_file = path + "/grouped_vocabulary_vectors.cereal";
+        string vectors_file = path + "/grouped_vocabulary_vectors_1.cereal";
         ofstream outv(vectors_file, std::ios::binary);
         {
             cereal::BinaryOutputArchive archive_o(outv);
             archive_o(vocabulary_vectors);
         }
-        string norms_file = path + "/grouped_vocabulary_norms.cereal";
+        string norms_file = path + "/grouped_vocabulary_norms_1.cereal";
         ofstream outn(norms_file, std::ios::binary);
         {
             cereal::BinaryOutputArchive archive_o(outn);
@@ -716,7 +725,7 @@ void save_oversegmented_grouped_vocabulary_index_vectors(object_retrieval& obr_s
 
         CloudT::Ptr centers_cloud(new CloudT);
         compute_voxel_centers(centers_cloud, voxel_points, min_features);
-        string centers_file = path + "/split_centers.pcd";
+        string centers_file = path + "/split_centers_1.pcd";
         pcl::io::savePCDFileBinary(centers_file, *centers_cloud);
     }
 }
@@ -775,7 +784,7 @@ void change_supervoxel_groups(object_retrieval& obr_voxels)
 void read_supervoxel_groups(object_retrieval& obr_voxels)
 {
     string root_path = obr_voxels.segment_path;
-    string group_file = root_path + "/group_subgroup.cereal";
+    string group_file = root_path + "/group_subgroup_1.cereal";
     ifstream in(group_file, std::ios::binary);
     {
         cereal::BinaryInputArchive archive_i(in);
@@ -785,29 +794,31 @@ void read_supervoxel_groups(object_retrieval& obr_voxels)
 
 // OK
 void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen::Matrix3f& K,
-                                   object_retrieval& obr, object_retrieval& obr_scans)
+                                   object_retrieval& obr_segments, object_retrieval& obr_scans,
+                                   object_retrieval& obr_segments_annotations, object_retrieval& obr_scans_annotations,
+                                   int noise_scans_size)
 {
     const int nbr_query = 11;
     const int nbr_intial_query = 200;
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
 
-    if (obr.gvt.empty()) {
-        obr.read_vocabulary(obr.gvt);
+    if (obr_segments.gvt.empty()) {
+        obr_segments.read_vocabulary(obr_segments.gvt);
     }
-    obr.gvt.set_min_match_depth(2);
-    obr.gvt.compute_normalizing_constants();
+    obr_segments.gvt.set_min_match_depth(2);
+    obr_segments.gvt.compute_normalizing_constants();
 
-    read_supervoxel_groups(obr); // this will not be needed eventually, should be part of class init
+    read_supervoxel_groups(obr_segments); // this will not be needed eventually, should be part of class init
 
-    obr.gvt.compute_leaf_vocabulary_vectors(); // this will not be needed eventually
+    obr_segments.gvt.compute_leaf_vocabulary_vectors(); // this will not be needed eventually
 
-    obr.gvt.get_node_mapping(mapping);
+    obr_segments.gvt.get_node_mapping(mapping);
 
-    //save_oversegmented_grouped_vocabulary_index_vectors(obr_scans, obr);
+    //save_oversegmented_grouped_vocabulary_index_vectors(obr_scans, obr_segments);
+    //save_oversegmented_grouped_vocabulary_index_vectors(obr_scans_annotations, obr_segments);
     //exit(0);
 
-    //get_max_supervoxel_features(obr_scans);
     //change_supervoxel_groups(obr);
     //exit(0);
 
@@ -849,14 +860,14 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         pcl::io::loadPCDFile(a.segment_file, *cloud);
 
         HistCloudT::Ptr features(new HistCloudT);
-        obr.load_features_for_segment(features, a.segment_id);
+        obr_segments_annotations.load_features_for_segment(features, a.segment_id);
         vector<tuple<int, int, double> > tuple_scores;
 
         chrono::time_point<std::chrono::system_clock> start1, end1;
         start1 = chrono::system_clock::now();
 
         // this also takes care of the scan association
-        obr.gvt.top_optimized_similarities(tuple_scores, features, nbr_intial_query);
+        obr_segments.gvt.top_optimized_similarities(tuple_scores, features, nbr_intial_query);
 
         vector<index_score> scores;
         vector<int> hints;
@@ -878,7 +889,13 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
             vector<double> vocabulary_norms;
             vector<map<int, double> > vocabulary_vectors;
 
-            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, get<0>(scores[i]), obr_scans);
+            // TODO: here we need different ones for different folders
+            if (scores[i].first < noise_scans_size) {
+                get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first, obr_scans);
+            }
+            else {
+                get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first-noise_scans_size, obr_scans_annotations);
+            }
 
             chrono::time_point<std::chrono::system_clock> startc, endc;
             startc = chrono::system_clock::now();
@@ -887,8 +904,8 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
             vector<double> vocabulary_norms_copy = vocabulary_norms;
             CloudT::Ptr voxel_centers_copy(new CloudT);
             *voxel_centers_copy = *voxel_centers;*/
-            double score = obr.gvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
-            updated_scores.push_back(index_score(get<0>(scores[i]), score));
+            double score = obr_segments.gvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
+            updated_scores.push_back(index_score(scores[i].first, score));
 
             /*double total_score = obr.gvt.compute_min_combined_dist(features, vocabulary_vectors_copy, vocabulary_norms_copy, voxel_centers_copy, mapping, -1);
             total_scores.push_back(index_score(get<0>(scores[i]), total_score));*/
@@ -915,11 +932,12 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         });
         total_scores.resize(nbr_query);*/
 
-        int scan_ind = scan_ind_for_segment(a.segment_id, obr);
-        calculate_correct_ratio(instance_correct_ratios, a, scan_ind, updated_scores, obr_scans);
+        // need to check that it's correct here
+        int scan_ind = scan_ind_for_segment(a.segment_id, obr_segments_annotations);
+        calculate_correct_ratio(instance_correct_ratios, a, scan_ind, updated_scores, obr_scans_annotations, noise_scans_size);
         //calculate_correct_ratio(first_correct_ratios, a, scan_ind, scores, obr_scans, false);
         scores.resize(nbr_query);
-        calculate_correct_ratio(usual_correct_ratios, a, scan_ind, scores, obr_scans);
+        calculate_correct_ratio(usual_correct_ratios, a, scan_ind, scores, obr_scans_annotations, noise_scans_size);
         //calculate_correct_ratio(total_correct_ratios, a, scan_ind, total_scores, obr_scans);
         cout << "Number of features: " << features->size() << endl;
 
@@ -951,22 +969,20 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
 int main(int argc, char** argv)
 {
     string root_path = "/home/nbore/Data/Instances/";
-    string segments_path = root_path + "object_segments";
-    string aggregate_path = root_path + "scan_segments";
-    string voxels_path = root_path + "supervoxel_segments";
+    string old_segment_path = root_path + "object_segments";
+    string scan_path = root_path + "scan_segments";
+    string segment_path = root_path + "supervoxel_segments";
 
     string noise_root_path = "/home/nbore/Data/semantic_map/";
     string noise_scan_path = noise_root_path + "scan_segments";
     string noise_segment_path = noise_root_path + "supervoxel_segments";
 
-    map<int, string> annotated;
-    map<int, string> full_annotated;
+    object_retrieval obr_old_segments(old_segment_path);
 
-    object_retrieval obr_segments(segments_path);
-    list_all_annotated_segments(annotated, full_annotated, segments_path);
+    object_retrieval obr_scans(scan_path);
+    obr_scans.segment_name = "scan";
 
-    object_retrieval obr(aggregate_path);
-    obr.segment_name = "scan";
+    object_retrieval obr_segments(segment_path);
 
     object_retrieval obr_scans_noise(noise_scan_path);
     obr_scans_noise.segment_name = "scan";
@@ -976,8 +992,19 @@ int main(int argc, char** argv)
 
     //save_pfhrgb_features_for_supervoxels(obr_segments_noise);
 
-    save_split_features(obr_segments_noise);
-    exit(0);
+    //save_split_features(obr_segments_noise);
+    //exit(0);
+
+    //obr_voxels.train_grouped_vocabulary(4000, false);
+
+    // probably train using the noise segments
+    //obr_segments_noise.train_grouped_vocabulary(12000, false);
+
+    // TODO: add something like obr_segments_noise.get_scan_count()
+    int noise_scans_size = 3526;
+    //obr_segments_noise.add_others_to_grouped_vocabulary(30000, obr_segments, noise_scans_size);
+
+    //exit(0);
 
     Eigen::Matrix3f Kall;
     {
@@ -985,31 +1012,18 @@ int main(int argc, char** argv)
         NormalCloudT::Ptr normal(new NormalCloudT);
         CloudT::Ptr hd_segment(new CloudT);
         string metadata;
-        obr_segments.read_segment(segment, normal, hd_segment, Kall, metadata, 0);
+        obr_old_segments.read_segment(segment, normal, hd_segment, Kall, metadata, 0);
     }
 
-    //save_supervoxel_features(obr);
-    //save_sift_features(obr);
-    //save_duplet_features(obr);
-    //exit(0);
-
-    object_retrieval obr_voxels(voxels_path);
     vector<voxel_annotation> annotations;
-    string annotations_file = voxels_path + "/voxel_annotations.cereal";
-    list_annotated_supervoxels(annotations, annotations_file, Kall, obr_voxels);
-    //visualize_supervoxel_annotation(annotations, obr_voxels);
-    query_supervoxel_oversegments(annotations, Kall, obr_voxels, obr);
-    //save_sift_features_for_supervoxels(Kall, obr_voxels);
-    //save_pfhrgb_features_for_supervoxels(obr_voxels);
+    string annotations_file = segment_path + "/voxel_annotations.cereal";
+    list_annotated_supervoxels(annotations, annotations_file, Kall, obr_segments);
 
-    //save_oversegmented_points(obr);
-    //save_supervoxel_centers(obr);
+    //query_supervoxel_oversegments(annotations, Kall, obr_segments, obr_scans, obr_segments, obr_scans, 0);
 
-    cout << "Extracted all of the features" << endl;
+    query_supervoxel_oversegments(annotations, Kall, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
 
-    // do initial training of vocabulary, save vocabulary
-    //save_split_features(obr_voxels);
-    //obr_voxels.train_grouped_vocabulary(4000, false);
+    cout << "Program finished..." << endl;
 
     return 0;
 }
