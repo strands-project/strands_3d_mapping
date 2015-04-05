@@ -343,7 +343,7 @@ void grouped_vocabulary_tree<Point, K>::top_optimized_similarities(vector<tuple<
 
     //double epsilon = 7;
     int skipped = 0;
-    for (pair<node* const, double>& v : query_id_freqs) {
+    for (const pair<node*, double>& v : query_id_freqs) {
 
         /*if (v.first->weight < epsilon) {
             ++skipped;
@@ -382,6 +382,69 @@ void grouped_vocabulary_tree<Point, K>::top_optimized_similarities(vector<tuple<
 
     // this could probably be optimized a bit also, quite big copy operattion
     //scores.insert(scores.end(), map_scores.begin(), map_scores.end());
+    scores.reserve(map_scores.size());
+    for (const pair<int, pair<int, double> >& u : map_scores) {
+        scores.push_back(make_tuple(u.first, u.second.first, u.second.second));
+    }
+    std::sort(scores.begin(), scores.end(), [](const tuple<int, int, double>& s1, const tuple<int, int, double>& s2) {
+        return get<2>(s1) < get<2>(s2); // find min elements!
+    });
+
+    if (nbr_results > 0) {
+        scores.resize(nbr_results);
+    }
+}
+
+template <typename Point, size_t K>
+void grouped_vocabulary_tree<Point, K>::top_l2_similarities(vector<tuple<int, int, double> >& scores, CloudPtrT& query_cloud, size_t nbr_results)
+{
+    std::map<node*, double> query_id_freqs;
+    double qnorm = super::compute_query_vector(query_id_freqs, query_cloud);
+
+    unordered_map<int, double> vocabulary_difference(max_index);
+    unordered_map<int, double> group_vocabulary_difference;
+
+    for (const pair<node*, double>& v : query_id_freqs) {
+
+        unordered_map<int, double> node_vocabulary_vector; // includes weights
+        compute_node_vocabulary_vector(node_vocabulary_vector, v.first);
+
+        unordered_map<int, double> node_group_vocabulary_vector;
+
+        for (const pair<int, double>& u : node_vocabulary_vector) {
+            vocabulary_difference[u.first] += std::min(u.second, v.second);
+            node_group_vocabulary_vector[group_subgroup[u.first].first] += u.second;
+        }
+
+        for (const pair<int, double>& u : node_vocabulary_vector) {
+            group_vocabulary_difference[u.first] += std::min(u.second, v.second);
+        }
+    }
+
+    for (pair<const int, double>& u : group_vocabulary_difference) {
+        u.second = qnorm - u.second;
+    }
+
+    for (pair<const int, double>& u : vocabulary_difference) {
+        double normalization = super::db_vector_normalizing_constants[u.first];
+        u.second = std::max(normalization - u.second, group_vocabulary_difference[group_subgroup[u.first].first]);
+    }
+
+    unordered_map<int, pair<int, double> > map_scores;
+    for (const pair<int, double>& s : vocabulary_difference) {
+        pair<int, int> grouped_ind = group_subgroup[s.first];
+        if (map_scores.count(grouped_ind.first) > 0) {
+            pair<int, double>& value = map_scores[grouped_ind.first];
+            if (s.second < value.second) {
+                value = make_pair(grouped_ind.second, s.second);
+            }
+        }
+        else {
+            map_scores.insert(make_pair(grouped_ind.first, make_pair(grouped_ind.second, s.second)));
+        }
+    }
+
+    // this could probably be optimized a bit also, quite big copy operattion
     scores.reserve(map_scores.size());
     for (const pair<int, pair<int, double> >& u : map_scores) {
         scores.push_back(make_tuple(u.first, u.second.first, u.second.second));

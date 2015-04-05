@@ -63,6 +63,12 @@ protected:
 
 public:
 
+    double compute_new_weights(std::map<int, double>& original_norm_constants, std::map<node*, double>& original_weights,
+                               std::map<int, double>& weighted_indices, CloudPtrT& query_cloud);
+    double compute_new_weights(std::map<int, double>& original_norm_constants, std::map<node*, double>& original_weights,
+                               std::vector<double>& weights, std::vector<CloudPtrT>& clouds, CloudPtrT& query_cloud);
+    double restore_old_weights(std::map<int, double>& original_norm_constants, std::map<node*, double>& original_weights);
+
     double compute_vocabulary_norm(CloudPtrT& cloud);
     double compute_min_combined_dist(CloudPtrT& cloud, std::vector<CloudPtrT>& smaller_clouds, std::vector<double>& pnorms, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers);
     double compute_min_combined_dist(CloudPtrT& cloud, std::vector<std::map<int, double> >& smaller_freqs, std::vector<double>& pnorms,

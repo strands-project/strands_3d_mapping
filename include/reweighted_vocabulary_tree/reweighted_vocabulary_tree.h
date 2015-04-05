@@ -22,8 +22,6 @@ public:
 
 protected:
 
-    void compute_new_weights(std::map<int, double> &original_norm_constants, std::map<node*, double>& original_weights,
-                             std::map<int, double>& weighted_indices, CloudPtrT& query_cloud);
     void adjust_learned_weights(map<int, double>& original_norm_constants, map<node*, double>& original_weights,
                                 map<int, double>& weighted_indices, CloudPtrT& query_cloud);
 

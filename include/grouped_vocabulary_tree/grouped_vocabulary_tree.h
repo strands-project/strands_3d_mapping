@@ -77,6 +77,7 @@ public:
     void top_grouped_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results = 20);
     void top_combined_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results);
     void top_optimized_similarities(std::vector<std::tuple<int, int, double> >& scores, CloudPtrT& query_cloud, size_t nbr_results);
+    void top_l2_similarities(std::vector<std::tuple<int, int, double> >& scores, CloudPtrT& query_cloud, size_t nbr_results);
     //void compute_node_difference(std::map<int, int>& sub_freqs, std::map<int, double>& map_scores,
     //                             node* n, std::map<node*, double>& qvec, int current_depth);
 
