@@ -230,11 +230,17 @@ void vocabulary_tree<Point, K>::compute_vocabulary_vector(std::map<node*, double
 }
 
 template <typename Point, size_t K>
-double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, vector<CloudPtrT>& smaller_clouds, vector<double>& pnorms,
-                                                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers) // TODO: const
+double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smallest_ind_combination, CloudPtrT& cloud, vector<CloudPtrT>& smaller_clouds,
+                                                            vector<double>& pnorms, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers) // TODO: const
 {
     chrono::time_point<std::chrono::system_clock> start1, end1;
     start1 = chrono::system_clock::now();
+
+    // used to return which indices are picked
+    vector<int> remaining_indices;
+    for (int i = 0; i < smaller_clouds.size(); ++i) {
+        remaining_indices.push_back(i);
+    }
 
     pcl::PointCloud<pcl::PointXYZRGB> remaining_centers;
     remaining_centers += *centers;
@@ -331,6 +337,8 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
         pnorms.erase(pnorms.begin() + minind);
         included_centers.push_back(remaining_centers.at(minind));
         remaining_centers.erase(remaining_centers.begin() + minind);
+        smallest_ind_combination.push_back(remaining_indices.at(minind));
+        remaining_indices.erase(remaining_indices.begin() + minind);
     }
 
     end2 = chrono::system_clock::now();
@@ -344,12 +352,18 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
 
 // keep in mind that smaller_freqs will be modified here
 template <typename Point, size_t K>
-double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, vector<map<int, double> >& smaller_freqs, vector<double>& pnorms,
+double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smallest_ind_combination, CloudPtrT& cloud, vector<map<int, double> >& smaller_freqs, vector<double>& pnorms,
                                                             pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, map<node*, int>& mapping, int hint) // TODO: const
 {
     pcl::PointCloud<pcl::PointXYZRGB> remaining_centers;
     remaining_centers += *centers;
     pcl::PointCloud<pcl::PointXYZRGB> included_centers;
+
+    // used to return which indices are picked
+    vector<int> remaining_indices;
+    for (int i = 0; i < smaller_freqs.size(); ++i) {
+        remaining_indices.push_back(i);
+    }
 
     // first compute vectors to describe cloud and smaller_clouds
     map<int, double> cloud_freqs;
@@ -431,6 +445,8 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(CloudPtrT& cloud, ve
         pnorms.erase(pnorms.begin() + minind);
         included_centers.push_back(remaining_centers.at(minind));
         remaining_centers.erase(remaining_centers.begin() + minind);
+        smallest_ind_combination.push_back(remaining_indices.at(minind));
+        remaining_indices.erase(remaining_indices.begin() + minind);
     }
 
     return last_dist;

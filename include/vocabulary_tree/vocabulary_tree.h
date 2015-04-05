@@ -70,8 +70,9 @@ public:
     double restore_old_weights(std::map<int, double>& original_norm_constants, std::map<node*, double>& original_weights);
 
     double compute_vocabulary_norm(CloudPtrT& cloud);
-    double compute_min_combined_dist(CloudPtrT& cloud, std::vector<CloudPtrT>& smaller_clouds, std::vector<double>& pnorms, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers);
-    double compute_min_combined_dist(CloudPtrT& cloud, std::vector<std::map<int, double> >& smaller_freqs, std::vector<double>& pnorms,
+    double compute_min_combined_dist(std::vector<int>& smallest_ind_combination, CloudPtrT& cloud, std::vector<CloudPtrT>& smaller_clouds,
+                                     std::vector<double>& pnorms, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers);
+    double compute_min_combined_dist(std::vector<int>& smallest_ind_combination, CloudPtrT& cloud, std::vector<std::map<int, double> >& smaller_freqs, std::vector<double>& pnorms,
                                      pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, std::map<node*, int>& mapping, int hint = -1);
 
     void set_min_match_depth(int depth);
