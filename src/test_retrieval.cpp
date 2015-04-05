@@ -844,6 +844,54 @@ void reweight_query_vocabulary(vector<tuple<int, int, double> >& reweighted_scor
 }
 
 // OK
+template <typename T, typename Compare>
+vector<int> sort_permutation(vector<T> const& vec, Compare compare)
+{
+    vector<int> p(vec.size());
+    std::iota(p.begin(), p.end(), 0);
+    std::sort(p.begin(), p.end(), [&](int i, int j){ return compare(vec[i], vec[j]); });
+    return p;
+}
+
+// OK
+template <typename T>
+vector<T> apply_permutation(vector<T> const& vec, vector<int> const& p)
+{
+    vector<T> sorted_vec(p.size());
+    std::transform(p.begin(), p.end(), sorted_vec.begin(), [&](int i){ return vec[i]; });
+    return sorted_vec;
+}
+
+void load_nth_keypoints_features_for_scan(CloudT::Ptr& keypoints, HistCloudT::Ptr& features,
+                                          int i, vector<int>& indices, object_retrieval& obr_scans)
+{
+    int min_features = 20; // this should be a global parameter
+
+    string path = obr_scans.get_folder_for_segment_id(i);
+    if (!boost::filesystem::is_directory(path)) {
+        cout << "Scan path was not a directory!" << endl;
+        exit(0);
+    }
+    vector<HistCloudT::Ptr> voxels;
+    vector<CloudT::Ptr> voxel_points;
+    get_voxels_and_points_for_scan(voxels, voxel_points, i, obr_scans);
+
+    int counter = 0;
+    for (int i = 0; i < voxels.size(); ++i) {
+        if (voxels[i]->size() < min_features) {
+            continue;
+        }
+        if (std::find(indices.begin(), indices.end(), counter) == indices.end()) {
+            ++counter;
+            continue;
+        }
+        *keypoints += *voxel_points[i];
+        *features += *voxels[i];
+        ++counter;
+    }
+}
+
+// OK
 void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen::Matrix3f& K,
                                    object_retrieval& obr_segments, object_retrieval& obr_scans,
                                    object_retrieval& obr_segments_annotations, object_retrieval& obr_scans_annotations,
@@ -912,7 +960,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         //obr_segments_annotations.visualize_cloud(cloud);
 
         HistCloudT::Ptr features(new HistCloudT);
-        obr_segments_annotations.load_features_for_segment(features, a.segment_id);
+        obr_segments_annotations.load_features_for_segment(features, a.segment_id); // also load keypoints
         vector<tuple<int, int, double> > tuple_scores;
 
         chrono::time_point<std::chrono::system_clock> start1, end1;
@@ -921,10 +969,10 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         // this also takes care of the scan association
         obr_segments.gvt.top_optimized_similarities(tuple_scores, features, nbr_initial_query);
 
-        vector<tuple<int, int, double> > reweighted_scores;
-        reweight_query_vocabulary(reweighted_scores, obr_segments, obr_scans, obr_scans_annotations, K,
-                                  tuple_scores, noise_scans_size, features, cloud, nbr_initial_query);
-        tuple_scores = reweighted_scores;
+        //vector<tuple<int, int, double> > reweighted_scores;
+        //reweight_query_vocabulary(reweighted_scores, obr_segments, obr_scans, obr_scans_annotations, K,
+        //                          tuple_scores, noise_scans_size, features, cloud, nbr_initial_query);
+        //tuple_scores = reweighted_scores;
 
         vector<index_score> scores;
         vector<int> hints;
@@ -940,13 +988,13 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         start2 = chrono::system_clock::now();
 
         vector<index_score> updated_scores;
+        vector<vector<int> > oversegment_indices;
         //vector<index_score> total_scores;
         for (size_t i = 0; i < scores.size(); ++i) {
             CloudT::Ptr voxel_centers(new CloudT);
             vector<double> vocabulary_norms;
             vector<map<int, double> > vocabulary_vectors;
 
-            // TODO: here we need different ones for different folders
             if (scores[i].first < noise_scans_size) {
                 get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first, obr_scans);
             }
@@ -961,8 +1009,10 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
             vector<double> vocabulary_norms_copy = vocabulary_norms;
             CloudT::Ptr voxel_centers_copy(new CloudT);
             *voxel_centers_copy = *voxel_centers;*/
-            double score = obr_segments.gvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
+            vector<int> selected_indices;
+            double score = obr_segments.gvt.compute_min_combined_dist(selected_indices, features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
             updated_scores.push_back(index_score(scores[i].first, score));
+            oversegment_indices.push_back(selected_indices);
 
             //double total_score = obr_segments.gvt.compute_min_combined_dist(features, vocabulary_vectors_copy, vocabulary_norms_copy, voxel_centers_copy, mapping, -1);
             //total_scores.push_back(index_score(get<0>(scores[i]), total_score));
@@ -978,11 +1028,37 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         total_time1 += elapsed_seconds1.count();
         total_time2 += elapsed_seconds2.count();
 
-        std::sort(updated_scores.begin(), updated_scores.end(), [](const index_score& s1, const index_score& s2) {
+        /*std::sort(updated_scores.begin(), updated_scores.end(), [](const index_score& s1, const index_score& s2) {
+            return s1.second < s2.second; // find min elements!
+        });*/
+
+        auto p = sort_permutation(updated_scores, [](const index_score& s1, const index_score& s2) {
             return s1.second < s2.second; // find min elements!
         });
-
+        updated_scores = apply_permutation(updated_scores, p);
+        oversegment_indices = apply_permutation(oversegment_indices, p);
         updated_scores.resize(nbr_query);
+        oversegment_indices.resize(nbr_query);
+
+        for (size_t i = 0; i < updated_scores.size(); ++i) {
+            HistCloudT::Ptr result_features(new HistCloudT);
+            CloudT::Ptr result_keypoints(new CloudT);
+            if (updated_scores[i].first < noise_scans_size) {
+                load_nth_keypoints_features_for_scan(result_keypoints, result_features, updated_scores[i].first, oversegment_indices[i], obr_scans);
+            }
+            else {
+                load_nth_keypoints_features_for_scan(result_keypoints, result_features, updated_scores[i].first-noise_scans_size, oversegment_indices[i], obr_scans_annotations);
+            }
+            CloudT::Ptr result_cloud(new CloudT);
+            if (updated_scores[i].first < noise_scans_size) {
+                obr_scans.read_scan(result_cloud, updated_scores[i].first);
+            }
+            else {
+                obr_scans_annotations.read_scan(result_cloud, updated_scores[i].first-noise_scans_size);
+            }
+            register_objects ro;
+            ro.register_using_features(result_keypoints, result_features, result_cloud);
+        }
 
         /*std::sort(total_scores.begin(), total_scores.end(), [](const index_score& s1, const index_score& s2) {
             return s1.second < s2.second; // find min elements!

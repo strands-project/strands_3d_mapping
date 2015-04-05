@@ -234,7 +234,7 @@ void register_objects::do_registration()
     cr.setInputTarget(cloud2);
     cr.setInputCorrespondences(correspondences);
     cr.setInlierThreshold(0.02);
-    cr.setMaximumIterations(10000);
+    cr.setMaximumIterations(1000);
     cr.getCorrespondences(sac_correspondences);
     T = cr.getBestTransformation();
 
@@ -381,7 +381,7 @@ pair<double, double> register_objects::get_match_score()
         vector<int> indices;
         vector<float> distances;
         kdtree2.nearestKSearchT(p, 1, indices, distances);
-        if (distances.empty() || distances.empty()) {
+        if (distances.empty()) {
             cout << "Distances empty, wtf??" << endl;
             exit(0);
         }
@@ -425,4 +425,44 @@ pair<double, double> register_objects::get_match_score()
 void register_objects::get_transformation(Eigen::Matrix4f& trans)
 {
     trans = T;
+}
+
+void register_objects::visualize_cloud(CloudT::Ptr& cloud)
+{
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer ("3D Viewer"));
+    viewer->setBackgroundColor(0, 0, 0);
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(cloud);
+    viewer->addPointCloud<PointT>(cloud, rgb, "sample cloud");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
+    viewer->addCoordinateSystem(1.0);
+    viewer->initCameraParameters();
+    while (!viewer->wasStopped()) {
+        viewer->spinOnce(100);
+    }
+}
+
+void register_objects::register_using_features(CloudT::Ptr& segment_keypoints, PFHCloudT::Ptr& segment_features, CloudT::Ptr& cloud)
+{
+    pcl::KdTreeFLANN<PointT> kdtree;
+    kdtree.setInputCloud(segment_keypoints);
+
+    CloudT::Ptr resulting_cloud(new CloudT);
+    for (const PointT& p : cloud->points) {
+        if (!pcl::isFinite(p)) {
+            continue;
+        }
+        vector<int> indices;
+        vector<float> distances;
+        kdtree.nearestKSearchT(p, 1, indices, distances);
+        if (distances.empty()) {
+            cout << "Distances empty, wtf??" << endl;
+            exit(0);
+        }
+        float dist = sqrt(distances[0]);
+        if (dist < 0.05) {
+            resulting_cloud->push_back(p);
+        }
+    }
+
+    visualize_cloud(resulting_cloud);
 }

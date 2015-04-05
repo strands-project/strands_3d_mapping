@@ -16,6 +16,8 @@ protected:
     using NormalT = pcl::Normal;
     using NormalCloudT = pcl::PointCloud<NormalT>;
     using NormalCloudPtrT = NormalCloudT::Ptr;
+    using PFHPointT = pcl::Histogram<250>;
+    using PFHCloudT = pcl::PointCloud<PFHPointT>;
 
 protected:
 
@@ -31,6 +33,7 @@ protected:
 
     void initial_alignment();
     void RGB2CIELAB(unsigned char R, unsigned char G, unsigned char B, float &L, float &A, float &B2);
+    void visualize_cloud(CloudT::Ptr& cloud);
 
 public:
     void set_input_clouds(CloudPtrT& t1, const Eigen::Matrix3f& tk1, CloudPtrT& t2, const Eigen::Matrix3f& tk2);
@@ -40,6 +43,7 @@ public:
     void calculate_features_for_image(cv::Mat& descriptors, std::vector<cv::KeyPoint>& keypoints, CloudPtrT& cloud, cv::Mat& image,
                                       cv::Mat& depth, int minx, int miny, const Eigen::Matrix3f& K);
     std::pair<double, double> get_match_score();
+    void register_using_features(CloudT::Ptr& segment_keypoints, PFHCloudT::Ptr& segment_features, CloudT::Ptr& cloud);
     register_objects();
 };
 

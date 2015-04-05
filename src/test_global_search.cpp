@@ -1289,7 +1289,8 @@ void query_supervoxel_annotations_oversegments(vector<voxel_annotation>& annotat
             end = chrono::system_clock::now();
             chrono::duration<double> elapsed_seconds = end-start;
             cout << "Getting voxels took " << elapsed_seconds.count() << " seconds" << endl;
-            double score = obr_scans.rvt.compute_min_combined_dist(features, voxels, vocabulary_norms, voxel_centers);
+            vector<int> selected_indices;
+            double score = obr_scans.rvt.compute_min_combined_dist(selected_indices, features, voxels, vocabulary_norms, voxel_centers);
             updated_scores.push_back(index_score(scores[i].first, score));
         }
 

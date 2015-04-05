@@ -1364,7 +1364,8 @@ void query_supervoxel_annotations_oversegments(vector<voxel_annotation>& annotat
             //get_oversegmented_voxels_for_scan(voxels, dummy_centers, dummy_norms, scores[i].first, obr_scans);
             get_oversegmented_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first, obr_scans);
 
-            double score = obr_scans.rvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping);
+            vector<int> selected_indices;
+            double score = obr_scans.rvt.compute_min_combined_dist(selected_indices, features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping);
             //double score = obr_scans.rvt.compute_min_combined_dist(features, voxels, dummy_norms, dummy_centers);
             updated_scores.push_back(index_score(scores[i].first, score));
         }
@@ -1669,10 +1670,12 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
             CloudT::Ptr voxel_centers_copy(new CloudT);
             *voxel_centers_copy = *voxel_centers;
             //double score = obr_scans.rvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
-            double score = obr.gvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
+            vector<int> selected_indices_1;
+            double score = obr.gvt.compute_min_combined_dist(selected_indices_1, features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
             updated_scores.push_back(index_score(get<0>(scores[i]), score));
 
-            double total_score = obr.gvt.compute_min_combined_dist(features, vocabulary_vectors_copy, vocabulary_norms_copy, voxel_centers_copy, mapping, -1);
+            vector<int> selected_indices_2;
+            double total_score = obr.gvt.compute_min_combined_dist(selected_indices_2, features, vocabulary_vectors_copy, vocabulary_norms_copy, voxel_centers_copy, mapping, -1);
             total_scores.push_back(index_score(get<0>(scores[i]), total_score));
             endc = chrono::system_clock::now();
             chrono::duration<double> elapsed_secondsc = endc-startc;
