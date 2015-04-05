@@ -493,14 +493,14 @@ void object_retrieval::train_grouped_vocabulary(int max_segments, bool simply_tr
     }
 
     write_vocabulary(vt1);
-    string group_file = segment_path + "/group_subgroup.cereal";
+    string group_file = segment_path + "/group_subgroup_1.cereal";
     vt1.save_group_associations(group_file);
 }
 
 int object_retrieval::add_others_to_grouped_vocabulary(int max_segments, object_retrieval& obr_segments, int previous_scan_size)
 {
     int min_features = 20;
-    string group_file = segment_path + "/group_subgroup.cereal";
+    string group_file = segment_path + "/group_subgroup_1.cereal";
 
     if (gvt.empty()) {
         read_vocabulary(gvt);
@@ -902,6 +902,7 @@ void object_retrieval::read_scan(CloudT::Ptr& cloud, int i)
 {
     string folder = get_folder_for_segment_id(i);
     string metadata_file = folder + "/metadata.txt";
+    //cout << metadata_file << endl;
     string metadata; // in this dataset, this is the path to the scan
     {
         ifstream f;

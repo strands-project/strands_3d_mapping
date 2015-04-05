@@ -20,6 +20,7 @@
 #include <cereal/types/map.hpp>
 #include <cereal/types/unordered_map.hpp>
 #include <cereal/types/utility.hpp>
+#include <eigen_cereal/eigen_cereal.h>
 
 using namespace std;
 using namespace dataset_convenience;
@@ -88,63 +89,6 @@ void shot_features_for_segment(HistCloudT::Ptr& desc_cloud, CloudT::Ptr& cloud, 
     sf.compute_shot_features(desc_cloud, cloud, points != 0, points);
 }
 
-void save_sift_features(object_retrieval& obr)
-{
-    for (int i = 0; ; ++i) {
-        string folder = obr.get_folder_for_segment_id(i);
-        if (!boost::filesystem::is_directory(folder)) {
-            cout << folder << " is not a directory!" << endl;
-            break;
-        }
-        CloudT::Ptr cloud(new CloudT);
-        obr.read_scan(cloud, i);
-        cv::Mat img(480, 640, CV_8UC3);
-        for (int y = 0; y < 480; ++y) {
-            for (int x = 0; x < 640; ++x) {
-                int ind = y*640+x;
-                cv::Vec3b& c = img.at<cv::Vec3b>(y, x);
-                c[2] = cloud->at(ind).r;
-                c[1] = cloud->at(ind).g;
-                c[0] = cloud->at(ind).b;
-            }
-        }
-        cv::FastFeatureDetector detector;
-        std::vector<cv::KeyPoint> keypoints;
-        detector.detect(img, keypoints);
-        cv::SIFT::DescriptorParams descriptor_params;
-        descriptor_params.isNormalize = true; // always true, shouldn't matter
-        descriptor_params.magnification = 3.0; // 3.0 default
-        descriptor_params.recalculateAngles = true; // true default
-        cv::SiftDescriptorExtractor extractor;
-        cv::Mat descriptors;
-        extractor.compute(img, keypoints, descriptors);
-
-        CloudT::Ptr kp_cloud(new CloudT);
-        HistCloudT::Ptr desc_cloud(new HistCloudT);
-        int j = 0;
-        for (cv::KeyPoint k : keypoints) {
-            cv::Point2f p2 = k.pt;
-            int ind = p2.y*640+p2.x;
-            PointT p = cloud->at(ind);
-            if (pcl::isFinite(p)) {
-                kp_cloud->push_back(p);
-                HistT sp;
-                for (int k = 0; k < 128; ++k) {
-                    sp.histogram[k] = descriptors.at<float>(j, k);
-                }
-                desc_cloud->push_back(sp);
-            }
-            ++j;
-        }
-
-        string sift_file = folder + "/sift_cloud.pcd";
-        string sift_points_file = folder + "/sift_points_file.pcd";
-
-        pcl::io::savePCDFileBinary(sift_file, *desc_cloud);
-        pcl::io::savePCDFileBinary(sift_points_file, *kp_cloud);
-    }
-}
-
 void sift_features_for_segment(SiftCloudT::Ptr& desc_cloud, CloudT::Ptr& kp_cloud, CloudT::Ptr& cloud, Eigen::Matrix3f& K)
 {
     int minx, miny;
@@ -197,6 +141,64 @@ void save_sift_features_for_supervoxels(Eigen::Matrix3f& K, object_retrieval& ob
             p.x = p.y = p.z = std::numeric_limits<float>::infinity();
             kp_cloud->push_back(p);
         }
+
+        pcl::io::savePCDFileBinary(sift_file, *desc_cloud);
+        pcl::io::savePCDFileBinary(sift_points_file, *kp_cloud);
+    }
+}
+
+// OK
+void save_sift_features(object_retrieval& obr_scans)
+{
+    for (int i = 0; ; ++i) {
+        string folder = obr_scans.get_folder_for_segment_id(i);
+        if (!boost::filesystem::is_directory(folder)) {
+            cout << folder << " is not a directory!" << endl;
+            break;
+        }
+        CloudT::Ptr cloud(new CloudT);
+        obr_scans.read_scan(cloud, i);
+        cv::Mat img(480, 640, CV_8UC3);
+        for (int y = 0; y < 480; ++y) {
+            for (int x = 0; x < 640; ++x) {
+                int ind = y*640+x;
+                cv::Vec3b& c = img.at<cv::Vec3b>(y, x);
+                c[2] = cloud->at(ind).r;
+                c[1] = cloud->at(ind).g;
+                c[0] = cloud->at(ind).b;
+            }
+        }
+        cv::FastFeatureDetector detector;
+        std::vector<cv::KeyPoint> keypoints;
+        detector.detect(img, keypoints);
+        cv::SIFT::DescriptorParams descriptor_params;
+        descriptor_params.isNormalize = true; // always true, shouldn't matter
+        descriptor_params.magnification = 3.0; // 3.0 default
+        descriptor_params.recalculateAngles = true; // true default
+        cv::SiftDescriptorExtractor extractor;
+        cv::Mat descriptors;
+        extractor.compute(img, keypoints, descriptors);
+
+        CloudT::Ptr kp_cloud(new CloudT);
+        HistCloudT::Ptr desc_cloud(new HistCloudT);
+        int j = 0;
+        for (cv::KeyPoint k : keypoints) {
+            cv::Point2f p2 = k.pt;
+            int ind = p2.y*640+p2.x;
+            PointT p = cloud->at(ind);
+            if (pcl::isFinite(p)) {
+                kp_cloud->push_back(p);
+                HistT sp;
+                for (int k = 0; k < 128; ++k) {
+                    sp.histogram[k] = descriptors.at<float>(j, k);
+                }
+                desc_cloud->push_back(sp);
+            }
+            ++j;
+        }
+
+        string sift_file = folder + "/sift_cloud.pcd";
+        string sift_points_file = folder + "/sift_points_file.pcd";
 
         pcl::io::savePCDFileBinary(sift_file, *desc_cloud);
         pcl::io::savePCDFileBinary(sift_points_file, *kp_cloud);
@@ -793,13 +795,62 @@ void read_supervoxel_groups(object_retrieval& obr_voxels)
 }
 
 // OK
+void reweight_query_vocabulary(vector<tuple<int, int, double> >& reweighted_scores, object_retrieval& obr_segments,
+                               object_retrieval& obr_scans, object_retrieval& obr_scans_annotations, const Eigen::Matrix3f& K,
+                               vector<tuple<int, int, double> >& tuple_scores, int noise_scans_size, HistCloudT::Ptr& query_features,
+                               CloudT::Ptr& query_cloud, int nbr_initial_query)
+{
+    int nbr_reweight_query = 10;
+
+    map<int, double> original_norm_constants;
+    map<vocabulary_tree<HistT, 8>::node*, double> original_weights;
+    map<int, double> weighted_indices;
+
+    int counter = 0;
+    double weight_sum = 0.0;
+    for (tuple<int, int, double>& t : tuple_scores) {
+        if (counter > nbr_reweight_query) {
+            break;
+        }
+        CloudT::Ptr cloud(new CloudT);
+        if (get<0>(t) < noise_scans_size) {
+            obr_scans.read_scan(cloud, get<0>(t));
+        }
+        else {
+            obr_scans_annotations.read_scan(cloud, get<0>(t) - noise_scans_size);
+        }
+        register_objects ro;
+        ro.set_input_clouds(query_cloud, K, cloud, K);
+        ro.do_registration();
+        pair<double, double> match_score = ro.get_match_score();
+        if (std::isnan(match_score.first)) {
+            continue;
+        }
+        int vocab_ind = obr_segments.gvt.get_id_for_group_subgroup(get<0>(t), get<1>(t));
+        weighted_indices.insert(make_pair(vocab_ind, match_score.first));
+        weight_sum += match_score.first;
+        ++counter;
+    }
+
+    for (pair<const int, double>& w : weighted_indices) {
+        w.second *= 1.0*double(weighted_indices.size())/weight_sum;
+    }
+
+    obr_segments.gvt.compute_new_weights(original_norm_constants, original_weights, weighted_indices, query_features);
+
+    obr_segments.gvt.top_optimized_similarities(reweighted_scores, query_features, nbr_initial_query);
+
+    obr_segments.gvt.restore_old_weights(original_norm_constants, original_weights);
+}
+
+// OK
 void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen::Matrix3f& K,
                                    object_retrieval& obr_segments, object_retrieval& obr_scans,
                                    object_retrieval& obr_segments_annotations, object_retrieval& obr_scans_annotations,
                                    int noise_scans_size)
 {
     const int nbr_query = 11;
-    const int nbr_intial_query = 200;
+    const int nbr_initial_query = 400;
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
 
@@ -842,7 +893,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
     int counter = 0;
     for (voxel_annotation& a : annotations) {
         if (counter > 5) {
-            //break;
+            break;
         }
         if (a.full) {
             nbr_full_instances[a.annotation] += 1;
@@ -858,6 +909,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
 
         CloudT::Ptr cloud(new CloudT);
         pcl::io::loadPCDFile(a.segment_file, *cloud);
+        //obr_segments_annotations.visualize_cloud(cloud);
 
         HistCloudT::Ptr features(new HistCloudT);
         obr_segments_annotations.load_features_for_segment(features, a.segment_id);
@@ -867,7 +919,12 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         start1 = chrono::system_clock::now();
 
         // this also takes care of the scan association
-        obr_segments.gvt.top_optimized_similarities(tuple_scores, features, nbr_intial_query);
+        obr_segments.gvt.top_optimized_similarities(tuple_scores, features, nbr_initial_query);
+
+        vector<tuple<int, int, double> > reweighted_scores;
+        reweight_query_vocabulary(reweighted_scores, obr_segments, obr_scans, obr_scans_annotations, K,
+                                  tuple_scores, noise_scans_size, features, cloud, nbr_initial_query);
+        tuple_scores = reweighted_scores;
 
         vector<index_score> scores;
         vector<int> hints;
@@ -907,8 +964,8 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
             double score = obr_segments.gvt.compute_min_combined_dist(features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
             updated_scores.push_back(index_score(scores[i].first, score));
 
-            /*double total_score = obr.gvt.compute_min_combined_dist(features, vocabulary_vectors_copy, vocabulary_norms_copy, voxel_centers_copy, mapping, -1);
-            total_scores.push_back(index_score(get<0>(scores[i]), total_score));*/
+            //double total_score = obr_segments.gvt.compute_min_combined_dist(features, vocabulary_vectors_copy, vocabulary_norms_copy, voxel_centers_copy, mapping, -1);
+            //total_scores.push_back(index_score(get<0>(scores[i]), total_score));
             endc = chrono::system_clock::now();
             chrono::duration<double> elapsed_secondsc = endc-startc;
             total_timec += elapsed_secondsc.count();
@@ -938,7 +995,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         //calculate_correct_ratio(first_correct_ratios, a, scan_ind, scores, obr_scans, false);
         scores.resize(nbr_query);
         calculate_correct_ratio(usual_correct_ratios, a, scan_ind, scores, obr_scans_annotations, noise_scans_size);
-        //calculate_correct_ratio(total_correct_ratios, a, scan_ind, total_scores, obr_scans);
+        //calculate_correct_ratio(total_correct_ratios, a, scan_ind, total_scores, obr_scans_annotations, noise_scans_size);
         cout << "Number of features: " << features->size() << endl;
 
         instance_mean_features[a.annotation].first += features->size();
@@ -969,7 +1026,6 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
 int main(int argc, char** argv)
 {
     string root_path = "/home/nbore/Data/Instances/";
-    string old_segment_path = root_path + "object_segments";
     string scan_path = root_path + "scan_segments";
     string segment_path = root_path + "supervoxel_segments";
 
@@ -977,25 +1033,23 @@ int main(int argc, char** argv)
     string noise_scan_path = noise_root_path + "scan_segments";
     string noise_segment_path = noise_root_path + "supervoxel_segments";
 
-    object_retrieval obr_old_segments(old_segment_path);
-
     object_retrieval obr_scans(scan_path);
     obr_scans.segment_name = "scan";
-
     object_retrieval obr_segments(segment_path);
 
     object_retrieval obr_scans_noise(noise_scan_path);
     obr_scans_noise.segment_name = "scan";
     object_retrieval obr_segments_noise(noise_segment_path);
 
+    //compute_and_save_segments(obr_scans);
     //compute_and_save_segments(obr_scans_noise);
 
+    //save_pfhrgb_features_for_supervoxels(obr_segments);
     //save_pfhrgb_features_for_supervoxels(obr_segments_noise);
 
+    //save_split_features(obr_segments);
     //save_split_features(obr_segments_noise);
     //exit(0);
-
-    //obr_voxels.train_grouped_vocabulary(4000, false);
 
     // probably train using the noise segments
     //obr_segments_noise.train_grouped_vocabulary(12000, false);
@@ -1004,24 +1058,25 @@ int main(int argc, char** argv)
     int noise_scans_size = 3526;
     //obr_segments_noise.add_others_to_grouped_vocabulary(30000, obr_segments, noise_scans_size);
 
+    //save_sift_features(obr_scans);
+    //save_sift_features(obr_scans_noise);
     //exit(0);
 
-    Eigen::Matrix3f Kall;
+    Eigen::Matrix3f K;
+    string matrix_file = root_path + "K.cereal";
+    ifstream in(matrix_file, std::ios::binary);
     {
-        CloudT::Ptr segment(new CloudT);
-        NormalCloudT::Ptr normal(new NormalCloudT);
-        CloudT::Ptr hd_segment(new CloudT);
-        string metadata;
-        obr_old_segments.read_segment(segment, normal, hd_segment, Kall, metadata, 0);
+        cereal::BinaryInputArchive archive_i(in);
+        archive_i(K);
     }
 
     vector<voxel_annotation> annotations;
     string annotations_file = segment_path + "/voxel_annotations.cereal";
-    list_annotated_supervoxels(annotations, annotations_file, Kall, obr_segments);
+    list_annotated_supervoxels(annotations, annotations_file, K, obr_segments);
 
-    //query_supervoxel_oversegments(annotations, Kall, obr_segments, obr_scans, obr_segments, obr_scans, 0);
+    //query_supervoxel_oversegments(annotations, K, obr_segments, obr_scans, obr_segments, obr_scans, 0);
 
-    query_supervoxel_oversegments(annotations, Kall, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
+    query_supervoxel_oversegments(annotations, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
 
     cout << "Program finished..." << endl;
 
