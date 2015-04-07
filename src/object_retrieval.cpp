@@ -31,7 +31,7 @@ using namespace std;
 //string object_retrieval::indices_segment_file = "indices_sift.cereal";
 
 // using PFH
-string object_retrieval::feature_vocabulary_file = "vocabulary_pfhrgb.cereal";
+string object_retrieval::feature_vocabulary_file = "vocabulary_pfhrgb_3.cereal";
 string object_retrieval::grouped_vocabulary_file = "vocabulary_grouped_3.cereal";
 string object_retrieval::feature_segment_file = "pfhrgb_cloud.pcd";
 string object_retrieval::indices_segment_file = "indices_pfhrgb.cereal";
@@ -642,7 +642,9 @@ void object_retrieval::train_vocabulary_incremental(int max_segments, bool simpl
             ++counter;
         }
 
-        vt1.append_cloud(features, indices, false);
+        if (features->size() > 0) {
+            vt1.append_cloud(features, indices, false);
+        }
     }
 
     write_vocabulary(vt1);
@@ -688,7 +690,9 @@ int object_retrieval::add_others_to_vocabulary(int max_segments, const std::stri
             ++counter;
         }
 
-        vt.append_cloud(features, indices, false);
+        if (!features->empty()) {
+            vt.append_cloud(features, indices, false);
+        }
         if (add_some) {
             break;
         }

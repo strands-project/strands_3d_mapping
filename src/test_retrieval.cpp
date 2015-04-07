@@ -898,7 +898,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
                                    int noise_scans_size)
 {
     const int nbr_query = 11;
-    const int nbr_initial_query = 400;
+    const int nbr_initial_query = 500;
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
 
@@ -1040,6 +1040,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         updated_scores.resize(nbr_query);
         oversegment_indices.resize(nbr_query);
 
+        // make this a function
         for (size_t i = 0; i < updated_scores.size(); ++i) {
             HistCloudT::Ptr result_features(new HistCloudT);
             CloudT::Ptr result_keypoints(new CloudT);
@@ -1099,6 +1100,69 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
     }
 }
 
+// OK
+void query_supervoxels(vector<voxel_annotation>& annotations, object_retrieval& obr_segments, object_retrieval& obr_segments_annotations,
+                       object_retrieval& obr_scans_annotations, int noise_scans_size, int noise_segments_size)
+{
+    const int nbr_query = 11;
+
+    if (obr_segments.vt.empty()) {
+        obr_segments.read_vocabulary(obr_segments.vt);
+    }
+    obr_segments.vt.set_min_match_depth(2);
+    obr_segments.vt.compute_normalizing_constants();
+
+    map<string, int> nbr_full_instances;
+    map<string, pair<float, int> > instance_correct_ratios;
+
+    chrono::time_point<std::chrono::system_clock> start, end;
+    start = chrono::system_clock::now();
+
+    for (voxel_annotation& a : annotations) {
+        if (a.full) {
+            nbr_full_instances[a.annotation] += 1;
+        }
+        if (!a.full || !a.annotation_covered || !a.segment_covered) {
+            continue;
+        }
+        if (a.annotation != "ajax_1" && a.annotation != "ajax_2" && a.annotation != "ball_1") {
+            //continue;
+        }
+        CloudT::Ptr cloud(new CloudT);
+        pcl::io::loadPCDFile(a.segment_file, *cloud);
+
+        HistCloudT::Ptr features(new HistCloudT);
+        obr_segments_annotations.load_features_for_segment(features, a.segment_id);
+
+        vector<index_score> scores;
+        //obr_segments.vt.top_combined_similarities(scores, features, nbr_query);
+        obr_segments.vt.top_similarities(scores, features, nbr_query);
+
+        for (index_score& s : scores) {
+            if (s.first < noise_segments_size) {
+                s.first = 0;
+            }
+            else {
+                s.first = scan_ind_for_segment(s.first-noise_segments_size, obr_segments_annotations) + noise_scans_size;
+            }
+        }
+
+        int scan_ind = scan_ind_for_segment(a.segment_id, obr_segments_annotations);
+        calculate_correct_ratio(instance_correct_ratios, a, scan_ind, scores, obr_scans_annotations, noise_scans_size);
+
+        cout << "Number of features: " << features->size() << endl;
+    }
+
+    end = chrono::system_clock::now();
+    chrono::duration<double> elapsed_seconds = end-start;
+
+    cout << "Benchmark took " << elapsed_seconds.count() << " seconds" << endl;
+
+    for (pair<const string, pair<float, int> > c : instance_correct_ratios) {
+        cout << c.first << " correct ratio: " << c.second.first/float(c.second.second) << endl;
+    }
+}
+
 int main(int argc, char** argv)
 {
     string root_path = "/home/nbore/Data/Instances/";
@@ -1134,6 +1198,11 @@ int main(int argc, char** argv)
     int noise_scans_size = 3526;
     //obr_segments_noise.add_others_to_grouped_vocabulary(30000, obr_segments, noise_scans_size);
 
+    //obr_segments_noise.train_vocabulary_incremental(12000, false);
+    int noise_segments_size = 63136;
+    //obr_segments_noise.add_others_to_vocabulary(30000, obr_segments.segment_path, noise_segments_size);
+    //exit(0);
+
     //save_sift_features(obr_scans);
     //save_sift_features(obr_scans_noise);
     //exit(0);
@@ -1153,6 +1222,8 @@ int main(int argc, char** argv)
     //query_supervoxel_oversegments(annotations, K, obr_segments, obr_scans, obr_segments, obr_scans, 0);
 
     query_supervoxel_oversegments(annotations, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
+
+    //query_supervoxels(annotations, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
 
     cout << "Program finished..." << endl;
 
