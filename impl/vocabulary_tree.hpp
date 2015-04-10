@@ -636,8 +636,9 @@ void vocabulary_tree<Point, K>::top_similarities(std::vector<cloud_idx_score>& s
         source_freqs_for_node(source_id_freqs, v.first);
 
         for (std::pair<const int, int>& u : source_id_freqs) {
+            double dbnorm = db_vector_normalizing_constants[u.first];
             if (normalized) {
-                pk = db_vector_normalizing_constants[u.first]; // 1.0f for not normalized
+                pk = dbnorm; // 1.0f for not normalized
                 pkr = proot(pk);
             }
             double pi = v.first->weight*double(u.second)/pkr;
@@ -646,7 +647,6 @@ void vocabulary_tree<Point, K>::top_similarities(std::vector<cloud_idx_score>& s
                 map_scores.at(u.first) += residual;
             }
             else {
-                double dbnorm = db_vector_normalizing_constants[u.first];
                 map_scores.insert(std::make_pair(u.first, dbnorm/pk+qnorm/qk+residual));
             }
         }
@@ -716,23 +716,18 @@ void vocabulary_tree<Point, K>::top_combined_similarities(std::vector<cloud_idx_
     double qnorm = compute_query_vector(query_id_freqs, query_cloud);
     std::map<int, double> map_scores;
 
-    for (std::pair<node* const, double>& v : query_id_freqs) {
+    for (const std::pair<node*, double>& v : query_id_freqs) {
         double qi = v.second;
         std::map<int, int> source_id_freqs;
         source_freqs_for_node(source_id_freqs, v.first);
 
-        for (std::pair<const int, int>& u : source_id_freqs) {
-            double dbnorm = db_vector_normalizing_constants[u.first];
-            double pi = v.first->weight*double(u.second);
-            double normalization = std::max(qnorm, dbnorm);
-            double residual = std::min(pi, qi)/normalization;
-            if (map_scores.count(u.first) != 0) {
-                map_scores.at(u.first) -= residual;
-            }
-            else {
-                map_scores.insert(std::make_pair(u.first, 1.0-residual));
-            }
+        for (const std::pair<int, int>& u : source_id_freqs) {
+            map_scores[u.first] += std::min(v.first->weight*double(u.second), qi);
         }
+    }
+
+    for (pair<const int, double>& u : map_scores) {
+        u.second = 1.0 - u.second/std::max(qnorm, db_vector_normalizing_constants[u.first]);
     }
 
     // this could probably be optimized a bit also, quite big copy operattion
