@@ -38,6 +38,7 @@ public:
     static std::string feature_vocabulary_file;
     static std::string grouped_vocabulary_file;
     static std::string feature_segment_file;
+    static std::string keypoint_segment_file;
     static std::string indices_segment_file;
 
     std::string segment_name;
@@ -91,6 +92,7 @@ public:
     int load_grouped_features_for_segment(HistCloudT::Ptr& features, std::vector<std::pair<int, int> >& indices, int ind, int opt_ind = -1, int current_group = -1);
     void save_features_for_segment(HistCloudT::Ptr& features, int i);
     bool load_features_for_segment(HistCloudT::Ptr& features, int i);
+    bool load_features_for_segment(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, int i);
     bool load_features_for_other_segment(HistCloudT::Ptr& features, const std::string& other_segment_path, int i);
     int add_others_to_vocabulary(int max_segments, const std::string& other_segment_path, int nbr_original_segments = -1, bool add_some = false);
     std::string get_folder_for_segment_id(int i) const;

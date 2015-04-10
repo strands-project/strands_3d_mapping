@@ -36,6 +36,7 @@ protected:
     void visualize_cloud(CloudT::Ptr& cloud);
 
 public:
+    void set_input_clouds(CloudPtrT& t1, CloudPtrT& t2);
     void set_input_clouds(CloudPtrT& t1, const Eigen::Matrix3f& tk1, CloudPtrT& t2, const Eigen::Matrix3f& tk2);
     void do_registration();
     void get_transformation(Eigen::Matrix4f& trans);
@@ -43,7 +44,9 @@ public:
     void calculate_features_for_image(cv::Mat& descriptors, std::vector<cv::KeyPoint>& keypoints, CloudPtrT& cloud, cv::Mat& image,
                                       cv::Mat& depth, int minx, int miny, const Eigen::Matrix3f& K);
     std::pair<double, double> get_match_score();
-    void register_using_features(CloudT::Ptr& segment_keypoints, PFHCloudT::Ptr& segment_features, CloudT::Ptr& cloud);
+    void visualize_feature_segmentation(CloudT::Ptr& segment_keypoints, CloudT::Ptr& cloud);
+    void register_using_features(PFHCloudT::Ptr& query_features, CloudT::Ptr& query_keypoints,
+                                 PFHCloudT::Ptr& segment_features, CloudT::Ptr& segment_keypoints);
     register_objects();
 };
 

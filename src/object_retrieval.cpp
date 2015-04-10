@@ -34,6 +34,7 @@ using namespace std;
 string object_retrieval::feature_vocabulary_file = "vocabulary_pfhrgb_3.cereal";
 string object_retrieval::grouped_vocabulary_file = "vocabulary_grouped_3.cereal";
 string object_retrieval::feature_segment_file = "pfhrgb_cloud.pcd";
+string object_retrieval::keypoint_segment_file = "pfhrgb_points_file.pcd";
 string object_retrieval::indices_segment_file = "indices_pfhrgb.cereal";
 
 // using SHOT
@@ -1063,6 +1064,21 @@ bool object_retrieval::load_features_for_segment(HistCloudT::Ptr& features, int 
     boost::filesystem::path base_dir = segment_path;
     std::string features_file = base_dir.string() + "/" + segment_name + to_string(i) + "/" + feature_segment_file;
     return (pcl::io::loadPCDFile<HistT>(features_file, *features) != -1);
+}
+
+bool object_retrieval::load_features_for_segment(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, int i)
+{
+    boost::filesystem::path base_dir = segment_path;
+    std::string features_file = base_dir.string() + "/" + segment_name + to_string(i) + "/" + feature_segment_file;
+    std::string keypoints_file = base_dir.string() + "/" + segment_name + to_string(i) + "/" + keypoint_segment_file;
+    if (pcl::io::loadPCDFile<HistT>(features_file, *features) == -1) {
+        return false;
+    }
+    if (pcl::io::loadPCDFile<PointT>(keypoints_file, *keypoints) == -1) {
+        cout << "Could load features file but not keypoints..." << endl;
+        exit(0);
+    }
+    return true;
 }
 
 int object_retrieval::load_grouped_features_for_segment(HistCloudT::Ptr& features, vector<pair<int, int> >& indices, int ind, int opt_ind, int current_group)

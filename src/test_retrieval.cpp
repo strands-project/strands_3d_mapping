@@ -952,6 +952,217 @@ void load_nth_keypoints_features_for_scan(CloudT::Ptr& keypoints, HistCloudT::Pt
 }
 
 // OK
+void compute_grown_segment_score(HistCloudT::Ptr& query_features, CloudT::Ptr& query_keypoints, CloudT::Ptr& query_cloud,
+                                 vector<index_score>& updated_scores, vector<vector<int> >& oversegment_indices,
+                                 object_retrieval& obr_scans, object_retrieval& obr_scans_annotations, int noise_scans_size)
+{
+    for (size_t i = 0; i < updated_scores.size(); ++i) {
+        HistCloudT::Ptr result_features(new HistCloudT);
+        CloudT::Ptr result_keypoints(new CloudT);
+        if (updated_scores[i].first < noise_scans_size) {
+            load_nth_keypoints_features_for_scan(result_keypoints, result_features, updated_scores[i].first, oversegment_indices[i], obr_scans);
+        }
+        else {
+            load_nth_keypoints_features_for_scan(result_keypoints, result_features, updated_scores[i].first-noise_scans_size, oversegment_indices[i], obr_scans_annotations);
+        }
+        CloudT::Ptr result_cloud(new CloudT);
+        if (updated_scores[i].first < noise_scans_size) {
+            obr_scans.read_scan(result_cloud, updated_scores[i].first);
+        }
+        else {
+            obr_scans_annotations.read_scan(result_cloud, updated_scores[i].first-noise_scans_size);
+        }
+        register_objects ro;
+        ro.set_input_clouds(query_cloud, result_cloud);
+        ro.register_using_features(query_features, query_keypoints, result_features, result_keypoints);
+    }
+}
+
+// OK
+void compute_grow_subsegment_scores(vector<index_score>& updated_scores, vector<vector<int> >& oversegment_indices, vector<index_score>& scores,
+                                    vector<int>& hints, HistCloudT::Ptr& features, map<vocabulary_tree<HistT, 8>::node*, int>& mapping, object_retrieval& obr_segments,
+                                    object_retrieval& obr_scans, object_retrieval& obr_scans_annotations, int nbr_query, int noise_scans_size)
+{
+    //vector<index_score> total_scores;
+    for (size_t i = 0; i < scores.size(); ++i) {
+        CloudT::Ptr voxel_centers(new CloudT);
+        vector<double> vocabulary_norms;
+        vector<map<int, double> > vocabulary_vectors;
+
+        if (scores[i].first < noise_scans_size) {
+            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first, obr_scans);
+        }
+        else {
+            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first-noise_scans_size, obr_scans_annotations);
+        }
+
+        /*vector<map<int, double> > vocabulary_vectors_copy = vocabulary_vectors;
+        vector<double> vocabulary_norms_copy = vocabulary_norms;
+        CloudT::Ptr voxel_centers_copy(new CloudT);
+        *voxel_centers_copy = *voxel_centers;*/
+        vector<int> selected_indices;
+        double score = obr_segments.gvt.compute_min_combined_dist(selected_indices, features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
+        updated_scores.push_back(index_score(scores[i].first, score));
+        oversegment_indices.push_back(selected_indices);
+
+        //double total_score = obr_segments.gvt.compute_min_combined_dist(features, vocabulary_vectors_copy, vocabulary_norms_copy, voxel_centers_copy, mapping, -1);
+        //total_scores.push_back(index_score(get<0>(scores[i]), total_score));
+
+    }
+
+    auto p = sort_permutation(updated_scores, [](const index_score& s1, const index_score& s2) {
+        return s1.second < s2.second; // find min elements!
+    });
+    updated_scores = apply_permutation(updated_scores, p);
+    oversegment_indices = apply_permutation(oversegment_indices, p);
+    updated_scores.resize(nbr_query);
+    oversegment_indices.resize(nbr_query);
+}
+
+// OK
+void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen::Matrix3f& K,
+                                   object_retrieval& obr_segments, object_retrieval& obr_scans,
+                                   object_retrieval& obr_segments_annotations, object_retrieval& obr_scans_annotations,
+                                   int noise_scans_size)
+{
+    const int nbr_query = 11;
+    const int nbr_initial_query = 1500;
+
+    map<vocabulary_tree<HistT, 8>::node*, int> mapping;
+
+    if (obr_segments.gvt.empty()) {
+        obr_segments.read_vocabulary(obr_segments.gvt);
+    }
+    obr_segments.gvt.set_min_match_depth(2);
+    obr_segments.gvt.compute_normalizing_constants();
+
+    read_supervoxel_groups(obr_segments); // this will not be needed eventually, should be part of class init
+
+    obr_segments.gvt.compute_leaf_vocabulary_vectors(); // this will not be needed eventually
+
+    obr_segments.gvt.get_node_mapping(mapping);
+
+    //save_oversegmented_grouped_vocabulary_index_vectors(obr_scans, obr_segments);
+    //save_oversegmented_grouped_vocabulary_index_vectors(obr_scans_annotations, obr_segments);
+    //exit(0);
+
+    //change_supervoxel_groups(obr);
+    //exit(0);
+
+    map<string, int> nbr_full_instances;
+    map<string, pair<float, int> > instance_correct_ratios;
+    //map<string, pair<float, int> > first_correct_ratios;
+    map<string, pair<float, int> > usual_correct_ratios;
+    //map<string, pair<float, int> > total_correct_ratios;
+
+    map<string, pair<int, int> > instance_mean_features;
+
+    map<string, int> instance_number_queries;
+
+    chrono::time_point<std::chrono::system_clock> start, end;
+    start = chrono::system_clock::now();
+
+    double total_time1 = 0.0;
+    double total_time2 = 0.0;
+
+    int counter = 0;
+    for (voxel_annotation& a : annotations) {
+        if (counter > 5) {
+            //break;
+        }
+        if (a.full) {
+            nbr_full_instances[a.annotation] += 1;
+        }
+        if (!a.full || !a.annotation_covered || !a.segment_covered) {
+            continue;
+        }
+        if (a.annotation != "ajax_1" && a.annotation != "ajax_2" && a.annotation != "ball_1") {
+            //continue;
+        }
+
+        instance_number_queries[a.annotation] += 1;
+
+        CloudT::Ptr cloud(new CloudT);
+        pcl::io::loadPCDFile(a.segment_file, *cloud);
+        //obr_segments_annotations.visualize_cloud(cloud);
+
+        HistCloudT::Ptr features(new HistCloudT);
+        CloudT::Ptr keypoints(new CloudT);
+        obr_segments_annotations.load_features_for_segment(features, keypoints, a.segment_id); // also load keypoints
+        vector<tuple<int, int, double> > tuple_scores;
+
+        chrono::time_point<std::chrono::system_clock> start1, end1;
+        start1 = chrono::system_clock::now();
+
+        // this also takes care of the scan association
+        obr_segments.gvt.top_optimized_similarities(tuple_scores, features, nbr_initial_query);
+
+        //vector<tuple<int, int, double> > reweighted_scores;
+        //reweight_query_vocabulary(reweighted_scores, obr_segments, obr_scans, obr_scans_annotations, K,
+        //                          tuple_scores, noise_scans_size, features, cloud, nbr_initial_query);
+        //tuple_scores = reweighted_scores;
+
+        vector<index_score> scores;
+        vector<int> hints;
+        for (const tuple<int, int, double>& t : tuple_scores) {
+            scores.push_back(index_score(get<0>(t), get<2>(t)));
+            hints.push_back(get<1>(t));
+        }
+
+        end1 = chrono::system_clock::now();
+        chrono::duration<double> elapsed_seconds1 = end1-start1;
+
+        chrono::time_point<std::chrono::system_clock> start2, end2;
+        start2 = chrono::system_clock::now();
+
+        vector<index_score> updated_scores;
+        vector<vector<int> > oversegment_indices;
+        // this function call indicates that we need some better abstractions
+        compute_grow_subsegment_scores(updated_scores, oversegment_indices, scores, hints, features, mapping,
+                                       obr_segments, obr_scans, obr_scans_annotations, nbr_query, noise_scans_size);
+        // not returning anything yet
+        compute_grown_segment_score(features, keypoints, cloud, updated_scores, oversegment_indices, obr_scans, obr_scans_annotations, noise_scans_size);
+
+        end2 = chrono::system_clock::now();
+        chrono::duration<double> elapsed_seconds2 = end2-start2;
+
+        total_time1 += elapsed_seconds1.count();
+        total_time2 += elapsed_seconds2.count();
+
+        // need to check that it's correct here
+        int scan_ind = scan_ind_for_segment(a.segment_id, obr_segments_annotations);
+        calculate_correct_ratio(instance_correct_ratios, a, scan_ind, updated_scores, obr_scans_annotations, noise_scans_size);
+        //calculate_correct_ratio(first_correct_ratios, a, scan_ind, scores, obr_scans, false);
+        scores.resize(nbr_query);
+        calculate_correct_ratio(usual_correct_ratios, a, scan_ind, scores, obr_scans_annotations, noise_scans_size);
+        //calculate_correct_ratio(total_correct_ratios, a, scan_ind, total_scores, obr_scans_annotations, noise_scans_size);
+        cout << "Number of features: " << features->size() << endl;
+
+        instance_mean_features[a.annotation].first += features->size();
+        instance_mean_features[a.annotation].second += 1;
+
+        ++counter;
+    }
+
+    end = chrono::system_clock::now();
+    chrono::duration<double> elapsed_seconds = end-start;
+
+    cout << "Benchmark took " << elapsed_seconds.count() << " seconds" << endl;
+    cout << "First part took " << total_time1 << " seconds" << endl;
+    cout << "Second part took " << total_time2 << " seconds" << endl;
+
+    cout << "First round correct ratios: " << endl;
+    for (pair<const string, pair<float, int> > c : instance_correct_ratios) {
+        cout << c.first << " correct ratio: " << c.second.first/float(c.second.second) << endl;
+        //cout << c.first << " total correct ratio: " << total_correct_ratios[c.first].first/float(total_correct_ratios[c.first].second) << endl;
+        cout << c.first << " usual correct ratio: " << usual_correct_ratios[c.first].first/float(usual_correct_ratios[c.first].second) << endl;
+        //cout << c.first << " first round correct ratio: " << first_correct_ratios[c.first].first/float(first_correct_ratios[c.first].second) << endl;
+        cout << "Mean features: " << float(instance_mean_features[c.first].first)/float(instance_mean_features[c.first].second) << endl;
+        cout << "Number of queries: " << instance_number_queries[c.first] << endl;
+    }
+}
+
+// OK
 void query_cloud(CloudT::Ptr& cloud, object_retrieval& obr_segments, object_retrieval& obr_scans, object_retrieval& obr_scans_annotations, int noise_scans_size)
 {
     const int nbr_query = 11;
@@ -1034,218 +1245,9 @@ void query_cloud(CloudT::Ptr& cloud, object_retrieval& obr_segments, object_retr
             obr_scans_annotations.read_scan(result_cloud, updated_scores[i].first-noise_scans_size);
         }
         register_objects ro;
-        ro.register_using_features(result_keypoints, result_features, result_cloud);
+        ro.visualize_feature_segmentation(result_keypoints, result_cloud);
     }
 
-}
-
-// OK
-void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen::Matrix3f& K,
-                                   object_retrieval& obr_segments, object_retrieval& obr_scans,
-                                   object_retrieval& obr_segments_annotations, object_retrieval& obr_scans_annotations,
-                                   int noise_scans_size)
-{
-    const int nbr_query = 11;
-    const int nbr_initial_query = 1500;
-
-    map<vocabulary_tree<HistT, 8>::node*, int> mapping;
-
-    if (obr_segments.gvt.empty()) {
-        obr_segments.read_vocabulary(obr_segments.gvt);
-    }
-    obr_segments.gvt.set_min_match_depth(2);
-    obr_segments.gvt.compute_normalizing_constants();
-
-    read_supervoxel_groups(obr_segments); // this will not be needed eventually, should be part of class init
-
-    obr_segments.gvt.compute_leaf_vocabulary_vectors(); // this will not be needed eventually
-
-    obr_segments.gvt.get_node_mapping(mapping);
-
-    //save_oversegmented_grouped_vocabulary_index_vectors(obr_scans, obr_segments);
-    //save_oversegmented_grouped_vocabulary_index_vectors(obr_scans_annotations, obr_segments);
-    //exit(0);
-
-    //change_supervoxel_groups(obr);
-    //exit(0);
-
-    map<string, int> nbr_full_instances;
-    map<string, pair<float, int> > instance_correct_ratios;
-    //map<string, pair<float, int> > first_correct_ratios;
-    map<string, pair<float, int> > usual_correct_ratios;
-    //map<string, pair<float, int> > total_correct_ratios;
-
-    map<string, pair<int, int> > instance_mean_features;
-
-    map<string, int> instance_number_queries;
-
-    chrono::time_point<std::chrono::system_clock> start, end;
-    start = chrono::system_clock::now();
-
-    double total_time1 = 0.0;
-    double total_time2 = 0.0;
-    double total_timec = 0.0;
-
-    int counter = 0;
-    for (voxel_annotation& a : annotations) {
-        if (counter > 5) {
-            //break;
-        }
-        if (a.full) {
-            nbr_full_instances[a.annotation] += 1;
-        }
-        if (!a.full || !a.annotation_covered || !a.segment_covered) {
-            continue;
-        }
-        if (a.annotation != "ajax_1" && a.annotation != "ajax_2" && a.annotation != "ball_1") {
-            //continue;
-        }
-
-        instance_number_queries[a.annotation] += 1;
-
-        CloudT::Ptr cloud(new CloudT);
-        pcl::io::loadPCDFile(a.segment_file, *cloud);
-        //obr_segments_annotations.visualize_cloud(cloud);
-
-        HistCloudT::Ptr features(new HistCloudT);
-        obr_segments_annotations.load_features_for_segment(features, a.segment_id); // also load keypoints
-        vector<tuple<int, int, double> > tuple_scores;
-
-        chrono::time_point<std::chrono::system_clock> start1, end1;
-        start1 = chrono::system_clock::now();
-
-        // this also takes care of the scan association
-        obr_segments.gvt.top_optimized_similarities(tuple_scores, features, nbr_initial_query);
-
-        //vector<tuple<int, int, double> > reweighted_scores;
-        //reweight_query_vocabulary(reweighted_scores, obr_segments, obr_scans, obr_scans_annotations, K,
-        //                          tuple_scores, noise_scans_size, features, cloud, nbr_initial_query);
-        //tuple_scores = reweighted_scores;
-
-        vector<index_score> scores;
-        vector<int> hints;
-        for (const tuple<int, int, double>& t : tuple_scores) {
-            scores.push_back(index_score(get<0>(t), get<2>(t)));
-            hints.push_back(get<1>(t));
-        }
-
-        end1 = chrono::system_clock::now();
-        chrono::duration<double> elapsed_seconds1 = end1-start1;
-
-        chrono::time_point<std::chrono::system_clock> start2, end2;
-        start2 = chrono::system_clock::now();
-
-        vector<index_score> updated_scores;
-        vector<vector<int> > oversegment_indices;
-        //vector<index_score> total_scores;
-        for (size_t i = 0; i < scores.size(); ++i) {
-            CloudT::Ptr voxel_centers(new CloudT);
-            vector<double> vocabulary_norms;
-            vector<map<int, double> > vocabulary_vectors;
-
-            if (scores[i].first < noise_scans_size) {
-                get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first, obr_scans);
-            }
-            else {
-                get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first-noise_scans_size, obr_scans_annotations);
-            }
-
-            chrono::time_point<std::chrono::system_clock> startc, endc;
-            startc = chrono::system_clock::now();
-
-            /*vector<map<int, double> > vocabulary_vectors_copy = vocabulary_vectors;
-            vector<double> vocabulary_norms_copy = vocabulary_norms;
-            CloudT::Ptr voxel_centers_copy(new CloudT);
-            *voxel_centers_copy = *voxel_centers;*/
-            vector<int> selected_indices;
-            double score = obr_segments.gvt.compute_min_combined_dist(selected_indices, features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
-            updated_scores.push_back(index_score(scores[i].first, score));
-            oversegment_indices.push_back(selected_indices);
-
-            //double total_score = obr_segments.gvt.compute_min_combined_dist(features, vocabulary_vectors_copy, vocabulary_norms_copy, voxel_centers_copy, mapping, -1);
-            //total_scores.push_back(index_score(get<0>(scores[i]), total_score));
-            endc = chrono::system_clock::now();
-            chrono::duration<double> elapsed_secondsc = endc-startc;
-            total_timec += elapsed_secondsc.count();
-
-        }
-
-        end2 = chrono::system_clock::now();
-        chrono::duration<double> elapsed_seconds2 = end2-start2;
-
-        total_time1 += elapsed_seconds1.count();
-        total_time2 += elapsed_seconds2.count();
-
-        /*std::sort(updated_scores.begin(), updated_scores.end(), [](const index_score& s1, const index_score& s2) {
-            return s1.second < s2.second; // find min elements!
-        });*/
-
-        auto p = sort_permutation(updated_scores, [](const index_score& s1, const index_score& s2) {
-            return s1.second < s2.second; // find min elements!
-        });
-        updated_scores = apply_permutation(updated_scores, p);
-        oversegment_indices = apply_permutation(oversegment_indices, p);
-        updated_scores.resize(nbr_query);
-        oversegment_indices.resize(nbr_query);
-
-        // make this a function
-        /*for (size_t i = 0; i < updated_scores.size(); ++i) {
-            HistCloudT::Ptr result_features(new HistCloudT);
-            CloudT::Ptr result_keypoints(new CloudT);
-            if (updated_scores[i].first < noise_scans_size) {
-                load_nth_keypoints_features_for_scan(result_keypoints, result_features, updated_scores[i].first, oversegment_indices[i], obr_scans);
-            }
-            else {
-                load_nth_keypoints_features_for_scan(result_keypoints, result_features, updated_scores[i].first-noise_scans_size, oversegment_indices[i], obr_scans_annotations);
-            }
-            CloudT::Ptr result_cloud(new CloudT);
-            if (updated_scores[i].first < noise_scans_size) {
-                obr_scans.read_scan(result_cloud, updated_scores[i].first);
-            }
-            else {
-                obr_scans_annotations.read_scan(result_cloud, updated_scores[i].first-noise_scans_size);
-            }
-            register_objects ro;
-            ro.register_using_features(result_keypoints, result_features, result_cloud);
-        }*/
-
-        /*std::sort(total_scores.begin(), total_scores.end(), [](const index_score& s1, const index_score& s2) {
-            return s1.second < s2.second; // find min elements!
-        });
-        total_scores.resize(nbr_query);*/
-
-        // need to check that it's correct here
-        int scan_ind = scan_ind_for_segment(a.segment_id, obr_segments_annotations);
-        calculate_correct_ratio(instance_correct_ratios, a, scan_ind, updated_scores, obr_scans_annotations, noise_scans_size);
-        //calculate_correct_ratio(first_correct_ratios, a, scan_ind, scores, obr_scans, false);
-        scores.resize(nbr_query);
-        calculate_correct_ratio(usual_correct_ratios, a, scan_ind, scores, obr_scans_annotations, noise_scans_size);
-        //calculate_correct_ratio(total_correct_ratios, a, scan_ind, total_scores, obr_scans_annotations, noise_scans_size);
-        cout << "Number of features: " << features->size() << endl;
-
-        instance_mean_features[a.annotation].first += features->size();
-        instance_mean_features[a.annotation].second += 1;
-
-        ++counter;
-    }
-
-    end = chrono::system_clock::now();
-    chrono::duration<double> elapsed_seconds = end-start;
-
-    cout << "Benchmark took " << elapsed_seconds.count() << " seconds" << endl;
-    cout << "First part took " << total_time1 << " seconds" << endl;
-    cout << "Second part took " << total_time2 << " seconds" << endl;
-    cout << "Calculation of second part took: " << total_timec << " seconds" << endl;
-
-    cout << "First round correct ratios: " << endl;
-    for (pair<const string, pair<float, int> > c : instance_correct_ratios) {
-        cout << c.first << " correct ratio: " << c.second.first/float(c.second.second) << endl;
-        //cout << c.first << " total correct ratio: " << total_correct_ratios[c.first].first/float(total_correct_ratios[c.first].second) << endl;
-        cout << c.first << " usual correct ratio: " << usual_correct_ratios[c.first].first/float(usual_correct_ratios[c.first].second) << endl;
-        //cout << c.first << " first round correct ratio: " << first_correct_ratios[c.first].first/float(first_correct_ratios[c.first].second) << endl;
-        cout << "Mean features: " << float(instance_mean_features[c.first].first)/float(instance_mean_features[c.first].second) << endl;
-        cout << "Number of queries: " << instance_number_queries[c.first] << endl;
-    }
 }
 
 // OK
@@ -1386,9 +1388,9 @@ int main(int argc, char** argv)
 
     //query_supervoxel_oversegments(annotations, K, obr_segments, obr_scans, obr_segments, obr_scans, 0);
 
-    //query_supervoxel_oversegments(annotations, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
+    query_supervoxel_oversegments(annotations, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
 
-    query_supervoxels(annotations, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
+    //query_supervoxels(annotations, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
 
     /*CloudT::Ptr query_cloud_larger(new CloudT);
     pcl::io::loadPCDFile("/home/nbore/Data/rgb_0015_label_0.pcd", *query_cloud_larger);

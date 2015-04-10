@@ -26,6 +26,12 @@ register_objects::register_objects()
 
 }
 
+void register_objects::set_input_clouds(CloudPtrT& t1, CloudPtrT& t2)
+{
+    c1 = t1;
+    c2 = t2;
+}
+
 void register_objects::set_input_clouds(CloudPtrT& t1, const Eigen::Matrix3f& tk1,
                                         CloudPtrT& t2, const Eigen::Matrix3f& tk2)
 {
@@ -441,7 +447,7 @@ void register_objects::visualize_cloud(CloudT::Ptr& cloud)
     }
 }
 
-void register_objects::register_using_features(CloudT::Ptr& segment_keypoints, PFHCloudT::Ptr& segment_features, CloudT::Ptr& cloud)
+void register_objects::visualize_feature_segmentation(CloudT::Ptr& segment_keypoints, CloudT::Ptr& cloud)
 {
     pcl::KdTreeFLANN<PointT> kdtree;
     kdtree.setInputCloud(segment_keypoints);
@@ -465,4 +471,87 @@ void register_objects::register_using_features(CloudT::Ptr& segment_keypoints, P
     }
 
     visualize_cloud(resulting_cloud);
+}
+
+void register_objects::register_using_features(PFHCloudT::Ptr& query_features, CloudT::Ptr& query_keypoints,
+                                               PFHCloudT::Ptr& segment_features, CloudT::Ptr& segment_keypoints)
+{
+    if (query_features->empty() || segment_features->empty()) {
+        T.setIdentity();
+        return;
+    }
+
+    cv::Mat descriptors1(query_features->size(), 250, CV_32F);
+    cv::Mat descriptors2(segment_features->size(), 250, CV_32F);
+
+    for (int i = 0; i < query_features->size(); ++i) {
+        for (int j = 0; j < 250; ++j) {
+            descriptors1.at<float>(i, j) = query_features->at(i).histogram[j];
+        }
+    }
+
+    for (int i = 0; i < segment_features->size(); ++i) {
+        for (int j = 0; j < 250; ++j) {
+            descriptors2.at<float>(i, j) = segment_features->at(i).histogram[j];
+        }
+    }
+
+    // matching descriptors
+    cv::FlannBasedMatcher matcher;
+    vector<cv::DMatch> matches;
+    matcher.match(descriptors1, descriptors2, matches);
+
+    cout << "Query features size: " << query_features->size() << endl;
+    cout << "Segment features size: " << segment_features->size() << endl;
+    cout << "Matches size: " << matches.size() << endl;
+
+    pcl::CorrespondencesPtr correspondences(new pcl::Correspondences);
+    // do ransac on all the matches to find the transformation
+    for (cv::DMatch m : matches) {
+        pcl::Correspondence c;
+        c.index_match = m.trainIdx;
+        c.index_query = m.queryIdx;
+        c.distance = m.distance;
+        correspondences->push_back(c);
+    }
+
+    // TODO: add a check here to see if it's actually possible to estimate transformation
+    pcl::registration::CorrespondenceRejectorSampleConsensus<PointT> cr;
+    pcl::Correspondences sac_correspondences;
+    cr.setInputSource(query_keypoints);
+    cr.setInputTarget(segment_keypoints);
+    cr.setInputCorrespondences(correspondences);
+    cr.setInlierThreshold(0.03);
+    cr.setMaximumIterations(10000);
+    cr.getCorrespondences(sac_correspondences);
+    T = cr.getBestTransformation();
+
+    pcl::registration::TransformationEstimationSVD<PointT, PointT> trans_est;
+    trans_est.estimateRigidTransformation(*query_keypoints, *segment_keypoints, sac_correspondences, T);
+
+    if (sac_correspondences.empty() || correspondences->size() == sac_correspondences.size()) { // No samples could be selected
+        T.setIdentity();
+    }
+
+    cout << "Estimated transformation: " << endl;
+    cout << T << endl;
+
+    if (true) {//VISUALIZE) {
+        CloudT::Ptr new_cloud(new CloudT);
+        pcl::transformPointCloud(*c1, *new_cloud, T);
+        boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+        viewer->setBackgroundColor(0, 0, 0);
+        pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb1(c2);
+        viewer->addPointCloud<PointT>(c2, rgb1, "cloud1");
+        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "cloud1");
+        pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb2(new_cloud);
+        viewer->addPointCloud<PointT>(new_cloud, rgb2, "cloud2");
+        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "cloud2");
+        viewer->addCoordinateSystem(1.0);
+        viewer->initCameraParameters();
+        while (!viewer->wasStopped()) {
+            viewer->spinOnce(100);
+        }
+    }
+
 }
