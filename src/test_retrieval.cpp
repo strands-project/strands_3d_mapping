@@ -1046,7 +1046,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
                                    int noise_scans_size)
 {
     const int nbr_query = 11;
-    const int nbr_initial_query = 500;
+    const int nbr_initial_query = 1500;
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
 
@@ -1289,12 +1289,12 @@ void query_supervoxels(vector<voxel_annotation>& annotations, object_retrieval& 
         obr_segments_annotations.load_features_for_segment(features, a.segment_id);
 
         vector<index_score> scores;
-        obr_segments.vt.top_combined_similarities(scores, features, 100);
-        //obr_segments.vt.top_similarities(scores, features, nbr_query);
+        //obr_segments.vt.top_combined_similarities(scores, features, nbr_query);
+        obr_segments.vt.top_similarities(scores, features, nbr_query);
 
         for (index_score& s : scores) {
             if (s.first < noise_segments_size) {
-                s.first = scan_ind_for_segment(s.first, obr_segments); // s.first = 0
+                s.first = s.first = 0;//scan_ind_for_segment(s.first, obr_segments);
             }
             else {
                 s.first = scan_ind_for_segment(s.first-noise_segments_size, obr_segments_annotations) + noise_scans_size;
@@ -1302,8 +1302,8 @@ void query_supervoxels(vector<voxel_annotation>& annotations, object_retrieval& 
         }
 
         int scan_ind = scan_ind_for_segment(a.segment_id, obr_segments_annotations);
-        //calculate_correct_ratio(instance_correct_ratios, a, scan_ind, scores, obr_scans_annotations, noise_scans_size);
-        compute_decay_correct_ratios(decay_correct_ratios, intermediate_points, a, scan_ind, scores, obr_scans_annotations, nbr_query, noise_scans_size);
+        calculate_correct_ratio(instance_correct_ratios, a, scan_ind, scores, obr_scans_annotations, noise_scans_size);
+        //compute_decay_correct_ratios(decay_correct_ratios, intermediate_points, a, scan_ind, scores, obr_scans_annotations, nbr_query, noise_scans_size);
 
         cout << "Number of features: " << features->size() << endl;
     }
@@ -1317,7 +1317,7 @@ void query_supervoxels(vector<voxel_annotation>& annotations, object_retrieval& 
         cout << c.first << " correct ratio: " << c.second.first/float(c.second.second) << endl;
     }
 
-    for (int i = 0; i < intermediate_points.size(); ++i) {
+    /*for (int i = 0; i < intermediate_points.size(); ++i) {
         cout << intermediate_points[i] << " ";
     }
     cout << endl;
@@ -1325,7 +1325,7 @@ void query_supervoxels(vector<voxel_annotation>& annotations, object_retrieval& 
     for (int i = 0; i < intermediate_points.size(); ++i) {
         cout << decay_correct_ratios[i].first/float(decay_correct_ratios[i].second) << " ";
     }
-    cout << endl;
+    cout << endl;*/
 }
 
 int main(int argc, char** argv)
@@ -1388,12 +1388,12 @@ int main(int argc, char** argv)
 
     //query_supervoxel_oversegments(annotations, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
 
-    //query_supervoxels(annotations, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
+    query_supervoxels(annotations, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
 
-    CloudT::Ptr query_cloud_larger(new CloudT);
+    /*CloudT::Ptr query_cloud_larger(new CloudT);
     pcl::io::loadPCDFile("/home/nbore/Data/rgb_0015_label_0.pcd", *query_cloud_larger);
 
-    query_cloud(query_cloud_larger, obr_segments_noise, obr_scans_noise, obr_scans, noise_scans_size);
+    query_cloud(query_cloud_larger, obr_segments_noise, obr_scans_noise, obr_scans, noise_scans_size);*/
 
     cout << "Program finished..." << endl;
 

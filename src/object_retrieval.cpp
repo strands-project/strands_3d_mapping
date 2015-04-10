@@ -184,6 +184,19 @@ bool object_retrieval::read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& nor
     return true;
 }
 
+bool object_retrieval::read_segment(CloudT::Ptr& segment, size_t segment_id)
+{
+    boost::filesystem::path base_dir = segment_path;
+    boost::filesystem::path sub_dir = base_dir / (segment_name + to_string(segment_id));
+    cout << "Reading directory " << sub_dir.string() << endl;
+    if (!boost::filesystem::is_directory(sub_dir)) {
+        return false;
+    }
+    if (pcl::io::loadPCDFile<PointT>(sub_dir.string() + "/segment.pcd", *segment) == -1) exit(0);
+    cout << "Returning" << endl;
+    return true;
+}
+
 bool object_retrieval::read_other_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment,
                                     Eigen::Matrix3f& K, string& metadata, size_t segment_id, const string& other_segment_path)
 {
