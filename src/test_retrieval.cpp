@@ -952,7 +952,7 @@ void load_nth_keypoints_features_for_scan(CloudT::Ptr& keypoints, HistCloudT::Pt
 }
 
 // OK
-void compute_grown_segment_score(HistCloudT::Ptr& query_features, CloudT::Ptr& query_keypoints, CloudT::Ptr& query_cloud,
+void compute_grown_segment_score(vector<double>& match_scores, HistCloudT::Ptr& query_features, CloudT::Ptr& query_keypoints, CloudT::Ptr& query_cloud,
                                  vector<index_score>& updated_scores, vector<vector<int> >& oversegment_indices,
                                  object_retrieval& obr_scans, object_retrieval& obr_scans_annotations, int noise_scans_size)
 {
@@ -975,6 +975,8 @@ void compute_grown_segment_score(HistCloudT::Ptr& query_features, CloudT::Ptr& q
         register_objects ro;
         ro.set_input_clouds(query_cloud, result_cloud);
         ro.register_using_features(query_features, query_keypoints, result_features, result_keypoints);
+        pair<double, double> match_score = ro.get_match_score();
+        match_scores.push_back(match_score.first);
     }
 }
 
@@ -1120,8 +1122,39 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         // this function call indicates that we need some better abstractions
         compute_grow_subsegment_scores(updated_scores, oversegment_indices, scores, hints, features, mapping,
                                        obr_segments, obr_scans, obr_scans_annotations, nbr_query, noise_scans_size);
-        // not returning anything yet
-        compute_grown_segment_score(features, keypoints, cloud, updated_scores, oversegment_indices, obr_scans, obr_scans_annotations, noise_scans_size);
+
+#if false
+        vector<double> match_scores;
+        compute_grown_segment_score(match_scores, features, keypoints, cloud, updated_scores, oversegment_indices, obr_scans, obr_scans_annotations, noise_scans_size);
+
+        map<int, double> original_norm_constants;
+        map<vocabulary_tree<HistT, 8>::node*, double> original_weights;
+        map<int, double> weighted_indices;
+
+        double weight_sum = 0.0;
+        for (int i = 0; i < match_scores.size(); ++i) {
+            double m = match_scores[i];
+            if (std::isnan(m)) {
+                continue;
+            }
+            weighted_indices.insert(make_pair(updated_scores[i].first, m));
+            weight_sum += m;
+        }
+
+        for (pair<const int, double>& w : weighted_indices) {
+            w.second *= 1.0*double(weighted_indices.size())/weight_sum;
+        }
+
+        obr_segments.gvt.compute_new_weights(original_norm_constants, original_weights, weighted_indices, features);
+
+        vector<tuple<int, int, double> > reweighted_scores;
+        obr_segments.gvt.top_optimized_similarities(reweighted_scores, features, nbr_initial_query);
+
+        // also, grow and reweight
+
+
+        obr_segments.gvt.restore_old_weights(original_norm_constants, original_weights);
+#endif
 
         end2 = chrono::system_clock::now();
         chrono::duration<double> elapsed_seconds2 = end2-start2;
