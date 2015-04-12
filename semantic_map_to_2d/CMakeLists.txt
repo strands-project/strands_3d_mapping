@@ -9,6 +9,7 @@ set(PACKAGE_DEPENDENCIES
   std_srvs
   octomap_ros
   octomap_msgs
+  semantic_map_publisher
 )
 
 find_package(catkin REQUIRED COMPONENTS message_generation ${PACKAGE_DEPENDENCIES})
