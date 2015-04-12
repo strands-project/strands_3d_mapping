@@ -48,7 +48,7 @@ include_directories(
 )
 add_library(${PROJECT_NAME} src/SemanticMap2DServer.cpp)
 target_link_libraries(${PROJECT_NAME} ${LINK_LIBS})
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencpp)
 
 add_executable(semantic_map_2d_server src/semantic_map_2d_server.cpp)
 target_link_libraries(semantic_map_2d_server ${PROJECT_NAME} ${LINK_LIBS})
