@@ -69,8 +69,4 @@ install(DIRECTORY include/${PROJECT_NAME}/
   PATTERN ".git" EXCLUDE
 )
 
-install(DIRECTORY launch/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
-  PATTERN ".git" EXCLUDE
-)
 
