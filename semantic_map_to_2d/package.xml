@@ -21,6 +21,8 @@
   <build_depend>octomap_msgs</build_depend>  
   <build_depend>octomap_ros</build_depend>
   <build_depend>message_generation</build_depend>
+  <build_depend>semantic_map_publisher</build_depend>
+
 
  <run_depend>roscpp</run_depend>
  <run_depend>sensor_msgs</run_depend>
@@ -31,6 +33,7 @@
  <run_depend>octomap_msgs</run_depend>
  <run_depend>octomap_ros</run_depend>
  <run_depend>message_runtime</run_depend>
+ <run_depend>semantic_map_publisher</run_depend>
  
 </package>
 
