@@ -536,7 +536,7 @@ void register_objects::register_using_features(PFHCloudT::Ptr& query_features, C
     cout << "Estimated transformation: " << endl;
     cout << T << endl;
 
-    if (true) {//VISUALIZE) {
+    if (VISUALIZE) {
         CloudT::Ptr new_cloud(new CloudT);
         pcl::transformPointCloud(*c1, *new_cloud, T);
         boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));

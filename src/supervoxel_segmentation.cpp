@@ -314,7 +314,7 @@ void supervoxel_segmentation::recursive_split(vector<Graph*>& graphs_out, Graph&
         cout << "Graph i size: " << graph_size(*graphs_out[i]) << endl;
         // split these segments using graph cuts
         vector<Graph*> second_graphs;
-        graph_cut(second_graphs, *graphs_out[i], -0.1);//*mean_graph_weight(*graphs_out[i]));
+        graph_cut(second_graphs, *graphs_out[i], -0.1); // 0.5 for querying segmentation
         if (!second_graphs.empty()) {
             graphs_out.insert(graphs_out.end(), second_graphs.begin(), second_graphs.end());
             delete_indices.push_back(i);
@@ -497,7 +497,7 @@ void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& fu
 {
     using vertex_iterator = boost::graph_traits<Graph>::vertex_iterator;
 
-    pcl::octree::OctreePointCloudSearch<PointT> octree(3*voxel_resolution);
+    pcl::octree::OctreePointCloudSearch<PointT> octree(3*voxel_resolution); // 2* for querying segmentation
     octree.defineBoundingBox(-10.0, 10.0, 0.0, 10.0, 10.0, 10.1);
     octree.setInputCloud(cloud);
     octree.addPointsFromInputCloud();
@@ -513,7 +513,7 @@ void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& fu
             *graph_voxels += *segments[name.m_value];
         }
 
-        pcl::octree::OctreePointCloudSearch<PointT> octree_segment(3*voxel_resolution);
+        pcl::octree::OctreePointCloudSearch<PointT> octree_segment(3*voxel_resolution); // 2* for querying segmentation
         octree_segment.defineBoundingBox(-10.0, 10.0, 0.0, 10.0, 10.0, 10.1);
         octree_segment.setInputCloud(graph_voxels);
         octree_segment.addPointsFromInputCloud();
@@ -553,7 +553,7 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::compute_convex_oversegm
         delete g;
     }
 
-    //visualize_segments(clouds_out);
+    visualize_segments(clouds_out);
     return graph_in;
 }
 

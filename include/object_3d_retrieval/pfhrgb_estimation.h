@@ -14,6 +14,7 @@ using NormalT = pcl::Normal;
 using NormalCloudT = pcl::PointCloud<NormalT>;
 
 void visualize_keypoints(CloudT::Ptr& cloud, CloudT::Ptr& keypoints);
+void compute_pfhrgb_query_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT::Ptr& cloud, bool visualize_features = false);
 void compute_pfhrgb_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT::Ptr& cloud, bool visualize_features = false);
 void split_descriptor_points(std::vector<PfhRgbCloudT::Ptr>& split_features, std::vector<CloudT::Ptr>& split_keypoints,
                              PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints, int expected_cluster_size = 30);
