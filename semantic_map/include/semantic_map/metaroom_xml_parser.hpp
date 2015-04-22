@@ -763,14 +763,25 @@ QString MetaRoomXMLParser<PointType>::findMetaRoomLocation(MetaRoom<PointType>* 
             } else {
                 QString savedMetaRoomXMLFile = tempMetaRoomFolder+tempMetaRoomFolderFiles[0]; // TODO for now I am assuming there is only 1 xml file in the metaroom folder. Maybe later there will be more.
                 MetaRoom<PointType> savedMetaRoom = MetaRoomXMLParser::loadMetaRoomFromXML(savedMetaRoomXMLFile.toStdString(),false);
-                double centroidDistance = pcl::distances::l2(savedMetaRoom.getCentroid(),aMetaRoom->getCentroid());
-                ROS_INFO_STREAM("Comparing with saved metaroom. Centroid distance "<<centroidDistance);
-                if (centroidDistance < ROOM_CENTROID_DISTANCE)
+                if (aMetaRoom->m_sMetaroomStringId != "")
                 {
-                    // found a matching metaroom
-                    metaRoomFolder = tempMetaRoomFolder;
-                    metaRoomFolderFound = true;
-                    break;
+                    if (savedMetaRoom.m_sMetaroomStringId == aMetaRoom->m_sMetaroomStringId)
+                    {
+                        // found a matching metaroom
+                        metaRoomFolder = tempMetaRoomFolder;
+                        metaRoomFolderFound = true;
+                        break;
+                    }
+                } else {
+                    double centroidDistance = pcl::distances::l2(savedMetaRoom.getCentroid(),aMetaRoom->getCentroid());
+                    ROS_INFO_STREAM("Comparing with saved metaroom. Centroid distance "<<centroidDistance);
+                    if (centroidDistance < ROOM_CENTROID_DISTANCE)
+                    {
+                        // found a matching metaroom
+                        metaRoomFolder = tempMetaRoomFolder;
+                        metaRoomFolderFound = true;
+                        break;
+                    }
                 }
 
                 metarooms++;

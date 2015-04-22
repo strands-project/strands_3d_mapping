@@ -213,6 +213,13 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         ROS_INFO_STREAM("Room log name "<<aRoom.getRoomLogName());
         ROS_INFO_STREAM("Room run number "<<aRoom.getRoomRunNumber());
 //            ROS_INFO_STREAM("Room centroid "<<aRoom.getCentroid());
+
+        if (aRoom.getRoomStringId() != "")
+        {
+            this->m_sMetaroomStringId = aRoom.getRoomStringId();
+        }
+
+
         std::vector<tf::StampedTransform> roomTransforms = aRoom.getIntermediateCloudTransforms();
         std::vector<tf::StampedTransform> roomRegisteredTransforms = aRoom.getIntermediateCloudTransformsRegistered();
         if (roomRegisteredTransforms.size() != 0)
@@ -271,12 +278,6 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
             Eigen::Matrix4f eigen_matrix(eigen_affine.matrix().cast<float>());
             this->setRoomTransform(eigen_matrix);
         }
-
-        if (aRoom.getRoomStringId() != "")
-        {
-            this->m_sMetaroomStringId = aRoom.getRoomStringId();
-        }
-
 
         MetaRoomUpdateIteration<PointType> updateIteration;
         updateIteration.roomLogName = aRoom.getRoomLogName();

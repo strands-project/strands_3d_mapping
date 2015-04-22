@@ -44,7 +44,6 @@
 
 #include <strands_sweep_registration/RobotContainer.h>
 
-
 template <class PointType>
 class SemanticMapNode {
 public:
@@ -90,7 +89,6 @@ template <class PointType>
 SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore(nh)
 {
     ROS_INFO_STREAM("Semantic map node initialized");
-
     m_NodeHandle = nh;
 
     m_SubscriberRoomObservation = m_NodeHandle.subscribe("/local_metric_map/room_observations",1, &SemanticMapNode::roomObservationCallback,this);
@@ -234,6 +232,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         {
             ROS_INFO_STREAM("No matching metaroom found. Create new metaroom.");
             metaroom =  boost::shared_ptr<MetaRoom<PointType> >(new MetaRoom<PointType>());
+            metaroom->m_sMetaroomStringId = aRoom.getRoomStringId(); // set waypoint, to figure out where to save
 
         } else {
             ROS_INFO_STREAM("Matching metaroom found. XML file: "<<matchingMetaroomXML);
@@ -443,10 +442,9 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         occlusionChecker.setSensorOrigin(metaroom->getSensorOrigin()); // since it's already transformed in the metaroom frame of ref
         auto occlusions = occlusionChecker.checkOcclusions(differenceRoomToPrevRoom,differencePrevRoomToRoom, 720 );
         *difference = *occlusions.toBeRemoved;
-
     }
 
-
+    ROS_INFO_STREAM("Raw difference "<<difference->points.size());
 
 
     if (difference->points.size() == 0)
