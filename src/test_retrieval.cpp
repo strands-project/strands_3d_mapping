@@ -41,6 +41,8 @@ using SiftT = pcl::Histogram<128>;
 using SiftCloudT = pcl::PointCloud<SiftT>;
 using PfhRgbT = pcl::Histogram<250>;
 using PfhRgbCloudT = pcl::PointCloud<PfhRgbT>;
+using ShotT = pcl::Histogram<1344>;
+using ShotCloudT = pcl::PointCloud<ShotT>;
 
 void calculate_sift_features(cv::Mat& descriptors, vector<cv::KeyPoint>& keypoints, CloudT::Ptr& cloud, cv::Mat& image,
                              cv::Mat& depth, int minx, int miny, const Eigen::Matrix3f& K)
@@ -81,12 +83,6 @@ void calculate_sift_features(cv::Mat& descriptors, vector<cv::KeyPoint>& keypoin
     cv::drawKeypoints(image, keypoints, img_keypoints, cv::Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
     cv::imshow("my keypoints", img_keypoints);
     cv::waitKey(0);
-}
-
-void shot_features_for_segment(HistCloudT::Ptr& desc_cloud, CloudT::Ptr& cloud, Eigen::Matrix3f& K, int points=0)
-{
-    segment_features sf(K, false);
-    sf.compute_shot_features(desc_cloud, cloud, points != 0, points);
 }
 
 void sift_features_for_segment(SiftCloudT::Ptr& desc_cloud, CloudT::Ptr& kp_cloud, CloudT::Ptr& cloud, Eigen::Matrix3f& K)
@@ -208,7 +204,9 @@ void save_sift_features(object_retrieval& obr_scans)
 // OK
 int scan_ind_for_segment(int i, object_retrieval& obr_segments)
 {
+    cout << i << endl;
     string segment_folder = obr_segments.get_folder_for_segment_id(i);
+    cout << segment_folder << endl;
     string metadata_file = segment_folder + "/metadata.txt";
     string metadata; // in this dataset, this is the path to the scan
     {
@@ -219,6 +217,7 @@ int scan_ind_for_segment(int i, object_retrieval& obr_segments)
     }
     string scan_name = boost::filesystem::path(metadata).parent_path().stem().string();
     size_t pos = scan_name.find_last_not_of("0123456789");
+    cout << scan_name << endl;
     int ind = stoi(scan_name.substr(pos+1));
     return ind;
 }
@@ -289,7 +288,7 @@ void save_pfhrgb_features_for_supervoxels(object_retrieval& obr_segments)
         }
         PfhRgbCloudT::Ptr desc_cloud(new PfhRgbCloudT);
         CloudT::Ptr kp_cloud(new CloudT);
-        pfhrgb_estimation::compute_pfhrgb_features(desc_cloud, kp_cloud, cloud, false);
+        pfhrgb_estimation::compute_features(desc_cloud, kp_cloud, cloud, false);
 
         string pfhrgb_file = segment_folder + "/pfhrgb_cloud.pcd";
         string pfhrgb_points_file = segment_folder + "/pfhrgb_points_file.pcd";
@@ -308,6 +307,44 @@ void save_pfhrgb_features_for_supervoxels(object_retrieval& obr_segments)
 
         pcl::io::savePCDFileBinary(pfhrgb_file, *desc_cloud);
         pcl::io::savePCDFileBinary(pfhrgb_points_file, *kp_cloud);
+    }
+}
+
+// OK
+void save_shot_features_for_supervoxels(object_retrieval& obr_segments)
+{
+    for (int i = 0; ; ++i) {
+        string segment_folder = obr_segments.get_folder_for_segment_id(i);
+        if (!boost::filesystem::is_directory(segment_folder)) {
+            break;
+        }
+        string cloud_file = segment_folder + "/segment.pcd";
+        CloudT::Ptr cloud(new CloudT);
+        if (pcl::io::loadPCDFile(cloud_file, *cloud) == -1) {
+            cout << "Could not load " << cloud_file << endl;
+            exit(0);
+        }
+        ShotCloudT::Ptr desc_cloud(new ShotCloudT);
+        CloudT::Ptr kp_cloud(new CloudT);
+        pfhrgb_estimation::compute_features(desc_cloud, kp_cloud, cloud, false);
+
+        string shot_file = segment_folder + "/shot_cloud.pcd";
+        string shot_points_file = segment_folder + "/shot_points_file.pcd";
+
+        if (desc_cloud->empty()) {
+            // push back one inf point on descriptors and keypoints
+            ShotT sp;
+            for (int i = 0; i < 1344; ++i) {
+                sp.histogram[i] = std::numeric_limits<float>::infinity();
+            }
+            desc_cloud->push_back(sp);
+            PointT p;
+            p.x = p.y = p.z = std::numeric_limits<float>::infinity();
+            kp_cloud->push_back(p);
+        }
+
+        pcl::io::savePCDFileBinary(shot_file, *desc_cloud);
+        pcl::io::savePCDFileBinary(shot_points_file, *kp_cloud);
     }
 }
 
@@ -610,10 +647,10 @@ void calculate_correct_ratio(map<string, pair<float, int> >& instance_correct_ra
             if (verbose) cout << "This was false." << endl;
         }
         if (verbose) {
-            HistCloudT::Ptr features_match(new HistCloudT);
-            obr_scans.load_features_for_segment(features_match, query_ind);
+            //HistCloudT::Ptr features_match(new HistCloudT);
+            //obr_scans.load_features_for_segment(features_match, query_ind);
             cout << "Score: " << s.second << endl;
-            cout << "Number of features: " << features_match->size() << endl;
+            //cout << "Number of features in scan: " << features_match->size() << endl;
         }
     }
 
@@ -1027,7 +1064,7 @@ void compute_grown_segment_score(vector<double>& match_scores, HistCloudT::Ptr& 
         }
         register_objects ro;
         ro.set_input_clouds(query_cloud, result_cloud);
-        ro.register_using_features(query_features, query_keypoints, result_features, result_keypoints);
+        //ro.register_using_features(query_features, query_keypoints, result_features, result_keypoints);
         pair<double, double> match_score = ro.get_match_score();
         match_scores.push_back(match_score.first);
     }
@@ -1308,7 +1345,7 @@ void query_cloud(CloudT::Ptr& cloud, object_retrieval& obr_segments, object_retr
 
     HistCloudT::Ptr features(new HistCloudT);
     CloudT::Ptr kp_cloud(new CloudT);
-    pfhrgb_estimation::compute_pfhrgb_features(features, kp_cloud, cloud, false);
+    pfhrgb_estimation::compute_features(features, kp_cloud, cloud, false);
 
     vector<tuple<int, int, double> > tuple_scores;
     // this also takes care of the scan association
@@ -1416,8 +1453,10 @@ struct query_separate_data_iterator {
         if (!isdigit(stem.back())) {
             return get_next_query(instance, cloud, features, keypoints, scan_id);
         }
-        string features_path = base_path + "/" + stem + "_features.pcd";
-        string keypoints_path = base_path + "/" + stem + "_keypoints.pcd";
+        //string features_path = base_path + "/" + stem + "_features.pcd";
+        //string keypoints_path = base_path + "/" + stem + "_keypoints.pcd";
+        string features_path = base_path + "/" + stem + "_shot_features.pcd";
+        string keypoints_path = base_path + "/" + stem + "_shot_keypoints.pcd";
 
         int pos = stem.find_first_of("_");
         instance = stem.substr(0, pos+2);
@@ -1446,7 +1485,7 @@ void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments,
     if (obr_segments.vt.empty()) {
         obr_segments.read_vocabulary(obr_segments.vt);
     }
-    obr_segments.vt.set_min_match_depth(2);
+    obr_segments.vt.set_min_match_depth(2); // 2 in experiments
     obr_segments.vt.compute_normalizing_constants();
 
     //map<string, int> nbr_full_instances;
@@ -1484,8 +1523,8 @@ void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments,
     while (query_iterator.get_next_query(instance, cloud, features, keypoints, scan_id)) {
 
         vector<index_score> scores;
-        obr_segments.vt.top_combined_similarities(scores, features, nbr_query);
-        //obr_segments.vt.top_similarities(scores, features, nbr_query);
+        //obr_segments.vt.top_combined_similarities(scores, features, nbr_query);
+        obr_segments.vt.top_similarities(scores, features, nbr_query);
 
         for (index_score& s : scores) {
             if (s.first < noise_segments_size) {
@@ -1538,6 +1577,8 @@ int main(int argc, char** argv)
 
     //save_pfhrgb_features_for_supervoxels(obr_segments);
     //save_pfhrgb_features_for_supervoxels(obr_segments_noise);
+    //save_shot_features_for_supervoxels(obr_segments);
+    //save_shot_features_for_supervoxels(obr_segments_noise);
 
     //save_split_features(obr_segments);
     //save_split_features(obr_segments_noise);
@@ -1550,9 +1591,10 @@ int main(int argc, char** argv)
     int noise_scans_size = 3526;
     //obr_segments_noise.add_others_to_grouped_vocabulary(30000, obr_segments, noise_scans_size);
 
-    //obr_segments_noise.train_vocabulary_incremental(12000, false);
+    //obr_segments_noise.train_vocabulary_incremental(4000, false); // 12000
     int noise_segments_size = 63136;
-    //obr_segments_noise.add_others_to_vocabulary(30000, obr_segments.segment_path, noise_segments_size);
+    //int noise_segments_size = 20000;
+    //obr_segments_noise.add_others_to_vocabulary(10000, obr_segments.segment_path, noise_segments_size);
     //exit(0);
 
     //save_sift_features(obr_scans);
@@ -1577,7 +1619,7 @@ int main(int argc, char** argv)
 
     query_separate_data_iterator query_sep_iter("/home/nbore/Data/query_object_recorder");
     query_in_dataset_iterator query_data_iter(annotations, obr_segments);
-    query_supervoxels(query_data_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
+    query_supervoxels(query_sep_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
 
     /*CloudT::Ptr query_cloud_larger(new CloudT);
     pcl::io::loadPCDFile("/home/nbore/Data/rgb_0015_label_0.pcd", *query_cloud_larger);

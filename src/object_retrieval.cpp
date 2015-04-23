@@ -31,16 +31,21 @@ using namespace std;
 //string object_retrieval::indices_segment_file = "indices_sift.cereal";
 
 // using PFH
-string object_retrieval::feature_vocabulary_file = "vocabulary_pfhrgb_3.cereal";
-string object_retrieval::grouped_vocabulary_file = "vocabulary_grouped_3.cereal";
-string object_retrieval::feature_segment_file = "pfhrgb_cloud.pcd";
-string object_retrieval::keypoint_segment_file = "pfhrgb_points_file.pcd";
-string object_retrieval::indices_segment_file = "indices_pfhrgb.cereal";
+//string object_retrieval::feature_vocabulary_file = "vocabulary_pfhrgb_3.cereal";
+//string object_retrieval::grouped_vocabulary_file = "vocabulary_grouped_3.cereal";
+//string object_retrieval::feature_segment_file = "pfhrgb_cloud.pcd";
+//string object_retrieval::keypoint_segment_file = "pfhrgb_points_file.pcd";
+//string object_retrieval::indices_segment_file = "indices_pfhrgb.cereal";
 
 // using SHOT
 //string object_retrieval::feature_vocabulary_file = "vocabulary.cereal";
 //string object_retrieval::feature_segment_file = "features.pcd";
 //string object_retrieval::indices_segment_file = "indices.cereal";
+string object_retrieval::feature_vocabulary_file = "vocabulary_shot.cereal";
+string object_retrieval::grouped_vocabulary_file = "vocabulary_grouped_shot.cereal";
+string object_retrieval::feature_segment_file = "shot_cloud.pcd";
+string object_retrieval::keypoint_segment_file = "shot_points_file.pcd";
+string object_retrieval::indices_segment_file = "indices_shot.cereal";
 
 object_retrieval::object_retrieval(const std::string& segment_path) : segment_path(segment_path)
 {
@@ -69,7 +74,7 @@ void object_retrieval::visualize_cloud(CloudT::Ptr& cloud)
     }
 }
 
-void object_retrieval::extract_features(vector<int>& inds, HistCloudT::Ptr& features, vector<CloudT::Ptr>& segments,
+/*void object_retrieval::extract_features(vector<int>& inds, HistCloudT::Ptr& features, vector<CloudT::Ptr>& segments,
                       vector<NormalCloudT::Ptr>& normals, vector<CloudT::Ptr>& hd_segments, const Eigen::Matrix3f& K)
 {
     int counter = 0;
@@ -104,7 +109,7 @@ void object_retrieval::get_query_cloud(HistCloudT::Ptr& query_cloud, CloudT::Ptr
     sf.calculate_features(globalf, query_cloud, segment, normal, hd_segment);
     cout << "Number of features: " << query_cloud->size() << endl;
     //visualize_cloud(hd_segment);
-}
+}*/
 
 size_t object_retrieval::write_segments(vector<CloudT::Ptr>& segments, vector<NormalCloudT::Ptr>& normals, vector<CloudT::Ptr>& hd_segments,  const Eigen::Matrix3f& K, vector<string>& files, size_t istart)
 {
@@ -321,7 +326,7 @@ size_t object_retrieval::compute_segments(vector<CloudT::Ptr>& sweeps, vector<Ei
     return i;
 }
 
-void object_retrieval::process_segments()
+/*void object_retrieval::process_segments()
 {
     HistCloudT::Ptr features(new HistCloudT);
     vector<int> indices;
@@ -376,7 +381,7 @@ void object_retrieval::process_segments_incremental()
 
         save_features_for_segment(features_i, i);
     }
-}
+}*/
 
 int object_retrieval::scan_ind_for_segment(int i)
 {
@@ -634,6 +639,9 @@ void object_retrieval::train_vocabulary_incremental(int max_segments, bool simpl
 
         // as long as we can keep them all in memory, no upper bound on features here
         for (size_t i = 0; i < max_segments && features->size() < 2000000; ++i) {
+            /*if (counter >= 20000) { // DEBUG!
+                break;
+            }*/
             if (!exclude_set.empty()) {
                 if (exclude_set.count(counter) != 0) {
                     ++counter;
@@ -659,6 +667,9 @@ void object_retrieval::train_vocabulary_incremental(int max_segments, bool simpl
         if (features->size() > 0) {
             vt1.append_cloud(features, indices, false);
         }
+        /*if (counter >= 20000) { // DEBUG!
+            break;
+        }*/
     }
 
     write_vocabulary(vt1);
@@ -760,7 +771,7 @@ void object_retrieval::query_vocabulary(vector<index_score>& scores, size_t quer
         }
     }
     else {
-        get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
+        //get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
         if (visualize_query) {
             visualize_cloud(query_segment);
         }
@@ -828,7 +839,7 @@ void object_retrieval::query_reweight_vocabulary(vector<index_score>& first_scor
         }
     }
     else {
-        get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
+        //get_query_cloud(query_cloud, segment, normal, query_segment, query_K);
         if (visualize_query) {
             visualize_cloud(query_segment);
         }

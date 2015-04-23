@@ -18,10 +18,10 @@ public:
     //static const int N = 256;
 
     // using PFHRGB
-    static const int N = 250;
+    //static const int N = 250;
 
     // using SHOT
-    //static const int N = 1344;
+    static const int N = 1344;
 
     using PointT = pcl::PointXYZRGB;
     using CloudT = pcl::PointCloud<PointT>;
@@ -56,11 +56,11 @@ public:
     void set_exclude_set(const std::set<int>& other_set) { exclude_set = other_set; }
 
     void visualize_cloud(CloudT::Ptr& cloud);
-    void extract_features(std::vector<int>& inds, HistCloudT::Ptr& features, std::vector<CloudT::Ptr>& segments,
+    /*void extract_features(std::vector<int>& inds, HistCloudT::Ptr& features, std::vector<CloudT::Ptr>& segments,
                           std::vector<NormalCloudT::Ptr>& normals, std::vector<CloudT::Ptr>& hd_segments, const Eigen::Matrix3f& K);
     void extract_feature(vector<int>& inds, HistCloudT::Ptr& feature, CloudT::Ptr& segment,
                          NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, const Eigen::Matrix3f& K, int ind);
-    void get_query_cloud(HistCloudT::Ptr& query_cloud, CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K);
+    void get_query_cloud(HistCloudT::Ptr& query_cloud, CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K);*/
     size_t write_segments(std::vector<CloudT::Ptr>& segments, std::vector<NormalCloudT::Ptr>& normals, std::vector<CloudT::Ptr>& hd_segments,  const Eigen::Matrix3f& K, vector<string>& files, size_t istart);
     void read_segments(std::vector<CloudT::Ptr>& segments, std::vector<NormalCloudT::Ptr>& normals, std::vector<CloudT::Ptr>& hd_segments,  Eigen::Matrix3f& K, size_t max_segments);
     bool read_segment(CloudT::Ptr& segment, NormalCloudT::Ptr& normal, CloudT::Ptr& hd_segment, Eigen::Matrix3f& K, string& metadata, size_t segment_id);
@@ -75,8 +75,8 @@ public:
     std::pair<double, double> calculate_similarity(CloudT::Ptr& cloud1, const Eigen::Matrix3f& K1,
                                                    CloudT::Ptr& cloud2, const Eigen::Matrix3f& K2);
     size_t compute_segments(std::vector<CloudT::Ptr>& sweeps, std::vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics, vector<string>& files, size_t i = 0);
-    void process_segments();
-    void process_segments_incremental();
+    //void process_segments();
+    //void process_segments_incremental();
     void train_vocabulary_incremental(int max_segments, bool simply_train = false);
     void train_grouped_vocabulary(int max_segments, bool simply_train = false);
     int add_others_to_grouped_vocabulary(int max_segments, object_retrieval& obr_segments, int previous_scan_size);
