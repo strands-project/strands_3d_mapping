@@ -18,6 +18,8 @@ protected:
     using NormalCloudPtrT = NormalCloudT::Ptr;
     using PFHPointT = pcl::Histogram<250>;
     using PFHCloudT = pcl::PointCloud<PFHPointT>;
+    using SiftT = pcl::Histogram<128>;
+    using SiftCloudT = pcl::PointCloud<SiftT>;
 
 protected:
 
@@ -39,6 +41,8 @@ public:
     void set_input_clouds(CloudPtrT& t1, CloudPtrT& t2);
     void set_input_clouds(CloudPtrT& t1, const Eigen::Matrix3f& tk1, CloudPtrT& t2, const Eigen::Matrix3f& tk2);
     void do_registration();
+    void do_registration(SiftCloudT::Ptr& sift_cloud1, SiftCloudT::Ptr& sift_cloud2,
+                         CloudT::Ptr& keypoint_cloud1, CloudT::Ptr& keypoint_cloud2);
     void get_transformation(Eigen::Matrix4f& trans);
     std::pair<int, int> calculate_image_for_cloud(cv::Mat& image, cv::Mat& depth, CloudPtrT& cloud, const Eigen::Matrix3f &K);
     void calculate_features_for_image(cv::Mat& descriptors, std::vector<cv::KeyPoint>& keypoints, CloudPtrT& cloud, cv::Mat& image,

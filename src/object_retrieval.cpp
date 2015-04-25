@@ -184,6 +184,27 @@ int object_retrieval::scan_ind_for_segment(int i)
     return ind;
 }
 
+string object_retrieval::get_scan_folder_for_segment(int i)
+{
+    string segment_folder = get_folder_for_segment_id(i);
+
+    if (!boost::filesystem::is_directory(segment_folder)) {
+        cout << "Trying to get a folder that does not exist..." << endl;
+        exit(-1);
+    }
+
+    string metadata_file = segment_folder + "/metadata.txt";
+    string metadata; // in this dataset, this is the path to the scan
+    {
+        ifstream f;
+        f.open(metadata_file);
+        getline(f, metadata);
+        f.close();
+    }
+
+    return metadata;
+}
+
 void object_retrieval::train_grouped_vocabulary(int max_segments, bool simply_train)
 {
     int min_features = 20;
@@ -519,6 +540,26 @@ void object_retrieval::read_scan(CloudT::Ptr& cloud, int i)
     {
         ifstream f;
         f.open(metadata_file);
+        getline(f, metadata);
+        f.close();
+    }
+    cout << metadata << endl;
+    if (pcl::io::loadPCDFile(metadata, *cloud) == -1) {
+        cout << "Could not load scan point cloud..." << endl;
+        exit(-1);
+    }
+}
+
+void object_retrieval::read_scan_for_segment(CloudT::Ptr& cloud, int i)
+{
+    string folder = get_folder_for_segment_id(i);
+    string metadata_file = folder + "/metadata.txt";
+    //cout << metadata_file << endl;
+    string metadata; // in this dataset, this is the path to the scan
+    {
+        ifstream f;
+        f.open(metadata_file);
+        getline(f, metadata);
         getline(f, metadata);
         f.close();
     }

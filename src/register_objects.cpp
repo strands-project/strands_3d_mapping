@@ -278,6 +278,87 @@ void register_objects::do_registration()
 
 }
 
+void register_objects::do_registration(SiftCloudT::Ptr& sift_cloud1, SiftCloudT::Ptr& sift_cloud2,
+                                       CloudT::Ptr& keypoint_cloud1, CloudT::Ptr& keypoint_cloud2)
+{
+    cout << "We are actually inside the registration!" << endl;
+    if (sift_cloud1->empty() || sift_cloud2->empty()) {
+        T.setIdentity();
+        return;
+    }
+
+    cv::Mat descriptors1(sift_cloud1->size(), 128, CV_32F);
+    cv::Mat descriptors2(sift_cloud2->size(), 128, CV_32F);
+
+    for (int i = 0; i < sift_cloud1->size(); ++i) {
+        for (int j = 0; j < 128; ++j) {
+            descriptors1.at<float>(i, j) = sift_cloud1->at(i).histogram[j];
+        }
+    }
+
+    for (int i = 0; i < sift_cloud2->size(); ++i) {
+        for (int j = 0; j < 128; ++j) {
+            descriptors2.at<float>(i, j) = sift_cloud2->at(i).histogram[j];
+        }
+    }
+
+    // matching descriptors
+    //cv::BFMatcher matcher;
+    cv::FlannBasedMatcher matcher;
+    vector<cv::DMatch> matches;
+    matcher.match(descriptors1, descriptors2, matches); // query / train
+
+    pcl::CorrespondencesPtr correspondences(new pcl::Correspondences);
+    // do ransac on all the matches to find the transformation
+    for (cv::DMatch m : matches) {
+        pcl::Correspondence c;
+        c.index_match = m.trainIdx;
+        c.index_query = m.queryIdx;
+        c.distance = m.distance;
+        correspondences->push_back(c);
+    }
+
+    // TODO: add a check here to see if it's actually possible to estimate transformation
+    pcl::registration::CorrespondenceRejectorSampleConsensus<PointT> cr;
+    pcl::Correspondences sac_correspondences;
+    cr.setInputSource(keypoint_cloud1);
+    cr.setInputTarget(keypoint_cloud2);
+    cr.setInputCorrespondences(correspondences);
+    cr.setInlierThreshold(0.02);
+    cr.setMaximumIterations(1000);
+    cr.getCorrespondences(sac_correspondences);
+    T = cr.getBestTransformation();
+
+    pcl::registration::TransformationEstimationSVD<PointT, PointT> trans_est;
+    trans_est.estimateRigidTransformation(*keypoint_cloud1, *keypoint_cloud2, sac_correspondences, T);
+
+    if (sac_correspondences.empty() || correspondences->size() == sac_correspondences.size()) { // No samples could be selected
+        T.setIdentity();
+    }
+
+    cout << "Estimated transformation: " << endl;
+    cout << T << endl;
+
+    if (VISUALIZE) {
+        CloudT::Ptr new_cloud(new CloudT);
+        pcl::transformPointCloud(*c1, *new_cloud, T);
+        boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+        viewer->setBackgroundColor(0, 0, 0);
+        pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb1(c2);
+        viewer->addPointCloud<PointT>(c2, rgb1, "cloud1");
+        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "cloud1");
+        pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb2(new_cloud);
+        viewer->addPointCloud<PointT>(new_cloud, rgb2, "cloud2");
+        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "cloud2");
+        viewer->addCoordinateSystem(1.0);
+        viewer->initCameraParameters();
+        while (!viewer->wasStopped()) {
+            viewer->spinOnce(100);
+        }
+    }
+
+}
+
 
 // from https://raw.githubusercontent.com/PointCloudLibrary/pcl/master/features/include/pcl/features/impl/shot.hpp
 // see project_root/license.txt for details
@@ -343,6 +424,10 @@ void register_objects::RGB2CIELAB(unsigned char R, unsigned char G, unsigned cha
 
 pair<double, double> register_objects::get_match_score()
 {
+    if (c1->empty() || c2->empty()) {
+        return make_pair(0.1, 100);
+    }
+
     // transform one cloud into the coordinate frame of the other
     CloudT::Ptr new_cloud(new CloudT);
     pcl::transformPointCloud(*c1, *new_cloud, T);
@@ -422,8 +507,7 @@ pair<double, double> register_objects::get_match_score()
     double weight = std::max(1.0, 5.0*fabs(dist));
     //double weight = -log(color_weight*mean_color+mean_dist);
 
-    cout << "Distance: " << dist << endl;
-    cout << "Weight: " << weight << endl;
+    cout << "Weight: " << 1.0/mean_dist << endl;
 
     return make_pair(1.0/mean_dist, 1.0/mean_color);
 }
