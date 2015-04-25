@@ -38,6 +38,7 @@ add_library(dataset_convenience src/dataset_convenience.cpp ${include_dir}/datas
 #add_library(train_metric src/train_metric.cpp ${include_dir}/train_metric.h)
 add_library(supervoxel_segmentation src/supervoxel_segmentation.cpp ${include_dir}/supervoxel_segmentation.h)
 add_library(pfhrgb_estimation src/pfhrgb_estimation.cpp ${include_dir}/pfhrgb_estimation.h)
+add_library(dataset_annotations src/dataset_annotations.cpp ${include_dir}/dataset_annotations.h)
 
 target_link_libraries(convex_voxel_segmentation ${PCL_LIBRARIES} ${VTK_LIBRARIES})
 target_link_libraries(sift ${OpenCV_LIBS})
@@ -45,6 +46,7 @@ target_link_libraries(segment_features sift ${PCL_LIBRARIES} ${OpenCV_LIBS})
 target_link_libraries(register_objects sift ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 target_link_libraries(object_retrieval convex_voxel_segmentation segment_features vocabulary_tree reweighted_vocabulary_tree register_objects ${PCL_LIBRARIES})
+target_link_libraries(dataset_annotations object_retrieval ${OpenCV_LIBS} ${PCL_LIBRARIES})
 target_link_libraries(dataset_convenience object_retrieval metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 target_link_libraries(supervoxel_segmentation ${OpenCV_LIBS} ${PCL_LIBRARIES})
 target_link_libraries(pfhrgb_estimation ${PCL_LIBRARIES})
@@ -86,7 +88,7 @@ target_link_libraries(create_scan_folders metaroom_xml_parser image_geometry cpp
 #add_executable(test_partial_search src/test_partial_search.cpp)
 #target_link_libraries(test_partial_search dataset_convenience sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
 add_executable(test_retrieval src/test_retrieval.cpp)
-target_link_libraries(test_retrieval dataset_convenience sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
+target_link_libraries(test_retrieval dataset_convenience dataset_annotations sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
 #add_executable(test_sliding_window src/test_sliding_window.cpp)
 #target_link_libraries(test_sliding_window dataset_convenience sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
 

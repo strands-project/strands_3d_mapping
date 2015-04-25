@@ -1100,7 +1100,8 @@ int object_retrieval::load_grouped_features_for_segment(HistCloudT::Ptr& feature
    }
    int i;
    for (i = 0; ;  ++i) {
-       std::string features_file = segment_folder + "split_features" + to_string(i) + ".pcd";
+       //std::string features_file = segment_folder + "split_features" + to_string(i) + ".pcd";
+       std::string features_file = segment_folder + "split_shot_features" + to_string(i) + ".pcd";
        HistCloudT::Ptr featuresi(new HistCloudT);
        //cout << features_file << endl;
        if (pcl::io::loadPCDFile<HistT>(features_file, *featuresi) == -1) {

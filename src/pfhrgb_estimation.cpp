@@ -678,4 +678,206 @@ void split_descriptor_points(vector<PfhRgbCloudT::Ptr>& split_features, vector<C
     //visualize_split_keypoints(split_keypoints);
 }
 
+void split_descriptor_points(vector<ShotCloudT::Ptr>& split_features, vector<CloudT::Ptr>& split_keypoints,
+                             ShotCloudT::Ptr& features, CloudT::Ptr& keypoints, int expected_cluster_size)
+{
+    // first, decide how many clusters we want
+    const int nbr_original_features = features->size();
+
+    int expected_nbr_clusters = int(std::round(float(nbr_original_features) / float(expected_cluster_size)));
+
+    if (expected_nbr_clusters == 1 || float(expected_cluster_size) > 1.7f*float(nbr_original_features)) {
+        split_features.push_back(ShotCloudT::Ptr(new ShotCloudT));
+        *split_features.back() += *features;
+        split_keypoints.push_back(CloudT::Ptr(new CloudT));
+        *split_keypoints.back() += *keypoints;
+        return;
+    }
+
+    expected_cluster_size = int(float(keypoints->size()) / float(expected_nbr_clusters));
+
+    Eigen::Matrix<float, 3, Eigen::Dynamic> centroids;
+    centroids.resize(3, expected_nbr_clusters);
+    vector<int> closest_centroids(keypoints->size());
+    Eigen::Matrix<float, 1, Eigen::Dynamic> distances;
+    distances.resize(1, expected_nbr_clusters);
+    Eigen::Matrix<float, 3, Eigen::Dynamic> last_centroids;
+    Eigen::VectorXi closest_counts;
+    closest_counts.resize(expected_nbr_clusters);
+    last_centroids.resize(3, expected_nbr_clusters);
+    last_centroids.setZero();
+    size_t counter;
+    size_t iterations = 0;
+    size_t max_iter = nbr_original_features*1000;
+    int closest;
+    while (iterations < max_iter && !centroids.isApprox(last_centroids, 1e-30f)) {
+        counter = 0;
+        for (const PointT& p : keypoints->points) {
+            Eigen::Vector3f ep = p.getVector3fMap();
+            distances = (centroids.colwise()-ep).colwise().norm();
+            distances.minCoeff(&closest);
+            closest_centroids[counter] = closest;
+            ++counter;
+        }
+        closest_counts.setZero();
+        last_centroids = centroids;
+        centroids.setZero();
+        counter = 0;
+        for (int i : closest_centroids) {
+            if (!pcl::isFinite(keypoints->at(counter))) {
+                continue;
+            }
+            centroids.col(i) += keypoints->at(counter).getVector3fMap();
+            closest_counts(i) += 1;
+            ++counter;
+        }
+        for (size_t i = 0; i < expected_nbr_clusters; ++i) {
+            if (closest_counts(i) == 0) {
+                centroids.col(i) = keypoints->at(rand() % nbr_original_features).getVector3fMap();
+            }
+            else {
+                centroids.col(i) *= 1.0f/float(closest_counts(i));
+            }
+        }
+        ++iterations;
+    }
+
+    vector<int> groups(expected_nbr_clusters);
+    Eigen::VectorXi group_size;
+    group_size.resize(expected_nbr_clusters);
+    group_size = closest_counts;
+    for (int i = 0; i < expected_nbr_clusters; ++i) {
+        groups[i] = i;
+    }
+
+
+    // after this initialization step, enforce group size
+    // greedily move points in large groups to smaller groups
+    // to the iteration until equalized, move one point at a time
+    max_iter = 1000;
+    int iter = 0;
+    while (iter < max_iter) {
+
+        for (size_t i = 0; i < expected_nbr_clusters; ++i) {
+            bool large = closest_counts(i) >= expected_cluster_size;
+            /*if (closest_counts(i) > expected_cluster_size) {
+                continue;
+            }*/
+            // find the point closest to another cluster centre
+            // if that cluster center is smaller, move it
+            distances = (centroids.colwise()-centroids.col(i)).colwise().norm();
+
+            for (size_t j = 0; j < expected_nbr_clusters; ++j) {
+                bool should_move = closest_counts(j) <= closest_counts(i);
+                if (large) {
+                    should_move = !should_move;
+                }
+                if (should_move) {
+                    distances(j) = 1000.0f;
+                }
+            }
+
+            distances(i) = 1000.0f;
+            distances.minCoeff(&closest);
+            if (distances(closest) == 1000) {
+                continue;
+            }
+            bool should_find_closest = closest_counts(closest) > closest_counts(i);
+            if (large) {
+                should_find_closest = !should_find_closest;
+            }
+            if (should_find_closest) {
+                // find closest point in mincluster, assign it i
+                counter = 0;
+                Eigen::Vector3f pc;
+                if (large) {
+                    pc = centroids.col(closest);
+                }
+                else {
+                    pc = centroids.col(i);
+                }
+                float mindist = 1000.0f; // very large
+                int minind;
+                int target_set;
+                int source_set;
+                if (large) {
+                    target_set = i;
+                    source_set = closest;
+                }
+                else {
+                    target_set = closest;
+                    source_set = i;
+                }
+                for (int j : closest_centroids) {
+                    if (j != target_set || !pcl::isFinite(keypoints->at(counter))) {
+                        ++counter;
+                        continue;
+                    }
+                    float distance = (keypoints->at(counter).getVector3fMap() - pc).norm();
+                    if (distance < mindist) {
+                        mindist = distance;
+                        minind = counter;
+                    }
+                    ++counter;
+                }
+                closest_centroids[minind] = source_set;
+            }
+        }
+
+        // update cluster centers
+        centroids.setZero();
+        closest_counts.setZero();
+        counter = 0;
+        for (int i : closest_centroids) {
+            if (!pcl::isFinite(keypoints->at(counter))) {
+                continue;
+            }
+            centroids.col(i) += keypoints->at(counter).getVector3fMap();
+            closest_counts(i) += 1;
+            ++counter;
+        }
+        bool all_close = true;
+        for (size_t i = 0; i < expected_nbr_clusters; ++i) {
+            cout << "Cluster nbr: " << i << endl;
+            cout << "Expected nbr clusters: " << expected_nbr_clusters << endl;
+            cout << "Cluster difference: " << std::abs(closest_counts(i) - expected_cluster_size) << endl;
+            cout << "Cluster size: " << closest_counts(i) << endl;
+            cout << "Expected cluster size: " <<  expected_cluster_size << endl;
+            if (std::abs(closest_counts(i) - expected_cluster_size) > 3) {
+                all_close = false;
+            }
+            if (closest_counts(i) == 0) {
+                centroids.col(i) = keypoints->at(rand() % nbr_original_features).getVector3fMap();
+            }
+            else {
+                centroids.col(i) *= 1.0f/float(closest_counts(i));
+            }
+        }
+
+        if (all_close) {
+            break;
+        }
+
+        ++iter;
+    }
+
+    for (size_t i = 0; i < expected_nbr_clusters; ++i) {
+        split_features.push_back(ShotCloudT::Ptr(new ShotCloudT));
+        split_keypoints.push_back(CloudT::Ptr(new CloudT));
+    }
+
+    counter = 0;
+    for (int i : closest_centroids) {
+        split_features[i]->push_back(features->at(counter));
+        split_keypoints[i]->push_back(keypoints->at(counter));
+        ++counter;
+    }
+
+    for (ShotCloudT::Ptr& desc : split_features) {
+        cout << "Cluster size: " << desc->size() << endl;
+    }
+
+    //visualize_split_keypoints(split_keypoints);
+}
+
 }

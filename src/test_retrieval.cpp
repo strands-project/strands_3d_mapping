@@ -9,6 +9,7 @@
 #include "object_3d_retrieval/register_objects.h"
 #include "object_3d_retrieval/segment_features.h"
 #include "object_3d_retrieval/pfhrgb_estimation.h"
+#include "object_3d_retrieval/dataset_annotations.h"
 #include "sift/sift.h"
 
 #include <opencv2/highgui/highgui.hpp>
@@ -231,9 +232,11 @@ void save_split_features(object_retrieval& obr_segments)
             break;
         }
         // we should add a keypoints argument to object_retrieval
-        string pfhrgb_file = segment_folder + "/pfhrgb_cloud.pcd";
-        string pfhrgb_points_file = segment_folder + "/pfhrgb_points_file.pcd";
-        PfhRgbCloudT::Ptr desc_cloud(new PfhRgbCloudT);
+        //string pfhrgb_file = segment_folder + "/pfhrgb_cloud.pcd";
+        //string pfhrgb_points_file = segment_folder + "/pfhrgb_points_file.pcd";
+        string pfhrgb_file = segment_folder + "/shot_cloud.pcd";
+        string pfhrgb_points_file = segment_folder + "/shot_points_file.pcd";
+        HistCloudT::Ptr desc_cloud(new HistCloudT);
         CloudT::Ptr kp_cloud(new CloudT);
         if (pcl::io::loadPCDFile(pfhrgb_file, *desc_cloud) == -1) {
             cout << "Could not load " << pfhrgb_file << endl;
@@ -243,14 +246,14 @@ void save_split_features(object_retrieval& obr_segments)
             cout << "Could not load " << pfhrgb_points_file << endl;
             exit(0);
         }
-        vector<PfhRgbCloudT::Ptr> split_features;
+        vector<HistCloudT::Ptr> split_features;
         vector<CloudT::Ptr> split_keypoints;
         pfhrgb_estimation::split_descriptor_points(split_features, split_keypoints, desc_cloud, kp_cloud, 30);
         cout << "Split features size: " << split_features.size() << endl;
         cout << "Split keypoint size: " << split_keypoints.size() << endl;
         int counter = 0;
         int j = 0;
-        for (PfhRgbCloudT::Ptr& split_cloud : split_features) {
+        for (HistCloudT::Ptr& split_cloud : split_features) {
             if (split_cloud->empty()) {
                 ++j;
                 continue;
@@ -261,8 +264,8 @@ void save_split_features(object_retrieval& obr_segments)
                 exit(0);
             }
             cout << "Saving features and keypoints..." << endl;
-            string split_file = segment_folder + "/split_features" + to_string(counter) + ".pcd";
-            string split_points_file = segment_folder + "/split_points" + to_string(counter) + ".pcd";
+            string split_file = segment_folder + "/split_shot_features" + to_string(counter) + ".pcd";
+            string split_points_file = segment_folder + "/split_shot_points" + to_string(counter) + ".pcd";
             pcl::io::savePCDFileBinary(split_file, *split_cloud);
             pcl::io::savePCDFileBinary(split_points_file, *split_keypoints[j]);
             cout << "Done saving..." << endl;
@@ -419,337 +422,28 @@ void compute_and_save_segments(object_retrieval& obr_scans)
 }
 
 // OK
-struct voxel_annotation {
-    int segment_id;
-    string segment_file;
-    string scan_folder;
-    int scan_id;
-    string annotation;
-    bool full;
-    bool segment_covered;
-    bool annotation_covered;
-    template <typename Archive>
-    void serialize(Archive& archive)
-    {
-        archive(segment_id, segment_file, scan_folder, scan_id, annotation, full, segment_covered, annotation_covered);
-    }
-};
-
-// OK
-pair<bool, bool> supervoxel_is_correct(CloudT::Ptr& cloud, const Eigen::Matrix3f& K, int minx, int maxx, int miny, int maxy)
-{
-    cv::Mat cover = cv::Mat::zeros(maxy - miny + 1, maxx - minx + 1, CV_32SC1);
-    size_t counter = 0;
-    for (PointT& p : cloud->points) {
-        Eigen::Vector3f q = K*p.getVector3fMap();
-        int x = int(q(0)/q(2) + 0.5f);
-        int y = int(q(1)/q(2) + 0.5f);
-        if (x >= minx && x <= maxx && y >= miny && y <= maxy) {
-            cover.at<int>(y - miny, x - minx) = 1;
-            ++counter;
-        }
-    }
-    int allpixels = cv::sum(cover)[0];
-    float segment_cover = float(allpixels)/float((maxx-minx)*(maxy-miny));
-    float annotation_cover = float(counter)/float(cloud->size());
-    return make_pair(annotation_cover > 0.75, segment_cover > 0.5);
-}
-
-// OK
-voxel_annotation scan_for_supervoxel(int i, const Eigen::Matrix3f& K, object_retrieval& obr)
-{
-    string segment_folder = obr.get_folder_for_segment_id(i);
-    string metadata_file = segment_folder + "/metadata.txt";
-    string metadata; // in this dataset, this is the path to the scan
-    {
-        ifstream f;
-        f.open(metadata_file);
-        getline(f, metadata);
-        getline(f, metadata);
-        f.close();
-    }
-    string scan_folder = boost::filesystem::path(metadata).parent_path().string();
-    string scan_name = boost::filesystem::path(metadata).stem().string();
-    size_t pos = scan_name.find_last_not_of("0123456789");
-    int ind = stoi(scan_name.substr(pos+1));
-    string annotation_file = scan_folder + "/annotation" + to_string(ind) + ".txt";
-    string annotation; // in this dataset, this is the path to the scan
-    {
-        ifstream f;
-        f.open(annotation_file);
-        getline(f, annotation);
-        f.close();
-    }
-    bool annotation_covered = false;
-    bool segment_covered = false;
-    bool full = false;
-    string cloud_file = segment_folder + "/segment.pcd";
-    if (annotation != "null") {
-        vector<string> strs;
-        boost::split(strs, annotation, boost::is_any_of(" \t\n"));
-        annotation = strs[0];
-        full = (strs[1] == "full");
-        int minx = stoi(strs[2]);
-        int maxx = stoi(strs[3]);
-        int miny = stoi(strs[4]);
-        int maxy = stoi(strs[5]);
-        CloudT::Ptr cloud(new CloudT);
-        pcl::io::loadPCDFile(cloud_file, *cloud);
-        tie(segment_covered, annotation_covered) = supervoxel_is_correct(cloud, K, minx, maxx, miny, maxy);
-    }
-
-    return voxel_annotation { i, cloud_file, scan_folder, ind, annotation, full, segment_covered, annotation_covered };
-}
-
-// OK
-string annotation_for_supervoxel(int i, object_retrieval& obr)
-{
-    string segment_folder = obr.get_folder_for_segment_id(i);
-    string metadata_file = segment_folder + "/metadata.txt";
-    string metadata; // in this dataset, this is the path to the scan
-    {
-        ifstream f;
-        f.open(metadata_file);
-        getline(f, metadata);
-        getline(f, metadata);
-        f.close();
-    }
-    string scan_folder = boost::filesystem::path(metadata).parent_path().string();
-    string scan_name = boost::filesystem::path(metadata).stem().string();
-    size_t pos = scan_name.find_last_not_of("0123456789");
-    int ind = stoi(scan_name.substr(pos+1));
-    string annotation_file = scan_folder + "/annotation" + to_string(ind) + ".txt";
-    string annotation; // in this dataset, this is the path to the scan
-    {
-        ifstream f;
-        f.open(annotation_file);
-        getline(f, annotation);
-        f.close();
-    }
-    if (annotation != "null") {
-        vector<string> strs;
-        boost::split(strs, annotation, boost::is_any_of(" \t\n"));
-        annotation = strs[0];
-    }
-    return annotation;
-}
-
-// OK
-void list_annotated_supervoxels(vector<voxel_annotation>& annotations, const string& annotations_file,
-                                const Eigen::Matrix3f& K, object_retrieval& obr)
-{
-    if (boost::filesystem::is_regular_file(annotations_file)) {
-        ifstream in(annotations_file, std::ios::binary);
-        cereal::BinaryInputArchive archive_i(in);
-        archive_i(annotations);
-        return;
-    }
-    for (int i = 0; ; ++i) {
-        string segment_folder = obr.get_folder_for_segment_id(i);
-        if (!boost::filesystem::is_directory(segment_folder)) {
-            break;
-        }
-        voxel_annotation annotation = scan_for_supervoxel(i, K, obr);
-        annotations.push_back(annotation);
-    }
-    {
-        ofstream out(annotations_file, std::ios::binary);
-        cereal::BinaryOutputArchive archive_o(out);
-        archive_o(annotations);
-    }
-}
-
-// OK
-void calculate_correct_ratio(map<string, pair<float, int> >& instance_correct_ratios, voxel_annotation& a,
-                             int scan_ind, vector<index_score>& scores, object_retrieval& obr_scans, int noise_scans_size, const bool verbose = true)
-{
-    bool found = false;
-    int counter = 0;
-    int partial_counter = 0;
-    bool last_match;
-    for (index_score s : scores) {
-        if (s.first < noise_scans_size) { // is noise
-            cout << "This was noise, false" << endl;
-            cout << "Score: " << s.second << endl;
-            last_match = false;
-            continue;
-        }
-        int query_ind = s.first - noise_scans_size;
-        string instance = annotation_for_scan(query_ind, obr_scans);
-        if (query_ind == scan_ind) {
-            found = true;
-            continue;
-        }
-        last_match = false;
-        if (instance == a.annotation) {
-            ++counter;
-            last_match = true;
-            if (!a.full) {
-                ++partial_counter;
-            }
-            if (verbose) cout << "This was true." << endl;
-        }
-        else {
-            if (verbose) cout << "This was false." << endl;
-        }
-        if (verbose) {
-            HistCloudT::Ptr features_match(new HistCloudT);
-            obr_scans.load_features_for_segment(features_match, query_ind);
-            cout << "Score: " << s.second << endl;
-            cout << "Number of features: " << features_match->size() << endl;
-        }
-    }
-
-    if (!found) {
-        if (last_match) {
-            --counter;
-        }
-    }
-
-    float correct_ratio = float(counter)/float(scores.size()-1);
-    instance_correct_ratios[a.annotation].first += correct_ratio;
-    instance_correct_ratios[a.annotation].second += 1;
-
-    if (verbose) {
-        cout << "Showing " << a.segment_file << " with annotation " << a.annotation << endl;
-        cout << "Correct ratio: " << correct_ratio << endl;
-        cout << "Partial ratio: " << float(partial_counter)/float(counter) << endl;
-    }
-}
-
-// OK
-void calculate_correct_ratio(map<string, pair<float, int> >& instance_correct_ratios, const string& annotation,
-                             int scan_ind, vector<index_score>& scores, object_retrieval& obr_scans, int noise_scans_size, const bool verbose = true)
-{
-    bool found = false;
-    int counter = 0;
-    bool last_match;
-    for (index_score s : scores) {
-        if (s.first < noise_scans_size) { // is noise
-            cout << "This was noise, false" << endl;
-            cout << "Score: " << s.second << endl;
-            last_match = false;
-            continue;
-        }
-        int query_ind = s.first - noise_scans_size;
-        string instance = annotation_for_scan(query_ind, obr_scans);
-        if (query_ind == scan_ind) {
-            found = true;
-            continue;
-        }
-        last_match = false;
-        if (instance == annotation) {
-            ++counter;
-            last_match = true;
-            if (verbose) cout << "This was true." << endl;
-        }
-        else {
-            if (verbose) cout << "This was false." << endl;
-        }
-        if (verbose) {
-            //HistCloudT::Ptr features_match(new HistCloudT);
-            //obr_scans.load_features_for_segment(features_match, query_ind);
-            cout << "Score: " << s.second << endl;
-            //cout << "Number of features in scan: " << features_match->size() << endl;
-        }
-    }
-
-    if (!found) {
-        if (last_match) {
-            --counter;
-        }
-    }
-
-    float correct_ratio = float(counter)/float(scores.size()-1);
-    instance_correct_ratios[annotation].first += correct_ratio;
-    instance_correct_ratios[annotation].second += 1;
-
-    if (verbose) {
-        cout << "Showing annotation: " << annotation << endl;
-        cout << "Correct ratio: " << correct_ratio << endl;
-    }
-}
-
-// OK
-void compute_decay_correct_ratios(vector<pair<float, int> >& decay_correct_ratios, vector<int>& intermediate_points,
-                                  voxel_annotation& a, int scan_ind, vector<index_score>& scores, object_retrieval& obr_scans,
-                                  int nbr_query, int noise_scans_size)
-{
-    // do this, but until we have found enough before the first intermediate point
-    vector<int> counters(intermediate_points.size(), 0);
-    vector<int> comparisons(intermediate_points.size(), 0);
-    vector<bool> last_matches(intermediate_points.size());
-    vector<bool> founds(intermediate_points.size(), false);
-    for (index_score s : scores) {
-        if (comparisons[0] >= nbr_query) {
-            break;
-        }
-        string instance;
-        if (s.first >= noise_scans_size) {
-            instance = annotation_for_scan(s.first - noise_scans_size, obr_scans);
-        }
-
-        for (int i = 0; i < intermediate_points.size(); ++i) {
-            if (comparisons[i] >= nbr_query) {
-                continue;
-            }
-            if (s.first < noise_scans_size && s.first >= intermediate_points[i]) {
-                continue;
-            }
-
-            if (s.first < noise_scans_size) { // is noise
-                last_matches[i] = false;
-                ++comparisons[i];
-                continue;
-            }
-            int query_ind = s.first - noise_scans_size;
-            if (query_ind == scan_ind) {
-                founds[i] = true;
-                ++comparisons[i];
-                continue;
-            }
-            last_matches[i] = false;
-            if (instance == a.annotation) {
-                ++counters[i];
-                last_matches[i] = true;
-            }
-            ++comparisons[i];
-        }
-    }
-
-    for (int i = 0; i < intermediate_points.size(); ++i) {
-        if (!founds[i]) {
-            if (last_matches[i]) {
-                --counters[i];
-            }
-        }
-
-        float correct_ratio = float(counters[i])/float(nbr_query-1);
-        decay_correct_ratios[i].first += correct_ratio;
-        decay_correct_ratios[i].second += 1;
-    }
-}
-
-// OK
 void get_voxel_vectors_for_scan(CloudT::Ptr& voxel_centers, vector<double>& vocabulary_norms,
                                 vector<map<int, double> >& vocabulary_vectors, int i, object_retrieval& obr_scans)
 {
     string scan_path = obr_scans.get_folder_for_segment_id(i);
 
-    string centers_file = scan_path + "/split_centers_1.pcd";
+    //string centers_file = scan_path + "/split_centers_1.pcd";
+    string centers_file = scan_path + "/split_centers_shot.pcd";
     if (pcl::io::loadPCDFile(centers_file, *voxel_centers) == -1) {
         cout << "Could not read file " << centers_file << endl;
         exit(0);
     }
 
-    string norms_file = scan_path + "/grouped_vocabulary_norms_1.cereal";
+    //string norms_file = scan_path + "/grouped_vocabulary_norms_1.cereal";
+    string norms_file = scan_path + "/grouped_vocabulary_norms_shot.cereal";
     ifstream inn(norms_file, std::ios::binary);
     {
         cereal::BinaryInputArchive archive_i(inn);
         archive_i(vocabulary_norms);
     }
 
-    string vectors_file = scan_path + "/grouped_vocabulary_vectors_1.cereal";
+    //string vectors_file = scan_path + "/grouped_vocabulary_vectors_1.cereal";
+    string vectors_file = scan_path + "/grouped_vocabulary_vectors_shot.cereal";
     ifstream inv(vectors_file, std::ios::binary);
     {
         cereal::BinaryInputArchive archive_i(inv);
@@ -810,7 +504,8 @@ void get_voxels_and_points_for_scan(vector<HistCloudT::Ptr>& voxels, vector<Clou
     }
     for (const string& voxel_path : voxel_paths) {
         for (int i = 0; ; ++i) {
-            string oversegment_path = voxel_path + "/split_features" + to_string(i) + ".pcd";
+            //string oversegment_path = voxel_path + "/split_features" + to_string(i) + ".pcd";
+            string oversegment_path = voxel_path + "/split_shot_features" + to_string(i) + ".pcd";
             if (!boost::filesystem::is_regular_file(oversegment_path)) {
                 break;
             }
@@ -820,7 +515,8 @@ void get_voxels_and_points_for_scan(vector<HistCloudT::Ptr>& voxels, vector<Clou
                 exit(0);
             }
 
-            string points_path = voxel_path + "/split_points" + to_string(i) + ".pcd";
+            //string points_path = voxel_path + "/split_points" + to_string(i) + ".pcd";
+            string points_path = voxel_path + "/split_shot_points" + to_string(i) + ".pcd";
             if (!boost::filesystem::is_regular_file(points_path)) {
                 cout << "There was a features file but no points file..." << endl;
                 exit(0);
@@ -862,13 +558,15 @@ void save_oversegmented_grouped_vocabulary_index_vectors(object_retrieval& obr_s
             double pnorm = obr_segments.gvt.compute_query_index_vector(vocabulary_vectors.back(), voxel, mapping);
             vocabulary_norms.push_back(pnorm);
         }
-        string vectors_file = path + "/grouped_vocabulary_vectors_1.cereal";
+        //string vectors_file = path + "/grouped_vocabulary_vectors_1.cereal";
+        string vectors_file = path + "/grouped_vocabulary_vectors_shot.cereal";
         ofstream outv(vectors_file, std::ios::binary);
         {
             cereal::BinaryOutputArchive archive_o(outv);
             archive_o(vocabulary_vectors);
         }
-        string norms_file = path + "/grouped_vocabulary_norms_1.cereal";
+        //string norms_file = path + "/grouped_vocabulary_norms_1.cereal";
+        string norms_file = path + "/grouped_vocabulary_norms_shot.cereal";
         ofstream outn(norms_file, std::ios::binary);
         {
             cereal::BinaryOutputArchive archive_o(outn);
@@ -877,7 +575,8 @@ void save_oversegmented_grouped_vocabulary_index_vectors(object_retrieval& obr_s
 
         CloudT::Ptr centers_cloud(new CloudT);
         compute_voxel_centers(centers_cloud, voxel_points, min_features);
-        string centers_file = path + "/split_centers_1.pcd";
+        //string centers_file = path + "/split_centers_1.pcd";
+        string centers_file = path + "/split_centers_shot.pcd";
         pcl::io::savePCDFileBinary(centers_file, *centers_cloud);
     }
 }
@@ -1131,14 +830,81 @@ void find_top_oversegments_grow_and_score(vector<index_score>& first_scores, vec
                                    obr_segments, obr_scans, obr_scans_annotations, nbr_query, noise_scans_size);
 }
 
+struct query_in_dataset_iterator {
+    vector<dataset_annotations::voxel_annotation> annotations;
+    object_retrieval& obr_segments_annotations;
+    int i;
+    bool get_next_query(string& instance, CloudT::Ptr& cloud, HistCloudT::Ptr& features, CloudT::Ptr& keypoints, int& scan_id)
+    {
+        if (i >= annotations.size()) {
+            return false;
+        }
+        dataset_annotations::voxel_annotation a = annotations[i];
+        ++i;
+        if (!a.full || !a.annotation_covered || !a.segment_covered) {
+            return get_next_query(instance, cloud, features, keypoints, scan_id);
+        }
+        instance = a.annotation;
+        pcl::io::loadPCDFile(a.segment_file, *cloud);
+        scan_id = scan_ind_for_segment(a.segment_id, obr_segments_annotations);
+        return obr_segments_annotations.load_features_for_segment(features, a.segment_id);
+    }
+    query_in_dataset_iterator(vector<dataset_annotations::voxel_annotation>& annotations, object_retrieval& obr) : annotations(annotations), obr_segments_annotations(obr), i(0)
+    {
+
+    }
+};
+
+struct query_separate_data_iterator {
+    using vec = vector<boost::filesystem::path>;
+    string base_path;
+    vec v;
+    int i;
+    bool get_next_query(string& instance, CloudT::Ptr& cloud, HistCloudT::Ptr& features, CloudT::Ptr& keypoints, int& scan_id)
+    {
+        if (i >= v.size()) {
+            return false;
+        }
+        boost::filesystem::path f = v[i];
+        ++i;
+        if (!boost::filesystem::is_regular_file(f)) {
+            return get_next_query(instance, cloud, features, keypoints, scan_id);
+        }
+        string stem = f.stem().string();
+        if (!isdigit(stem.back())) {
+            return get_next_query(instance, cloud, features, keypoints, scan_id);
+        }
+        //string features_path = base_path + "/" + stem + "_features.pcd";
+        //string keypoints_path = base_path + "/" + stem + "_keypoints.pcd";
+        string features_path = base_path + "/" + stem + "_shot_features.pcd";
+        string keypoints_path = base_path + "/" + stem + "_shot_keypoints.pcd";
+
+        int pos = stem.find_first_of("_");
+        instance = stem.substr(0, pos+2);
+        cout << "Instance: " << instance << endl;
+        pcl::io::loadPCDFile(f.string(), *cloud);
+        pcl::io::loadPCDFile(features_path, *features);
+        pcl::io::loadPCDFile(keypoints_path, *keypoints);
+        scan_id = -1;
+    }
+    query_separate_data_iterator(string base_path) : base_path(base_path), v(), i(0)
+    {
+        boost::filesystem::path p(base_path);
+        copy(boost::filesystem::directory_iterator(p), boost::filesystem::directory_iterator(), back_inserter(v));
+        sort(v.begin(), v.end()); // sort, since directory iteration
+        cout << "Opening path " << p.string() << endl;
+    }
+};
+
 // OK
-void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen::Matrix3f& K,
+template <typename Iterator>
+void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
                                    object_retrieval& obr_segments, object_retrieval& obr_scans,
                                    object_retrieval& obr_segments_annotations, object_retrieval& obr_scans_annotations,
                                    int noise_scans_size)
 {
     const int nbr_query = 11;
-    const int nbr_initial_query = 1500;
+    const int nbr_initial_query = 300;
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
 
@@ -1180,7 +946,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
     double total_time1 = 0.0;
     double total_time2 = 0.0;
 
-    int counter = 0;
+    /*int counter = 0;
     for (voxel_annotation& a : annotations) {
         if (counter > 5) {
             //break;
@@ -1193,24 +959,36 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         }
         if (a.annotation != "ajax_1" && a.annotation != "ajax_2" && a.annotation != "ball_1") {
             //continue;
-        }
+        }*/
+    string instance;
+    CloudT::Ptr cloud(new CloudT);
+    HistCloudT::Ptr features(new HistCloudT);
+    CloudT::Ptr keypoints(new CloudT); // add reading of keypoints as well
+    int scan_id;
+    while (query_iterator.get_next_query(instance, cloud, features, keypoints, scan_id)) {
+        cout << __FILE__ << ", " << __LINE__ << endl;
 
-        instance_number_queries[a.annotation] += 1;
+        instance_number_queries[instance] += 1;
 
-        CloudT::Ptr cloud(new CloudT);
+        /*CloudT::Ptr cloud(new CloudT);
         pcl::io::loadPCDFile(a.segment_file, *cloud);
-        //obr_segments_annotations.visualize_cloud(cloud);
 
         HistCloudT::Ptr features(new HistCloudT);
         CloudT::Ptr keypoints(new CloudT);
-        obr_segments_annotations.load_features_for_segment(features, keypoints, a.segment_id); // also load keypoints
+        obr_segments_annotations.load_features_for_segment(features, keypoints, a.segment_id); // also load keypoints*/
         vector<tuple<int, int, double> > tuple_scores;
 
         //chrono::time_point<std::chrono::system_clock> start1, end1;
         //start1 = chrono::system_clock::now();
 
+        cout << __FILE__ << ", " << __LINE__ << endl;
+
+        cout << "Features: " << features->size() << endl;
+
         // this also takes care of the scan association
         obr_segments.gvt.top_optimized_similarities(tuple_scores, features, nbr_initial_query);
+
+        cout << __FILE__ << ", " << __LINE__ << endl;
 
         //vector<tuple<int, int, double> > reweighted_scores;
         //reweight_query_vocabulary(reweighted_scores, obr_segments, obr_scans, obr_scans_annotations, K,
@@ -1242,7 +1020,7 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         find_top_oversegments_grow_and_score(first_scores, second_scores, oversegment_indices, features, mapping, obr_segments,
                                              obr_scans, obr_scans_annotations, nbr_query, nbr_initial_query, noise_scans_size);
 
-#if 1
+#if 0
         vector<double> match_scores;
         compute_grown_segment_score(match_scores, features, keypoints, cloud, second_scores, oversegment_indices, obr_scans, obr_scans_annotations, noise_scans_size);
 
@@ -1283,22 +1061,22 @@ void query_supervoxel_oversegments(vector<voxel_annotation>& annotations, Eigen:
         //total_time2 += elapsed_seconds2.count();
 
         // need to check that it's correct here
-        int scan_ind = scan_ind_for_segment(a.segment_id, obr_segments_annotations);
-        calculate_correct_ratio(instance_correct_ratios, a, scan_ind, second_scores, obr_scans_annotations, noise_scans_size);
+        //int scan_ind = scan_ind_for_segment(a.segment_id, obr_segments_annotations);
+        dataset_annotations::calculate_correct_ratio(instance_correct_ratios, instance, scan_id, second_scores, obr_scans_annotations, noise_scans_size);
         //calculate_correct_ratio(first_correct_ratios, a, scan_ind, scores, obr_scans, false);
         first_scores.resize(nbr_query);
-        calculate_correct_ratio(usual_correct_ratios, a, scan_ind, first_scores, obr_scans_annotations, noise_scans_size);
+        dataset_annotations::calculate_correct_ratio(usual_correct_ratios, instance, scan_id, first_scores, obr_scans_annotations, noise_scans_size);
         //calculate_correct_ratio(total_correct_ratios, a, scan_ind, total_scores, obr_scans_annotations, noise_scans_size);
         cout << "Number of features: " << features->size() << endl;
 
-        calculate_correct_ratio(reweight_instance_correct_ratios, a, scan_ind, second_reweighted_scores, obr_scans_annotations, noise_scans_size);
-        first_scores.resize(nbr_query);
-        calculate_correct_ratio(reweight_usual_correct_ratios, a, scan_ind, first_reweighted_scores, obr_scans_annotations, noise_scans_size);
+        //calculate_correct_ratio(reweight_instance_correct_ratios, instance, scan_id, second_reweighted_scores, obr_scans_annotations, noise_scans_size);
+        //first_reweighted_scores.resize(nbr_query);
+        //calculate_correct_ratio(reweight_usual_correct_ratios, instance, scan_id, first_reweighted_scores, obr_scans_annotations, noise_scans_size);
 
-        instance_mean_features[a.annotation].first += features->size();
-        instance_mean_features[a.annotation].second += 1;
+        instance_mean_features[instance].first += features->size();
+        instance_mean_features[instance].second += 1;
 
-        ++counter;
+        //++counter;
     }
 
     end = chrono::system_clock::now();
@@ -1409,78 +1187,12 @@ void query_cloud(CloudT::Ptr& cloud, object_retrieval& obr_segments, object_retr
 
 }
 
-struct query_in_dataset_iterator {
-    vector<voxel_annotation> annotations;
-    object_retrieval& obr_segments_annotations;
-    int i;
-    bool get_next_query(string& instance, CloudT::Ptr& cloud, HistCloudT::Ptr& features, CloudT::Ptr& keypoints, int& scan_id)
-    {
-        if (i >= annotations.size()) {
-            return false;
-        }
-        voxel_annotation a = annotations[i];
-        ++i;
-        if (!a.full || !a.annotation_covered || !a.segment_covered) {
-            return get_next_query(instance, cloud, features, keypoints, scan_id);
-        }
-        instance = a.annotation;
-        pcl::io::loadPCDFile(a.segment_file, *cloud);
-        scan_id = scan_ind_for_segment(a.segment_id, obr_segments_annotations);
-        return obr_segments_annotations.load_features_for_segment(features, a.segment_id);
-    }
-    query_in_dataset_iterator(vector<voxel_annotation>& annotations, object_retrieval& obr) : annotations(annotations), obr_segments_annotations(obr), i(0)
-    {
-
-    }
-};
-
-struct query_separate_data_iterator {
-    using vec = vector<boost::filesystem::path>;
-    string base_path;
-    vec v;
-    int i;
-    bool get_next_query(string& instance, CloudT::Ptr& cloud, HistCloudT::Ptr& features, CloudT::Ptr& keypoints, int& scan_id)
-    {
-        if (i >= v.size()) {
-            return false;
-        }
-        boost::filesystem::path f = v[i];
-        ++i;
-        if (!boost::filesystem::is_regular_file(f)) {
-            return get_next_query(instance, cloud, features, keypoints, scan_id);
-        }
-        string stem = f.stem().string();
-        if (!isdigit(stem.back())) {
-            return get_next_query(instance, cloud, features, keypoints, scan_id);
-        }
-        //string features_path = base_path + "/" + stem + "_features.pcd";
-        //string keypoints_path = base_path + "/" + stem + "_keypoints.pcd";
-        string features_path = base_path + "/" + stem + "_shot_features.pcd";
-        string keypoints_path = base_path + "/" + stem + "_shot_keypoints.pcd";
-
-        int pos = stem.find_first_of("_");
-        instance = stem.substr(0, pos+2);
-        cout << "Instance: " << instance << endl;
-        pcl::io::loadPCDFile(f.string(), *cloud);
-        pcl::io::loadPCDFile(features_path, *features);
-        pcl::io::loadPCDFile(keypoints_path, *keypoints);
-        scan_id = -1;
-    }
-    query_separate_data_iterator(string base_path) : base_path(base_path), v(), i(0)
-    {
-        boost::filesystem::path p(base_path);
-        copy(boost::filesystem::directory_iterator(p), boost::filesystem::directory_iterator(), back_inserter(v));
-        sort(v.begin(), v.end()); // sort, since directory iteration
-        cout << "Opening path " << p.string() << endl;
-    }
-};
-
 // OK
 template <typename Iterator>
 void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments, object_retrieval& obr_segments_annotations,
                        object_retrieval& obr_scans_annotations, int noise_scans_size, int noise_segments_size)
 {
-    const int nbr_query = 11;
+    const int nbr_query = 15; // 11
 
     if (obr_segments.vt.empty()) {
         obr_segments.read_vocabulary(obr_segments.vt);
@@ -1500,21 +1212,6 @@ void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments,
     chrono::time_point<std::chrono::system_clock> start, end;
     start = chrono::system_clock::now();
 
-    /*for (voxel_annotation& a : annotations) {
-        if (a.full) {
-            nbr_full_instances[a.annotation] += 1;
-        }
-        if (!a.full || !a.annotation_covered || !a.segment_covered) {
-            continue;
-        }
-        if (a.annotation != "ajax_1" && a.annotation != "ajax_2" && a.annotation != "ball_1") {
-            //continue;
-        }
-        CloudT::Ptr cloud(new CloudT);
-        pcl::io::loadPCDFile(a.segment_file, *cloud);
-        HistCloudT::Ptr features(new HistCloudT);
-        obr_segments_annotations.load_features_for_segment(features, a.segment_id);*/
-
     string instance;
     CloudT::Ptr cloud(new CloudT);
     HistCloudT::Ptr features(new HistCloudT);
@@ -1528,14 +1225,15 @@ void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments,
 
         for (index_score& s : scores) {
             if (s.first < noise_segments_size) {
-                s.first = s.first = 0;//scan_ind_for_segment(s.first, obr_segments);
+                s.first = 0;//scan_ind_for_segment(s.first, obr_segments);
             }
             else {
                 s.first = scan_ind_for_segment(s.first-noise_segments_size, obr_segments_annotations) + noise_scans_size;
             }
         }
 
-        calculate_correct_ratio(instance_correct_ratios, instance, scan_id, scores, obr_scans_annotations, noise_scans_size);
+        //dataset_annotations::calculate_correct_ratio(instance_correct_ratios, instance, scan_id, scores, obr_scans_annotations, noise_scans_size);
+        dataset_annotations::calculate_correct_ratio_exclude_sweep(instance_correct_ratios, instance, scan_id, scores, obr_scans_annotations, noise_scans_size);
 
         //int scan_ind = scan_ind_for_segment(a.segment_id, obr_segments_annotations);
         //calculate_correct_ratio(instance_correct_ratios, a, scan_ind, scores, obr_scans_annotations, noise_scans_size);
@@ -1585,11 +1283,11 @@ int main(int argc, char** argv)
     //exit(0);
 
     // probably train using the noise segments
-    //obr_segments_noise.train_grouped_vocabulary(12000, false);
+    //obr_segments_noise.train_grouped_vocabulary(10000, false);
 
     // TODO: add something like obr_segments_noise.get_scan_count()
     int noise_scans_size = 3526;
-    //obr_segments_noise.add_others_to_grouped_vocabulary(30000, obr_segments, noise_scans_size);
+    //obr_segments_noise.add_others_to_grouped_vocabulary(10000, obr_segments, noise_scans_size);
 
     //obr_segments_noise.train_vocabulary_incremental(4000, false); // 12000
     int noise_segments_size = 63136;
@@ -1609,17 +1307,18 @@ int main(int argc, char** argv)
         archive_i(K);
     }
 
-    vector<voxel_annotation> annotations;
+    vector<dataset_annotations::voxel_annotation> annotations;
     string annotations_file = segment_path + "/voxel_annotations.cereal";
-    list_annotated_supervoxels(annotations, annotations_file, K, obr_segments);
-
-    //query_supervoxel_oversegments(annotations, K, obr_segments, obr_scans, obr_segments, obr_scans, 0);
-
-    //query_supervoxel_oversegments(annotations, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
+    dataset_annotations::list_annotated_supervoxels(annotations, annotations_file, K, obr_segments);
 
     query_separate_data_iterator query_sep_iter("/home/nbore/Data/query_object_recorder");
     query_in_dataset_iterator query_data_iter(annotations, obr_segments);
-    query_supervoxels(query_sep_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
+
+    //query_supervoxel_oversegments(annotations, K, obr_segments, obr_scans, obr_segments, obr_scans, 0);
+
+    //query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
+
+    query_supervoxels(query_data_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
 
     /*CloudT::Ptr query_cloud_larger(new CloudT);
     pcl::io::loadPCDFile("/home/nbore/Data/rgb_0015_label_0.pcd", *query_cloud_larger);
