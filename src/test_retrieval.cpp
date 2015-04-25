@@ -7,9 +7,9 @@
 #include "object_3d_retrieval/object_retrieval.h"
 #include "object_3d_retrieval/dataset_convenience.h"
 #include "object_3d_retrieval/register_objects.h"
-#include "object_3d_retrieval/segment_features.h"
 #include "object_3d_retrieval/pfhrgb_estimation.h"
 #include "object_3d_retrieval/dataset_annotations.h"
+#include "object_3d_retrieval/descriptor_config.h"
 #include "sift/sift.h"
 
 #include <opencv2/highgui/highgui.hpp>
@@ -44,105 +44,6 @@ using PfhRgbT = pcl::Histogram<250>;
 using PfhRgbCloudT = pcl::PointCloud<PfhRgbT>;
 using ShotT = pcl::Histogram<1344>;
 using ShotCloudT = pcl::PointCloud<ShotT>;
-
-void calculate_sift_features(cv::Mat& descriptors, vector<cv::KeyPoint>& keypoints, CloudT::Ptr& cloud, cv::Mat& image,
-                             cv::Mat& depth, int minx, int miny, const Eigen::Matrix3f& K)
-{
-    cv::SIFT::DetectorParams detector_params;
-    detector_params.edgeThreshold = 15.0; // 10.0 default
-    detector_params.threshold = 0.04; // 0.04 default
-    cv::SiftFeatureDetector detector(detector_params);
-    detector.detect(image, keypoints);
-
-    //-- Step 2: Calculate descriptors (feature vectors)
-    //cv::Mat descriptors;
-    // the length of the descriptors is 128
-    // the 3D sift keypoint detectors are probably very unreliable
-    cv::SIFT::DescriptorParams descriptor_params;
-    descriptor_params.isNormalize = true; // always true, shouldn't matter
-    descriptor_params.magnification = 3.0; // 3.0 default
-    descriptor_params.recalculateAngles = true; // true default
-
-    cv::SiftDescriptorExtractor extractor;
-    extractor.compute(image, keypoints, descriptors);
-
-    // get back to 3d coordinates
-    for (cv::KeyPoint k : keypoints) {
-        cv::Point2f p2 = k.pt;
-        Eigen::Vector3f p3;
-        p3(0) = p2.x + float(minx);
-        p3(1) = p2.y + float(miny);
-        p3(2) = 1.0f;
-        p3 = K.colPivHouseholderQr().solve(p3);
-        p3 *= depth.at<float>(int(p2.y), int(p2.x))/p3(2);
-        PointT p;
-        p.getVector3fMap() = p3;
-        cloud->push_back(p);
-    }
-
-    cv::Mat img_keypoints;
-    cv::drawKeypoints(image, keypoints, img_keypoints, cv::Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-    cv::imshow("my keypoints", img_keypoints);
-    cv::waitKey(0);
-}
-
-void sift_features_for_segment(SiftCloudT::Ptr& desc_cloud, CloudT::Ptr& kp_cloud, CloudT::Ptr& cloud, Eigen::Matrix3f& K)
-{
-    int minx, miny;
-    cv::Mat img, depth;
-    register_objects ro;
-    tie(minx, miny) = ro.calculate_image_for_cloud(img, depth, cloud, K);
-    cv::Mat descriptors;
-    std::vector<cv::KeyPoint> keypoints;
-    calculate_sift_features(descriptors, keypoints, kp_cloud, img, depth, minx, miny, K);//ro.calculate_features_for_image(descriptors, keypoints, kp_cloud, img, depth, minx, miny, K);
-    int j = 0;
-    for (cv::KeyPoint& k  : keypoints) {
-        // we need to check if the points are finite
-        SiftT sp;
-        for (int k = 0; k < 128; ++k) {
-            sp.histogram[k] = descriptors.at<float>(j, k);
-        }
-        desc_cloud->push_back(sp);
-        ++j;
-    }
-}
-
-void save_sift_features_for_supervoxels(Eigen::Matrix3f& K, object_retrieval& obr)
-{
-    for (int i = 0; ; ++i) {
-        string segment_folder = obr.get_folder_for_segment_id(i);
-        if (!boost::filesystem::is_directory(segment_folder)) {
-            break;
-        }
-        string cloud_file = segment_folder + "/segment.pcd";
-        CloudT::Ptr cloud(new CloudT);
-        if (pcl::io::loadPCDFile(cloud_file, *cloud) == -1) {
-            cout << "Could not load " << cloud_file << endl;
-            exit(0);
-        }
-        SiftCloudT::Ptr desc_cloud(new SiftCloudT);
-        CloudT::Ptr kp_cloud(new CloudT);
-        sift_features_for_segment(desc_cloud, kp_cloud, cloud, K);
-
-        string sift_file = segment_folder + "/sift_cloud.pcd";
-        string sift_points_file = segment_folder + "/sift_points_file.pcd";
-
-        if (desc_cloud->empty()) {
-            // push back one inf point on descriptors and keypoints
-            SiftT sp;
-            for (int i = 0; i < 128; ++i) {
-                sp.histogram[i] = std::numeric_limits<float>::infinity();
-            }
-            desc_cloud->push_back(sp);
-            PointT p;
-            p.x = p.y = p.z = std::numeric_limits<float>::infinity();
-            kp_cloud->push_back(p);
-        }
-
-        pcl::io::savePCDFileBinary(sift_file, *desc_cloud);
-        pcl::io::savePCDFileBinary(sift_points_file, *kp_cloud);
-    }
-}
 
 // OK
 void save_sift_features(object_retrieval& obr_scans)
@@ -232,10 +133,8 @@ void save_split_features(object_retrieval& obr_segments)
             break;
         }
         // we should add a keypoints argument to object_retrieval
-        //string pfhrgb_file = segment_folder + "/pfhrgb_cloud.pcd";
-        //string pfhrgb_points_file = segment_folder + "/pfhrgb_points_file.pcd";
-        string pfhrgb_file = segment_folder + "/shot_cloud.pcd";
-        string pfhrgb_points_file = segment_folder + "/shot_points_file.pcd";
+        string pfhrgb_file = segment_folder + "/" + descriptor_config::feature_segment_file;
+        string pfhrgb_points_file = segment_folder + "/" + descriptor_config::keypoint_segment_file;
         HistCloudT::Ptr desc_cloud(new HistCloudT);
         CloudT::Ptr kp_cloud(new CloudT);
         if (pcl::io::loadPCDFile(pfhrgb_file, *desc_cloud) == -1) {
@@ -264,8 +163,8 @@ void save_split_features(object_retrieval& obr_segments)
                 exit(0);
             }
             cout << "Saving features and keypoints..." << endl;
-            string split_file = segment_folder + "/split_shot_features" + to_string(counter) + ".pcd";
-            string split_points_file = segment_folder + "/split_shot_points" + to_string(counter) + ".pcd";
+            string split_file = segment_folder + "/" + descriptor_config::split_feature_stem + to_string(counter) + ".pcd";
+            string split_points_file = segment_folder + "/" + descriptor_config::split_keypoints_stem + to_string(counter) + ".pcd";
             pcl::io::savePCDFileBinary(split_file, *split_cloud);
             pcl::io::savePCDFileBinary(split_points_file, *split_keypoints[j]);
             cout << "Done saving..." << endl;
@@ -427,23 +326,20 @@ void get_voxel_vectors_for_scan(CloudT::Ptr& voxel_centers, vector<double>& voca
 {
     string scan_path = obr_scans.get_folder_for_segment_id(i);
 
-    //string centers_file = scan_path + "/split_centers_1.pcd";
-    string centers_file = scan_path + "/split_centers_shot.pcd";
+    string centers_file = scan_path + "/" + descriptor_config::scan_split_centers;
     if (pcl::io::loadPCDFile(centers_file, *voxel_centers) == -1) {
         cout << "Could not read file " << centers_file << endl;
         exit(0);
     }
 
-    //string norms_file = scan_path + "/grouped_vocabulary_norms_1.cereal";
-    string norms_file = scan_path + "/grouped_vocabulary_norms_shot.cereal";
+    string norms_file = scan_path + "/" + descriptor_config::scan_vocabulary_norms;
     ifstream inn(norms_file, std::ios::binary);
     {
         cereal::BinaryInputArchive archive_i(inn);
         archive_i(vocabulary_norms);
     }
 
-    //string vectors_file = scan_path + "/grouped_vocabulary_vectors_1.cereal";
-    string vectors_file = scan_path + "/grouped_vocabulary_vectors_shot.cereal";
+    string vectors_file = scan_path + "/" + descriptor_config::scan_vocabulary_vectors;
     ifstream inv(vectors_file, std::ios::binary);
     {
         cereal::BinaryInputArchive archive_i(inv);
@@ -504,8 +400,7 @@ void get_voxels_and_points_for_scan(vector<HistCloudT::Ptr>& voxels, vector<Clou
     }
     for (const string& voxel_path : voxel_paths) {
         for (int i = 0; ; ++i) {
-            //string oversegment_path = voxel_path + "/split_features" + to_string(i) + ".pcd";
-            string oversegment_path = voxel_path + "/split_shot_features" + to_string(i) + ".pcd";
+            string oversegment_path = voxel_path + "/" + descriptor_config::split_feature_stem + to_string(i) + ".pcd";
             if (!boost::filesystem::is_regular_file(oversegment_path)) {
                 break;
             }
@@ -515,8 +410,7 @@ void get_voxels_and_points_for_scan(vector<HistCloudT::Ptr>& voxels, vector<Clou
                 exit(0);
             }
 
-            //string points_path = voxel_path + "/split_points" + to_string(i) + ".pcd";
-            string points_path = voxel_path + "/split_shot_points" + to_string(i) + ".pcd";
+            string points_path = voxel_path + "/" + descriptor_config::split_keypoints_stem + to_string(i) + ".pcd";
             if (!boost::filesystem::is_regular_file(points_path)) {
                 cout << "There was a features file but no points file..." << endl;
                 exit(0);
@@ -558,15 +452,13 @@ void save_oversegmented_grouped_vocabulary_index_vectors(object_retrieval& obr_s
             double pnorm = obr_segments.gvt.compute_query_index_vector(vocabulary_vectors.back(), voxel, mapping);
             vocabulary_norms.push_back(pnorm);
         }
-        //string vectors_file = path + "/grouped_vocabulary_vectors_1.cereal";
-        string vectors_file = path + "/grouped_vocabulary_vectors_shot.cereal";
+        string vectors_file = path + "/" + descriptor_config::scan_vocabulary_vectors;
         ofstream outv(vectors_file, std::ios::binary);
         {
             cereal::BinaryOutputArchive archive_o(outv);
             archive_o(vocabulary_vectors);
         }
-        //string norms_file = path + "/grouped_vocabulary_norms_1.cereal";
-        string norms_file = path + "/grouped_vocabulary_norms_shot.cereal";
+        string norms_file = path + "/" + descriptor_config::scan_vocabulary_norms;
         ofstream outn(norms_file, std::ios::binary);
         {
             cereal::BinaryOutputArchive archive_o(outn);
@@ -575,8 +467,7 @@ void save_oversegmented_grouped_vocabulary_index_vectors(object_retrieval& obr_s
 
         CloudT::Ptr centers_cloud(new CloudT);
         compute_voxel_centers(centers_cloud, voxel_points, min_features);
-        //string centers_file = path + "/split_centers_1.pcd";
-        string centers_file = path + "/split_centers_shot.pcd";
+        string centers_file = path + "/" + descriptor_config::scan_split_centers;
         pcl::io::savePCDFileBinary(centers_file, *centers_cloud);
     }
 }
@@ -946,20 +837,6 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
     double total_time1 = 0.0;
     double total_time2 = 0.0;
 
-    /*int counter = 0;
-    for (voxel_annotation& a : annotations) {
-        if (counter > 5) {
-            //break;
-        }
-        if (a.full) {
-            nbr_full_instances[a.annotation] += 1;
-        }
-        if (!a.full || !a.annotation_covered || !a.segment_covered) {
-            continue;
-        }
-        if (a.annotation != "ajax_1" && a.annotation != "ajax_2" && a.annotation != "ball_1") {
-            //continue;
-        }*/
     string instance;
     CloudT::Ptr cloud(new CloudT);
     HistCloudT::Ptr features(new HistCloudT);

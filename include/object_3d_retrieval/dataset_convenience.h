@@ -31,15 +31,7 @@ void get_room_from_xml(vector<CloudT::Ptr>& clouds,
                        vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d> >& transforms,
                        string& room_id, vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f> >& intrinsics,
                        SimpleSummaryParser::EntityStruct& entity);
-pair<float, bool> segment_is_correct(CloudT::Ptr& cloud, const Eigen::Matrix3f& K, const string& annotation);
-pair<bool, bool> is_correctly_classified(const string& instance, CloudT::Ptr& segment, const Eigen::Matrix3f& K, const string& segments_path, int i);
-void list_all_annotated_segments(map<int, string>& annotated, map<int, string>& full_annotated, const string& segments_path);
-void compute_instance_counts(map<string, int>& instance_counts, map<int, string>& annotated);
 void visualize_annotations(map<int, string>& annotated, const string& annotations_path);
-void compute_correct_ratios(object_retrieval& obr, map<string, vector<float> >& correct_ratios,
-                            map<string, int>& instance_counts, map<int, string>& annotated,
-                            map<int, string>& full_annotated, int number_not_annotated,
-                            const string& annotations_path);
 void aggregate_features(object_retrieval& obr, const string& aggregate_dir);
 void aggregate_pfhrgb_features(object_retrieval& obr);
 std::string annotation_for_scan(int i, object_retrieval& obr);
