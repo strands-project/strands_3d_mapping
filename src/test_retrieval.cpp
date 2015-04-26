@@ -584,125 +584,6 @@ void reweight_query_vocabulary(vector<tuple<int, int, double> >& reweighted_scor
 }
 
 // OK
-void get_sift_features_for_segment(SiftCloudT::Ptr& sift_cloud, CloudT::Ptr& sift_keypoints, CloudT::Ptr& keypoints,
-                                   int i, object_retrieval& obr_segments)
-{
-    string scan_folder = obr_segments.get_scan_folder_for_segment(i);
-    string sift_features_file = scan_folder + "/sift_cloud.pcd";
-    string sift_keypoints_file = scan_folder + "/sift_points_file.pcd";
-
-    SiftCloudT::Ptr sift_scan_cloud(new SiftCloudT);
-    CloudT::Ptr keypoints_scan_cloud(new CloudT);
-    if (pcl::io::loadPCDFile(sift_features_file, *sift_scan_cloud) == -1) {
-        cout << "Could not read file " << sift_features_file << endl;
-        exit(-1);
-    }
-    if (pcl::io::loadPCDFile(sift_keypoints_file, *keypoints_scan_cloud) == -1) {
-        cout << "Could not read file " << sift_keypoints_file << endl;
-        exit(-1);
-    }
-
-    // pick all the sift keypoints close enough to a point in keypoints
-    pcl::KdTreeFLANN<PointT> kdtree;
-    kdtree.setInputCloud(keypoints);
-
-    vector<int> indices;
-    vector<float> distances;
-    int counter = 0;
-    for (const PointT& p : keypoints_scan_cloud->points) {
-        if (!pcl::isFinite(p)) {
-            ++counter;
-            continue;
-        }
-        indices.clear();
-        distances.clear();
-        kdtree.nearestKSearchT(p, 1, indices, distances);
-        if (distances.empty()) {
-            cout << "Distances empty, wtf??" << endl;
-            exit(0);
-        }
-        float dist = sqrt(distances[0]);
-        if (dist < 0.03) {
-            sift_keypoints->push_back(p);
-            sift_cloud->push_back(sift_scan_cloud->at(counter));
-        }
-        ++counter;
-    }
-}
-
-// OK
-void reweight_query_vocabulary_sift(vector<index_score>& second_scores, vector<index_score>& first_scores, CloudT::Ptr& query_cloud,
-                                    HistCloudT::Ptr& query_features, CloudT::Ptr& query_keypoints, int query_id, int nbr_query,
-                                    object_retrieval& obr_segments, object_retrieval& obr_segments_annotations, int noise_segments_size)
-{
-    // get sift cloud and keypoints for query cloud
-    SiftCloudT::Ptr sift_cloud(new SiftCloudT);
-    CloudT::Ptr sift_keypoints(new CloudT);
-    get_sift_features_for_segment(sift_cloud, sift_keypoints, query_keypoints, query_id, obr_segments_annotations);
-
-    map<int, double> weighted_indices;
-
-    double weight_sum = 0.0;
-    for (index_score& s : first_scores) {
-        //CloudT::Ptr match_scan(new CloudT);
-        HistCloudT::Ptr match_features(new HistCloudT);
-        CloudT::Ptr match_keypoints(new CloudT);
-        CloudT::Ptr match_sift_keypoints(new CloudT);
-        SiftCloudT::Ptr match_sift_cloud(new SiftCloudT);
-        if (s.first < noise_segments_size) {
-            obr_segments.load_features_for_segment(match_features, match_keypoints, s.first);
-            get_sift_features_for_segment(match_sift_cloud, match_sift_keypoints, match_keypoints, s.first, obr_segments);
-            //obr_segments.read_scan_for_segment(match_scan, s.first);
-        }
-        else {
-            obr_segments_annotations.load_features_for_segment(match_features, match_keypoints, s.first-noise_segments_size);
-            get_sift_features_for_segment(match_sift_cloud, match_sift_keypoints, match_keypoints,
-                                          s.first-noise_segments_size, obr_segments_annotations);
-            //obr_segments_annotations.read_scan_for_segment(match_scan, s.first-noise_segments_size);
-        }
-        register_objects ro;
-        ro.set_input_clouds(sift_keypoints, match_sift_keypoints);
-        ro.do_registration(sift_cloud, match_sift_cloud, sift_keypoints, match_sift_keypoints);
-        double spatial_score, color_score;
-        tie(spatial_score, color_score) = ro.get_match_score();
-        if (std::isinf(spatial_score)) {
-            continue;
-        }
-        weighted_indices.insert(make_pair(s.first, spatial_score));
-        weight_sum += spatial_score;
-    }
-
-    for (pair<const int, double>& w : weighted_indices) {
-        w.second *= 1.0*double(weighted_indices.size())/weight_sum;
-    }
-
-    map<int, double> original_norm_constants;
-    map<vocabulary_tree<HistT, 8>::node*, double> original_weights;
-
-    obr_segments.vt.compute_new_weights(original_norm_constants, original_weights, weighted_indices, query_features);
-    obr_segments.vt.top_combined_similarities(second_scores, query_features, nbr_query);
-    obr_segments.vt.restore_old_weights(original_norm_constants, original_weights);
-}
-
-// OK
-template <typename T, typename Compare>
-vector<int> sort_permutation(vector<T> const& vec, Compare compare)
-{
-    vector<int> p(vec.size());
-    std::iota(p.begin(), p.end(), 0);
-    std::sort(p.begin(), p.end(), [&](int i, int j){ return compare(vec[i], vec[j]); });
-    return p;
-}
-
-// OK
-template <typename T>
-vector<T> apply_permutation(vector<T> const& vec, vector<int> const& p)
-{
-    vector<T> sorted_vec(p.size());
-    std::transform(p.begin(), p.end(), sorted_vec.begin(), [&](int i){ return vec[i]; });
-    return sorted_vec;
-}
-
 void load_nth_keypoints_features_for_scan(CloudT::Ptr& keypoints, HistCloudT::Ptr& features,
                                           int i, vector<int>& indices, object_retrieval& obr_scans)
 {
@@ -730,6 +611,25 @@ void load_nth_keypoints_features_for_scan(CloudT::Ptr& keypoints, HistCloudT::Pt
         *features += *voxels[i];
         ++counter;
     }
+}
+
+// OK
+template <typename T, typename Compare>
+vector<int> sort_permutation(vector<T> const& vec, Compare compare)
+{
+    vector<int> p(vec.size());
+    std::iota(p.begin(), p.end(), 0);
+    std::sort(p.begin(), p.end(), [&](int i, int j){ return compare(vec[i], vec[j]); });
+    return p;
+}
+
+// OK
+template <typename T>
+vector<T> apply_permutation(vector<T> const& vec, vector<int> const& p)
+{
+    vector<T> sorted_vec(p.size());
+    std::transform(p.begin(), p.end(), sorted_vec.begin(), [&](int i){ return vec[i]; });
+    return sorted_vec;
 }
 
 // OK
@@ -820,6 +720,167 @@ void find_top_oversegments_grow_and_score(vector<index_score>& first_scores, vec
     // this function call indicates that we need some better abstractions
     compute_grow_subsegment_scores(second_scores, oversegment_indices, first_scores, hints, features, mapping,
                                    obr_segments, obr_scans, obr_scans_annotations, nbr_query, noise_scans_size);
+}
+
+// OK
+void get_sift_features_for_segment(SiftCloudT::Ptr& sift_cloud, CloudT::Ptr& sift_keypoints, CloudT::Ptr& keypoints, const string& scan_folder)
+{
+    string sift_features_file = scan_folder + "/sift_cloud.pcd";
+    string sift_keypoints_file = scan_folder + "/sift_points_file.pcd";
+
+    SiftCloudT::Ptr sift_scan_cloud(new SiftCloudT);
+    CloudT::Ptr keypoints_scan_cloud(new CloudT);
+    if (pcl::io::loadPCDFile(sift_features_file, *sift_scan_cloud) == -1) {
+        cout << "Could not read file " << sift_features_file << endl;
+        exit(-1);
+    }
+    if (pcl::io::loadPCDFile(sift_keypoints_file, *keypoints_scan_cloud) == -1) {
+        cout << "Could not read file " << sift_keypoints_file << endl;
+        exit(-1);
+    }
+
+    // pick all the sift keypoints close enough to a point in keypoints
+    pcl::KdTreeFLANN<PointT> kdtree;
+    kdtree.setInputCloud(keypoints);
+
+    vector<int> indices;
+    vector<float> distances;
+    int counter = 0;
+    for (const PointT& p : keypoints_scan_cloud->points) {
+        if (!pcl::isFinite(p)) {
+            ++counter;
+            continue;
+        }
+        indices.clear();
+        distances.clear();
+        kdtree.nearestKSearchT(p, 1, indices, distances);
+        if (distances.empty()) {
+            cout << "Distances empty, wtf??" << endl;
+            exit(0);
+        }
+        float dist = sqrt(distances[0]);
+        if (dist < 0.03) {
+            sift_keypoints->push_back(p);
+            sift_cloud->push_back(sift_scan_cloud->at(counter));
+        }
+        ++counter;
+    }
+}
+
+// OK
+void reweight_query_vocabulary_sift(vector<index_score>& second_scores, vector<index_score>& first_scores, CloudT::Ptr& query_cloud,
+                                    HistCloudT::Ptr& query_features, CloudT::Ptr& query_keypoints, int query_id, int nbr_query,
+                                    object_retrieval& obr_segments, object_retrieval& obr_segments_annotations, int noise_segments_size)
+{
+    // get sift cloud and keypoints for query cloud
+    SiftCloudT::Ptr sift_cloud(new SiftCloudT);
+    CloudT::Ptr sift_keypoints(new CloudT);
+    get_sift_features_for_segment(sift_cloud, sift_keypoints, query_keypoints, obr_segments_annotations.get_scan_folder_for_segment(query_id));
+
+    map<int, double> weighted_indices;
+
+    double weight_sum = 0.0;
+    for (index_score& s : first_scores) {
+        //CloudT::Ptr match_scan(new CloudT);
+        HistCloudT::Ptr match_features(new HistCloudT);
+        CloudT::Ptr match_keypoints(new CloudT);
+        CloudT::Ptr match_sift_keypoints(new CloudT);
+        SiftCloudT::Ptr match_sift_cloud(new SiftCloudT);
+        if (s.first < noise_segments_size) {
+            obr_segments.load_features_for_segment(match_features, match_keypoints, s.first);
+            get_sift_features_for_segment(match_sift_cloud, match_sift_keypoints, match_keypoints, obr_segments.get_scan_folder_for_segment(s.first));
+            //obr_segments.read_scan_for_segment(match_scan, s.first);
+        }
+        else {
+            obr_segments_annotations.load_features_for_segment(match_features, match_keypoints, s.first-noise_segments_size);
+            get_sift_features_for_segment(match_sift_cloud, match_sift_keypoints, match_keypoints,
+                                          obr_segments_annotations.get_scan_folder_for_segment(s.first-noise_segments_size));
+            //obr_segments_annotations.read_scan_for_segment(match_scan, s.first-noise_segments_size);
+        }
+        register_objects ro;
+        ro.set_input_clouds(sift_keypoints, match_sift_keypoints);
+        ro.do_registration(sift_cloud, match_sift_cloud, sift_keypoints, match_sift_keypoints);
+        double spatial_score, color_score;
+        tie(spatial_score, color_score) = ro.get_match_score();
+        if (std::isinf(spatial_score)) {
+            continue;
+        }
+        weighted_indices.insert(make_pair(s.first, spatial_score));
+        weight_sum += spatial_score;
+    }
+
+    for (pair<const int, double>& w : weighted_indices) {
+        w.second *= 1.0*double(weighted_indices.size())/weight_sum;
+    }
+
+    map<int, double> original_norm_constants;
+    map<vocabulary_tree<HistT, 8>::node*, double> original_weights;
+
+    obr_segments.vt.compute_new_weights(original_norm_constants, original_weights, weighted_indices, query_features);
+    obr_segments.vt.top_combined_similarities(second_scores, query_features, nbr_query);
+    obr_segments.vt.restore_old_weights(original_norm_constants, original_weights);
+}
+
+// OK
+void reweight_query_vocabulary_sift(vector<index_score>& second_scores, vector<index_score>& first_scores, vector<vector<int> >& oversegment_indices,
+                                    HistCloudT::Ptr& query_features, CloudT::Ptr& query_keypoints, int query_id, int nbr_query, int nbr_initial_query,
+                                    object_retrieval& obr_scans, object_retrieval& obr_scans_annotations, object_retrieval& obr_segments,
+                                    object_retrieval& obr_segments_annotations, int noise_scans_size, map<vocabulary_tree<HistT, 8>::node*, int>& mapping)
+{
+    // get sift cloud and keypoints for query cloud
+    SiftCloudT::Ptr sift_cloud(new SiftCloudT);
+    CloudT::Ptr sift_keypoints(new CloudT);
+    get_sift_features_for_segment(sift_cloud, sift_keypoints, query_keypoints, obr_segments_annotations.get_scan_folder_for_segment(query_id));
+
+    map<int, double> weighted_indices;
+
+    double weight_sum = 0.0;
+    int counter = 0;
+    for (index_score& s : first_scores) {
+        //CloudT::Ptr match_scan(new CloudT);
+        HistCloudT::Ptr match_features(new HistCloudT);
+        CloudT::Ptr match_keypoints(new CloudT);
+        CloudT::Ptr match_sift_keypoints(new CloudT);
+        SiftCloudT::Ptr match_sift_cloud(new SiftCloudT);
+        if (s.first < noise_scans_size) {
+            load_nth_keypoints_features_for_scan(match_keypoints, match_features, s.first, oversegment_indices[counter], obr_scans);
+            get_sift_features_for_segment(match_sift_cloud, match_sift_keypoints, match_keypoints, obr_scans.get_folder_for_segment_id(s.first));
+            //obr_segments.read_scan_for_segment(match_scan, s.first);
+        }
+        else {
+            load_nth_keypoints_features_for_scan(match_keypoints, match_features, s.first-noise_scans_size, oversegment_indices[counter], obr_scans_annotations);
+            get_sift_features_for_segment(match_sift_cloud, match_sift_keypoints, match_keypoints,
+                                          obr_scans_annotations.get_folder_for_segment_id(s.first-noise_scans_size));
+            //obr_segments_annotations.read_scan_for_segment(match_scan, s.first-noise_segments_size);
+        }
+        register_objects ro;
+        ro.set_input_clouds(sift_keypoints, match_sift_keypoints);
+        ro.do_registration(sift_cloud, match_sift_cloud, sift_keypoints, match_sift_keypoints);
+        double spatial_score, color_score;
+        tie(spatial_score, color_score) = ro.get_match_score();
+        if (std::isinf(spatial_score)) {
+            ++counter;
+            continue;
+        }
+        weighted_indices.insert(make_pair(s.first, spatial_score));
+        weight_sum += spatial_score;
+        ++counter;
+    }
+
+    for (pair<const int, double>& w : weighted_indices) {
+        w.second *= 1.0*double(weighted_indices.size())/weight_sum;
+    }
+
+    map<int, double> original_norm_constants;
+    map<vocabulary_tree<HistT, 8>::node*, double> original_weights;
+
+    vector<vector<int> > reweighted_oversegment_indices;
+    vector<index_score> reweighted_oversegment_scores;
+
+    obr_segments.gvt.compute_new_weights(original_norm_constants, original_weights, weighted_indices, query_features);
+    find_top_oversegments_grow_and_score(reweighted_oversegment_scores, second_scores, reweighted_oversegment_indices, query_features, mapping, obr_segments,
+                                         obr_scans, obr_scans_annotations, nbr_query, nbr_initial_query, noise_scans_size);
+    obr_segments.gvt.restore_old_weights(original_norm_constants, original_weights);
 }
 
 struct query_in_dataset_iterator {
@@ -927,8 +988,7 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
     map<string, pair<float, int> > usual_correct_ratios;
     //map<string, pair<float, int> > total_correct_ratios;
 
-    map<string, pair<float, int> > reweight_instance_correct_ratios;
-    map<string, pair<float, int> > reweight_usual_correct_ratios;
+    map<string, pair<float, int> > reweight_correct_ratios;
 
     map<string, pair<int, int> > instance_mean_features;
 
@@ -1001,39 +1061,9 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
         find_top_oversegments_grow_and_score(first_scores, second_scores, oversegment_indices, features, mapping, obr_segments,
                                              obr_scans, obr_scans_annotations, nbr_query, nbr_initial_query, noise_scans_size);
 
-#if 0
-        vector<double> match_scores;
-        compute_grown_segment_score(match_scores, features, keypoints, cloud, second_scores, oversegment_indices, obr_scans, obr_scans_annotations, noise_scans_size);
-
-        map<int, double> original_norm_constants;
-        map<vocabulary_tree<HistT, 8>::node*, double> original_weights;
-        map<int, double> weighted_indices;
-
-        double weight_sum = 0.0;
-        for (int i = 0; i < match_scores.size(); ++i) {
-            double m = match_scores[i];
-            if (std::isnan(m)) {
-                continue;
-            }
-            weighted_indices.insert(make_pair(second_scores[i].first, m));
-            weight_sum += m;
-        }
-
-        for (pair<const int, double>& w : weighted_indices) {
-            w.second *= 1.0*double(weighted_indices.size())/weight_sum;
-        }
-
-        obr_segments.gvt.compute_new_weights(original_norm_constants, original_weights, weighted_indices, features);
-
-        vector<index_score> first_reweighted_scores;
-        vector<index_score> second_reweighted_scores;
-        vector<vector<int> > reweighted_oversegment_indices;
-        find_top_oversegments_grow_and_score(first_reweighted_scores, second_reweighted_scores, reweighted_oversegment_indices, features, mapping, obr_segments,
-                                             obr_scans, obr_scans_annotations, nbr_query, nbr_initial_query, noise_scans_size);
-
-        obr_segments.gvt.restore_old_weights(original_norm_constants, original_weights);
-
-#endif
+        vector<index_score> reweight_scores;
+        reweight_query_vocabulary_sift(reweight_scores, second_scores, oversegment_indices, features, keypoints, segment_id, nbr_query, nbr_initial_query,
+                                       obr_scans, obr_scans_annotations, obr_segments, obr_segments_annotations, noise_scans_size, mapping);
 
         //end2 = chrono::system_clock::now();
         //chrono::duration<double> elapsed_seconds2 = end2-start2;
@@ -1047,6 +1077,7 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
         //calculate_correct_ratio(first_correct_ratios, a, scan_ind, scores, obr_scans, false);
         first_scores.resize(nbr_query);
         dataset_annotations::calculate_correct_ratio(usual_correct_ratios, instance, scan_id, first_scores, obr_scans_annotations, noise_scans_size);
+        dataset_annotations::calculate_correct_ratio(reweight_correct_ratios, instance, scan_id, reweight_scores, obr_scans_annotations, noise_scans_size);
         //calculate_correct_ratio(total_correct_ratios, a, scan_ind, total_scores, obr_scans_annotations, noise_scans_size);
         cout << "Number of features: " << features->size() << endl;
 
@@ -1073,10 +1104,13 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
         //cout << c.first << " total correct ratio: " << total_correct_ratios[c.first].first/float(total_correct_ratios[c.first].second) << endl;
         cout << c.first << " usual correct ratio: " << usual_correct_ratios[c.first].first/float(usual_correct_ratios[c.first].second) << endl;
         //cout << c.first << " first round correct ratio: " << first_correct_ratios[c.first].first/float(first_correct_ratios[c.first].second) << endl;
-        cout << c.first << " Reweighted correct ratio: " << reweight_instance_correct_ratios[c.first].first/float(reweight_instance_correct_ratios[c.first].second) << endl;
-        cout << c.first << " Reweighted usual correct ratio: " << reweight_usual_correct_ratios[c.first].first/float(reweight_usual_correct_ratios[c.first].second) << endl;
         cout << "Mean features: " << float(instance_mean_features[c.first].first)/float(instance_mean_features[c.first].second) << endl;
         cout << "Number of queries: " << instance_number_queries[c.first] << endl;
+    }
+
+    cout << "First round correct ratios: " << endl;
+    for (pair<const string, pair<float, int> > c : reweight_correct_ratios) {
+        cout << c.first << " reweight correct ratio: " << c.second.first/float(c.second.second) << endl;
     }
 }
 
@@ -1285,17 +1319,17 @@ int main(int argc, char** argv)
     //exit(0);
 
     // probably train using the noise segments
-    //obr_segments_noise.train_grouped_vocabulary(10000, false);
+    obr_segments_noise.train_grouped_vocabulary(12000, false);
 
     // TODO: add something like obr_segments_noise.get_scan_count()
     int noise_scans_size = 3526;
-    //obr_segments_noise.add_others_to_grouped_vocabulary(10000, obr_segments, noise_scans_size);
+    obr_segments_noise.add_others_to_grouped_vocabulary(10000, obr_segments, noise_scans_size);
 
     //obr_segments_noise.train_vocabulary_incremental(4000, false); // 12000
     int noise_segments_size = 63136;
     //int noise_segments_size = 20000;
     //obr_segments_noise.add_others_to_vocabulary(10000, obr_segments.segment_path, noise_segments_size);
-    //exit(0);
+    exit(0);
 
     //save_sift_features(obr_scans);
     //save_sift_features(obr_scans_noise);
