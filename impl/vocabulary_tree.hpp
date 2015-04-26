@@ -452,6 +452,110 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smalles
     return last_dist;
 }
 
+// keep in mind that smaller_freqs will be modified here, mapping should really be a multimap
+template <typename Point, size_t K>
+double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smallest_ind_combination, CloudPtrT& cloud, vector<map<int, int> >& smaller_freqs,
+                                                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, map<node*, int>& mapping, int hint) // TODO: const
+{
+    pcl::PointCloud<pcl::PointXYZRGB> remaining_centers;
+    remaining_centers += *centers;
+    pcl::PointCloud<pcl::PointXYZRGB> included_centers;
+
+    // used to return which indices are picked
+    vector<int> remaining_indices;
+    for (int i = 0; i < smaller_freqs.size(); ++i) {
+        remaining_indices.push_back(i);
+    }
+
+    vector<double> pnorms; // compute these from smaller_freqs and current vocab weights
+
+    // first compute vectors to describe cloud and smaller_clouds
+    map<int, double> cloud_freqs;
+    double qnorm = compute_query_index_vector(cloud_freqs, cloud, mapping);
+    double vnorm = 0.0;
+
+    map<int, double> source_freqs; // to be filled in
+
+    if (hint != -1) {
+        if (hint >= centers->size()) {
+            cout << "Using hint = " << hint << endl;
+            cout << "We have total voxels: " << centers->size() << endl;
+            exit(0);
+        }
+    }
+
+    double last_dist = std::numeric_limits<double>::infinity(); // large
+    // repeat until the smallest vector is
+    while (!smaller_freqs.empty()) {
+        double mindist = std::numeric_limits<double>::infinity(); // large
+        int minind = -1;
+
+        for (size_t i = 0; i < smaller_freqs.size(); ++i) {
+            // if added any parts, check if close enough to previous ones
+            if (!included_centers.empty()) {
+                bool close_enough = false;
+                for (const pcl::PointXYZRGB& p : included_centers) {
+                    if ((eig(p) - eig(remaining_centers.at(i))).norm() < 0.2f) {
+                        close_enough = true;
+                        break;
+                    }
+                }
+                if (!close_enough) {
+                    continue;
+                }
+            }
+            else if (hint != -1) {
+                i = hint;
+            }
+
+            double normalization = 1.0/std::max(pnorms[i] + vnorm, qnorm);
+            double dist = 1.0;
+            for (const pair<const int, double>& v : cloud_freqs) {
+                // compute the distance that we are interested in
+                double sum_val = 0.0;
+                if (source_freqs.count(v.first) != 0) { // this could be maintained in a map as a pair with cloud_freqs
+                    sum_val += source_freqs[v.first];
+                }
+                if (smaller_freqs[i].count(v.first) != 0) {
+                    sum_val += smaller_freqs[i][v.first];
+                }
+                if (sum_val != 0) {
+                    dist -= normalization*std::min(v.second, sum_val);
+                }
+            }
+            if (dist < mindist) {
+                mindist = dist;
+                minind = i;
+            }
+
+            if (hint != -1 && included_centers.empty()) {
+                break;
+            }
+        }
+
+        if (mindist > last_dist) {
+            break;
+        }
+
+        last_dist = mindist;
+        vnorm += pnorms[minind];
+
+        for (pair<const int, int>& v : smaller_freqs[minind]) {
+            source_freqs[v.first] += v.second;
+        }
+
+        // remove the ind that we've used in the score now
+        smaller_freqs.erase(smaller_freqs.begin() + minind);
+        pnorms.erase(pnorms.begin() + minind);
+        included_centers.push_back(remaining_centers.at(minind));
+        remaining_centers.erase(remaining_centers.begin() + minind);
+        smallest_ind_combination.push_back(remaining_indices.at(minind));
+        remaining_indices.erase(remaining_indices.begin() + minind);
+    }
+
+    return last_dist;
+}
+
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_vocabulary_norm(CloudPtrT& cloud)
 {
@@ -716,18 +820,27 @@ void vocabulary_tree<Point, K>::top_combined_similarities(std::vector<cloud_idx_
     double qnorm = compute_query_vector(query_id_freqs, query_cloud);
     std::map<int, double> map_scores;
 
+    int skipped = 0;
     for (const std::pair<node*, double>& v : query_id_freqs) {
         double qi = v.second;
         std::map<int, int> source_id_freqs;
         source_freqs_for_node(source_id_freqs, v.first);
+
+        /*if (source_id_freqs.size() < 20) {
+            ++skipped;
+            continue;
+        }*/
 
         for (const std::pair<int, int>& u : source_id_freqs) {
             map_scores[u.first] += std::min(v.first->weight*double(u.second), qi);
         }
     }
 
+    cout << "Skipped " << float(skipped)/float(query_id_freqs.size()) << endl;
+
     for (pair<const int, double>& u : map_scores) {
-        u.second = 1.0 - u.second/std::max(qnorm, db_vector_normalizing_constants[u.first]);
+        double dbnorm = db_vector_normalizing_constants[u.first];
+        u.second = 1.0 - u.second/std::max(qnorm, dbnorm);
     }
 
     // this could probably be optimized a bit also, quite big copy operattion
@@ -821,6 +934,7 @@ double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, double>& 
     Eigen::Matrix<float, super::rows, 1> pe;
 
     for (PointT p : query_cloud->points) {
+        if (do_print) cout << __FILE__ << ", " << __LINE__ << endl;
         pe = eig(p);
         if (std::find_if(pe.data(), pe.data()+super::rows, [] (float f) {
             return std::isnan(f) || std::isinf(f);
@@ -828,7 +942,9 @@ double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, double>& 
             continue;
         }
         std::vector<node*> path;
+        if (do_print) cout << __FILE__ << ", " << __LINE__ << endl;
         super::get_path_for_point(path, p);
+        if (do_print) cout << __FILE__ << ", " << __LINE__ << endl;
         int current_depth = 0;
         for (node* n : path) {
             if (current_depth >= matching_min_depth) {
@@ -836,6 +952,7 @@ double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, double>& 
             }
             ++current_depth;
         }
+        if (do_print) cout << __FILE__ << ", " << __LINE__ << endl;
     }
     double qnorm = 0.0;
     for (std::pair<node* const, double>& v : query_id_freqs) {

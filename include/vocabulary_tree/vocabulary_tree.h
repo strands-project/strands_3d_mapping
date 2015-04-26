@@ -29,6 +29,7 @@ protected:
     using typename super::CloudPtrT;
 
     static const bool classic_pyramid_match = true;
+    bool do_print;
 
 public:
 
@@ -74,6 +75,8 @@ public:
                                      std::vector<double>& pnorms, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers);
     double compute_min_combined_dist(std::vector<int>& smallest_ind_combination, CloudPtrT& cloud, std::vector<std::map<int, double> >& smaller_freqs, std::vector<double>& pnorms,
                                      pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, std::map<node*, int>& mapping, int hint = -1);
+    double compute_min_combined_dist(std::vector<int>& smallest_ind_combination, CloudPtrT& cloud, std::vector<std::map<int, int> >& smaller_freqs,
+                                     pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, std::map<node*, int>& mapping, int hint = -1);
 
     void set_min_match_depth(int depth);
     void compute_normalizing_constants(); // this also computes the weights
@@ -94,7 +97,7 @@ public:
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);
 
-    vocabulary_tree() : super(5), matching_min_depth(1) {}
+    vocabulary_tree() : super(5), matching_min_depth(1), do_print(false) {}
 
 };
 
