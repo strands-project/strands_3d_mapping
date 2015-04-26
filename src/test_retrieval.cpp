@@ -513,7 +513,7 @@ void change_supervoxel_groups(object_retrieval& obr_voxels)
     cout << "number of groups: " << nbr_groups << endl;
 
     string root_path = obr_voxels.segment_path;
-    string group_file = root_path + "/group_subgroup.cereal";
+    string group_file = root_path + "/" + descriptor_config::grouped_associations_file;
     ofstream out(group_file, std::ios::binary);
     {
         cereal::BinaryOutputArchive archive_o(out);
@@ -526,7 +526,7 @@ void change_supervoxel_groups(object_retrieval& obr_voxels)
 void read_supervoxel_groups(object_retrieval& obr_voxels)
 {
     string root_path = obr_voxels.segment_path;
-    string group_file = root_path + "/group_subgroup_1.cereal";
+    string group_file = root_path + "/" + descriptor_config::grouped_associations_file;
     ifstream in(group_file, std::ios::binary);
     {
         cereal::BinaryInputArchive archive_i(in);
@@ -958,7 +958,8 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
                                    object_retrieval& obr_segments_annotations, object_retrieval& obr_scans_annotations,
                                    int noise_scans_size)
 {
-    const int nbr_query = 11;
+    const int nbr_query = 15;
+    const int nbr_reweight_query = 35;
     const int nbr_initial_query = 300;
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
@@ -966,7 +967,7 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
     if (obr_segments.gvt.empty()) {
         obr_segments.read_vocabulary(obr_segments.gvt);
     }
-    obr_segments.gvt.set_min_match_depth(2);
+    obr_segments.gvt.set_min_match_depth(3);
     obr_segments.gvt.compute_normalizing_constants();
 
     read_supervoxel_groups(obr_segments); // this will not be needed eventually, should be part of class init
@@ -977,9 +978,6 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
 
     //save_oversegmented_grouped_vocabulary_index_vectors(obr_scans, obr_segments);
     //save_oversegmented_grouped_vocabulary_index_vectors(obr_scans_annotations, obr_segments);
-    //exit(0);
-
-    //change_supervoxel_groups(obr);
     //exit(0);
 
     map<string, int> nbr_full_instances;
@@ -1059,7 +1057,7 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
         vector<index_score> second_scores; // updated_scores;
         vector<vector<int> > oversegment_indices;
         find_top_oversegments_grow_and_score(first_scores, second_scores, oversegment_indices, features, mapping, obr_segments,
-                                             obr_scans, obr_scans_annotations, nbr_query, nbr_initial_query, noise_scans_size);
+                                             obr_scans, obr_scans_annotations, nbr_reweight_query, nbr_initial_query, noise_scans_size); // nbr_query if no reweight
 
         vector<index_score> reweight_scores;
         reweight_query_vocabulary_sift(reweight_scores, second_scores, oversegment_indices, features, keypoints, segment_id, nbr_query, nbr_initial_query,
@@ -1208,6 +1206,7 @@ void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments,
                        object_retrieval& obr_scans_annotations, int noise_scans_size, int noise_segments_size)
 {
     const int nbr_query = 15; // 11
+    const int nbr_reweight_query = 35;
 
     if (obr_segments.vt.empty()) {
         obr_segments.read_vocabulary(obr_segments.vt);
@@ -1319,17 +1318,17 @@ int main(int argc, char** argv)
     //exit(0);
 
     // probably train using the noise segments
-    obr_segments_noise.train_grouped_vocabulary(12000, false);
+    //obr_segments_noise.train_grouped_vocabulary(12000, false);
 
     // TODO: add something like obr_segments_noise.get_scan_count()
     int noise_scans_size = 3526;
-    obr_segments_noise.add_others_to_grouped_vocabulary(10000, obr_segments, noise_scans_size);
+    //obr_segments_noise.add_others_to_grouped_vocabulary(10000, obr_segments, noise_scans_size);
 
     //obr_segments_noise.train_vocabulary_incremental(4000, false); // 12000
     int noise_segments_size = 63136;
     //int noise_segments_size = 20000;
     //obr_segments_noise.add_others_to_vocabulary(10000, obr_segments.segment_path, noise_segments_size);
-    exit(0);
+    //exit(0);
 
     //save_sift_features(obr_scans);
     //save_sift_features(obr_scans_noise);
@@ -1352,9 +1351,9 @@ int main(int argc, char** argv)
 
     //query_supervoxel_oversegments(annotations, K, obr_segments, obr_scans, obr_segments, obr_scans, 0);
 
-    //query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
+    query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
 
-    query_supervoxels(query_data_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
+    //query_supervoxels(query_data_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
 
     /*CloudT::Ptr query_cloud_larger(new CloudT);
     pcl::io::loadPCDFile("/home/nbore/Data/rgb_0015_label_0.pcd", *query_cloud_larger);
