@@ -324,8 +324,8 @@ void register_objects::do_registration(SiftCloudT::Ptr& sift_cloud1, SiftCloudT:
     cr.setInputSource(keypoint_cloud1);
     cr.setInputTarget(keypoint_cloud2);
     cr.setInputCorrespondences(correspondences);
-    cr.setInlierThreshold(0.02);
-    cr.setMaximumIterations(1000);
+    cr.setInlierThreshold(0.01);
+    cr.setMaximumIterations(4000);
     cr.getCorrespondences(sac_correspondences);
     T = cr.getBestTransformation();
 
@@ -477,7 +477,7 @@ pair<double, double> register_objects::get_match_score()
             exit(0);
         }
         float dist = distances[0];
-        if (dist > 0.1) { // make this a parameter
+        if (dist > 0.05) { // make this a parameter
             continue;
         }
         PointT q = c2->at(indices[0]);
@@ -508,6 +508,10 @@ pair<double, double> register_objects::get_match_score()
     //double weight = -log(color_weight*mean_color+mean_dist);
 
     cout << "Weight: " << 1.0/mean_dist << endl;
+
+    /*if (mean_dist > 0.01) {
+        mean_dist = 0.01;
+    }*/
 
     return make_pair(1.0/mean_dist, 1.0/mean_color);
 }
