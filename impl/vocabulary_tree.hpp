@@ -455,7 +455,7 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smalles
 // keep in mind that smaller_freqs will be modified here, mapping should really be a multimap
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smallest_ind_combination, CloudPtrT& cloud, vector<map<int, int> >& smaller_freqs,
-                                                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, map<node*, int>& mapping, int hint) // TODO: const
+                                                            pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, map<node*, int>& mapping, map<int, node*>& inverse_mapping, int hint) // TODO: const
 {
     pcl::PointCloud<pcl::PointXYZRGB> remaining_centers;
     remaining_centers += *centers;
@@ -467,7 +467,12 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smalles
         remaining_indices.push_back(i);
     }
 
-    vector<double> pnorms; // compute these from smaller_freqs and current vocab weights
+    vector<double> pnorms(smaller_freqs.size(), 0.0); // compute these from smaller_freqs and current vocab weights
+    for (int i = 0; i < smaller_freqs.size(); ++i) {
+        for (const pair<int, int>& u : smaller_freqs[i]) {
+            pnorms[i] += pexp(inverse_mapping[u.first]->weight*double(u.second));
+        }
+    }
 
     // first compute vectors to describe cloud and smaller_clouds
     map<int, double> cloud_freqs;
@@ -517,7 +522,7 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smalles
                     sum_val += source_freqs[v.first];
                 }
                 if (smaller_freqs[i].count(v.first) != 0) {
-                    sum_val += smaller_freqs[i][v.first];
+                    sum_val += inverse_mapping[v.first]->weight*double(smaller_freqs[i][v.first]);
                 }
                 if (sum_val != 0) {
                     dist -= normalization*std::min(v.second, sum_val);
@@ -541,7 +546,7 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smalles
         vnorm += pnorms[minind];
 
         for (pair<const int, int>& v : smaller_freqs[minind]) {
-            source_freqs[v.first] += v.second;
+            source_freqs[v.first] += inverse_mapping[v.first]->weight*double(v.second);
         }
 
         // remove the ind that we've used in the score now
@@ -934,7 +939,6 @@ double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, double>& 
     Eigen::Matrix<float, super::rows, 1> pe;
 
     for (PointT p : query_cloud->points) {
-        if (do_print) cout << __FILE__ << ", " << __LINE__ << endl;
         pe = eig(p);
         if (std::find_if(pe.data(), pe.data()+super::rows, [] (float f) {
             return std::isnan(f) || std::isinf(f);
@@ -942,9 +946,7 @@ double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, double>& 
             continue;
         }
         std::vector<node*> path;
-        if (do_print) cout << __FILE__ << ", " << __LINE__ << endl;
         super::get_path_for_point(path, p);
-        if (do_print) cout << __FILE__ << ", " << __LINE__ << endl;
         int current_depth = 0;
         for (node* n : path) {
             if (current_depth >= matching_min_depth) {
@@ -952,7 +954,6 @@ double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, double>& 
             }
             ++current_depth;
         }
-        if (do_print) cout << __FILE__ << ", " << __LINE__ << endl;
     }
     double qnorm = 0.0;
     for (std::pair<node* const, double>& v : query_id_freqs) {
@@ -961,6 +962,30 @@ double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, double>& 
     }
 
     return qnorm;
+}
+
+template <typename Point, size_t K>
+void vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, int>& query_id_freqs, CloudPtrT& query_cloud)
+{
+    Eigen::Matrix<float, super::rows, 1> pe;
+
+    for (PointT p : query_cloud->points) {
+        pe = eig(p);
+        if (std::find_if(pe.data(), pe.data()+super::rows, [] (float f) {
+            return std::isnan(f) || std::isinf(f);
+        }) != pe.data()+super::rows) {
+            continue;
+        }
+        std::vector<node*> path;
+        super::get_path_for_point(path, p);
+        int current_depth = 0;
+        for (node* n : path) {
+            if (current_depth >= matching_min_depth) {
+                query_id_freqs[n] += 1;
+            }
+            ++current_depth;
+        }
+    }
 }
 
 template <typename Point, size_t K>
@@ -997,6 +1022,16 @@ double vocabulary_tree<Point, K>::compute_query_index_vector(map<int, double>& q
         query_index_freqs[mapping[u.first]] = u.second;
     }
     return qnorm;
+}
+
+template <typename Point, size_t K>
+void vocabulary_tree<Point, K>::compute_query_index_vector(map<int, int>& query_index_freqs, CloudPtrT& query_cloud, map<node*, int>& mapping)
+{
+    map<node*, int> query_node_freqs;
+    compute_query_vector(query_node_freqs, query_cloud);
+    for (const pair<node*, int>& u : query_node_freqs) {
+        query_index_freqs[mapping[u.first]] = u.second;
+    }
 }
 
 template <typename Point, size_t K>

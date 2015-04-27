@@ -337,15 +337,10 @@ void grouped_vocabulary_tree<Point, K>::get_subgroups_for_group(set<int>& subgro
 template <typename Point, size_t K>
 void grouped_vocabulary_tree<Point, K>::top_optimized_similarities(vector<tuple<int, int, double> >& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
-    cout << __FILE__ << ", " << __LINE__ << endl;
-    //super::do_print = true;
-
     std::map<node*, double> query_id_freqs;
     double qnorm = super::compute_query_vector(query_id_freqs, query_cloud);
 
     unordered_map<int, double> vocabulary_difference(max_index);
-
-    cout << __FILE__ << ", " << __LINE__ << endl;
 
     //double epsilon = 7;
     int skipped = 0;
