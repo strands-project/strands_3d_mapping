@@ -17,6 +17,7 @@ const std::string descriptor_config::split_keypoints_stem = "split_points";
 
 // cached grouped vocabulary vectors, scan:
 const std::string descriptor_config::scan_vocabulary_vectors = "grouped_vocabulary_vectors_1.cereal";
+const std::string descriptor_config::scan_vocabulary_index_vectors = "grouped_vocabulary_index_vectors_1.cereal";
 const std::string descriptor_config::scan_vocabulary_norms = "grouped_vocabulary_norms_1.cereal";
 const std::string descriptor_config::scan_split_centers = "split_centers_1.pcd";
 
@@ -37,6 +38,7 @@ const std::string descriptor_config::split_keypoints_stem = "split_shot_points";
 
 // cached grouped vocabulary vectors, scan:
 const std::string descriptor_config::scan_vocabulary_vectors = "grouped_vocabulary_vectors_shot.cereal";
+const std::string descriptor_config::scan_vocabulary_index_vectors = "grouped_vocabulary_index_vectors_shot.cereal";
 const std::string descriptor_config::scan_vocabulary_norms = "grouped_vocabulary_norms_shot.cereal";
 const std::string descriptor_config::scan_split_centers = "split_centers_shot.pcd";
 */

@@ -26,6 +26,7 @@ struct descriptor_config {
 
     // cached grouped vocabulary vectors, scan:
     const static std::string scan_vocabulary_vectors;
+    const static std::string scan_vocabulary_index_vectors;
     const static std::string scan_vocabulary_norms;
     const static std::string scan_split_centers;
 };

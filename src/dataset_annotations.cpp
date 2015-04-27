@@ -279,15 +279,14 @@ void calculate_correct_ratio_exclude_sweep(map<string, pair<float, int> >& insta
 {
     int possible_query_inds = 5;
 
-    bool found_queries = 0;
     int true_count = 0;
-    int last_count = 0;
-
-    for (int i = 0; i < scores.size(); ++i) {
+    int valid_queries = 0;
+    for (int i = 0; i < scores.size() && valid_queries < scores.size()-possible_query_inds; ++i) {
         index_score s = scores[i];
         if (s.first < noise_scans_size) { // is noise
             cout << "This was noise, false" << endl;
             cout << "Score: " << s.second << endl;
+            ++valid_queries;
             continue;
         }
         int query_ind = s.first - noise_scans_size;
@@ -295,32 +294,23 @@ void calculate_correct_ratio_exclude_sweep(map<string, pair<float, int> >& insta
         if (std::abs(query_ind - scan_ind) < 17) { // might be part of the same sweep
             // replace this with something checking if they are from the same sweep
             if (std::abs(query_ind - scan_ind) <= 2) { // two apart will be excluded, they might contain the same
-                ++found_queries;
                 continue;
             }
         }
+        ++valid_queries;
         if (instance == annotation) {
             ++true_count;
-            if (i >= scores.size() - possible_query_inds) {
-                ++last_count;
-            }
             if (verbose) cout << "This was true." << endl;
         }
         else {
             if (verbose) cout << "This was false." << endl;
         }
         if (verbose) {
-            //HistCloudT::Ptr features_match(new HistCloudT);
-            //obr_scans.load_features_for_segment(features_match, query_ind);
             cout << "Score: " << s.second << endl;
-            //cout << "Number of features in scan: " << features_match->size() << endl;
         }
     }
 
-    // from the true counts among the last possible_query_inds, remove as many true counts as not found queries
-    true_count -= std::min(last_count, possible_query_inds-found_queries);
-
-    float correct_ratio = float(true_count)/float(scores.size()-possible_query_inds);
+    float correct_ratio = float(true_count)/float(valid_queries);
     instance_correct_ratios[annotation].first += correct_ratio;
     instance_correct_ratios[annotation].second += 1;
 

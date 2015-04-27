@@ -321,8 +321,8 @@ void compute_and_save_segments(object_retrieval& obr_scans)
 }
 
 // OK
-void get_voxel_vectors_for_scan(CloudT::Ptr& voxel_centers, vector<double>& vocabulary_norms,
-                                vector<map<int, double> >& vocabulary_vectors, int i, object_retrieval& obr_scans)
+void get_voxel_vectors_for_scan(CloudT::Ptr& voxel_centers, vector<double>& vocabulary_norms, vector<map<int, double> >& vocabulary_vectors,
+                                vector<map<int, int> >& vocabulary_index_vectors, int i, object_retrieval& obr_scans)
 {
     string scan_path = obr_scans.get_folder_for_segment_id(i);
 
@@ -344,6 +344,13 @@ void get_voxel_vectors_for_scan(CloudT::Ptr& voxel_centers, vector<double>& voca
     {
         cereal::BinaryInputArchive archive_i(inv);
         archive_i(vocabulary_vectors);
+    }
+
+    string index_vectors_file = scan_path + "/" + descriptor_config::scan_vocabulary_index_vectors;
+    ifstream iniv(index_vectors_file, std::ios::binary);
+    {
+        cereal::BinaryInputArchive archive_i(iniv);
+        archive_i(vocabulary_index_vectors);
     }
 }
 
@@ -442,6 +449,7 @@ void save_oversegmented_grouped_vocabulary_index_vectors(object_retrieval& obr_s
         get_voxels_and_points_for_scan(voxels, voxel_points, i, obr_scans);
 
         vector<map<int, double> > vocabulary_vectors;
+        vector<map<int, int> > vocabulary_index_vectors;
         vector<double> vocabulary_norms;
 
         for (HistCloudT::Ptr& voxel : voxels) {
@@ -451,6 +459,8 @@ void save_oversegmented_grouped_vocabulary_index_vectors(object_retrieval& obr_s
             vocabulary_vectors.push_back(map<int, double>());
             double pnorm = obr_segments.gvt.compute_query_index_vector(vocabulary_vectors.back(), voxel, mapping);
             vocabulary_norms.push_back(pnorm);
+            vocabulary_index_vectors.push_back(map<int, int>());
+            obr_segments.gvt.compute_query_index_vector(vocabulary_index_vectors.back(), voxel, mapping);
         }
         string vectors_file = path + "/" + descriptor_config::scan_vocabulary_vectors;
         ofstream outv(vectors_file, std::ios::binary);
@@ -463,6 +473,12 @@ void save_oversegmented_grouped_vocabulary_index_vectors(object_retrieval& obr_s
         {
             cereal::BinaryOutputArchive archive_o(outn);
             archive_o(vocabulary_norms);
+        }
+        string index_vectors_file = path + "/" + descriptor_config::scan_vocabulary_index_vectors;
+        ofstream outiv(index_vectors_file, std::ios::binary);
+        {
+            cereal::BinaryOutputArchive archive_o(outiv);
+            archive_o(vocabulary_index_vectors);
         }
 
         CloudT::Ptr centers_cloud(new CloudT);
@@ -671,12 +687,13 @@ void compute_grow_subsegment_scores(vector<index_score>& updated_scores, vector<
         CloudT::Ptr voxel_centers(new CloudT);
         vector<double> vocabulary_norms;
         vector<map<int, double> > vocabulary_vectors;
+        vector<map<int, int> > vocabulary_index_vectors;
 
         if (scores[i].first < noise_scans_size) {
-            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first, obr_scans);
+            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, vocabulary_index_vectors, scores[i].first, obr_scans);
         }
         else {
-            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first-noise_scans_size, obr_scans_annotations);
+            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, vocabulary_index_vectors, scores[i].first-noise_scans_size, obr_scans_annotations);
         }
 
         /*vector<map<int, double> > vocabulary_vectors_copy = vocabulary_vectors;
@@ -1071,6 +1088,7 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
 
         // need to check that it's correct here
         //int scan_ind = scan_ind_for_segment(a.segment_id, obr_segments_annotations);
+        second_scores.resize(nbr_query);
         dataset_annotations::calculate_correct_ratio(instance_correct_ratios, instance, scan_id, second_scores, obr_scans_annotations, noise_scans_size);
         //calculate_correct_ratio(first_correct_ratios, a, scan_ind, scores, obr_scans, false);
         first_scores.resize(nbr_query);
@@ -1155,12 +1173,13 @@ void query_cloud(CloudT::Ptr& cloud, object_retrieval& obr_segments, object_retr
         CloudT::Ptr voxel_centers(new CloudT);
         vector<double> vocabulary_norms;
         vector<map<int, double> > vocabulary_vectors;
+        vector<map<int, int> > vocabulary_index_vectors;
 
         if (scores[i].first < noise_scans_size) {
-            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first, obr_scans);
+            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, vocabulary_index_vectors, scores[i].first, obr_scans);
         }
         else {
-            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, scores[i].first-noise_scans_size, obr_scans_annotations);
+            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, vocabulary_index_vectors, scores[i].first-noise_scans_size, obr_scans_annotations);
         }
 
         vector<int> selected_indices;
