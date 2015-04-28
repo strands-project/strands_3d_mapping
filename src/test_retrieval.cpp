@@ -837,7 +837,7 @@ void reweight_query_vocabulary_sift(vector<index_score>& second_scores, vector<i
 
 // OK
 void reweight_query_vocabulary_sift(vector<index_score>& reweight_grown_scores, vector<index_score>& first_grown_scores,
-                                    vector<index_score>& first_scores, vector<int>& hints, vector<vector<int> >& oversegment_indices,
+                                    vector<index_score>& first_scores, vector<int>& hints, vector<vector<int> >& oversegment_indices, CloudT::Ptr& query_cloud,
                                     HistCloudT::Ptr& query_features, CloudT::Ptr& query_keypoints, int query_id, int nbr_query, int nbr_initial_query,
                                     object_retrieval& obr_scans, object_retrieval& obr_scans_annotations, object_retrieval& obr_segments,
                                     object_retrieval& obr_segments_annotations, int noise_scans_size, map<vocabulary_tree<HistT, 8>::node*, int>& mapping)
@@ -860,16 +860,17 @@ void reweight_query_vocabulary_sift(vector<index_score>& reweight_grown_scores, 
         if (s.first < noise_scans_size) {
             load_nth_keypoints_features_for_scan(match_keypoints, match_features, s.first, oversegment_indices[counter], obr_scans);
             get_sift_features_for_segment(match_sift_cloud, match_sift_keypoints, match_keypoints, obr_scans.get_folder_for_segment_id(s.first));
-            //obr_segments.read_scan_for_segment(match_scan, s.first);
+            //obr_scans.read_scan(match_scan, s.first);
         }
         else {
             load_nth_keypoints_features_for_scan(match_keypoints, match_features, s.first-noise_scans_size, oversegment_indices[counter], obr_scans_annotations);
             get_sift_features_for_segment(match_sift_cloud, match_sift_keypoints, match_keypoints,
                                           obr_scans_annotations.get_folder_for_segment_id(s.first-noise_scans_size));
-            //obr_segments_annotations.read_scan_for_segment(match_scan, s.first-noise_segments_size);
+            //obr_scans_annotations.read_scan(match_scan, s.first-noise_scans_size);
         }
         register_objects ro;
         ro.set_input_clouds(sift_keypoints, match_sift_keypoints);
+        //ro.set_input_clouds(query_cloud, match_scan);
         ro.do_registration(sift_cloud, match_sift_cloud, sift_keypoints, match_sift_keypoints);
         double spatial_score, color_score;
         tie(spatial_score, color_score) = ro.get_match_score();
@@ -896,10 +897,20 @@ void reweight_query_vocabulary_sift(vector<index_score>& reweight_grown_scores, 
     //find_top_oversegments_grow_and_score(reweighted_oversegment_scores, second_scores, reweighted_oversegment_indices, query_features, mapping, obr_segments,
     //                                     obr_scans, obr_scans_annotations, nbr_query, nbr_initial_query, noise_scans_size);
 
-    vector<vector<int> > reweighted_oversegment_indices;
-    // this function call indicates that we need some better abstractions
-    compute_grow_subsegment_scores(reweight_grown_scores, reweighted_oversegment_indices, first_scores, hints, query_features, mapping,
+    /*vector<tuple<int, int, double> > tuple_scores;
+    obr_segments.gvt.top_optimized_similarities(tuple_scores, query_features, nbr_initial_query);
+    vector<index_score> reweight_scores;
+    vector<int> reweight_hints;
+    for (const tuple<int, int, double>& t : tuple_scores) {
+        reweight_scores.push_back(index_score(get<0>(t), get<2>(t)));
+        reweight_hints.push_back(get<1>(t));
+    }*/
+
+    vector<vector<int> > reweight_oversegment_indices;
+    compute_grow_subsegment_scores(reweight_grown_scores, reweight_oversegment_indices, first_scores, hints, query_features, mapping,
                                    obr_segments, obr_scans, obr_scans_annotations, nbr_query, noise_scans_size);
+    //compute_grow_subsegment_scores(reweight_grown_scores, reweight_oversegment_indices, reweight_scores, reweight_hints, query_features, mapping,
+    //                               obr_segments, obr_scans, obr_scans_annotations, nbr_query, noise_scans_size);
     obr_segments.gvt.restore_old_weights(original_norm_constants, original_weights);
 }
 
@@ -1032,7 +1043,7 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
                                              obr_scans, obr_scans_annotations, nbr_reweight_query, nbr_initial_query, noise_scans_size); // nbr_query if no reweight
 
         vector<index_score> reweight_scores;
-        reweight_query_vocabulary_sift(reweight_scores, second_scores, first_scores, hints, oversegment_indices, features, keypoints, segment_id, nbr_query,
+        reweight_query_vocabulary_sift(reweight_scores, second_scores, first_scores, hints, oversegment_indices, cloud, features, keypoints, segment_id, nbr_query,
                                        nbr_initial_query, obr_scans, obr_scans_annotations, obr_segments, obr_segments_annotations, noise_scans_size, mapping);
 
 
@@ -1164,12 +1175,12 @@ void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments,
                        object_retrieval& obr_scans_annotations, int noise_scans_size, int noise_segments_size)
 {
     const int nbr_query = 15; // 11
-    const int nbr_reweight_query = 11;
+    const int nbr_reweight_query = 15;
 
     if (obr_segments.vt.empty()) {
         obr_segments.read_vocabulary(obr_segments.vt);
     }
-    obr_segments.vt.set_min_match_depth(3); // 2 in experiments
+    obr_segments.vt.set_min_match_depth(2); // 3 in experiments
     obr_segments.vt.compute_normalizing_constants();
 
     //map<string, int> nbr_full_instances;
@@ -1313,9 +1324,9 @@ int main(int argc, char** argv)
 
     //query_supervoxel_oversegments(annotations, K, obr_segments, obr_scans, obr_segments, obr_scans, 0);
 
-    //query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
+    query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
 
-    query_supervoxels(query_data_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
+    //query_supervoxels(query_data_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
 
     /*CloudT::Ptr query_cloud_larger(new CloudT);
     pcl::io::loadPCDFile("/home/nbore/Data/rgb_0015_label_0.pcd", *query_cloud_larger);
