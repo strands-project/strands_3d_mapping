@@ -23,6 +23,9 @@
 #include <object_manager/DynamicObjectsService.h>
 #include <object_manager/GetDynamicObjectService.h>
 
+// Custom messages
+#include <object_manager/DynamicObjectTracks.h>
+
 // PCL includes
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
@@ -82,6 +85,8 @@ public:
     bool returnObjectMask(std::string waypoint, std::string object_id, std::string observation_xml, GetObjStruct& returned_object);
     void additionalViewsCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
     void additionalViewsStatusCallback(const std_msgs::String& msg);
+    void dynamicObjectTracksCallback(const object_manager::DynamicObjectTracksConstPtr& msg);
+
 
     static CloudPtr filterGroundClusters(CloudPtr dynamic, double min_height)
     {
@@ -107,6 +112,7 @@ private:
     ros::Publisher                                                              m_PublisherDynamicClusters;
     ros::Publisher                                                              m_PublisherRequestedObjectCloud;
     ros::Publisher                                                              m_PublisherRequestedObjectImage;
+    ros::Subscriber                                                             m_SubscriberDynamicObjectTracks;
     ros::Subscriber                                                             m_SubscriberAdditionalObjectViews;
     ros::Subscriber                                                             m_SubscriberAdditionalObjectViewsStatus;
     ros::ServiceServer                                                          m_DynamicObjectsServiceServer;
@@ -163,6 +169,8 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh)
     m_objectTracked = NULL;
     m_objectTrackedObservation = "";
     m_bTrackingStarted = false;
+
+    m_SubscriberDynamicObjectTracks = m_NodeHandle.subscribe("/object_learning/dynamic_object_tracks",1, &ObjectManager::dynamicObjectTracksCallback,this);
 }
 
 template <class PointType>
@@ -228,6 +236,43 @@ void ObjectManager<PointType>::additionalViewsCallback(const sensor_msgs::PointC
         ROS_ERROR_STREAM("Received an additional view when we're not viewing an object.");
     }
 
+
+}
+
+template <class PointType>
+void ObjectManager<PointType>::dynamicObjectTracksCallback(const object_manager::DynamicObjectTracksConstPtr& msg)
+{
+    if (m_objectTracked == NULL)
+    {
+        ROS_ERROR_STREAM("Received a dynamic object tracks message but a dynamic object hasn't been selected yet");
+        return;
+    }
+
+    if (m_bTrackingStarted)
+    {
+        ROS_INFO_STREAM("Received a dynamic object tracks message. Object tracked id: "<<m_objectTracked->m_label);
+        ROS_INFO_STREAM("Dynamic object tracks message contains "<<msg->poses.size()<<" poses and  "<<msg->clouds.size()<<" clouds.");
+        if (msg->poses.size() != msg->clouds.size())
+        {
+            ROS_ERROR_STREAM("The dynamic object tracks message contains an unequal number of poses and clouds. Aborting");
+            return;
+        }
+
+        for (size_t i=0; i<msg->clouds.size(); i++)
+        {
+            // cloud message
+            CloudPtr new_cloud(new Cloud());
+            pcl::fromROSMsg(msg->clouds[i], *new_cloud);
+            new_cloud->header = pcl_conversions::toPCL(msg->clouds[i].header);
+            // pose message
+            tf::Transform pose;
+            tf::transformMsgToTF(msg->poses[i],pose);
+
+            m_objectTracked->addObjectTrack(pose, new_cloud);
+        }
+    } else {
+        ROS_ERROR_STREAM("Received a dynamic object tracks message when we're not viewing an object.");
+    }
 
 }
 

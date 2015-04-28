@@ -238,3 +238,15 @@ void DynamicObject::computeVFHFeatures()
         cout<<"Computed VFH descriptor "<<endl;
     }
 }
+
+void DynamicObject::addObjectTrack(tf::Transform pose, CloudPtr cloud)
+{
+    ObjectTrack track;
+    track.pose = pose;
+    track.cloud = cloud;
+    m_vObjectTracks.push_back(track);
+    if (m_bVerbose)
+    {
+        cout<<"Added new object track. Total tracks "<<m_vObjectTracks.size()<<endl;
+    }
+}
