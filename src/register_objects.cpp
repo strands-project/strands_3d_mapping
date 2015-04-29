@@ -497,21 +497,11 @@ pair<double, double> register_objects::get_match_score()
         mean_color = 100;
     }
 
-    // blah, how to weigh distance and color, we need some learning here
-    // probability 0-1 of being the same object, how to go from 0-1 to (1-e, 1+e)
-    // use the logarithm for now
-    double color_weight = 0.05;
-    double dist = 1.0/(color_weight*mean_color+mean_dist);
-
-    //double weight = std::max(1.0 - 2*log(color_weight*mean_color+mean_dist), 1.0);
-    double weight = std::max(1.0, 5.0*fabs(dist));
-    //double weight = -log(color_weight*mean_color+mean_dist);
+    /*if (mean_dist < 0.003 && mean_dist != 0) {
+        mean_dist = 0.003;
+    }*/
 
     cout << "Weight: " << 1.0/mean_dist << endl;
-
-    /*if (mean_dist > 0.01) {
-        mean_dist = 0.01;
-    }*/
 
     return make_pair(1.0/mean_dist, 1.0/mean_color);
 }
