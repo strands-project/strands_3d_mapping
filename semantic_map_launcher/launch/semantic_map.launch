@@ -2,7 +2,7 @@
 
   <arg name="save_intermediate_clouds" default="true" />
   <arg name="save_intermediate_images" default="false" />
-  <arg name="log_to_db" default="false" />
+  <arg name="log_to_db" default="true" />
   <arg name="log_objects_to_db" default="true" />
   <arg name="cleanup" default="false" />
   <arg name="cache_old_data" default="false" />
