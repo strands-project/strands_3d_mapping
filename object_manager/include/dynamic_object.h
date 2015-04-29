@@ -36,6 +36,11 @@ public:
     struct ObjectTrack{
         tf::Transform pose;
         CloudPtr cloud;
+
+        ObjectTrack()
+        {
+            cloud = CloudPtr(new Cloud());
+        }
     };
 
    DynamicObject(bool verbose = false);

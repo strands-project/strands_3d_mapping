@@ -26,7 +26,7 @@ public:
 
 
     void saveObjectTrackToXml(tf::Transform pose, CloudPtr cloud, QXmlStreamWriter* xmlWriter, std::string nodeName, std::string cloudFilename);
-    DynamicObject::ObjectTrack readObjectTrackFromXml(QXmlStreamReader* xmlReader, std::string nodeName, std::string objectFolder, bool& errorReading);
+    DynamicObject::ObjectTrack readObjectTrackFromXml(QXmlStreamReader* xmlReader, std::string nodeName, std::string objectFolder, bool& errorReading, bool load_cloud = true);
 
     std::string m_rootFolderPath;
     bool m_verbose;

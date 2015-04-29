@@ -258,6 +258,16 @@ void ObjectManager<PointType>::dynamicObjectTracksCallback(const object_manager:
             return;
         }
 
+        // TESTING
+        m_objectTracked->m_bVerbose = true;
+//        SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(m_objectTrackedObservation,true);
+//        auto clouds = aRoom.getIntermediateClouds();
+//        auto transforms = aRoom.getIntermediateCloudTransforms();
+//        for (size_t i=0; i<clouds.size(); i++)
+//        {
+//            m_objectTracked->addObjectTrack(transforms[i], clouds[i]);
+//        }
+
         for (size_t i=0; i<msg->clouds.size(); i++)
         {
             // cloud message
@@ -268,7 +278,13 @@ void ObjectManager<PointType>::dynamicObjectTracksCallback(const object_manager:
             tf::Transform pose;
             tf::transformMsgToTF(msg->poses[i],pose);
 
-            m_objectTracked->addObjectTrack(pose, new_cloud);
+            if (new_cloud->points.size() == 0)
+            {
+                ROS_ERROR_STREAM("Provided point cloud contains 0 points. Skipping");
+                continue;
+            } else {
+                m_objectTracked->addObjectTrack(pose, new_cloud);
+            }
         }
     } else {
         ROS_ERROR_STREAM("Received a dynamic object tracks message when we're not viewing an object.");
@@ -358,6 +374,10 @@ bool ObjectManager<PointType>::getDynamicObject(std::string waypoint, std::strin
             break;
         }
     }
+    if(!found)
+    {
+        ROS_ERROR_STREAM("Object "<<object_id<<" at waypoint "<<waypoint<<" could not be found.");
+    }
     return true;
 }
 
@@ -379,6 +399,7 @@ bool ObjectManager<PointType>::getDynamicObjectServiceCallback(GetDynamicObjectS
     bool found =returnObjectMask(req.waypoint_id, req.object_id,m_waypointToSweepFileMap[req.waypoint_id], object);
     if (!found)
     {
+        ROS_ERROR_STREAM("Could not compute mask for object id "<<req.object_id);
         return true;
     }
 

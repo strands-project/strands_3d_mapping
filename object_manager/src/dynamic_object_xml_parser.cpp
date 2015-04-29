@@ -251,15 +251,25 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool loa
             if (xmlReader->name() == "ObjectTrack")
             {
                 bool errorReading = false;
-                DynamicObject::ObjectTrack track = readObjectTrackFromXml(xmlReader, "ObjectTrack",objectFolder.toStdString(), errorReading);
-                if (errorReading)
+                DynamicObject::ObjectTrack track = readObjectTrackFromXml(xmlReader, "ObjectTrack",objectFolder.toStdString(), errorReading, load_cloud);
+                if (errorReading )
                 {
                     std::cerr<<"Error while loading object track. Not adding to object."<<std::endl;
-                } else {
-                    object->addObjectTrack(track.pose, track.cloud);
-                }
+                } else
+                    if (load_cloud && track.cloud->points.size() == 0)
+                    {
+                        std::cerr<<"Error while loading object track. Not adding to object."<<std::endl;
+                    } else
+                    {
+                        object->addObjectTrack(track.pose, track.cloud);
+                    }
             }
         }
+    }
+
+    if (xmlReader->hasError())
+    {
+        std::cerr<<"Error while loading dynamic object from file "<<filename<<std::endl;
     }
 
     if (m_verbose)
@@ -276,6 +286,10 @@ void DynamicObjectXMLParser::saveObjectTrackToXml(tf::Transform pose, CloudPtr c
     geometry_msgs::Transform msg_reg;
     tf::transformTFToMsg(pose, msg_reg);
 
+    QString xmlFileQS(cloudFilename.c_str());
+    int index = xmlFileQS.lastIndexOf('/');
+    QString filename = xmlFileQS.right(xmlFileQS.size() - index -1);
+
     xmlWriter->writeStartElement(nodeName.c_str());
     xmlWriter->writeAttribute("Trans_x",QString::number(msg_reg.translation.x));
     xmlWriter->writeAttribute("Trans_y",QString::number(msg_reg.translation.y));
@@ -284,13 +298,18 @@ void DynamicObjectXMLParser::saveObjectTrackToXml(tf::Transform pose, CloudPtr c
     xmlWriter->writeAttribute("Rot_x",QString::number(msg_reg.rotation.x));
     xmlWriter->writeAttribute("Rot_y",QString::number(msg_reg.rotation.y));
     xmlWriter->writeAttribute("Rot_z",QString::number(msg_reg.rotation.z));
-    xmlWriter->writeAttribute("Cloud_filename", cloudFilename.c_str());
-    pcl::io::savePCDFileBinary(cloudFilename, *cloud);
+    xmlWriter->writeAttribute("Cloud_filename", filename);
+    if (cloud->points.size() != 0)
+    {
+        pcl::io::savePCDFileBinary(cloudFilename, *cloud);
+    } else {
+        ROS_WARN_STREAM("Object track cloud has 0 points.");
+    }
 
     xmlWriter->writeEndElement();
 }
 
-DynamicObject::ObjectTrack DynamicObjectXMLParser::readObjectTrackFromXml(QXmlStreamReader* xmlReader, std::string nodeName, std::string objectFolder, bool& errorReading)
+DynamicObject::ObjectTrack DynamicObjectXMLParser::readObjectTrackFromXml(QXmlStreamReader* xmlReader, std::string nodeName, std::string objectFolder, bool& errorReading, bool load_cloud)
 {
     DynamicObject::ObjectTrack toRet;
 
@@ -304,24 +323,27 @@ DynamicObject::ObjectTrack DynamicObjectXMLParser::readObjectTrackFromXml(QXmlSt
         errorReading = false;
         QXmlStreamAttributes paramAttributes = xmlReader->attributes();
 
-        if (paramAttributes.hasAttribute("Cloud_filename"))
+        if (load_cloud)
         {
-            QString val = paramAttributes.value("Cloud_filename").toString();
-            cloud_name = val.toStdString();
-            std::string cloud_path = objectFolder + "/" + cloud_name;
-            pcl::PCDReader reader;
-            CloudPtr cloud (new Cloud);
-            reader.read (cloud_path, *cloud);
-            if (cloud->points.size() != 0)
+            if (paramAttributes.hasAttribute("Cloud_filename"))
             {
-                errorReading = true;
-                ROS_ERROR("%s dynamic object track point cloud has no points. ", cloud_path.c_str());
+                QString val = paramAttributes.value("Cloud_filename").toString();
+                cloud_name = val.toStdString();
+                std::string cloud_path = objectFolder + "/" + cloud_name;
+                pcl::PCDReader reader;
+                CloudPtr cloud (new Cloud);
+                reader.read (cloud_path, *cloud);
+                if (cloud->points.size() == 0)
+                {
+                    errorReading = true;
+                    ROS_ERROR_STREAM("Dynamic object track point cloud has no points. " + cloud_path);
+                } else {
+                    toRet.cloud = cloud;
+                }
             } else {
-                toRet.cloud = cloud;
+                ROS_ERROR("%s xml node does not have the Stamp_sec attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+                errorReading = true;
             }
-        } else {
-            ROS_ERROR("%s xml node does not have the Stamp_sec attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
-            errorReading = true;
         }
         if (paramAttributes.hasAttribute("Trans_x"))
         {
