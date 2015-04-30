@@ -883,8 +883,11 @@ void reweight_query_vocabulary_sift(vector<index_score>& reweight_grown_scores, 
             ++counter;
             continue;
         }
-        weighted_indices.insert(make_pair(s.first, spatial_score));
-        weight_sum += spatial_score;
+        for (int i : oversegment_indices[counter]) {
+            int voc_index = obr_segments.gvt.get_id_for_group_subgroup(s.first, i);
+            weighted_indices.insert(make_pair(voc_index, spatial_score));
+            weight_sum += spatial_score;
+        }
         ++counter;
     }
 
@@ -995,7 +998,7 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
                                    int noise_scans_size)
 {
     const int nbr_query = 15;
-    const int nbr_reweight_query = 60;
+    const int nbr_reweight_query = 30;
     const int nbr_initial_query = 200;
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
@@ -1180,7 +1183,7 @@ void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments,
                        object_retrieval& obr_scans_annotations, int noise_scans_size, int noise_segments_size)
 {
     const int nbr_query = 15; // 11
-    const int nbr_reweight_query = 15;
+    const int nbr_reweight_query = 11;
 
     if (obr_segments.vt.empty()) {
         obr_segments.read_vocabulary(obr_segments.vt);
@@ -1327,11 +1330,11 @@ int main(int argc, char** argv)
     query_separate_data_iterator query_sep_iter("/home/nbore/Data/query_object_recorder");
     query_in_dataset_iterator query_data_iter(annotations, obr_segments);
 
-    //query_supervoxel_oversegments(annotations, K, obr_segments, obr_scans, obr_segments, obr_scans, 0);
+    //query_supervoxel_oversegments(query_data_iter, K, obr_segments, obr_scans, obr_segments, obr_scans, 0);
 
-    //query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
+    query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
 
-    query_supervoxels(query_data_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
+    //query_supervoxels(query_data_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
 
     /*CloudT::Ptr query_cloud_larger(new CloudT);
     pcl::io::loadPCDFile("/home/nbore/Data/rgb_0015_label_0.pcd", *query_cloud_larger);

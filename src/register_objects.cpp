@@ -451,9 +451,9 @@ pair<double, double> register_objects::get_match_score()
             exit(0);
         }
         float dist = sqrt(distances[0]);
-        if (dist > 0.1) {
+        /*if (dist > 0.1) {
             continue;
-        }
+        }*/
         PointT q = c1->at(indices[0]);
         // compare distance and color
         Eigen::Vector3d pc(p.r, p.g, p.b);

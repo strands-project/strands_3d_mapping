@@ -306,7 +306,7 @@ void calculate_correct_ratio_exclude_sweep(map<string, pair<float, int> >& insta
             if (verbose) cout << "This was false." << endl;
         }
         if (verbose) {
-            cout << "Score: " << s.second << endl;
+            cout << "Scan: " << query_ind << ", Score: " << s.second << endl;
         }
     }
 
