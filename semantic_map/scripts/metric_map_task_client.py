@@ -23,13 +23,13 @@ if __name__ == '__main__':
     try:
 
 	task = Task(start_node_id=sys.argv[1], action='ptu_pan_tilt_metric_map')
-        task_utils.add_int_argument(task, '-150')
-        task_utils.add_int_argument(task, '60')
+        task_utils.add_int_argument(task, '-160')
+        task_utils.add_int_argument(task, '20')
         task_utils.add_int_argument(task, '160')
         task_utils.add_int_argument(task, '-30')
-        task_utils.add_int_argument(task, '20')
         task_utils.add_int_argument(task, '30')
-
+        task_utils.add_int_argument(task, '30')
+	task.max_duration = rospy.Duration(60*4)
         print task
 
         # now register this with the executor
