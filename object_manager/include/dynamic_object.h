@@ -14,6 +14,8 @@
 #include <pcl/correspondence.h>
 #include <pcl/features/vfh.h>
 
+#include <geometry_msgs/Transform.h>
+#include <tf/transform_datatypes.h>
 
 class DynamicObject  {
 public:
@@ -31,6 +33,16 @@ public:
 
     typedef boost::shared_ptr<DynamicObject> Ptr;
 
+    struct ObjectTrack{
+        tf::Transform pose;
+        CloudPtr cloud;
+
+        ObjectTrack()
+        {
+            cloud = CloudPtr(new Cloud());
+        }
+    };
+
    DynamicObject(bool verbose = false);
    ~DynamicObject();
 
@@ -45,6 +57,7 @@ public:
    void computeBbox();
    void computeNormals(double, int noThreads = 4);
    void computeVFHFeatures();
+   void addObjectTrack(tf::Transform pose, CloudPtr cloud);
 
    bool operator==(const DynamicObject& rhs); // equality operator -> deep comparison of all fields
    bool operator!=(const DynamicObject& rhs); // equality operator -> deep comparison of all fields
@@ -62,6 +75,7 @@ public:
 
    CloudPtr                         m_points;
    std::vector<CloudPtr>            m_vAdditionalViews;
+   std::vector<ObjectTrack>         m_vObjectTracks;
    int                              m_noAdditionalViews;
    NormalCloudPtr                   m_normals;
    std::string                      m_label;

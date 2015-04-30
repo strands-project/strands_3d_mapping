@@ -31,6 +31,11 @@ add_service_files(
    GetDynamicObjectService.srv
 )
 
+add_message_files(
+  FILES
+  DynamicObjectTracks.msg
+)
+
 generate_messages(
   DEPENDENCIES
   std_msgs

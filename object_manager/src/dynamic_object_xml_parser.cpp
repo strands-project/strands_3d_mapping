@@ -57,6 +57,7 @@ std::string DynamicObjectXMLParser::saveAsXML(DynamicObject::Ptr object, std::st
     xmlWriter->writeAttribute("roomRunNumber",QString::number(object->m_roomRunNumber));
     xmlWriter->writeAttribute("filename",cloud_filename.c_str());
     xmlWriter->writeAttribute("additionalViews",QString::number(object->m_noAdditionalViews));
+    xmlWriter->writeAttribute("objectTracks",QString::number(object->m_vObjectTracks.size()));
     pcl::io::savePCDFileBinary(cloud_path, *object->m_points);
 
     // save additional views
@@ -74,6 +75,16 @@ std::string DynamicObjectXMLParser::saveAsXML(DynamicObject::Ptr object, std::st
             pcl::io::savePCDFileBinary(view_path, *object->m_vAdditionalViews[i]);
         }
     }
+
+    // save object tracks
+    xmlWriter->writeStartElement("ObjectTracks");
+    for (size_t i=0; i<object->m_vObjectTracks.size(); i++)
+    {
+        stringstream ss; ss<<i;
+        string track_cloud = m_rootFolderPath + "/" + object->m_label + "_object_track_"+ss.str()+".pcd";
+        saveObjectTrackToXml(object->m_vObjectTracks[i].pose, object->m_vObjectTracks[i].cloud,xmlWriter, "ObjectTrack",track_cloud);
+    }
+    xmlWriter->writeEndElement(); // ObjectTracks
 
 
     xmlWriter->writeStartElement("Centroid");
@@ -236,7 +247,29 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool loa
                 boost::posix_time::ptime objectTime = boost::posix_time::time_from_string(logTime.toStdString());
                 object->m_time = objectTime;
             }
+
+            if (xmlReader->name() == "ObjectTrack")
+            {
+                bool errorReading = false;
+                DynamicObject::ObjectTrack track = readObjectTrackFromXml(xmlReader, "ObjectTrack",objectFolder.toStdString(), errorReading, load_cloud);
+                if (errorReading )
+                {
+                    std::cerr<<"Error while loading object track. Not adding to object."<<std::endl;
+                } else
+                    if (load_cloud && track.cloud->points.size() == 0)
+                    {
+                        std::cerr<<"Error while loading object track. Not adding to object."<<std::endl;
+                    } else
+                    {
+                        object->addObjectTrack(track.pose, track.cloud);
+                    }
+            }
         }
+    }
+
+    if (xmlReader->hasError())
+    {
+        std::cerr<<"Error while loading dynamic object from file "<<filename<<std::endl;
     }
 
     if (m_verbose)
@@ -245,4 +278,148 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool loa
     }
 
     return object;
+}
+
+
+void DynamicObjectXMLParser::saveObjectTrackToXml(tf::Transform pose, CloudPtr cloud, QXmlStreamWriter* xmlWriter, std::string nodeName, std::string cloudFilename)
+{
+    geometry_msgs::Transform msg_reg;
+    tf::transformTFToMsg(pose, msg_reg);
+
+    QString xmlFileQS(cloudFilename.c_str());
+    int index = xmlFileQS.lastIndexOf('/');
+    QString filename = xmlFileQS.right(xmlFileQS.size() - index -1);
+
+    xmlWriter->writeStartElement(nodeName.c_str());
+    xmlWriter->writeAttribute("Trans_x",QString::number(msg_reg.translation.x));
+    xmlWriter->writeAttribute("Trans_y",QString::number(msg_reg.translation.y));
+    xmlWriter->writeAttribute("Trans_z",QString::number(msg_reg.translation.z));
+    xmlWriter->writeAttribute("Rot_w",QString::number(msg_reg.rotation.w));
+    xmlWriter->writeAttribute("Rot_x",QString::number(msg_reg.rotation.x));
+    xmlWriter->writeAttribute("Rot_y",QString::number(msg_reg.rotation.y));
+    xmlWriter->writeAttribute("Rot_z",QString::number(msg_reg.rotation.z));
+    xmlWriter->writeAttribute("Cloud_filename", filename);
+    if (cloud->points.size() != 0)
+    {
+        pcl::io::savePCDFileBinary(cloudFilename, *cloud);
+    } else {
+        ROS_WARN_STREAM("Object track cloud has 0 points.");
+    }
+
+    xmlWriter->writeEndElement();
+}
+
+DynamicObject::ObjectTrack DynamicObjectXMLParser::readObjectTrackFromXml(QXmlStreamReader* xmlReader, std::string nodeName, std::string objectFolder, bool& errorReading, bool load_cloud)
+{
+    DynamicObject::ObjectTrack toRet;
+
+    errorReading = false;
+    geometry_msgs::Transform tfmsg;
+    tf::Transform transform;
+    std::string cloud_name = "";
+
+    if (xmlReader->name() == nodeName.c_str())
+    {
+        errorReading = false;
+        QXmlStreamAttributes paramAttributes = xmlReader->attributes();
+
+        if (load_cloud)
+        {
+            if (paramAttributes.hasAttribute("Cloud_filename"))
+            {
+                QString val = paramAttributes.value("Cloud_filename").toString();
+                cloud_name = val.toStdString();
+                std::string cloud_path = objectFolder + "/" + cloud_name;
+                pcl::PCDReader reader;
+                CloudPtr cloud (new Cloud);
+                reader.read (cloud_path, *cloud);
+                if (cloud->points.size() == 0)
+                {
+                    errorReading = true;
+                    ROS_ERROR_STREAM("Dynamic object track point cloud has no points. " + cloud_path);
+                } else {
+                    toRet.cloud = cloud;
+                }
+            } else {
+                ROS_ERROR("%s xml node does not have the Stamp_sec attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+                errorReading = true;
+            }
+        }
+        if (paramAttributes.hasAttribute("Trans_x"))
+        {
+            QString val = paramAttributes.value("Trans_x").toString();
+            tfmsg.translation.x = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Trans_x attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Trans_y"))
+        {
+            QString val = paramAttributes.value("Trans_y").toString();
+            tfmsg.translation.y = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Trans_y attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Trans_z"))
+        {
+            QString val = paramAttributes.value("Trans_z").toString();
+            tfmsg.translation.z = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Trans_z attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Rot_w"))
+        {
+            QString val = paramAttributes.value("Rot_w").toString();
+            tfmsg.rotation.w = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Rot_w attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Rot_x"))
+        {
+            QString val = paramAttributes.value("Rot_x").toString();
+            tfmsg.rotation.x = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Rot_x attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Rot_y"))
+        {
+            QString val = paramAttributes.value("Rot_y").toString();
+            tfmsg.rotation.y = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Rot_y attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Rot_z"))
+        {
+            QString val = paramAttributes.value("Rot_z").toString();
+            tfmsg.rotation.z = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Rot_z attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+
+    } else {
+        ROS_ERROR("Error while attempting to construct tf::StampedTransform from node name %s  Node expected %s",xmlReader->name().toString().toStdString().c_str(), nodeName.c_str());
+        errorReading = true;
+    }
+
+    if (!errorReading)
+    {
+        //            ROS_INFO_STREAM("No error while parsing node "<<xmlReader->name().toString().toStdString()<<"  constructing tf object ");
+        tf::transformMsgToTF(tfmsg, transform);
+        toRet.pose = transform;
+    }
+
+    return toRet;
 }

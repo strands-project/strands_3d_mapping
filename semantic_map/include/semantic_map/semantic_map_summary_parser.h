@@ -117,13 +117,25 @@ public:
             currentMatches.push_back(std::make_pair(allRooms[i].roomXmlFile,allRooms[i].roomLogStartTime));
             for (int j=i+1; j<allRooms.size();j++)
             {
-                double centroidDistance = pcl::distances::l2(allRooms[i].centroid,allRooms[j].centroid);
-                if (! (centroidDistance < ROOM_CENTROID_DISTANCE) )
+                if (allRooms[i].stringId !="")
                 {
-                    continue;
+                    // compare by waypoint id first
+                    if (!(allRooms[i].stringId == allRooms[j].stringId))
+                    {
+                        continue;
+                    } else {
+                        matches++;
+                        currentMatches.push_back(std::make_pair(allRooms[j].roomXmlFile,allRooms[j].roomLogStartTime));
+                    }
                 } else {
-                    matches++;
-                    currentMatches.push_back(std::make_pair(allRooms[j].roomXmlFile,allRooms[j].roomLogStartTime));
+                    double centroidDistance = pcl::distances::l2(allRooms[i].centroid,allRooms[j].centroid);
+                    if (! (centroidDistance < ROOM_CENTROID_DISTANCE) )
+                    {
+                        continue;
+                    } else {
+                        matches++;
+                        currentMatches.push_back(std::make_pair(allRooms[j].roomXmlFile,allRooms[j].roomLogStartTime));
+                    }
                 }
             }
 
