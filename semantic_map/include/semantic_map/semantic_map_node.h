@@ -18,7 +18,7 @@
 #include <sensor_msgs/image_encodings.h>
 
 // Services
-//#include <semantic_map/MetaroomService.h>
+#include <semantic_map/ClearMetaroomService.h>
 //#include <semantic_map/DynamicClusterService.h>
 //#include <semantic_map/ObservationService.h>
 
@@ -56,18 +56,23 @@ public:
     typedef typename std::map<std::string, SemanticRoom<PointType> >::iterator WaypointRoomMapIterator;
     typedef typename std::map<std::string, CloudPtr>::iterator WaypointPointCloudMapIterator;
 
+    typedef typename semantic_map::ClearMetaroomService::Request ClearMetaroomServiceRequest;
+    typedef typename semantic_map::ClearMetaroomService::Response ClearMetaroomServiceResponse;
+
     SemanticMapNode(ros::NodeHandle nh);
     ~SemanticMapNode();
 
     void processRoomObservation(std::string xml_file_name);
 
     void roomObservationCallback(const semantic_map::RoomObservationConstPtr& obs_msg);
+    bool clearMetaroomServiceCallback(ClearMetaroomServiceRequest &req, ClearMetaroomServiceResponse &res);
 
     ros::Subscriber                                                             m_SubscriberRoomObservation;
     ros::Publisher                                                              m_PublisherMetaroom;
     ros::Publisher                                                              m_PublisherObservation;
     ros::Publisher                                                              m_PublisherDynamicClusters;
     ros::Publisher                                                              m_PublisherStatus;
+    ros::ServiceServer                                                          m_ClearMetaroomServiceServer;
 
 private:
 
@@ -96,6 +101,7 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
     m_PublisherMetaroom = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/metaroom", 1, true);
     m_PublisherDynamicClusters = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/dynamic_clusters", 1, true);
     m_PublisherObservation = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/merged_point_cloud_downsampled", 1, true);
+    m_ClearMetaroomServiceServer = m_NodeHandle.advertiseService("/local_metric_map/ClearMetaroomService", &SemanticMapNode::clearMetaroomServiceCallback, this);
 
     bool save_intermediate;
     m_NodeHandle.param<bool>("save_intermediate",save_intermediate,false);
@@ -538,4 +544,82 @@ void SemanticMapNode<PointType>::roomObservationCallback(const semantic_map::Roo
     this->processRoomObservation(obs_msg->xml_file_name);
 }
 
+
+template <class PointType>
+bool SemanticMapNode<PointType>::clearMetaroomServiceCallback(ClearMetaroomServiceRequest &req, ClearMetaroomServiceResponse &res)
+{
+    ROS_INFO_STREAM("Received a clear metaroom service request ");
+
+    using namespace std;
+    std::vector<Entities> allMetarooms = m_SummaryParser.getMetaRooms();
+    ROS_INFO_STREAM("Loaded "<<allMetarooms.size()<<" metarooms.");
+
+    for (size_t i=0; i<allMetarooms.size(); i++)
+    {
+        bool clear_mr = false;
+        if (req.waypoint_id.size() == 0)
+        {
+            clear_mr = true;
+        }
+        for_each(req.waypoint_id.begin(), req.waypoint_id.end(), [&clear_mr, &allMetarooms, &i](string way)
+        {
+            if (way == allMetarooms[i].stringId) clear_mr = true;
+        } );
+
+        if (clear_mr)
+        {
+            int index = QString(allMetarooms[i].roomXmlFile.c_str()).lastIndexOf('/');
+            QString metaroomFolder = QString(allMetarooms[i].roomXmlFile.c_str()).left(index);
+
+            ROS_INFO_STREAM("Removing metaroom corresponding to waypoint ["<< allMetarooms[i].stringId<< "]  saved at "<<metaroomFolder.toStdString());
+//            QDir home = QDir::homePath();
+//            home.removeRecursively(metaroomFolder);
+            boost::filesystem::remove_all(metaroomFolder.toStdString().c_str());
+        }
+
+    }
+
+    // check if to reinitialize the metarooms
+    if (req.initialize)
+    {
+        auto sweep_xmls = m_SummaryParser.getRooms();
+
+        // first construct waypoint id to sweep xml map
+        std::map<std::string, std::vector<std::string>> waypointToSweepsMap;
+        for (size_t i=0; i<sweep_xmls.size(); i++)
+        {
+            auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweep_xmls[i].roomXmlFile, std::vector<std::string>(), false);
+            waypointToSweepsMap[sweep.roomWaypointId].push_back(sweep_xmls[i].roomXmlFile);
+        }
+
+        for (auto it = waypointToSweepsMap.begin(); it!= waypointToSweepsMap.end(); it++)
+        {
+            bool initialize_metaroom = false;
+            if (req.waypoint_id.size() == 0)
+            {
+                initialize_metaroom = true;
+            }
+            for_each(req.waypoint_id.begin(), req.waypoint_id.end(), [&initialize_metaroom, &it](string way)
+            {
+                if (way == it->first) initialize_metaroom = true;
+            } );
+
+            if (initialize_metaroom)
+            {
+                vector<string> waypoint_observations = it->second;
+                sort(waypoint_observations.begin(), waypoint_observations.end());
+                reverse(waypoint_observations.begin(), waypoint_observations.end());
+                ROS_INFO_STREAM("Initializing metaroom for waypoint ["<<it->first<<"] with observation "<<waypoint_observations[0]);
+
+                processRoomObservation(waypoint_observations[0]);
+
+                ROS_INFO_STREAM("Finished initializing metaroom for waypoint ["<<it->first<<"]");
+            }
+        }
+    }
+
+    return true;
+}
+
 #endif
+

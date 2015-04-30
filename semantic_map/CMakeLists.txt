@@ -23,6 +23,11 @@ add_message_files(
   RoomObservation.msg
 )
 
+add_service_files(
+   FILES
+   ClearMetaroomService.srv
+)
+
 generate_messages(
   DEPENDENCIES
   std_msgs
