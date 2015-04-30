@@ -87,6 +87,7 @@ private:
     std::map<std::string, CloudPtr>                                             m_WaypointToDynamicClusterMap;
     bool                                                                        m_bUpdateMetaroom;
     bool                                                                        m_bNewestClusters;
+    bool                                                                        m_bUseNDTRegistration;
 
 };
 
@@ -135,6 +136,16 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
     } else {
         ROS_INFO_STREAM("All the dynamic clusters will be computer (comparing with the metaroom).");
     }
+
+    m_NodeHandle.param<bool>("use_NDT_registration",m_bUseNDTRegistration,true);
+    if (m_bUseNDTRegistration)
+    {
+        ROS_INFO_STREAM("The default registration method between sweeps is NDT.");
+    } else {
+        ROS_INFO_STREAM("The default registration between sweeps will use the computed image features (and RANSAC), if available. If not available defaulting to NDT registration.");
+    }
+
+
 
     std::string statusTopic;
     m_NodeHandle.param<std::string>("status_topic",statusTopic,"/local_metric_map/status");
@@ -270,7 +281,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         ROS_INFO_STREAM("Initializing metaroom.");
     } else {
 
-        if ((rawPoses !=NULL) && (mr_features.size() != 0) && (room_features.size() != 0))
+        if ((!m_bUseNDTRegistration) && (rawPoses !=NULL) && (mr_features.size() != 0) && (room_features.size() != 0))
         {
             ROS_INFO_STREAM("Registering sweep using ORB features.");
             unsigned int gx = 17;
