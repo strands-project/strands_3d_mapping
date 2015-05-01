@@ -905,20 +905,20 @@ void reweight_query_vocabulary_sift(vector<index_score>& reweight_grown_scores, 
     //find_top_oversegments_grow_and_score(reweighted_oversegment_scores, second_scores, reweighted_oversegment_indices, query_features, mapping, obr_segments,
     //                                     obr_scans, obr_scans_annotations, nbr_query, nbr_initial_query, noise_scans_size);
 
-    /*vector<tuple<int, int, double> > tuple_scores;
+    vector<tuple<int, int, double> > tuple_scores;
     obr_segments.gvt.top_optimized_similarities(tuple_scores, query_features, nbr_initial_query);
     vector<index_score> reweight_scores;
     vector<int> reweight_hints;
     for (const tuple<int, int, double>& t : tuple_scores) {
         reweight_scores.push_back(index_score(get<0>(t), get<2>(t)));
         reweight_hints.push_back(get<1>(t));
-    }*/
+    }
 
     vector<vector<int> > reweight_oversegment_indices;
-    compute_grow_subsegment_scores(reweight_grown_scores, reweight_oversegment_indices, first_scores, hints, query_features, mapping,
-                                   obr_segments, obr_scans, obr_scans_annotations, nbr_query, noise_scans_size);
-    //compute_grow_subsegment_scores(reweight_grown_scores, reweight_oversegment_indices, reweight_scores, reweight_hints, query_features, mapping,
+    //compute_grow_subsegment_scores(reweight_grown_scores, reweight_oversegment_indices, first_scores, hints, query_features, mapping,
     //                               obr_segments, obr_scans, obr_scans_annotations, nbr_query, noise_scans_size);
+    compute_grow_subsegment_scores(reweight_grown_scores, reweight_oversegment_indices, reweight_scores, reweight_hints, query_features, mapping,
+                                   obr_segments, obr_scans, obr_scans_annotations, nbr_query, noise_scans_size);
     obr_segments.gvt.restore_old_weights(original_norm_constants, original_weights);
 }
 
