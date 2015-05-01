@@ -669,7 +669,7 @@ void grouped_vocabulary_tree<Point, K>::compute_group_normalizing_constants()
     }
     super::N = groups.size();
 
-    super::db_vector_normalizing_constants.clear(); // this should be safe...
+    super::db_vector_normalizing_constants.clear();
     std::map<int, int> normalizing_constants;
     group_normalizing_constants_for_node(normalizing_constants, &(super::root), 0);
 }
