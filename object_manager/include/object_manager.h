@@ -117,6 +117,7 @@ private:
     ros::Subscriber                                                             m_SubscriberAdditionalObjectViewsStatus;
     ros::ServiceServer                                                          m_DynamicObjectsServiceServer;
     ros::ServiceServer                                                          m_GetDynamicObjectServiceServer;
+    tf::TransformListener                                                       m_TransformListener; // for additional views
 
     std::string                                                                 m_additionalViewsTopic;
     std::string                                                                 m_additionalViewsStatusTopic;
@@ -130,7 +131,7 @@ private:
 };
 
 template <class PointType>
-ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh)
+ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh) : m_TransformListener(nh,ros::Duration(1000))
 {
     ROS_INFO_STREAM("ObjectManager node initialized");
 
@@ -231,7 +232,20 @@ void ObjectManager<PointType>::additionalViewsCallback(const sensor_msgs::PointC
         pcl::fromROSMsg(*msg, *new_cloud);
         new_cloud->header = pcl_conversions::toPCL(msg->header);
 
-        m_objectTracked->addAdditionalView(new_cloud);
+        try {
+            // get additional views pose
+            ROS_INFO_STREAM("Additional views cloud is in frame ["<<new_cloud->header.frame_id<<"] requesting and storing transform to map frame. ");
+            tf::StampedTransform transform;
+            m_TransformListener.waitForTransform("/map", new_cloud->header.frame_id,msg->header.stamp, ros::Duration(20.0) );
+            m_TransformListener.lookupTransform("/map", new_cloud->header.frame_id,
+                                                msg->header.stamp, transform);
+
+            m_objectTracked->addAdditionalViewTransform(transform);
+        }         catch (tf::TransformException ex){
+            ROS_ERROR("%s",ex.what());
+        }
+
+
     } else {
         ROS_ERROR_STREAM("Received an additional view when we're not viewing an object.");
     }

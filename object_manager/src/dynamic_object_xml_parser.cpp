@@ -76,6 +76,14 @@ std::string DynamicObjectXMLParser::saveAsXML(DynamicObject::Ptr object, std::st
         }
     }
 
+    // save additional view transforms
+    xmlWriter->writeStartElement("AdditionalViewsTransforms");
+    for (auto transform : object->m_vAdditionalViewsTransforms)
+    {
+        saveTfStampedTransfromToXml(transform, xmlWriter, "AdditonalViewTransform");
+    }
+    xmlWriter->writeEndElement();
+
     // save object tracks
     xmlWriter->writeStartElement("ObjectTracks");
     for (size_t i=0; i<object->m_vObjectTracks.size(); i++)
@@ -264,6 +272,15 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool loa
                         object->addObjectTrack(track.pose, track.cloud);
                     }
             }
+            if (xmlReader->name() == "AdditonalViewTransform")
+            {
+                bool errorReading = false;
+                tf::StampedTransform transform = readTfStampedTransformFromXml(xmlReader, "AdditonalViewTransform", errorReading);
+                if (!errorReading)
+                {
+                    object->addAdditionalViewTransform(transform);
+                }
+            }
         }
     }
 
@@ -422,4 +439,151 @@ DynamicObject::ObjectTrack DynamicObjectXMLParser::readObjectTrackFromXml(QXmlSt
     }
 
     return toRet;
+}
+
+void DynamicObjectXMLParser::saveTfStampedTransfromToXml(tf::StampedTransform transform, QXmlStreamWriter* xmlWriter, std::string nodeName)
+{
+    geometry_msgs::TransformStamped msg_reg;
+    tf::transformStampedTFToMsg(transform, msg_reg);
+
+    xmlWriter->writeStartElement(nodeName.c_str());
+    xmlWriter->writeAttribute("Stamp_sec",QString::number(msg_reg.header.stamp.sec));
+    xmlWriter->writeAttribute("Stamp_nsec",QString::number(msg_reg.header.stamp.nsec));
+    xmlWriter->writeAttribute("FrameId",QString(msg_reg.header.frame_id.c_str()));
+    xmlWriter->writeAttribute("ChildFrameId",QString(msg_reg.child_frame_id.c_str()));
+    xmlWriter->writeAttribute("Trans_x",QString::number(msg_reg.transform.translation.x));
+    xmlWriter->writeAttribute("Trans_y",QString::number(msg_reg.transform.translation.y));
+    xmlWriter->writeAttribute("Trans_z",QString::number(msg_reg.transform.translation.z));
+    xmlWriter->writeAttribute("Rot_w",QString::number(msg_reg.transform.rotation.w));
+    xmlWriter->writeAttribute("Rot_x",QString::number(msg_reg.transform.rotation.x));
+    xmlWriter->writeAttribute("Rot_y",QString::number(msg_reg.transform.rotation.y));
+    xmlWriter->writeAttribute("Rot_z",QString::number(msg_reg.transform.rotation.z));
+
+    xmlWriter->writeEndElement();
+}
+
+tf::StampedTransform DynamicObjectXMLParser::readTfStampedTransformFromXml(QXmlStreamReader* xmlReader, std::string nodeName, bool& errorReading)
+{
+    errorReading = false;
+    geometry_msgs::TransformStamped tfmsg;
+    tf::StampedTransform transform;
+
+    if (xmlReader->name() == nodeName.c_str())
+    {
+        errorReading = false;
+        QXmlStreamAttributes paramAttributes = xmlReader->attributes();
+
+        if (paramAttributes.hasAttribute("Stamp_sec"))
+        {
+            QString val = paramAttributes.value("Stamp_sec").toString();
+            tfmsg.header.stamp.sec = val.toInt();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Stamp_sec attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Stamp_nsec"))
+        {
+            QString val = paramAttributes.value("Stamp_nsec").toString();
+            tfmsg.header.stamp.nsec = val.toInt();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Stamp_nsec attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("FrameId"))
+        {
+            QString val = paramAttributes.value("FrameId").toString();
+            tfmsg.header.frame_id = val.toStdString();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the FrameId attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("ChildFrameId"))
+        {
+            QString val = paramAttributes.value("ChildFrameId").toString();
+            tfmsg.child_frame_id = val.toStdString();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the ChildFrameId attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Trans_x"))
+        {
+            QString val = paramAttributes.value("Trans_x").toString();
+            tfmsg.transform.translation.x = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Trans_x attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Trans_y"))
+        {
+            QString val = paramAttributes.value("Trans_y").toString();
+            tfmsg.transform.translation.y = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Trans_y attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Trans_z"))
+        {
+            QString val = paramAttributes.value("Trans_z").toString();
+            tfmsg.transform.translation.z = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Trans_z attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Rot_w"))
+        {
+            QString val = paramAttributes.value("Rot_w").toString();
+            tfmsg.transform.rotation.w = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Rot_w attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Rot_x"))
+        {
+            QString val = paramAttributes.value("Rot_x").toString();
+            tfmsg.transform.rotation.x = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Rot_x attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Rot_y"))
+        {
+            QString val = paramAttributes.value("Rot_y").toString();
+            tfmsg.transform.rotation.y = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Rot_y attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+        if (paramAttributes.hasAttribute("Rot_z"))
+        {
+            QString val = paramAttributes.value("Rot_z").toString();
+            tfmsg.transform.rotation.z = val.toDouble();
+
+        } else {
+            ROS_ERROR("%s xml node does not have the Rot_z attribute. Cannot construct tf::StampedTransform.", xmlReader->name().toString().toStdString().c_str());
+            errorReading = true;
+        }
+
+    } else {
+        ROS_ERROR("Error while attempting to construct tf::StampedTransform from node name %s  Node expected %s",xmlReader->name().toString().toStdString().c_str(), nodeName.c_str());
+        errorReading = true;
+    }
+
+    if (!errorReading)
+    {
+        //            ROS_INFO_STREAM("No error while parsing node "<<xmlReader->name().toString().toStdString()<<"  constructing tf object ");
+        tf::transformStampedMsgToTF(tfmsg, transform);
+    }
+
+    return transform;
+
 }
