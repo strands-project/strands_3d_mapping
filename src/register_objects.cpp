@@ -52,10 +52,13 @@ pair<int, int> register_objects::calculate_image_for_cloud(cv::Mat& image, cv::M
     depths.reserve(cloud->size());
 
     for (PointT& p : cloud->points) {
+        if (!pcl::isFinite(p)) {
+            continue;
+        }
         Eigen::Vector3f q = K*p.getVector3fMap();
         int x = int(q(0)/q(2) + 0.5f);
         int y = int(q(1)/q(2) + 0.5f);
-        if (x >= 0 && y >= 0) {
+        if (true) {//x >= 0 && y >= 0) {
             xs.push_back(x);
             ys.push_back(y);
             cv::Vec3b temp;

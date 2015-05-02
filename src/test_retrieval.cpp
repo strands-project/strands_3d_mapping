@@ -46,6 +46,62 @@ using ShotT = pcl::Histogram<1344>;
 using ShotCloudT = pcl::PointCloud<ShotT>;
 
 // OK
+void compute_sift_features_detail(cv::Mat& descriptors, vector<cv::KeyPoint>& keypoints, CloudT::Ptr& cloud, cv::Mat& image,
+                                  cv::Mat& depth, int minx, int miny, const Eigen::Matrix3f& K)
+{
+    cv::FastFeatureDetector detector;
+    detector.detect(image, keypoints);
+
+    //-- Step 2: Calculate descriptors (feature vectors)
+    cv::SIFT::DescriptorParams descriptor_params;
+    descriptor_params.isNormalize = true; // always true, shouldn't matter
+    descriptor_params.magnification = 3.0; // 3.0 default
+    descriptor_params.recalculateAngles = true; // true default
+
+    cv::SiftDescriptorExtractor extractor;
+    extractor.compute(image, keypoints, descriptors);
+
+    // get back to 3d coordinates
+    for (cv::KeyPoint k : keypoints) {
+        cv::Point2f p2 = k.pt;
+        Eigen::Vector3f p3;
+        p3(0) = p2.x + float(minx);
+        p3(1) = p2.y + float(miny);
+        p3(2) = 1.0f;
+        p3 = K.colPivHouseholderQr().solve(p3);
+        p3 *= depth.at<float>(int(p2.y), int(p2.x))/p3(2);
+        PointT p;
+        p.getVector3fMap() = p3;
+        cloud->push_back(p);
+    }
+
+    cv::Mat img_keypoints;
+    cv::drawKeypoints(image, keypoints, img_keypoints, cv::Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+    cv::imshow("my keypoints", img_keypoints);
+    cv::waitKey(0);
+}
+
+// OK
+void compute_sift_features_for_query(SiftCloudT::Ptr& desc_cloud, CloudT::Ptr& kp_cloud, CloudT::Ptr& cloud, Eigen::Matrix3f& K)
+{
+    int minx, miny;
+    cv::Mat img, depth;
+    register_objects ro;
+    tie(minx, miny) = ro.calculate_image_for_cloud(img, depth, cloud, K);
+    cv::Mat descriptors;
+    std::vector<cv::KeyPoint> keypoints;
+    compute_sift_features_detail(descriptors, keypoints, kp_cloud, img, depth, minx, miny, K);
+    for (int j = 0; j < descriptors.rows; ++j) {
+        // we need to check if the points are finite
+        SiftT sp;
+        for (int k = 0; k < 128; ++k) {
+            sp.histogram[k] = descriptors.at<float>(j, k);
+        }
+        desc_cloud->push_back(sp);
+    }
+}
+
+// OK
 void save_sift_features(object_retrieval& obr_scans)
 {
     for (int i = 0; ; ++i) {
@@ -840,13 +896,22 @@ void reweight_query_vocabulary_sift(vector<index_score>& reweight_grown_scores, 
                                     vector<index_score>& first_scores, vector<int>& hints, vector<vector<int> >& oversegment_indices, CloudT::Ptr& query_cloud,
                                     HistCloudT::Ptr& query_features, CloudT::Ptr& query_keypoints, int query_id, int nbr_query, int nbr_initial_query,
                                     object_retrieval& obr_scans, object_retrieval& obr_scans_annotations, object_retrieval& obr_segments,
-                                    object_retrieval& obr_segments_annotations, int noise_scans_size, map<vocabulary_tree<HistT, 8>::node*, int>& mapping)
+                                    object_retrieval& obr_segments_annotations, int noise_scans_size, map<vocabulary_tree<HistT, 8>::node*, int>& mapping,
+                                    SiftCloudT* optional_sift_query_features = NULL, CloudT* optional_sift_query_keypoints = NULL)
 {
     // get sift cloud and keypoints for query cloud
     SiftCloudT::Ptr sift_cloud(new SiftCloudT);
     CloudT::Ptr sift_keypoints(new CloudT);
-    get_sift_features_for_segment(sift_cloud, sift_keypoints, query_keypoints, obr_segments_annotations.get_scan_folder_for_segment(query_id));
-    int scan_id = obr_segments_annotations.scan_ind_for_segment(query_id);
+    int scan_id;
+    if (query_id != -1) {
+        get_sift_features_for_segment(sift_cloud, sift_keypoints, query_keypoints, obr_segments_annotations.get_scan_folder_for_segment(query_id));
+        scan_id = obr_segments_annotations.scan_ind_for_segment(query_id);
+    }
+    else {
+        *sift_cloud = *optional_sift_query_features;
+        *sift_keypoints = *optional_sift_query_keypoints;
+        scan_id = -1;
+    }
 
     map<int, double> weighted_indices;
 
@@ -1093,9 +1158,11 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
 }
 
 // OK
-void query_cloud(CloudT::Ptr& cloud, object_retrieval& obr_segments, object_retrieval& obr_scans, object_retrieval& obr_scans_annotations, int noise_scans_size)
+void query_cloud(CloudT::Ptr& cloud, Eigen::Matrix3f& K, object_retrieval& obr_segments, object_retrieval& obr_scans,
+                 object_retrieval& obr_segments_annotations, object_retrieval& obr_scans_annotations, int noise_scans_size)
 {
-    const int nbr_query = 11;
+    const int nbr_query = 10;
+    const int nbr_reweight_query = 10;
     const int nbr_initial_query = 500;
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
@@ -1103,7 +1170,7 @@ void query_cloud(CloudT::Ptr& cloud, object_retrieval& obr_segments, object_retr
     if (obr_segments.gvt.empty()) {
         obr_segments.read_vocabulary(obr_segments.gvt);
     }
-    obr_segments.gvt.set_min_match_depth(2);
+    obr_segments.gvt.set_min_match_depth(3);
     obr_segments.gvt.compute_normalizing_constants();
 
     read_supervoxel_groups(obr_segments); // this will not be needed eventually, should be part of class init
@@ -1115,65 +1182,45 @@ void query_cloud(CloudT::Ptr& cloud, object_retrieval& obr_segments, object_retr
     obr_segments.visualize_cloud(cloud);
 
     HistCloudT::Ptr features(new HistCloudT);
-    CloudT::Ptr kp_cloud(new CloudT);
-    pfhrgb_estimation::compute_features(features, kp_cloud, cloud, false);
+    CloudT::Ptr keypoints(new CloudT);
+    pfhrgb_estimation::compute_features(features, keypoints, cloud, false);
 
-    vector<tuple<int, int, double> > tuple_scores;
-    // this also takes care of the scan association
-    obr_segments.gvt.top_optimized_similarities(tuple_scores, features, nbr_initial_query);
+    cout << "Features: " << features->size() << endl;
 
-    vector<index_score> scores;
-    vector<int> hints;
-    for (const tuple<int, int, double>& t : tuple_scores) {
-        scores.push_back(index_score(get<0>(t), get<2>(t)));
-        hints.push_back(get<1>(t));
-    }
-
-    vector<index_score> updated_scores;
+    vector<index_score> first_scores; // scores
+    vector<index_score> second_scores; // updated_scores;
+    vector<index_score> reweight_scores; // scores after reweighting
+    vector<int> hints; // hints for where in image to start growing
     vector<vector<int> > oversegment_indices;
-    for (size_t i = 0; i < scores.size(); ++i) {
-        CloudT::Ptr voxel_centers(new CloudT);
-        vector<double> vocabulary_norms;
-        vector<map<int, double> > vocabulary_vectors;
-        vector<map<int, int> > vocabulary_index_vectors;
+    find_top_oversegments_grow_and_score(first_scores, reweight_scores, hints, oversegment_indices, features, mapping, obr_segments,
+                                         obr_scans, obr_scans_annotations, nbr_reweight_query, nbr_initial_query, noise_scans_size); // nbr_query if no reweight
 
-        if (scores[i].first < noise_scans_size) {
-            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, vocabulary_index_vectors, scores[i].first, obr_scans);
-        }
-        else {
-            get_voxel_vectors_for_scan(voxel_centers, vocabulary_norms, vocabulary_vectors, vocabulary_index_vectors, scores[i].first-noise_scans_size, obr_scans_annotations);
-        }
+    /*SiftCloudT::Ptr sift_features(new SiftCloudT);
+    CloudT::Ptr sift_keypoints(new CloudT);
+    compute_sift_features_for_query(sift_features, sift_keypoints, cloud, K);
 
-        vector<int> selected_indices;
-        double score = obr_segments.gvt.compute_min_combined_dist(selected_indices, features, vocabulary_vectors, vocabulary_norms, voxel_centers, mapping, hints[i]);
-        updated_scores.push_back(index_score(scores[i].first, score));
-        oversegment_indices.push_back(selected_indices);
-    }
+    reweight_query_vocabulary_sift(reweight_scores, second_scores, first_scores, hints, oversegment_indices, cloud, features, keypoints, -1, nbr_query,
+                                   nbr_initial_query, obr_scans, obr_scans_annotations, obr_segments, obr_segments_annotations, noise_scans_size, mapping,
+                                   &(*sift_features), &(*sift_keypoints));*/
 
-    auto p = sort_permutation(updated_scores, [](const index_score& s1, const index_score& s2) {
-        return s1.second < s2.second; // find min elements!
-    });
-    updated_scores = apply_permutation(updated_scores, p);
-    oversegment_indices = apply_permutation(oversegment_indices, p);
-    updated_scores.resize(nbr_query);
-    oversegment_indices.resize(nbr_query);
+    cout << "Number of features: " << features->size() << endl;
 
     // make this a function
-    for (size_t i = 0; i < updated_scores.size(); ++i) {
+    for (size_t i = 0; i < reweight_scores.size(); ++i) {
         HistCloudT::Ptr result_features(new HistCloudT);
         CloudT::Ptr result_keypoints(new CloudT);
-        if (updated_scores[i].first < noise_scans_size) {
-            load_nth_keypoints_features_for_scan(result_keypoints, result_features, updated_scores[i].first, oversegment_indices[i], obr_scans);
+        if (reweight_scores[i].first < noise_scans_size) {
+            load_nth_keypoints_features_for_scan(result_keypoints, result_features, reweight_scores[i].first, oversegment_indices[i], obr_scans);
         }
         else {
-            load_nth_keypoints_features_for_scan(result_keypoints, result_features, updated_scores[i].first-noise_scans_size, oversegment_indices[i], obr_scans_annotations);
+            load_nth_keypoints_features_for_scan(result_keypoints, result_features, reweight_scores[i].first-noise_scans_size, oversegment_indices[i], obr_scans_annotations);
         }
         CloudT::Ptr result_cloud(new CloudT);
-        if (updated_scores[i].first < noise_scans_size) {
-            obr_scans.read_scan(result_cloud, updated_scores[i].first);
+        if (reweight_scores[i].first < noise_scans_size) {
+            obr_scans.read_scan(result_cloud, reweight_scores[i].first);
         }
         else {
-            obr_scans_annotations.read_scan(result_cloud, updated_scores[i].first-noise_scans_size);
+            obr_scans_annotations.read_scan(result_cloud, reweight_scores[i].first-noise_scans_size);
         }
         register_objects ro;
         ro.visualize_feature_segmentation(result_keypoints, result_cloud);
@@ -1336,14 +1383,14 @@ int main(int argc, char** argv)
 
     //query_supervoxel_oversegments(query_data_iter, K, obr_segments, obr_scans, obr_segments, obr_scans, 0);
 
-    query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
+    //query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
 
     //query_supervoxels(query_data_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
 
-    /*CloudT::Ptr query_cloud_larger(new CloudT);
+    CloudT::Ptr query_cloud_larger(new CloudT);
     pcl::io::loadPCDFile("/home/nbore/Data/rgb_0015_label_0.pcd", *query_cloud_larger);
 
-    query_cloud(query_cloud_larger, obr_segments_noise, obr_scans_noise, obr_scans, noise_scans_size);*/
+    query_cloud(query_cloud_larger, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
 
     cout << "Program finished..." << endl;
 
