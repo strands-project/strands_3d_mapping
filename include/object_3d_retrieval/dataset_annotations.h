@@ -41,6 +41,8 @@ void calculate_correct_ratio(std::map<std::string, pair<float, int> >& instance_
                              int scan_ind, std::vector<index_score>& scores, object_retrieval& obr_scans, int noise_scans_size, const bool verbose = true);
 void calculate_correct_ratio_exclude_sweep(std::map<std::string, pair<float, int> >& instance_correct_ratios, const std::string& annotation, int scan_ind,
                                            std::vector<index_score>& scores, object_retrieval& obr_scans, int noise_scans_size, const bool verbose = true);
+void calculate_correct_ratio_exclude_sweep_precise(std::map<std::string, pair<float, int> >& instance_correct_ratios, const std::string& annotation, int scan_ind,
+                                                   std::vector<index_score>& scores, object_retrieval& obr_scans, int noise_scans_size, const bool verbose = true);
 void compute_decay_correct_ratios(std::vector<std::pair<float, int> >& decay_correct_ratios, std::vector<int>& intermediate_points,
                                   voxel_annotation& a, int scan_ind, std::vector<index_score>& scores, object_retrieval& obr_scans,
                                   int nbr_query, int noise_scans_size);

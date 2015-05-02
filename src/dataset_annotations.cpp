@@ -321,6 +321,67 @@ void calculate_correct_ratio_exclude_sweep(map<string, pair<float, int> >& insta
 }
 
 // OK
+void calculate_correct_ratio_exclude_sweep_precise(map<string, pair<float, int> >& instance_correct_ratios, const string& annotation, int scan_ind,
+                                                   vector<index_score>& scores, object_retrieval& obr_scans, int noise_scans_size, const bool verbose)
+{
+    string scan_file = obr_scans.get_scan_file(scan_ind);
+    string query_sweep = boost::filesystem::path(scan_file).parent_path().string();
+
+    int true_count = 0;
+    int valid_queries = 0;
+    for (int i = 0; i < scores.size() && valid_queries < 10; ++i) {
+        index_score s = scores[i];
+        if (s.first < noise_scans_size) { // is noise
+            cout << "This was noise, false" << endl;
+            cout << "Score: " << s.second << endl;
+            ++valid_queries;
+            continue;
+        }
+        int match_ind = s.first - noise_scans_size;
+        if (std::abs(match_ind - scan_ind) < 17) { // might be part of the same sweep
+            // replace this with something checking if they are from the same sweep
+            /*if (std::abs(query_ind - scan_ind) <= 2) { // two apart will be excluded, they might contain the same
+                continue;
+            }*/
+            string match_file = obr_scans.get_scan_file(match_ind);
+            string match_sweep = boost::filesystem::path(match_file).parent_path().string();
+            if (match_sweep == query_sweep) {
+                //cout << match_sweep << endl;
+                //cout << query_sweep << endl;
+                //exit(0);
+                continue;
+            }
+        }
+        string instance = annotation_for_scan(match_ind, obr_scans);
+        ++valid_queries;
+        if (instance == annotation) {
+            ++true_count;
+            if (verbose) cout << "This was true." << endl;
+        }
+        else {
+            if (verbose) cout << "This was false." << endl;
+        }
+        if (verbose) {
+            cout << "Scan: " << match_ind << ", Score: " << s.second << endl;
+        }
+    }
+
+    if (valid_queries < 10) {
+        cout << "There were not enough entries in query vector, exiting..." << endl;
+        exit(-1);
+    }
+
+    float correct_ratio = float(true_count)/float(valid_queries);
+    instance_correct_ratios[annotation].first += correct_ratio;
+    instance_correct_ratios[annotation].second += 1;
+
+    if (verbose) {
+        cout << "Showing annotation: " << annotation << endl;
+        cout << "Correct ratio: " << correct_ratio << endl;
+    }
+}
+
+// OK
 void compute_decay_correct_ratios(vector<pair<float, int> >& decay_correct_ratios, vector<int>& intermediate_points,
                                   voxel_annotation& a, int scan_ind, vector<index_score>& scores, object_retrieval& obr_scans,
                                   int nbr_query, int noise_scans_size)
