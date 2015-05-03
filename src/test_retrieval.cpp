@@ -1179,7 +1179,10 @@ void query_cloud(CloudT::Ptr& cloud, Eigen::Matrix3f& K, object_retrieval& obr_s
 
     obr_segments.gvt.get_node_mapping(mapping);
 
-    obr_segments.visualize_cloud(cloud);
+    {
+        register_objects ro;
+        ro.visualize_cloud(cloud);
+    }
 
     HistCloudT::Ptr features(new HistCloudT);
     CloudT::Ptr keypoints(new CloudT);
@@ -1388,7 +1391,7 @@ int main(int argc, char** argv)
     //query_supervoxels(query_data_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
 
     CloudT::Ptr query_cloud_larger(new CloudT);
-    pcl::io::loadPCDFile("/home/nbore/Data/rgb_0015_label_0.pcd", *query_cloud_larger);
+    pcl::io::loadPCDFile("query_chair.pcd", *query_cloud_larger);
 
     query_cloud(query_cloud_larger, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
 

@@ -517,7 +517,7 @@ void register_objects::get_transformation(Eigen::Matrix4f& trans)
 void register_objects::visualize_cloud(CloudT::Ptr& cloud)
 {
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer ("3D Viewer"));
-    viewer->setBackgroundColor(0, 0, 0);
+    viewer->setBackgroundColor(255, 255, 255);
     pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(cloud);
     viewer->addPointCloud<PointT>(cloud, rgb, "sample cloud");
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");

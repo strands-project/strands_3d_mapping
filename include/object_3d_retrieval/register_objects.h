@@ -35,9 +35,10 @@ protected:
 
     void initial_alignment();
     void RGB2CIELAB(unsigned char R, unsigned char G, unsigned char B, float &L, float &A, float &B2);
-    void visualize_cloud(CloudT::Ptr& cloud);
 
 public:
+
+    void visualize_cloud(CloudT::Ptr& cloud);
     void set_input_clouds(CloudPtrT& t1, CloudPtrT& t2);
     void set_input_clouds(CloudPtrT& t1, const Eigen::Matrix3f& tk1, CloudPtrT& t2, const Eigen::Matrix3f& tk2);
     void do_registration();
