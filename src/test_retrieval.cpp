@@ -1391,6 +1391,7 @@ int main(int argc, char** argv)
     //query_supervoxels(query_data_iter, obr_segments_noise, obr_segments, obr_scans, noise_scans_size, noise_segments_size);
 
     CloudT::Ptr query_cloud_larger(new CloudT);
+    // this comes from clips_1/patrol_run_3/room_0/intermediate_cloud0015.pcd, everything from that sweep are excluded in results
     pcl::io::loadPCDFile("query_chair.pcd", *query_cloud_larger);
 
     query_cloud(query_cloud_larger, K, obr_segments_noise, obr_scans_noise, obr_segments, obr_scans, noise_scans_size);
