@@ -45,6 +45,8 @@ auto DynamicObject::getAdditionalViews() -> decltype(m_vAdditionalViews)
 
 void DynamicObject::addAdditionalView(CloudPtr view)
 {
+    CloudPtr new_view(new Cloud());
+    *new_view = *view;
     m_vAdditionalViews.push_back(view);
     m_noAdditionalViews++;
 }
