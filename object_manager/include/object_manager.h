@@ -241,6 +241,7 @@ void ObjectManager<PointType>::additionalViewsCallback(const sensor_msgs::PointC
                                                 msg->header.stamp, transform);
 
             m_objectTracked->addAdditionalViewTransform(transform);
+            m_objectTracked->addAdditionalView(new_cloud);
         }         catch (tf::TransformException ex){
             ROS_ERROR("%s",ex.what());
         }
