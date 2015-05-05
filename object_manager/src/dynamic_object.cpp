@@ -45,8 +45,20 @@ auto DynamicObject::getAdditionalViews() -> decltype(m_vAdditionalViews)
 
 void DynamicObject::addAdditionalView(CloudPtr view)
 {
+    CloudPtr new_view(new Cloud());
+    *new_view = *view;
     m_vAdditionalViews.push_back(view);
     m_noAdditionalViews++;
+}
+
+std::vector<tf::StampedTransform> DynamicObject::getAdditionalViewTransforms()
+{
+    return m_vAdditionalViewsTransforms;
+}
+
+void DynamicObject::addAdditionalViewTransform(tf::StampedTransform transform)
+{
+    m_vAdditionalViewsTransforms.push_back(transform);
 }
 
 void DynamicObject::updateAllData()

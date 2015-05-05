@@ -49,6 +49,8 @@ public:
    void setTime(boost::posix_time::ptime);
    void setCloud(CloudPtr);
 
+   std::vector<tf::StampedTransform> getAdditionalViewTransforms();
+   void addAdditionalViewTransform(tf::StampedTransform);
    std::vector<CloudPtr> getAdditionalViews();
    void addAdditionalView(CloudPtr view);
 
@@ -75,6 +77,7 @@ public:
 
    CloudPtr                         m_points;
    std::vector<CloudPtr>            m_vAdditionalViews;
+   std::vector<tf::StampedTransform> m_vAdditionalViewsTransforms;
    std::vector<ObjectTrack>         m_vObjectTracks;
    int                              m_noAdditionalViews;
    NormalCloudPtr                   m_normals;
