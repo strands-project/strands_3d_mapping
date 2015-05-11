@@ -22,9 +22,11 @@ add_library(reweighted_vocabulary_tree src/reweighted_vocabulary_tree.cpp
             impl/reweighted_vocabulary_tree.hpp)
 
 add_executable(test src/test.cpp)
+add_executable(test_vocabulary_tree src/test_vocabulary_tree.cpp)
 
 target_link_libraries(k_means_tree ${PCL_LIBRARIES})
 target_link_libraries(vocabulary_tree k_means_tree ${PCL_LIBRARIES})
 target_link_libraries(grouped_vocabulary_tree k_means_tree ${PCL_LIBRARIES})
 target_link_libraries(reweighted_vocabulary_tree vocabulary_tree ${PCL_LIBRARIES})
 target_link_libraries(test k_means_tree vocabulary_tree reweighted_vocabulary_tree grouped_vocabulary_tree)
+target_link_libraries(test_vocabulary_tree k_means_tree vocabulary_tree)

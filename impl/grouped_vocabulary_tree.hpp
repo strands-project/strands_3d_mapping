@@ -157,16 +157,6 @@ double grouped_vocabulary_tree<Point, K>::calculate_similarity(int i, int j)
 }
 
 template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::source_freqs_for_node(std::map<int, int>& source_id_freqs, node* n) const
-{
-    for (int i = n->range.first; i < n->range.second; ++i) {
-        for (std::pair<const int, int>& v : super::leaves[i]->data->source_id_freqs) {
-            source_id_freqs[v.first] += v.second;
-        }
-    }
-}
-
-template <typename Point, size_t K>
 void grouped_vocabulary_tree<Point, K>::merge_maps(map<int, int>& map1, const map<int, int>& map2)
 {
     using iter = map<int, int>::iterator;

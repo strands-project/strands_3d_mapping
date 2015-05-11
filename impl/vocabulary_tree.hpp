@@ -230,6 +230,16 @@ void vocabulary_tree<Point, K>::compute_vocabulary_vector(std::map<node*, double
 }
 
 template <typename Point, size_t K>
+void vocabulary_tree<Point, K>::source_freqs_for_node(std::map<int, int>& source_id_freqs, node* n) const
+{
+    for (int i = n->range.first; i < n->range.second; ++i) {
+        for (std::pair<const int, int>& v : super::leaves[i]->data->source_id_freqs) {
+            source_id_freqs[v.first] += v.second;
+        }
+    }
+}
+
+template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smallest_ind_combination, CloudPtrT& cloud, vector<CloudPtrT>& smaller_clouds,
                                                             vector<double>& pnorms, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers) // TODO: const
 {
