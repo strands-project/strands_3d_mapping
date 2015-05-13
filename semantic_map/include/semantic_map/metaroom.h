@@ -59,7 +59,7 @@ public:
     std::string                                                         m_sMetaroomStringId;
 
 
-    MetaRoom(bool saveIntermediateSteps=true);
+    MetaRoom(bool saveIntermediateSteps=false);
     ~MetaRoom();
 
     void setUpdateMetaroom(bool updateMetaroom);
