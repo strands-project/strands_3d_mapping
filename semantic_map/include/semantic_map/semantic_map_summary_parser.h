@@ -461,7 +461,7 @@ private:
                             continue;
                         } else {
                             QString savedMetaRoomXMLFile = tempMetaRoomFolder+tempMetaRoomFolderFiles[0]; // TODO for now I am assuming there is only 1 xml file in the metaroom folder. Maybe later there will be more.
-                            MetaRoom<PointType> savedMetaRoom = MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(savedMetaRoomXMLFile.toStdString(),false);
+                            boost::shared_ptr<MetaRoom<PointType>> savedMetaRoom = MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(savedMetaRoomXMLFile.toStdString(),false);
                             xmlWriter->writeStartElement("MetaRoom");
 
                             xmlWriter->writeStartElement("MetaRoomXMLFile");
@@ -469,13 +469,13 @@ private:
                             xmlWriter->writeEndElement();
 
                             xmlWriter->writeStartElement("MetaRoomCentroid");
-                            Eigen::Vector4f centroid = savedMetaRoom.getCentroid();
+                            Eigen::Vector4f centroid = savedMetaRoom->getCentroid();
                             QString centroidS = QString::number(centroid(0))+" "+QString::number(centroid(1))+" "+QString::number(centroid(2))+" "+QString::number(centroid(3));
                             xmlWriter->writeCharacters(centroidS);
                             xmlWriter->writeEndElement();
 
                             xmlWriter->writeStartElement("MetaRoomStringId");
-                            xmlWriter->writeCharacters(savedMetaRoom.m_sMetaroomStringId.c_str());
+                            xmlWriter->writeCharacters(savedMetaRoom->m_sMetaroomStringId.c_str());
                             xmlWriter->writeEndElement();
 
                             xmlWriter->writeEndElement(); // MetaRoom
