@@ -287,11 +287,27 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
     }
 
     // update with semantic room
+    bool match = false;
+    if (aRoom.getRoomStringId() != "")
+    {
+        ROS_INFO_STREAM("Comparing room ID "<<aRoom.getRoomStringId()<<" with metaroom ID "<<this->m_sMetaroomStringId);
+        if (aRoom.getRoomStringId() == this->m_sMetaroomStringId)
+        {
+            match = true;
+        }
+    } else {
 
-    // check that the centroids are close enough and that the room is actually an instance of this metaroom
-    double centroidDistance = pcl::distances::l2(this->getCentroid(),aRoom.getCentroid());
-    ROS_INFO_STREAM("Comparing metaroom centroid with room centroid. Distance: "<<centroidDistance);
-    if (! (centroidDistance < ROOM_CENTROID_DISTANCE) )
+        // check that the centroids are close enough and that the room is actually an instance of this metaroom
+        double centroidDistance = pcl::distances::l2(this->getCentroid(),aRoom.getCentroid());
+        ROS_INFO_STREAM("Comparing metaroom centroid with room centroid. Distance: "<<centroidDistance);
+        if ( (centroidDistance < ROOM_CENTROID_DISTANCE) )
+        {
+            match = true;
+        }
+    }
+
+
+    if (!match)
     {
         // this room is not a match for this metaroom
         ROS_INFO_STREAM("Cannot update metaroom with this room instance. Metaroom centroid: "<<this->getCentroid()<<" Room centroid: "<<aRoom.getCentroid());
@@ -335,16 +351,18 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
     if (savePath == "")
     {
        // save room in the correct folder
-       QString roomXml(aRoom.getCompleteRoomCloudFilename().c_str());
-       int date = roomXml.indexOf("201");
-       rootFolderPath = roomXml.left(date);
+//       QString roomXml(aRoom.getCompleteRoomCloudFilename().c_str());
+//       int date = roomXml.indexOf("201");
+//       rootFolderPath = roomXml.left(date);
+        SemanticRoomXMLParser<PointType> parser;
+        std::string saved_xml = parser.saveRoomAsXML(aRoom);
     } else {
        rootFolderPath = QString(savePath.c_str()) + QString("/");
+       ROS_INFO_STREAM("Initializeing room xml parser with root folder "<<rootFolderPath.toStdString());
+       SemanticRoomXMLParser<PointType> parser(rootFolderPath.toStdString());
+       parser.saveRoomAsXML(aRoom);
     }
 
-    ROS_INFO_STREAM("Initializeing room xml parser with root folder "<<rootFolderPath.toStdString());
-    SemanticRoomXMLParser<PointType> parser(rootFolderPath.toStdString());
-    parser.saveRoomAsXML(aRoom);
 
     if (!m_bUpdateMetaroom)
     {
