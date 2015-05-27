@@ -6,6 +6,18 @@
 #include "object_3d_retrieval/object_retrieval.h"
 #include "object_3d_retrieval/descriptor_config.h"
 
+POINT_CLOUD_REGISTER_POINT_STRUCT (pcl::Histogram<128>,
+                                   (float[128], histogram, histogram)
+)
+
+POINT_CLOUD_REGISTER_POINT_STRUCT (pcl::Histogram<250>,
+                                   (float[250], histogram, histogram)
+)
+
+POINT_CLOUD_REGISTER_POINT_STRUCT (pcl::Histogram<1344>,
+                                   (float[1344], histogram, histogram)
+)
+
 namespace retrieval_client {
 
 using SiftT = pcl::Histogram<128>;

@@ -21,18 +21,6 @@
 #include <cereal/types/utility.hpp>
 #include <eigen_cereal/eigen_cereal.h>
 
-POINT_CLOUD_REGISTER_POINT_STRUCT (pcl::Histogram<128>,
-                                   (float[128], histogram, histogram)
-)
-
-POINT_CLOUD_REGISTER_POINT_STRUCT (pcl::Histogram<250>,
-                                   (float[250], histogram, histogram)
-)
-
-POINT_CLOUD_REGISTER_POINT_STRUCT (pcl::Histogram<1344>,
-                                   (float[1344], histogram, histogram)
-)
-
 namespace retrieval_client {
 
 using namespace std;
