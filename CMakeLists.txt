@@ -50,7 +50,8 @@ add_executable(test_retrieval src/test_retrieval.cpp)
 target_link_libraries(test_retrieval object_retrieval retrieval_client dataset_annotations sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 add_executable(test_visualize_query src/test_visualize_query.cpp)
-target_link_libraries(test_visualize_query object_retrieval retrieval_client dataset_annotations sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
+target_link_libraries(test_visualize_query object_retrieval retrieval_client dataset_annotations sift supervoxel_segmentation pfhrgb_estimation k_means_tree
+                      ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions)
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")

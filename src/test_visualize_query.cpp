@@ -8,11 +8,36 @@
 #include "object_3d_retrieval/pfhrgb_estimation.h"
 #include "object_3d_retrieval/register_objects.h"
 
+#include "simple_xml_parser.h"
+#include <tf_conversions/tf_eigen.h>
+
 #include <cereal/archives/binary.hpp>
 #include <eigen_cereal/eigen_cereal.h>
 
 using namespace std;
 using namespace retrieval_client;
+
+void get_waypoint_position_for_scan(string& waypoint_id, Eigen::Matrix4f& T, int i, object_retrieval& obr)
+{
+    string scan_file = obr.get_scan_file(i);
+    boost::filesystem::path scan_path = scan_file;
+    string stem = scan_path.stem().string();
+    size_t pos = stem.find_last_not_of("0123456789");
+    int ind = stoi(stem.substr(pos+1));
+    string xml_file = (scan_path.parent_path() / boost::filesystem::path("room.xml")).string();
+
+    vector<string> xml_nodes_to_parse = {"RoomIntermediateCloud", "IntermediatePosition", "RoomStringId"};
+
+    SimpleXMLParser<PointT> parser;
+    SimpleXMLParser<PointT>::RoomData room = parser.loadRoomFromXML(xml_file, xml_nodes_to_parse);
+
+    tf::StampedTransform st = room.vIntermediateRoomCloudTransforms[ind];
+    Eigen::Affine3d e;
+    tf::transformTFToEigen(st, e);
+
+    T = e.matrix().cast<float>();
+    waypoint_id = room.roomWaypointId;
+}
 
 // OK
 void query_cloud(CloudT::Ptr& cloud, Eigen::Matrix3f& K, object_retrieval& obr_segments, object_retrieval& obr_scans,
@@ -73,12 +98,19 @@ void query_cloud(CloudT::Ptr& cloud, Eigen::Matrix3f& K, object_retrieval& obr_s
             load_nth_keypoints_features_for_scan(result_keypoints, result_features, reweight_scores[i].first-noise_scans_size, oversegment_indices[i], obr_scans_annotations);
         }
         CloudT::Ptr result_cloud(new CloudT);
+        string waypoint_id;
+        Eigen::Matrix4f T;
         if (reweight_scores[i].first < noise_scans_size) {
             obr_scans.read_scan(result_cloud, reweight_scores[i].first);
+            get_waypoint_position_for_scan(waypoint_id, T, reweight_scores[i].first, obr_scans);
         }
         else {
             obr_scans_annotations.read_scan(result_cloud, reweight_scores[i].first-noise_scans_size);
+            get_waypoint_position_for_scan(waypoint_id, T, reweight_scores[i].first-noise_scans_size, obr_scans_annotations);
         }
+
+        cout << "Found object at " << waypoint_id << endl;
+
         register_objects ro;
         ro.visualize_feature_segmentation(result_keypoints, result_cloud);
     }
