@@ -14,6 +14,9 @@
 #include <cereal/archives/binary.hpp>
 #include <eigen_cereal/eigen_cereal.h>
 
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/common/transforms.h>
+
 using namespace std;
 using namespace retrieval_client;
 
@@ -37,6 +40,38 @@ void get_waypoint_position_for_scan(string& waypoint_id, Eigen::Matrix4f& T, int
 
     T = e.matrix().cast<float>();
     waypoint_id = room.roomWaypointId;
+}
+
+void visualize_matches_in_map(vector<CloudT::Ptr>& matches)
+{
+    CloudT::Ptr map_cloud(new CloudT);
+    pcl::io::loadPCDFile("/home/nbore/Data/full_cloud.pcd", *map_cloud);
+
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    viewer->setBackgroundColor(0, 0, 0);
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(map_cloud);
+    viewer->addPointCloud<PointT>(map_cloud, rgb, "map cloud");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "map cloud");
+    viewer->addCoordinateSystem(1.0);
+    viewer->initCameraParameters();
+
+    int counter = 0;
+    for (CloudT::Ptr& match : matches) {
+        for (PointT& p : match->points) {
+            p.r = 255;
+            p.g = 0;
+            p.b = 0;
+        }
+        string cloud_name = string("match") + to_string(counter);
+        pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb_match(match);
+        viewer->addPointCloud<PointT>(match, rgb_match, cloud_name);
+        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);
+        ++counter;
+    }
+
+    while (!viewer->wasStopped()) {
+        viewer->spinOnce(100);
+    }
 }
 
 // OK
@@ -88,6 +123,7 @@ void query_cloud(CloudT::Ptr& cloud, Eigen::Matrix3f& K, object_retrieval& obr_s
     cout << "Number of features: " << features->size() << endl;
 
     // make this a function
+    vector<CloudT::Ptr> matches;
     for (size_t i = 0; i < reweight_scores.size(); ++i) {
         HistCloudT::Ptr result_features(new HistCloudT);
         CloudT::Ptr result_keypoints(new CloudT);
@@ -111,10 +147,13 @@ void query_cloud(CloudT::Ptr& cloud, Eigen::Matrix3f& K, object_retrieval& obr_s
 
         cout << "Found object at " << waypoint_id << endl;
 
-        register_objects ro;
-        ro.visualize_feature_segmentation(result_keypoints, result_cloud);
+        //register_objects ro;
+        //ro.visualize_feature_segmentation(result_keypoints, result_cloud);
+        matches.push_back(CloudT::Ptr(new CloudT));
+        pcl::transformPointCloud(*result_cloud, *matches.back(), T);
     }
 
+    visualize_matches_in_map(matches);
 }
 
 int main(int argc, char** argv)
