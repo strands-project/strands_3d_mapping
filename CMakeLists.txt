@@ -39,6 +39,7 @@ add_library(dataset_convenience src/dataset_convenience.cpp ${include_dir}/datas
 add_library(supervoxel_segmentation src/supervoxel_segmentation.cpp ${include_dir}/supervoxel_segmentation.h)
 add_library(pfhrgb_estimation src/pfhrgb_estimation.cpp ${include_dir}/pfhrgb_estimation.h)
 add_library(dataset_annotations src/dataset_annotations.cpp ${include_dir}/dataset_annotations.h)
+add_library(retrieval_client src/retrieval_client.cpp ${include_dir}/retrieval_client.h)
 
 #target_link_libraries(convex_voxel_segmentation ${PCL_LIBRARIES} ${VTK_LIBRARIES})
 target_link_libraries(sift ${OpenCV_LIBS})
@@ -50,6 +51,7 @@ target_link_libraries(dataset_annotations object_retrieval ${OpenCV_LIBS} ${PCL_
 target_link_libraries(dataset_convenience object_retrieval metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 target_link_libraries(supervoxel_segmentation ${OpenCV_LIBS} ${PCL_LIBRARIES})
 target_link_libraries(pfhrgb_estimation ${PCL_LIBRARIES})
+target_link_libraries(retrieval_client object_retrieval sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 #add_executable(test_metric_map src/test_metric_map.cpp)
 #target_link_libraries(test_metric_map object_retrieval metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
