@@ -554,6 +554,29 @@ void register_objects::visualize_feature_segmentation(CloudT::Ptr& segment_keypo
     visualize_cloud(resulting_cloud);
 }
 
+void register_objects::get_feature_segmentation(CloudT::Ptr& resulting_cloud, CloudT::Ptr& segment_keypoints, CloudT::Ptr& cloud)
+{
+    pcl::KdTreeFLANN<PointT> kdtree;
+    kdtree.setInputCloud(segment_keypoints);
+
+    for (const PointT& p : cloud->points) {
+        if (!pcl::isFinite(p)) {
+            continue;
+        }
+        vector<int> indices;
+        vector<float> distances;
+        kdtree.nearestKSearchT(p, 1, indices, distances);
+        if (distances.empty()) {
+            cout << "Distances empty, wtf??" << endl;
+            exit(0);
+        }
+        float dist = sqrt(distances[0]);
+        if (dist < 0.05) {
+            resulting_cloud->push_back(p);
+        }
+    }
+}
+
 void register_objects::register_using_features(PFHCloudT::Ptr& query_features, CloudT::Ptr& query_keypoints,
                                                PFHCloudT::Ptr& segment_features, CloudT::Ptr& segment_keypoints)
 {

@@ -57,11 +57,11 @@ void visualize_matches_in_map(vector<CloudT::Ptr>& matches)
 
     int counter = 0;
     for (CloudT::Ptr& match : matches) {
-        for (PointT& p : match->points) {
+        /*for (PointT& p : match->points) {
             p.r = 255;
             p.g = 0;
             p.b = 0;
-        }
+        }*/
         string cloud_name = string("match") + to_string(counter);
         pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb_match(match);
         viewer->addPointCloud<PointT>(match, rgb_match, cloud_name);
@@ -147,8 +147,16 @@ void query_cloud(CloudT::Ptr& cloud, Eigen::Matrix3f& K, object_retrieval& obr_s
 
         cout << "Found object at " << waypoint_id << endl;
 
-        //register_objects ro;
+        register_objects ro;
         //ro.visualize_feature_segmentation(result_keypoints, result_cloud);
+        CloudT::Ptr segment(new CloudT);
+        ro.get_feature_segmentation(segment, result_keypoints, result_cloud);
+        for (PointT& p : segment->points) {
+            p.r = 255;
+            p.g = 0;
+            p.b = 0;
+        }
+        *result_cloud += *segment;
         matches.push_back(CloudT::Ptr(new CloudT));
         pcl::transformPointCloud(*result_cloud, *matches.back(), T);
     }

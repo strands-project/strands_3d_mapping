@@ -50,6 +50,7 @@ public:
                                       cv::Mat& depth, int minx, int miny, const Eigen::Matrix3f& K);
     std::pair<double, double> get_match_score();
     void visualize_feature_segmentation(CloudT::Ptr& segment_keypoints, CloudT::Ptr& cloud);
+    void get_feature_segmentation(CloudT::Ptr& resulting_cloud, CloudT::Ptr& segment_keypoints, CloudT::Ptr& cloud);
     void register_using_features(PFHCloudT::Ptr& query_features, CloudT::Ptr& query_keypoints,
                                  PFHCloudT::Ptr& segment_features, CloudT::Ptr& segment_keypoints);
     register_objects();

@@ -73,7 +73,7 @@ public:
     float voxel_resolution;
 
     // returns a supervoxel clusters with corresponding adjacency graph
-    Graph* compute_convex_oversegmentation(std::vector<CloudT::Ptr>& clouds_out, CloudT::Ptr& cloud_in);
+    Graph* compute_convex_oversegmentation(std::vector<CloudT::Ptr>& clouds_out, CloudT::Ptr& cloud_in, bool visualize = false);
     Graph* create_supervoxel_graph(std::vector<CloudT::Ptr>& segments, CloudT::Ptr& cloud_in);
     void compute_voxel_clouds(std::vector<CloudT::Ptr>& segment_voxels, std::map<uint32_t, size_t>& voxel_inds,
                               supervoxel_map& supervoxels, float voxel_resolution, CloudT::Ptr& original);

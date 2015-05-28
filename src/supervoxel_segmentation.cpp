@@ -482,11 +482,11 @@ void supervoxel_segmentation::visualize_segments(vector<CloudT::Ptr>& clouds_out
     cout << "Colored cloud size: " << colored_cloud->size() << endl;
 
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-    viewer->setBackgroundColor(0, 0, 0);
+    viewer->setBackgroundColor(1, 1, 1);
     pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(colored_cloud);
     viewer->addPointCloud<PointT>(colored_cloud, rgb, "sample cloud");
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
-    viewer->addCoordinateSystem(1.0);
+    //viewer->addCoordinateSystem(1.0);
     viewer->initCameraParameters();
     while (!viewer->wasStopped()) {
         viewer->spinOnce(100);
@@ -538,7 +538,7 @@ void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& fu
     }
 }
 
-supervoxel_segmentation::Graph* supervoxel_segmentation::compute_convex_oversegmentation(vector<CloudT::Ptr>& clouds_out, CloudT::Ptr& cloud_in)
+supervoxel_segmentation::Graph* supervoxel_segmentation::compute_convex_oversegmentation(vector<CloudT::Ptr>& clouds_out, CloudT::Ptr& cloud_in, bool visualize)
 {
     vector<CloudT::Ptr> segments;
     Graph* graph_in = create_supervoxel_graph(segments, cloud_in);
@@ -553,7 +553,10 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::compute_convex_oversegm
         delete g;
     }
 
-    visualize_segments(clouds_out);
+    if (visualize) {
+        visualize_segments(clouds_out);
+    }
+
     return graph_in;
 }
 
