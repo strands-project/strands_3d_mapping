@@ -39,11 +39,11 @@ object_retrieval::~object_retrieval()
 void object_retrieval::visualize_cloud(CloudT::Ptr& cloud)
 {
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer ("3D Viewer"));
-    viewer->setBackgroundColor(0, 0, 0);
+    viewer->setBackgroundColor(1, 1, 1);
     pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(cloud);
     viewer->addPointCloud<PointT>(cloud, rgb, "sample cloud");
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
-    viewer->addCoordinateSystem(1.0);
+    //viewer->addCoordinateSystem(1.0);
     viewer->initCameraParameters();
     while (!viewer->wasStopped()) {
         viewer->spinOnce(100);

@@ -48,11 +48,11 @@ void visualize_matches_in_map(vector<CloudT::Ptr>& matches)
     pcl::io::loadPCDFile("/home/nbore/Data/full_cloud.pcd", *map_cloud);
 
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-    viewer->setBackgroundColor(0, 0, 0);
+    viewer->setBackgroundColor(1, 1, 1);
     pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(map_cloud);
     viewer->addPointCloud<PointT>(map_cloud, rgb, "map cloud");
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "map cloud");
-    viewer->addCoordinateSystem(1.0);
+    //viewer->addCoordinateSystem(1.0);
     viewer->initCameraParameters();
 
     int counter = 0;

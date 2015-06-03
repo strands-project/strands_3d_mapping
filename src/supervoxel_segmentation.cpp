@@ -23,6 +23,85 @@
 
 using namespace std;
 
+/*void supervoxel_segmentation::addSupervoxelConnectionsToViewer (pcl::PointXYZRGB& supervoxel_center,
+                                       vector<pcl::PointXYZRGB>& adjacent_supervoxel_centers,
+                                       vector<float>& local_weights,
+                                       std::string supervoxel_name,
+                                       boost::shared_ptr<pcl::visualization::PCLVisualizer> & viewer) const
+{
+    //Iterate through all adjacent points, and add a center point to adjacent point pair
+    pcl::PointCloud<pcl::PointXYZRGBA>::iterator adjacent_itr = adjacent_supervoxel_centers.begin ();
+    size_t counter = 0;
+    for ( ; adjacent_itr != adjacent_supervoxel_centers.end (); ++adjacent_itr)
+    {
+        if (!local_pairs[counter]) { // uncomment to visualize connections as well
+            ++counter;
+            continue;
+        }
+        std::string linename = supervoxel_name + std::to_string(counter);
+
+        vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New ();
+        vtkSmartPointer<vtkCellArray> cells = vtkSmartPointer<vtkCellArray>::New ();
+        vtkSmartPointer<vtkPolyLine> polyLine = vtkSmartPointer<vtkPolyLine>::New ();
+
+        vtkUnsignedCharArray *colorT = vtkUnsignedCharArray::New();
+        colorT->SetName("Colors");
+        colorT->SetNumberOfComponents(3); //4 components cuz of RGBA
+        unsigned char red[3] = {255, 0, 0};
+        unsigned char white[3] = {255, 255, 255};
+
+        points->InsertNextPoint (supervoxel_center.data);
+        points->InsertNextPoint (adjacent_itr->data);
+
+        // Create a polydata to store everything in
+        vtkSmartPointer<vtkPolyData> polyData = vtkSmartPointer<vtkPolyData>::New ();
+        // Add the points to the dataset
+        polyData->SetPoints (points);
+        //std::cout << "Point size: " << points->GetNumberOfPoints () << std::endl;
+        //std::cout << "Remove size: " << local_pairs.size() << std::endl;
+        polyLine->GetPointIds  ()->SetNumberOfIds(points->GetNumberOfPoints ());
+        for(unsigned int i = 0; i < points->GetNumberOfPoints (); i++) {
+            polyLine->GetPointIds ()->SetId (i,i);
+            if (local_pairs[counter]) {
+                colorT->InsertNextTupleValue(red); //color for point1
+            }
+            else {
+                colorT->InsertNextTupleValue(white); //color for point0
+            }
+        }
+        cells->InsertNextCell (polyLine);
+        // Add the lines to the dataset
+        polyData->SetLines (cells);
+        polyData->GetCellData()->SetScalars(colorT);
+        viewer->addModelFromPolyData (polyData,linename);
+        ++counter;
+    }
+}
+
+void supervoxel_segmentation::visualize_segmentation(Graph* g, vector<CloudT::Ptr>& clouds_out) const
+{
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+    viewer->setBackgroundColor (0, 0, 0);
+
+    viewer->addPointCloud (voxel_centroid_cloud, "voxel centroids");
+    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE,2.0, "voxel centroids");
+    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_OPACITY,0.95, "voxel centroids");
+
+    viewer->addPointCloud (colored_voxel_cloud, "colored voxels");
+    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_OPACITY,0.8, "colored voxels");
+
+    //To make a graph of the supervoxel adjacency, we need to iterate through the supervoxel adjacency multimap
+    std::multimap<uint32_t,uint32_t>::iterator label_itr = supervoxel_adjacency.begin ();
+    for ( ; label_itr != supervoxel_adjacency.end (); ) {
+        //This function is shown below, but is beyond the scope of this tutorial - basically it just generates a "star" polygon mesh from the points given
+        addSupervoxelConnectionsToViewer (supervoxel->centroid_, adjacent_supervoxel_centers, ss.str (), viewer, local_pairs);
+    }
+
+    while (!viewer->wasStopped()) {
+        viewer->spinOnce (100);
+    }
+}*/
+
 void supervoxel_segmentation::preprocess_cloud(CloudT::Ptr& cloud_out, CloudT::Ptr& cloud_in)
 {
     float filter_dist = 0.02f;
