@@ -300,9 +300,9 @@ std::string MetaRoomXMLParser<PointType>::saveMetaRoomAsXML(MetaRoom<PointType>&
 }
 
 template <class PointType>
-MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std::string& xmlFile, bool deepLoad)
+boost::shared_ptr<MetaRoom<PointType>> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std::string& xmlFile, bool deepLoad)
 {
-    MetaRoom<PointType> aMetaRoom;
+    boost::shared_ptr<MetaRoom<PointType>> aMetaRoom = boost::shared_ptr<MetaRoom<PointType>>(new MetaRoom<PointType>);
 
     QFile file(xmlFile.c_str());
 
@@ -359,9 +359,9 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
                         pcl::PCDReader reader;
                         CloudPtr cloud (new Cloud);
                         reader.read (roomCompleteCloudFile.toStdString(), *cloud);
-                        aMetaRoom.setCompleteRoomCloud(cloud);
+                        aMetaRoom->setCompleteRoomCloud(cloud);
                     } else {
-                        aMetaRoom.setCompleteRoomCloud(roomCompleteCloudFile.toStdString());
+                        aMetaRoom->setCompleteRoomCloud(roomCompleteCloudFile.toStdString());
                     }
                 } else {
                     std::cerr<<"RoomCompleteCloud xml node does not have filename attribute. Aborting."<<std::endl;
@@ -388,9 +388,9 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
                         pcl::PCDReader reader;
                         CloudPtr cloud (new Cloud);
                         reader.read (roomInteriorCloudFile.toStdString(), *cloud);
-                        aMetaRoom.setInteriorRoomCloud(cloud);
+                        aMetaRoom->setInteriorRoomCloud(cloud);
                     } else {
-                        aMetaRoom.setInteriorRoomCloud(roomInteriorCloudFile.toStdString());
+                        aMetaRoom->setInteriorRoomCloud(roomInteriorCloudFile.toStdString());
                     }
                 } else {
                     std::cerr<<"RoomInteriorCloud xml node does not have filename attribute. Aborting."<<std::endl;
@@ -417,9 +417,9 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
                         pcl::PCDReader reader;
                         CloudPtr cloud (new Cloud);
                         reader.read (roomDenoisedCloudFile.toStdString(), *cloud);
-                        aMetaRoom.setDeNoisedRoomCloud(cloud);
+                        aMetaRoom->setDeNoisedRoomCloud(cloud);
                     } else {
-                        aMetaRoom.setDeNoisedRoomCloud(roomDenoisedCloudFile.toStdString());
+                        aMetaRoom->setDeNoisedRoomCloud(roomDenoisedCloudFile.toStdString());
                     }
                 } else {
                     std::cerr<<"RoomDeNoisedCloud xml node does not have filename attribute. Aborting."<<std::endl;
@@ -446,9 +446,9 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
                         pcl::PCDReader reader;
                         CloudPtr cloud (new Cloud);
                         reader.read (consistencyUpdateCloudFile.toStdString(), *cloud);
-                        aMetaRoom.setConsistencyUpdateCloud(cloud);
+                        aMetaRoom->setConsistencyUpdateCloud(cloud);
                     } else {
-                        aMetaRoom.setConsistencyUpdateCloud(consistencyUpdateCloudFile.toStdString());
+                        aMetaRoom->setConsistencyUpdateCloud(consistencyUpdateCloudFile.toStdString());
                     }
                 } else {
                     std::cerr<<"ConsistencyUpdateCloud xml node does not have filename attribute. Aborting."<<std::endl;
@@ -472,7 +472,7 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
                 } else {
                     direction = true;
                 }
-                aMetaRoom.setCeilingPrimitive(ceilingP,direction);
+                aMetaRoom->setCeilingPrimitive(ceilingP,direction);
             }
 
             if (xmlReader->name() == "FloorPrimitive")
@@ -491,7 +491,7 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
                 } else {
                     direction = true;
                 }
-                aMetaRoom.setFloorPrimitive(floorP,direction);
+                aMetaRoom->setFloorPrimitive(floorP,direction);
             }
 
             if (xmlReader->name() == "WallPrimitive")
@@ -521,13 +521,13 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
                 QStringList centroidSlist = centroidS.split(' ');
                 centroid(0) = centroidSlist[0].toDouble();centroid(1) = centroidSlist[1].toDouble();
                 centroid(2) = centroidSlist[2].toDouble();centroid(3) = centroidSlist[3].toDouble();
-                aMetaRoom.setCentroid(centroid);
+                aMetaRoom->setCentroid(centroid);
             }
 
             if (xmlReader->name() == "MetaRoomStringId")
             {
                 QString metaroomStringId = xmlReader->readElementText();
-                aMetaRoom.m_sMetaroomStringId = (metaroomStringId.toStdString());
+                aMetaRoom->m_sMetaroomStringId = (metaroomStringId.toStdString());
             }
 
             if (xmlReader->name() == "SensorOrigin")
@@ -537,7 +537,7 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
                 QStringList soSlist = soS.split(' ');
                 so.setX(soSlist[0].toDouble()); so.setY(soSlist[1].toDouble());
                 so.setZ(soSlist[2].toDouble());
-                aMetaRoom.setSensorOrigin(so);
+                aMetaRoom->setSensorOrigin(so);
             }
 
             if (xmlReader->name() == "RoomTransform")
@@ -549,7 +549,7 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
                 {
                     transform(i)=transformSlist[i].toDouble();
                 }
-                aMetaRoom.setRoomTransform(transform);
+                aMetaRoom->setRoomTransform(transform);
             }
 
             // Update iterations
@@ -687,14 +687,14 @@ MetaRoom<PointType> MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(const std:
 
                 if (completelyUpdated)
                 {
-                    aMetaRoom.addUpdateIteration(updateIteration);
+                    aMetaRoom->addUpdateIteration(updateIteration);
                 }
             }
 
         }
     }
 
-    aMetaRoom.setWallPrimitives(wallPv, wallDirections);
+    aMetaRoom->setWallPrimitives(wallPv, wallDirections);
 
     delete xmlReader;
 
@@ -762,10 +762,11 @@ QString MetaRoomXMLParser<PointType>::findMetaRoomLocation(MetaRoom<PointType>* 
                 ROS_INFO_STREAM("No xml files in metaroom folder "<<tempMetaRoomFolder.toStdString()<<". It will be used for saving the current metaroom.");
             } else {
                 QString savedMetaRoomXMLFile = tempMetaRoomFolder+tempMetaRoomFolderFiles[0]; // TODO for now I am assuming there is only 1 xml file in the metaroom folder. Maybe later there will be more.
-                MetaRoom<PointType> savedMetaRoom = MetaRoomXMLParser::loadMetaRoomFromXML(savedMetaRoomXMLFile.toStdString(),false);
+                boost::shared_ptr<MetaRoom<PointType>> savedMetaRoom = MetaRoomXMLParser::loadMetaRoomFromXML(savedMetaRoomXMLFile.toStdString(),false);
+                ROS_INFO_STREAM("MR String ID: "<<savedMetaRoom->m_sMetaroomStringId);
                 if (aMetaRoom->m_sMetaroomStringId != "")
                 {
-                    if (savedMetaRoom.m_sMetaroomStringId == aMetaRoom->m_sMetaroomStringId)
+                    if (savedMetaRoom->m_sMetaroomStringId == aMetaRoom->m_sMetaroomStringId)
                     {
                         // found a matching metaroom
                         metaRoomFolder = tempMetaRoomFolder;
@@ -773,7 +774,7 @@ QString MetaRoomXMLParser<PointType>::findMetaRoomLocation(MetaRoom<PointType>* 
                         break;
                     }
                 } else {
-                    double centroidDistance = pcl::distances::l2(savedMetaRoom.getCentroid(),aMetaRoom->getCentroid());
+                    double centroidDistance = pcl::distances::l2(savedMetaRoom->getCentroid(),aMetaRoom->getCentroid());
                     ROS_INFO_STREAM("Comparing with saved metaroom. Centroid distance "<<centroidDistance);
                     if (centroidDistance < ROOM_CENTROID_DISTANCE)
                     {

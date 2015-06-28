@@ -45,7 +45,7 @@ generate_messages(
 
 catkin_package(
    INCLUDE_DIRS include
-   LIBRARIES semantic_map
+   LIBRARIES dynamic_object
    CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge semantic_map metaroom_xml_parser qt_build geometry_msgs pcl_ros
    DEPENDS PCL
 )
@@ -70,11 +70,18 @@ include_directories(include
   ${catkin_INCLUDE_DIRS}
 )
 
+add_library(dynamic_object ${HDRS} ${SRCS})
+
 add_executable(object_manager_node   ${HDRS} ${SRCS} include/object_manager.h src/object_manager.cpp src/object_manager_main.cpp)
 add_dependencies(object_manager_node object_manager_node_generate_messages_cpp)
 
 add_executable(load_objects_from_mongo ${HDRS} ${SRCS} src/load_objects_from_mongo.cpp)
 add_dependencies(load_objects_from_mongo load_objects_from_mongo_generate_messages_cpp)
+
+ target_link_libraries(dynamic_object
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+  )
 
  target_link_libraries(object_manager_node
    ${catkin_LIBRARIES}
