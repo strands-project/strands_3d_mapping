@@ -87,7 +87,6 @@ public:
     void additionalViewsStatusCallback(const std_msgs::String& msg);
     void dynamicObjectTracksCallback(const object_manager::DynamicObjectTracksConstPtr& msg);
 
-
     static CloudPtr filterGroundClusters(CloudPtr dynamic, double min_height)
     {
         CloudPtr filtered(new Cloud());
@@ -117,7 +116,7 @@ private:
     ros::Subscriber                                                             m_SubscriberAdditionalObjectViewsStatus;
     ros::ServiceServer                                                          m_DynamicObjectsServiceServer;
     ros::ServiceServer                                                          m_GetDynamicObjectServiceServer;
-    tf::TransformListener                                                       m_TransformListener; // for additional views
+    tf::TransformListener                                                       m_TransformListener; // for additional views    
 
     std::string                                                                 m_additionalViewsTopic;
     std::string                                                                 m_additionalViewsStatusTopic;
@@ -173,6 +172,8 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh) : m_TransformListene
 
     m_SubscriberDynamicObjectTracks = m_NodeHandle.subscribe("/object_learning/dynamic_object_tracks",1, &ObjectManager::dynamicObjectTracksCallback,this);
 }
+
+
 
 template <class PointType>
 ObjectManager<PointType>::~ObjectManager()
@@ -240,7 +241,7 @@ void ObjectManager<PointType>::additionalViewsCallback(const sensor_msgs::PointC
             m_TransformListener.lookupTransform("/map", new_cloud->header.frame_id,
                                                 msg->header.stamp, transform);
 
-            m_objectTracked->addAdditionalViewTransform(transform);
+            m_objectTracked->addAdditionalViewTransform(transform);            
             m_objectTracked->addAdditionalView(new_cloud);
         }         catch (tf::TransformException ex){
             ROS_ERROR("%s",ex.what());
@@ -455,7 +456,11 @@ bool ObjectManager<PointType>::updateObjectsAtWaypoint(std::string waypoint_id)
         return false;
     }
 
-    sort(matchingObservations.begin(), matchingObservations.end());
+    ROS_INFO_STREAM("Found "<<matchingObservations.size()<<" matching observations.");
+
+//    sort(matchingObservations.begin(), matchingObservations.end());
+
+
     reverse(matchingObservations.begin(), matchingObservations.end());
     string latest = matchingObservations[0];
 
@@ -729,6 +734,12 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         }
 
         ROS_INFO_STREAM("Filtered cluster from int cloud "<<filteredFromIntCloudCluster->points.size()<<"  inliers "<<src_indices.size());
+
+        if (filteredFromIntCloudCluster->points.size() == 0)
+        {
+            ROS_ERROR("No points found in cluster from intermediate clouds. Aborting.");
+            return false;
+        }
 
         cv::Mat cluster_image = cv::Mat::zeros(480, 640, CV_8UC3);
         int top_y = -1, bottom_y = 640, top_x = -1, bottom_x = 640;

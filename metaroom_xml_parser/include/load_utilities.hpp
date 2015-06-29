@@ -241,6 +241,47 @@
             toRet.push_back(sweep_xmls[i].roomXmlFile);
         }
 
+        // sort observations according to patrol run and then room number
+        sort(toRet.begin(), toRet.end(),
+             [](const std::string& a, const std::string& b )
+        {
+            std::string patrol_string = "patrol_run_";
+            std::string room_string = "room_";
+            size_t p_pos_1 = a.find(patrol_string);
+            size_t r_pos_1 = a.find(room_string) - 1; // remove the / before the room_
+            size_t sl_pos_1 = a.find("/",r_pos_1+1);
+
+            size_t p_pos_2 = b.find(patrol_string);
+            size_t r_pos_2 = b.find(room_string) - 1; // remove the / before the room_
+            size_t sl_pos_2 = b.find("/",r_pos_2+1);
+
+            // just in case we have some different folder structure (shouldn't happen)
+            if ((p_pos_1 == std::string::npos) || (r_pos_1 == std::string::npos) || (sl_pos_1 == std::string::npos) ||
+                    (p_pos_2 == std::string::npos) || (r_pos_2 == std::string::npos) || (sl_pos_2 == std::string::npos))
+            {
+                return a<b;
+            }
+
+            std::string p_1 = a.substr(p_pos_1 + patrol_string.length(), r_pos_1 - (p_pos_1 + patrol_string.length()));
+            std::string r_1 = a.substr(r_pos_1 + 1 + room_string.length(), sl_pos_1 - (r_pos_1 + 1 + room_string.length()));
+//            std::cout<<"Patrol 1: "<<p_1<<"  room 1: "<<r_1<<std::endl;
+            std::string p_2 = b.substr(p_pos_2 + patrol_string.length(), r_pos_2 - (p_pos_2 + patrol_string.length()));
+            std::string r_2 = b.substr(r_pos_2 + 1 + room_string.length(), sl_pos_2 - (r_pos_2 + 1 + room_string.length()));
+//            std::cout<<"Patrol 2: "<<p_2<<"  room 2: "<<r_2<<std::endl;
+
+            if (stoi(p_1) == stoi(p_2)){
+                if (stoi(r_1) == stoi(r_2)){
+                    return a<b;
+                } else {
+                    return stoi(r_1) < stoi(r_2);
+                }
+            } else {
+                return stoi(p_1) < stoi(p_2);
+            }
+        }
+             );
+
+
         return toRet;
     }
 
@@ -260,7 +301,59 @@
             waypointToSweepsMap[sweep.roomWaypointId].push_back(sweep_xmls[i].roomXmlFile);
         }
 
-        return waypointToSweepsMap[waypoint];
+        // sort observations according to patrol run and then room number
+        std::vector<std::string> matchingObservations = waypointToSweepsMap[waypoint];
+
+        sort(matchingObservations.begin(), matchingObservations.end(),
+             [](const std::string& a, const std::string& b )
+        {            
+            std::string patrol_string = "patrol_run_";
+            std::string room_string = "room_";
+            std::string date_string = "YYYYMMDD";
+            size_t p_pos_1 = a.find(patrol_string);
+            size_t r_pos_1 = a.find(room_string) - 1; // remove the / before the room_
+            size_t sl_pos_1 = a.find("/",r_pos_1+1);
+
+            size_t p_pos_2 = b.find(patrol_string);
+            size_t r_pos_2 = b.find(room_string) - 1; // remove the / before the room_
+            size_t sl_pos_2 = b.find("/",r_pos_2+1);
+
+            // just in case we have some different folder structure (shouldn't happen)
+            if ((p_pos_1 == std::string::npos) || (r_pos_1 == std::string::npos) || (sl_pos_1 == std::string::npos) ||
+                    (p_pos_2 == std::string::npos) || (r_pos_2 == std::string::npos) || (sl_pos_2 == std::string::npos))
+            {
+                return a<b;
+            }
+
+            std::string d_1 = a.substr(p_pos_1 - date_string.length() -1, date_string.length());
+            std::string p_1 = a.substr(p_pos_1 + patrol_string.length(), r_pos_1 - (p_pos_1 + patrol_string.length()));
+            std::string r_1 = a.substr(r_pos_1 + 1 + room_string.length(), sl_pos_1 - (r_pos_1 + 1 + room_string.length()));
+//            std::cout<<"Patrol 1: "<<p_1<<"  room 1: "<<r_1<<std::endl;
+//            std::cout<<"Patrol 1: "<<p_1<<"  room 1: "<<r_1<<"  date 1 "<<d_1<<std::endl;
+            std::string d_2 = b.substr(p_pos_2 - date_string.length() -1, date_string.length());
+            std::string p_2 = b.substr(p_pos_2 + patrol_string.length(), r_pos_2 - (p_pos_2 + patrol_string.length()));
+            std::string r_2 = b.substr(r_pos_2 + 1 + room_string.length(), sl_pos_2 - (r_pos_2 + 1 + room_string.length()));
+//            std::cout<<"Patrol 2: "<<p_2<<"  room 2: "<<r_2<<"  date 2 "<<d_2<<std::endl;
+//            std::cout<<"Patrol 2: "<<p_2<<"  room 2: "<<r_2<<std::endl;
+
+            if (d_1 == d_2){
+            if (stoi(p_1) == stoi(p_2)){
+                if (stoi(r_1) == stoi(r_2)){
+                    return a<b;
+                } else {
+                    return stoi(r_1) < stoi(r_2);
+                }
+            } else {
+                return stoi(p_1) < stoi(p_2);
+            }
+        } else {
+             return d_1<d_2;
+            }
+        }
+             );
+
+
+        return matchingObservations;
 
     }
 

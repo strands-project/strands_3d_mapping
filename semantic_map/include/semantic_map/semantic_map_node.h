@@ -104,9 +104,8 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
     m_PublisherObservation = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/local_metric_map/merged_point_cloud_downsampled", 1, true);
     m_ClearMetaroomServiceServer = m_NodeHandle.advertiseService("/local_metric_map/ClearMetaroomService", &SemanticMapNode::clearMetaroomServiceCallback, this);
 
-    bool save_intermediate;
-    m_NodeHandle.param<bool>("save_intermediate",save_intermediate,false);
-    if (!save_intermediate)
+    m_NodeHandle.param<bool>("save_intermediate",m_bSaveIntermediateData,false);
+    if (!m_bSaveIntermediateData)
     {
         ROS_INFO_STREAM("NOT saving intermediate data.");
     } else {
@@ -184,7 +183,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     // update list of rooms & metarooms
     m_SummaryParser.refresh();
 
-    ROS_INFO_STREAM("Summary XML created.");
+    ROS_INFO_STREAM("Summary XML created. Looking for metaroom for room with id: "<<aRoom.getRoomStringId());
 
     boost::shared_ptr<MetaRoom<PointType> > metaroom;
     bool found = false;
@@ -253,7 +252,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
 
         } else {
             ROS_INFO_STREAM("Matching metaroom found. XML file: "<<matchingMetaroomXML);
-            metaroom =  boost::shared_ptr<MetaRoom<PointType> >(new MetaRoom<PointType>(MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(matchingMetaroomXML,false)));
+            metaroom =  MetaRoomXMLParser<PointType>::loadMetaRoomFromXML(matchingMetaroomXML,true);
             found = true;
         }
     } else {
@@ -299,6 +298,15 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
                     }
                 }
             }
+
+            for(unsigned int x = 0; x < todox; x++){
+                for(unsigned int y = 0; y < todoy; y++){
+                    delete[] rawPoses[x][y];
+                }
+                delete[] rawPoses[x];
+            }
+            delete[] rawPoses;
+
             new_rc->addToTrainingORBFeatures(matchingMetaroomXML);
             new_rc->addToTrainingORBFeatures(xml_file_name);
             std::vector<Eigen::Matrix4f> reg_transforms = new_rc->alignAndStoreSweeps();
@@ -364,15 +372,16 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     pcl::toROSMsg(*metaroomCloud, msg_metaroom);
     msg_metaroom.header.frame_id="/map";
     m_PublisherMetaroom.publish(msg_metaroom);
-    m_vLoadedMetarooms.push_back(metaroom);
+//    m_vLoadedMetarooms.push_back(metaroom); // don't keep data in memory
     ROS_INFO_STREAM("Published metaroom");
 
-    if (aRoom.getRoomStringId() != "") // waypoint id set, update the map
-    {
-        m_WaypointToMetaroomMap[aRoom.getRoomStringId()] = metaroom;
-        ROS_INFO_STREAM("Updated map with new metaroom for waypoint "<<aRoom.getRoomStringId());
-        m_WaypointToRoomMap[aRoom.getRoomStringId()] = aRoom;
-    }
+
+//    if (aRoom.getRoomStringId() != "") // waypoint id set, update the map
+//    {
+//        m_WaypointToMetaroomMap[aRoom.getRoomStringId()] = metaroom;
+//        ROS_INFO_STREAM("Updated map with new metaroom for waypoint "<<aRoom.getRoomStringId());
+//        m_WaypointToRoomMap[aRoom.getRoomStringId()] = aRoom;
+//    }
 
 
     CloudPtr roomCloud = aRoom.getInteriorRoomCloud();
@@ -417,7 +426,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
             return;
         }
 
-        sort(matchingObservations.begin(), matchingObservations.end());
+//        sort(matchingObservations.begin(), matchingObservations.end());
         reverse(matchingObservations.begin(), matchingObservations.end());
         std::string latest = matchingObservations[0];
         if (latest != xml_file_name)
@@ -478,7 +487,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
 
     std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.03,800,100000);
     ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
-    MetaRoom<PointType>::filterClustersBasedOnDistance(aRoom.getIntermediateCloudTransforms()[0].getOrigin(), vClusters,3.0);
+    MetaRoom<PointType>::filterClustersBasedOnDistance(aRoom.getIntermediateCloudTransforms()[0].getOrigin(), vClusters,4.0);
     ROS_INFO_STREAM(vClusters.size()<<" different clusters after max distance filtering.");
 
     ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
@@ -590,6 +599,9 @@ bool SemanticMapNode<PointType>::clearMetaroomServiceCallback(ClearMetaroomServi
 
     }
 
+    // clear metarooms loaded in memory
+    m_vLoadedMetarooms.clear();
+
     // check if to reinitialize the metarooms
     if (req.initialize)
     {
@@ -618,7 +630,44 @@ bool SemanticMapNode<PointType>::clearMetaroomServiceCallback(ClearMetaroomServi
             if (initialize_metaroom)
             {
                 vector<string> waypoint_observations = it->second;
-                sort(waypoint_observations.begin(), waypoint_observations.end());
+                sort(waypoint_observations.begin(), waypoint_observations.end(),
+                     [](const std::string& a, const std::string& b )
+                {
+                    std::string patrol_string = "patrol_run_";
+                    std::string room_string = "room_";
+                    size_t p_pos_1 = a.find(patrol_string);
+                    size_t r_pos_1 = a.find(room_string) - 1; // remove the / before the room_
+                    size_t sl_pos_1 = a.find("/",r_pos_1+1);
+
+                    size_t p_pos_2 = b.find(patrol_string);
+                    size_t r_pos_2 = b.find(room_string) - 1; // remove the / before the room_
+                    size_t sl_pos_2 = b.find("/",r_pos_2+1);
+
+                    // just in case we have some different folder structure (shouldn't happen)
+                    if ((p_pos_1 == std::string::npos) || (r_pos_1 == std::string::npos) || (sl_pos_1 == std::string::npos) ||
+                            (p_pos_2 == std::string::npos) || (r_pos_2 == std::string::npos) || (sl_pos_2 == std::string::npos))
+                    {
+                        return a<b;
+                    }
+
+                    std::string p_1 = a.substr(p_pos_1 + patrol_string.length(), r_pos_1 - (p_pos_1 + patrol_string.length()));
+                    std::string r_1 = a.substr(r_pos_1 + 1 + room_string.length(), sl_pos_1 - (r_pos_1 + 1 + room_string.length()));
+        //            std::cout<<"Patrol 1: "<<p_1<<"  room 1: "<<r_1<<std::endl;
+                    std::string p_2 = b.substr(p_pos_2 + patrol_string.length(), r_pos_2 - (p_pos_2 + patrol_string.length()));
+                    std::string r_2 = b.substr(r_pos_2 + 1 + room_string.length(), sl_pos_2 - (r_pos_2 + 1 + room_string.length()));
+        //            std::cout<<"Patrol 2: "<<p_2<<"  room 2: "<<r_2<<std::endl;
+
+                    if (stoi(p_1) == stoi(p_2)){
+                        if (stoi(r_1) == stoi(r_2)){
+                            return a<b;
+                        } else {
+                            return stoi(r_1) < stoi(r_2);
+                        }
+                    } else {
+                        return stoi(p_1) < stoi(p_2);
+                    }
+                }
+                     );
                 reverse(waypoint_observations.begin(), waypoint_observations.end());
                 ROS_INFO_STREAM("Initializing metaroom for waypoint ["<<it->first<<"] with observation "<<waypoint_observations[0]);
 

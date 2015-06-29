@@ -36,7 +36,7 @@ public:
 
     std::string saveMetaRoomAsXML(MetaRoom<PointType>& aMetaRoom, std::string xmlFile="metaroom.xml");
 
-    static MetaRoom<PointType> loadMetaRoomFromXML(const std::string& xmlFile, bool deepLoad=true);
+    static boost::shared_ptr<MetaRoom<PointType>> loadMetaRoomFromXML(const std::string& xmlFile, bool deepLoad=true);
 
     QString findMetaRoomLocation(MetaRoom<PointType>* aMetaRoom);
 private:
