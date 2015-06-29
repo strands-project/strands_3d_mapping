@@ -74,6 +74,7 @@ public:
     typedef typename semantic_map_publisher::ObservationOctomapInstanceService::Response ObservationOctomapInstanceServiceResponse;
 
 
+
     struct ObsStruct {
         std::string file;
         CloudPtr completeCloud;
