@@ -1,3 +1,4 @@
+
 <launch>
 
   <arg name="save_intermediate_clouds" default="true" />
@@ -11,7 +12,7 @@
   <arg name="newest_dynamic_clusters" default="true" />
   <!--<arg name="use_NDT_registration" default="true" /> -->
 
-
+  <arg name="min_object_size" default="500" />
   <arg name="machine" default="localhost" />
   <arg name="user" default="" />
   <arg name="sweep_ip" default="localhost" />
@@ -37,6 +38,7 @@
     <!-- The system doing the analysis of static vs dynamic parts of the local maps -->
     
     <include file="$(find semantic_map)/launch/semantic_map.launch"> 
+        <arg name="min_object_size" value="$(arg min_object_size)"/>
         <arg name="update_metaroom" value="$(arg update_metaroom)"/>
     	<arg name="machine" value="$(arg mapping_ip)"/>
 	<arg name="user" value="$(arg mapping_user)" />  
@@ -50,6 +52,7 @@
     
     <node machine="$(arg machine)" pkg="object_manager" type="object_manager_node" name="object_manager_node" output="screen" respawn="true">
         <param name="log_objects_to_db" value="$(arg log_objects_to_db)"/>
+        <param name="min_object_size" value="$(arg min_object_size)"/>
     </node>
 
         <node name="do_sweep" pkg="cloud_merge" type="do_sweep.py" output="screen" respawn="true">

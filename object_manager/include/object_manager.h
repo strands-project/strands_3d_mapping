@@ -127,6 +127,7 @@ private:
     bool                                                                        m_bTrackingStarted;
     DynamicObject::Ptr                                                          m_objectTracked;
     std::string                                                                 m_objectTrackedObservation; // for saving
+    int										m_MinClusterSize;
 };
 
 template <class PointType>
@@ -159,7 +160,10 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh) : m_TransformListene
         ROS_INFO_STREAM("The dynamic objects will NOT be logged to the database.");
     }
 
-    m_NodeHandle.param<std::string>("additional_views_topic",m_additionalViewsTopic,"/object_learning/object_view");
+    m_NodeHandle.param<int>("min_object_size",m_MinClusterSize,500);
+    ROS_INFO_STREAM("ObjectManager:: min object size set to "<<m_MinClusterSize);
+    
+m_NodeHandle.param<std::string>("additional_views_topic",m_additionalViewsTopic,"/object_learning/object_view");
     ROS_INFO_STREAM("The additional views topic is "<<m_additionalViewsTopic);
     m_SubscriberAdditionalObjectViews = m_NodeHandle.subscribe(m_additionalViewsTopic,1, &ObjectManager<PointType>::additionalViewsCallback,this);
 
@@ -542,7 +546,7 @@ std::vector<DynamicObject::Ptr>  ObjectManager<PointType>::loadDynamicObjectsFro
     sweep.dynamicClusterCloud = filterGroundClusters(sweep.dynamicClusterCloud, 0.2);
 
     double tolerance = 0.03;
-    int min_cluster_size = 800;
+    int min_cluster_size = m_MinClusterSize;
     int max_cluster_size = 10000;
     // split into clusters
     typename pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);

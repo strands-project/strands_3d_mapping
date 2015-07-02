@@ -88,6 +88,7 @@ private:
     bool                                                                        m_bUpdateMetaroom;
     bool                                                                        m_bNewestClusters;
     bool                                                                        m_bUseNDTRegistration;
+	int									m_MinObjectSize;
 
 };
 
@@ -146,6 +147,8 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
 //    }
 
 
+    m_NodeHandle.param<int>("min_object_size",m_MinObjectSize,500);
+    ROS_INFO_STREAM("Min object size set to"<<m_MinObjectSize);
 
     std::string statusTopic;
     m_NodeHandle.param<std::string>("status_topic",statusTopic,"/local_metric_map/status");
@@ -486,7 +489,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     }
 
 
-    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.03,800,100000);
+    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(difference,0.03,m_MinObjectSize,100000);
     ROS_INFO_STREAM("Clustered differences. "<<vClusters.size()<<" different clusters.");
     MetaRoom<PointType>::filterClustersBasedOnDistance(aRoom.getIntermediateCloudTransforms()[0].getOrigin(), vClusters,4.0);
     ROS_INFO_STREAM(vClusters.size()<<" different clusters after max distance filtering.");
