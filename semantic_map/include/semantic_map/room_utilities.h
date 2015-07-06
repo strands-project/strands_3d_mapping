@@ -73,7 +73,7 @@ namespace semantic_map_room_utilities
 
            }
         } else {
-            ROS_INFO_STREAM("Cannot rebuild intermediate clouds as the number of intermediate transforms is less than the number of intermediate clouds.");
+            ROS_INFO_STREAM("Cannot rebuild intermediate clouds as the number of intermediate transforms is less than the number of intermediate clouds."<<cloudTransformsReg.size() <<" "<< clouds.size());
             return;
         }
         return;

@@ -167,6 +167,8 @@ void execute(const calibrate_sweeps::CalibrateSweepsGoalConstPtr& goal, Server* 
     {
         SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(usedObs,true);
         auto origTransforms = aRoom.getIntermediateCloudTransforms();
+	aRoom.clearIntermediateCloudRegisteredTransforms();
+	aRoom.clearIntermediateCloudCameraParametersCorrected();
         for (size_t i=0; i<origTransforms.size(); i++)
         {
             tf::StampedTransform transform = origTransforms[i];
