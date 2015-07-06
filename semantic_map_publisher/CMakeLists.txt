@@ -23,6 +23,7 @@ add_service_files(
    ObservationService.srv
    ObservationOctomapService.srv
    WaypointInfoService.srv
+   SensorOriginService.srv
  )
 
 generate_messages(
