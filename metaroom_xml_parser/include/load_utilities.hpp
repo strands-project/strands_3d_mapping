@@ -456,7 +456,6 @@
 
         auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweepXmlPath, std::vector<std::string>{"RoomCompleteCloud", "RoomIntermediateCloud"},false, false);
 
-        std::cout<<sweep.vIntermediateRoomCloudTransformsRegistered.size()<<" "<<sweep.vIntermediateRoomCloudTransforms.size()<<"  "<<sweep.completeRoomCloud->points.size()<<std::endl;
         // sweep data
         toRet.completeCloud = sweep.completeRoomCloud;
         toRet.sweepCenter = sweep.vIntermediateRoomCloudTransformsRegistered[sweep.vIntermediateRoomCloudTransformsRegistered.size()/2].getOrigin();
