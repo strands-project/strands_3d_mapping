@@ -46,7 +46,9 @@ bool SemanticRoomXMLParser<PointType>::setRootFolderFromRoomXml(std::string room
     {
         bool folderCreated = QDir().mkdir(m_RootFolder);
         ROS_INFO_STREAM("Creating the root folder returned "<<folderCreated<<" folder name "<<m_RootFolder.toStdString());
+        return folderCreated;
     }
+    return true;
 
 }
 
