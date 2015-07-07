@@ -1,0 +1,6 @@
+string waypoint_id
+int64 instance_number # convention 0 - oldest available
+float64 resolution
+---
+sensor_msgs/PointCloud2 cloud
+string observation_timestamp

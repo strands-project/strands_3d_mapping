@@ -22,7 +22,10 @@ add_service_files(
    MetaroomService.srv
    ObservationService.srv
    ObservationOctomapService.srv
+   ObservationInstanceService.srv
+   ObservationOctomapInstanceService.srv
    WaypointInfoService.srv
+   WaypointTimestampService.srv
    SensorOriginService.srv
  )
 
