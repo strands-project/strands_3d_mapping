@@ -448,3 +448,49 @@
 
          return toRet;
     }
+
+    /********************************************** LABELLED DATA UTILITIES ****************************************************************************************/template <class PointType>
+    LabelledData<PointType> loadLabelledDataFromSingleSweep(std::string sweepXmlPath, bool verbose = false)
+    {
+        LabelledData<PointType> toRet;
+
+        auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweepXmlPath, std::vector<std::string>{"RoomCompleteCloud", "RoomIntermediateCloud"},false, false);
+
+        // sweep data
+        toRet.completeCloud = sweep.completeRoomCloud;
+        toRet.sweepCenter = sweep.vIntermediateRoomCloudTransformsRegistered[sweep.vIntermediateRoomCloudTransformsRegistered.size()/2].getOrigin();
+        toRet.transformToGlobal = sweep.vIntermediateRoomCloudTransforms[0];
+        toRet.waypoint = sweep.roomWaypointId;
+        toRet.sweepTime = sweep.roomLogStartTime;
+
+        // get labelled objects
+        unsigned found = sweepXmlPath.find_last_of("/");
+        std::string base_path = sweepXmlPath.substr(0,found+1);
+        QStringList xmlFiles = QDir(base_path.c_str()).entryList(QStringList("*label*.pcd"));
+
+        for (size_t k=0; k<xmlFiles.size(); k++)
+        {
+            std::string label_file = base_path+xmlFiles[k].toStdString();
+            label_file[label_file.size()-1] = 't';
+            label_file[label_file.size()-2] = 'x';
+            label_file[label_file.size()-3] = 't';
+            std::ifstream label_stream; label_stream.open(label_file);
+            std::string label;
+            label_stream >> label;
+            label_stream.close();
+
+            pcl::PCDReader reader;
+            boost::shared_ptr<pcl::PointCloud<PointType>> cloud (new pcl::PointCloud<PointType>);
+            reader.read (base_path+xmlFiles[k].toStdString(), *cloud);
+
+            if (!cloud->points.size()){
+                continue;
+            }
+
+            toRet.objectClouds.push_back(cloud);
+            toRet.objectLabels.push_back(label);
+        }
+
+        return toRet;
+    }
+

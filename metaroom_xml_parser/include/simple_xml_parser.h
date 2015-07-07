@@ -107,7 +107,7 @@ public:
       \param verbose whether to print output when parsing intermediate clouds and intermediate images.
       \return The room structure.
     */
-    static RoomData loadRoomFromXML(const std::string& xmlFile, std::vector<std::string> xmlNodesToParse=std::vector<std::string>{"RoomCompleteCloud", "RoomIntermediateCloud","IntermediatePosition","RoomDynamicClusters"},bool verbose = false)
+    static RoomData loadRoomFromXML(const std::string& xmlFile, std::vector<std::string> xmlNodesToParse=std::vector<std::string>{"RoomCompleteCloud", "RoomIntermediateCloud","IntermediatePosition","RoomDynamicClusters"},bool verbose = false, bool deepLoad = true)
     {
         RoomData aRoom;
 
@@ -244,19 +244,22 @@ public:
                     std::ifstream file(cloudFileName.toStdString().c_str());
                     if (file)
                     {
-                        if (verbose)
-                        {
-                            ROS_INFO_STREAM("Loading intermediate cloud file name "<<cloudFileName.toStdString());
+                        if (deepLoad){
+                            if (verbose)
+                            {
+                                ROS_INFO_STREAM("Loading intermediate cloud file name "<<cloudFileName.toStdString());
+                            }
+                            pcl::PCDReader reader;
+                            boost::shared_ptr<pcl::PointCloud<PointType>> cloud (new pcl::PointCloud<PointType>);
+                            reader.read (cloudFileName.toStdString(), *cloud);
+                            aRoom.vIntermediateRoomClouds.push_back(cloud);
+
+                            std::pair<cv::Mat,cv::Mat> rgbAndDepth = SimpleXMLParser::createRGBandDepthFromPC(cloud);
+                            aRoom.vIntermediateRGBImages.push_back(rgbAndDepth.first);
+                            aRoom.vIntermediateDepthImages.push_back(rgbAndDepth.second);
                         }
-                        pcl::PCDReader reader;
-                        boost::shared_ptr<pcl::PointCloud<PointType>> cloud (new pcl::PointCloud<PointType>);
-                        reader.read (cloudFileName.toStdString(), *cloud);
-                        aRoom.vIntermediateRoomClouds.push_back(cloud);
                         aRoom.vIntermediateRoomCloudTransforms.push_back(intermediateCloudData.transform);
                         aRoom.vIntermediateRoomCloudCamParams.push_back(aCameraModel);
-                        std::pair<cv::Mat,cv::Mat> rgbAndDepth = SimpleXMLParser::createRGBandDepthFromPC(cloud);
-                        aRoom.vIntermediateRGBImages.push_back(rgbAndDepth.first);
-                        aRoom.vIntermediateDepthImages.push_back(rgbAndDepth.second);
                     }
 
                     if (intermediateCloudData.hasRegTransform)

@@ -79,6 +79,24 @@ namespace semantic_map_load_utilties
     std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadDynamicClustersForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose=false, double tolerance = 0.05, int min_cluster_size = 75, int max_cluster_size=50000);
 
 
+    /********************************************** LABELLED DATA UTILITIES ****************************************************************************************/
+    template <class PointType>
+    struct LabelledData
+    {
+        boost::shared_ptr<pcl::PointCloud<PointType>>               completeCloud;
+        tf::StampedTransform                                        transformToGlobal;
+        tf::Vector3                                                 sweepCenter;
+        std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>  objectClouds;
+        std::vector<std::string>                                    objectLabels;
+        boost::posix_time::ptime                                    sweepTime;
+        std::string                                                 waypoint;
+
+    };
+
+    template <class PointType>
+    LabelledData<PointType> loadLabelledDataFromSingleSweep(std::string sweepXmlPath, bool verbose = false);
+
+
 #include "load_utilities.hpp"
 
 }
