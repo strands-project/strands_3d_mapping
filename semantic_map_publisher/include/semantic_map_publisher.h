@@ -24,8 +24,11 @@
 // Services
 #include <semantic_map_publisher/MetaroomService.h>
 #include <semantic_map_publisher/ObservationService.h>
+#include <semantic_map_publisher/ObservationInstanceService.h>
 #include <semantic_map_publisher/ObservationOctomapService.h>
+#include <semantic_map_publisher/ObservationOctomapInstanceService.h>
 #include <semantic_map_publisher/WaypointInfoService.h>
+#include <semantic_map_publisher/WaypointTimestampService.h>
 #include <semantic_map_publisher/SensorOriginService.h>
 
 
@@ -55,14 +58,20 @@ public:
     typedef typename semantic_map_publisher::MetaroomService::Response MetaroomServiceResponse;
     typedef typename semantic_map_publisher::ObservationService::Request ObservationServiceRequest;
     typedef typename semantic_map_publisher::ObservationService::Response ObservationServiceResponse;
+    typedef typename semantic_map_publisher::ObservationInstanceService::Request ObservationInstanceServiceRequest;
+    typedef typename semantic_map_publisher::ObservationInstanceService::Response ObservationInstanceServiceResponse;
     typedef typename semantic_map_publisher::SensorOriginService::Request SensorOriginServiceRequest;
     typedef typename semantic_map_publisher::SensorOriginService::Response SensorOriginServiceResponse;
 //    typedef typename semantic_map_publisher::DynamicClusterService::Request DynamicClusterServiceRequest;
 //    typedef typename semantic_map_publisher::DynamicClusterService::Response DynamicClusterServiceResponse;
     typedef typename semantic_map_publisher::WaypointInfoService::Request WaypointInfoServiceRequest;
     typedef typename semantic_map_publisher::WaypointInfoService::Response WaypointInfoServiceResponse;
+    typedef typename semantic_map_publisher::WaypointTimestampService::Request WaypointTimestampServiceRequest;
+    typedef typename semantic_map_publisher::WaypointTimestampService::Response WaypointTimestampServiceResponse;
     typedef typename semantic_map_publisher::ObservationOctomapService::Request ObservationOctomapServiceRequest;
     typedef typename semantic_map_publisher::ObservationOctomapService::Response ObservationOctomapServiceResponse;
+    typedef typename semantic_map_publisher::ObservationOctomapInstanceService::Request ObservationOctomapInstanceServiceRequest;
+    typedef typename semantic_map_publisher::ObservationOctomapInstanceService::Response ObservationOctomapInstanceServiceResponse;
 
 
     struct ObsStruct {
@@ -80,7 +89,10 @@ public:
 //    bool dynamicClusterServiceCallback(DynamicClusterServiceRequest &req, DynamicClusterServiceResponse &res);
     bool observationServiceCallback(ObservationServiceRequest &req, ObservationServiceResponse &res);
     bool observationOctomapServiceCallback(ObservationOctomapServiceRequest &req, ObservationOctomapServiceResponse &res);
+    bool observationInstanceServiceCallback(ObservationInstanceServiceRequest &req, ObservationInstanceServiceResponse &res);
+    bool observationOctomapInstanceServiceCallback(ObservationOctomapInstanceServiceRequest &req, ObservationOctomapInstanceServiceResponse &res);
     bool waypointInfoServiceCallback(WaypointInfoServiceRequest &req, WaypointInfoServiceResponse &res);
+    bool waypointTimestampServiceCallback(WaypointTimestampServiceRequest &req, WaypointTimestampServiceResponse &res);
     bool sensorOriginServiceCallback(SensorOriginServiceRequest &req, SensorOriginServiceResponse &res);
 
 
@@ -91,7 +103,10 @@ public:
 //    ros::ServiceServer                                                          m_DynamicClusterServiceServer;
     ros::ServiceServer                                                          m_ObservationServiceServer;
     ros::ServiceServer                                                          m_ObservationOctomapServiceServer;
+    ros::ServiceServer                                                          m_ObservationInstanceServiceServer;
+    ros::ServiceServer                                                          m_ObservationOctomapInstanceServiceServer;
     ros::ServiceServer                                                          m_WaypointInfoServiceServer;
+    ros::ServiceServer                                                          m_WaypointTimestampServiceServer;
     ros::ServiceServer                                                          m_SensorOriginServiceServer;
 
 
@@ -124,7 +139,10 @@ SemanticMapPublisher<PointType>::SemanticMapPublisher(ros::NodeHandle nh)
 //    m_DynamicClusterServiceServer = m_NodeHandle.advertiseService("SemanticMapPublisher/DynamicClusterService", &SemanticMapPublisher::dynamicClusterServiceCallback, this);
     m_ObservationServiceServer = m_NodeHandle.advertiseService("SemanticMapPublisher/ObservationService", &SemanticMapPublisher::observationServiceCallback, this);
     m_ObservationOctomapServiceServer = m_NodeHandle.advertiseService("SemanticMapPublisher/ObservationOctomapService", &SemanticMapPublisher::observationOctomapServiceCallback, this);
+    m_ObservationInstanceServiceServer = m_NodeHandle.advertiseService("SemanticMapPublisher/ObservationInstanceService", &SemanticMapPublisher::observationInstanceServiceCallback, this);
+    m_ObservationOctomapInstanceServiceServer = m_NodeHandle.advertiseService("SemanticMapPublisher/ObservationOctomapInstanceService", &SemanticMapPublisher::observationOctomapInstanceServiceCallback, this);
     m_WaypointInfoServiceServer= m_NodeHandle.advertiseService("SemanticMapPublisher/WaypointInfoService", &SemanticMapPublisher::waypointInfoServiceCallback, this);
+    m_WaypointTimestampServiceServer= m_NodeHandle.advertiseService("SemanticMapPublisher/WaypointTimestampService", &SemanticMapPublisher::waypointTimestampServiceCallback, this);
     m_SensorOriginServiceServer= m_NodeHandle.advertiseService("SemanticMapPublisher/SensorOriginService", &SemanticMapPublisher::sensorOriginServiceCallback, this);
 }
 
@@ -154,7 +172,7 @@ bool SemanticMapPublisher<PointType>::observationServiceCallback(ObservationServ
         ROS_INFO_STREAM("No observations for this waypoint "<<req.waypoint_id);
         return true;
     }
-    sort(matchingObservations.begin(), matchingObservations.end());
+//    sort(matchingObservations.begin(), matchingObservations.end());
     reverse(matchingObservations.begin(), matchingObservations.end());
     string latest = matchingObservations[0];
 
@@ -203,6 +221,52 @@ bool SemanticMapPublisher<PointType>::observationServiceCallback(ObservationServ
 }
 
 template <class PointType>
+bool SemanticMapPublisher<PointType>::observationInstanceServiceCallback(ObservationInstanceServiceRequest &req, ObservationInstanceServiceResponse &res)
+{
+    using namespace std;
+    ROS_INFO_STREAM("Received an observation instance request for waypoint "<<req.waypoint_id<< " instance number "<<req.instance_number);
+
+    std::vector<std::string> matchingObservations = semantic_map_load_utilties::getSweepXmlsForTopologicalWaypoint<PointType>(m_dataFolder, req.waypoint_id);
+    if (matchingObservations.size() == 0)
+    {
+        ROS_INFO_STREAM("No observations for this waypoint "<<req.waypoint_id);
+        return true;
+    }
+
+    if (! (req.instance_number < matchingObservations.size())){
+        ROS_ERROR_STREAM("Instance number "<<req.instance_number<<" but only "<<matchingObservations.size()<<" observations available");
+        return true;
+    }
+
+    string sweep_xml = matchingObservations[req.instance_number];
+    CloudPtr completeCloud = semantic_map_load_utilties::loadMergedCloudFromSingleSweep<PointType>(sweep_xml);
+
+    CloudPtr observationCloud(new Cloud());
+    pcl::VoxelGrid<PointType> vg;
+    vg.setInputCloud (completeCloud);
+    vg.setLeafSize (req.resolution, req.resolution, req.resolution);
+    vg.filter (*observationCloud);
+
+    sensor_msgs::PointCloud2 msg_observation;
+    pcl::toROSMsg(*observationCloud, msg_observation);
+    msg_observation.header.frame_id="/map";
+
+    res.cloud = msg_observation;
+
+    // also publish on topic
+    m_PublisherObservation.publish(msg_observation);
+
+    // get timestamp
+    auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweep_xml, std::vector<std::string>(), false);
+    res.observation_timestamp = boost::posix_time::to_simple_string(sweep.roomLogStartTime);
+
+    ROS_INFO_STREAM("Published observation instance "<<req.instance_number<<" with timestamp "<<res.observation_timestamp);
+
+    return true;
+
+}
+
+template <class PointType>
 bool SemanticMapPublisher<PointType>::waypointInfoServiceCallback(WaypointInfoServiceRequest &req, WaypointInfoServiceResponse &res)
 {
     SimpleSummaryParser summary_parser;
@@ -226,6 +290,82 @@ bool SemanticMapPublisher<PointType>::waypointInfoServiceCallback(WaypointInfoSe
 }
 
 template <class PointType>
+bool SemanticMapPublisher<PointType>::waypointTimestampServiceCallback(WaypointTimestampServiceRequest &req, WaypointTimestampServiceResponse &res)
+{
+    using namespace std;
+    ROS_INFO_STREAM("Received an observation request for waypoint "<<req.waypoint_id);
+
+    std::vector<std::string> matchingObservations = semantic_map_load_utilties::getSweepXmlsForTopologicalWaypoint<PointType>(m_dataFolder, req.waypoint_id);
+    if (matchingObservations.size() == 0)
+    {
+        ROS_INFO_STREAM("No observations for this waypoint "<<req.waypoint_id);
+        return true;
+    }
+//    sort(matchingObservations.begin(), matchingObservations.end());
+//    reverse(matchingObservations.begin(), matchingObservations.end());
+
+
+    CloudPtr toPublish(new Cloud());
+    for (string obs: matchingObservations)
+    {
+        auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(obs, std::vector<std::string>(), false);
+//        cout<<sweep.roomLogStartTime<<endl;
+        res.waypoint_timestamps.push_back(boost::posix_time::to_simple_string(sweep.roomLogStartTime));
+    }
+
+    ROS_INFO_STREAM("Returning "<<res.waypoint_timestamps.size()<<" timestamps for waypoint "<<req.waypoint_id);
+    return true;
+}
+
+template <class PointType>
+bool SemanticMapPublisher<PointType>::observationOctomapInstanceServiceCallback(ObservationOctomapInstanceServiceRequest &req, ObservationOctomapInstanceServiceResponse &res)
+{
+    using namespace std;
+    ROS_INFO_STREAM("Received an observation octomap instance request for waypoint "<<req.waypoint_id<< " instance number "<<req.instance_number);
+
+    std::vector<std::string> matchingObservations = semantic_map_load_utilties::getSweepXmlsForTopologicalWaypoint<PointType>(m_dataFolder, req.waypoint_id);
+    if (matchingObservations.size() == 0)
+    {
+        ROS_INFO_STREAM("No observations for this waypoint "<<req.waypoint_id);
+        return true;
+    }
+
+    if (! (req.instance_number < matchingObservations.size())){
+        ROS_ERROR_STREAM("Instance number "<<req.instance_number<<" but only "<<matchingObservations.size()<<" observations available");
+        return true;
+    }
+
+    string sweep_xml = matchingObservations[req.instance_number];
+    CloudPtr completeCloud = semantic_map_load_utilties::loadMergedCloudFromSingleSweep<PointType>(sweep_xml);
+
+    sensor_msgs::PointCloud2 msg_observation;
+    pcl::toROSMsg(*completeCloud, msg_observation);
+    msg_observation.header.frame_id="/map";
+
+    Eigen::Vector4f centroid;
+    pcl::compute3DCentroid(*completeCloud, centroid);
+    octomap::point3d octo_centroid(centroid[0],centroid[1],centroid[2]);
+    // convert observation cloud to octomap and return it
+    octomap::Pointcloud oct_pc;
+    octomap::pointCloud2ToOctomap(msg_observation, oct_pc);
+    octomap::OcTree map(req.resolution);
+    map.insertPointCloud(oct_pc, octo_centroid);
+    octomap_msgs::Octomap octo_msg;
+    octomap_msgs::fullMapToMsg(map,octo_msg);
+    res.octomap = octo_msg;
+
+
+    // get timestamp
+    auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweep_xml, std::vector<std::string>(), false);
+    res.observation_timestamp = boost::posix_time::to_simple_string(sweep.roomLogStartTime);
+
+    ROS_INFO_STREAM("Published observation octomap instance "<<req.instance_number<<" with timestamp "<<res.observation_timestamp);
+
+
+    return true;
+}
+
+template <class PointType>
 bool SemanticMapPublisher<PointType>::observationOctomapServiceCallback(ObservationOctomapServiceRequest &req, ObservationOctomapServiceResponse &res)
 {
     ROS_INFO_STREAM("Received an observation octomap request for waypoint "<<req.waypoint_id);
@@ -237,7 +377,7 @@ bool SemanticMapPublisher<PointType>::observationOctomapServiceCallback(Observat
         return true;
     }
 
-    sort(matchingObservations.begin(), matchingObservations.end());
+//    sort(matchingObservations.begin(), matchingObservations.end());
     reverse(matchingObservations.begin(), matchingObservations.end());
     string latest = matchingObservations[0];
 
@@ -302,7 +442,7 @@ bool SemanticMapPublisher<PointType>::sensorOriginServiceCallback(SensorOriginSe
         return true;
     }
 
-    sort(matchingObservations.begin(), matchingObservations.end());
+//    sort(matchingObservations.begin(), matchingObservations.end());
     reverse(matchingObservations.begin(), matchingObservations.end());
     string latest = matchingObservations[0];
 

@@ -1,0 +1,6 @@
+string waypoint_id
+int64 instance_number # convention 0 - oldest available
+float64 resolution
+---
+octomap_msgs/Octomap octomap
+string observation_timestamp
