@@ -294,7 +294,7 @@ void semantic_map_registration_transforms::getPtuAnglesForIntPosition(int pan_st
     }
 }
 
-std::string semantic_map_registration_transforms::saveSweepParameters(int pan_start, int pan_step, int pan_end, int tilt_start, int tilt_step, int tilt_end, bool verbose, std::string file)
+std::string semantic_map_registration_transforms::saveSweepParameters(SweepParameters sweepParams, bool verbose, std::string file)
 {
     // get home folder
     passwd* pw = getpwuid(getuid());
@@ -329,13 +329,13 @@ std::string semantic_map_registration_transforms::saveSweepParameters(int pan_st
     ofstream out;
     out.open(fileName);
 
-    out<<pan_start<<" "<<pan_step<<" "<<pan_end<<" "<<tilt_start<<" "<<tilt_step<<" "<<tilt_end;
+    out<<sweepParams.m_pan_start<<" "<<sweepParams.m_pan_step<<" "<<sweepParams.m_pan_end<<" "<<sweepParams.m_tilt_start<<" "<<sweepParams.m_tilt_step<<" "<<sweepParams.m_tilt_end;
 
     out.close();
     return fileName;
 }
 
-void semantic_map_registration_transforms::loadSweepParameters(int& pan_start, int& pan_step, int& pan_end, int& tilt_start, int& tilt_step, int& tilt_end, bool verbose, std::string file)
+void semantic_map_registration_transforms::loadSweepParameters(SweepParameters& sweepParams, bool verbose, std::string file)
 {
     double*** toRet;
 
@@ -361,7 +361,7 @@ void semantic_map_registration_transforms::loadSweepParameters(int& pan_start, i
         return;
     }
 
-    fin>>pan_start>>pan_step>>pan_end>>tilt_start>>tilt_step>>tilt_end;
+    fin>>sweepParams.m_pan_start>>sweepParams.m_pan_step>>sweepParams.m_pan_end>>sweepParams.m_tilt_start>>sweepParams.m_tilt_step>>sweepParams.m_tilt_end;
     fin.close();
     return;
 }
