@@ -693,6 +693,17 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         m_CloudMerge.resetIntermediateCloud();
         m_CloudMerge.resetMergedCloud();
     }
+
+
+    std::string parameters_string("sweep_parameters");
+    if (std::equal(parameters_string.begin(), parameters_string.end(), controlString.data.begin()) && m_bAquisitionPhase){
+        ROS_INFO_STREAM("Sweep paramters "<<controlString.data);
+        int pan_start, pan_step, pan_end, tilt_start, tilt_step, tilt_end;
+        std::stringstream ss(controlString.data);
+        std::string temp; ss>>temp;
+        ss>>pan_start; ss>>pan_step; ss>>pan_end; ss>>tilt_start; ss>>tilt_step; ss>>tilt_end;
+        aSemanticRoom.setSweepParameters(pan_start, pan_step, pan_end, tilt_start, tilt_step, tilt_end);
+    }
 }
 
 template <class PointType>
