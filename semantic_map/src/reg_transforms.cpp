@@ -293,3 +293,75 @@ void semantic_map_registration_transforms::getPtuAnglesForIntPosition(int pan_st
         cout<<"For intermediate position "<<int_position<<" the PTU angles are pan: "<<pan_angle<<"  tilt: "<<tilt_angle<<endl;
     }
 }
+
+std::string semantic_map_registration_transforms::saveSweepParameters(int pan_start, int pan_step, int pan_end, int tilt_start, int tilt_step, int tilt_end, bool verbose, std::string file)
+{
+    // get home folder
+    passwd* pw = getpwuid(getuid());
+    std::string path(pw->pw_dir);
+
+    path+="/.ros/";
+    if ( ! boost::filesystem::exists( path ) )
+    {
+        if (!boost::filesystem::create_directory(path))
+        {
+            cerr<<"Cannot create folder "<<path<<endl;
+            return "";
+        }
+    }
+
+    path+="semanticMap/";
+    if ( ! boost::filesystem::exists( path ) )
+    {
+        if (!boost::filesystem::create_directory(path))
+        {
+            cerr<<"Cannot create folder "<<path<<endl;
+            return "";
+        }
+    }
+
+    string fileName = path+file;
+    if (verbose)
+    {
+        cout<<"Saving sweep parameters data at "<<fileName<<endl;
+    }
+
+    ofstream out;
+    out.open(fileName);
+
+    out<<pan_start<<" "<<pan_step<<" "<<pan_end<<" "<<tilt_start<<" "<<tilt_step<<" "<<tilt_end;
+
+    out.close();
+    return fileName;
+}
+
+void semantic_map_registration_transforms::loadSweepParameters(int& pan_start, int& pan_step, int& pan_end, int& tilt_start, int& tilt_step, int& tilt_end, bool verbose, std::string file)
+{
+    double*** toRet;
+
+    if (file == "default") // load data from the default path
+    {
+        passwd* pw = getpwuid(getuid());
+        std::string path(pw->pw_dir);
+
+        path+="/.ros/semanticMap/registration_transforms_raw.txt";
+        file = path;
+    }
+
+    if (verbose)
+    {
+        cout<<"Loading raw registration data from "<<file<<endl;
+    }
+
+    ifstream fin;
+    fin.open(file);
+
+    if (!fin.good())
+    {
+        return;
+    }
+
+    fin>>pan_start>>pan_step>>pan_end>>tilt_start>>tilt_step>>tilt_end;
+    fin.close();
+    return;
+}

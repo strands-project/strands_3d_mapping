@@ -22,6 +22,9 @@ namespace semantic_map_registration_transforms
 
     void getPtuAnglesForIntPosition(int pan_start, int pan_step, int pan_end, int tilt_start, int tilt_step, int tilt_end,
                                     int int_position, int& pan_angle, int& tilt_angle, bool verbose = false);
+
+    std::string saveSweepParameters(int pan_start, int pan_step, int pan_end, int tilt_start, int tilt_step, int tilt_end, bool verbose=false, std::string file="sweep_paramters.txt");
+    void loadSweepParameters(int& pan_start, int& pan_step, int& pan_end, int& tilt_start, int& tilt_step, int& tilt_end, bool verbose=false, std::string file="default");
 }
 
 
