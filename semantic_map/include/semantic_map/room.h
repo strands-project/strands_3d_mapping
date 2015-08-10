@@ -116,14 +116,16 @@ public:
     void setRoomLogEndTime(const boost::posix_time::ptime& logEndTime);
     boost::posix_time::ptime getRoomLogEndTime();
     boost::posix_time::ptime getRoomTime();
+    void setSweepParameters(int pan_start, int pan_step, int pan_end,
+                            int tilt_start, int tilt_step, int tilt_end);
 
     bool operator==(const SemanticRoom& rhs); // equality operator -> deep comparison of all fields
 
     static Eigen::Vector4f computeCentroid(CloudPtr cloud);
 
     // public members (should be private ...)
-    int                                              pan_start, pan_step, pan_end;
-    int                                              tilt_start, tilt_step, tilt_end;
+    int                                              m_pan_start, m_pan_step, m_pan_end;
+    int                                              m_tilt_start, m_tilt_step, m_tilt_end;
 
 };
 

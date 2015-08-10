@@ -13,8 +13,8 @@ SemanticRoom<PointType>::SemanticRoom(bool saveIntermediateClouds) : RoomBase<Po
     m_bIsMetaRoom = false;
 
     // initialize sweep parameters with defaults
-    pan_start = -160; pan_step = 20; pan_end = 160; // 17 horizontal steps
-    tilt_start = -30; tilt_step = 30; tilt_end = 30; // 3 vertical steps
+    m_pan_start = -160; m_pan_step = 20; m_pan_end = 160; // 17 horizontal steps
+    m_tilt_start = -30; m_tilt_step = 30; m_tilt_end = 30; // 3 vertical steps
 }
 
 template <class PointType>
@@ -417,4 +417,16 @@ Eigen::Vector4f SemanticRoom<PointType>::computeCentroid(SemanticRoom<PointType>
     Eigen::Vector4f centroid;
     pcl::compute3DCentroid(*cloud, centroid);
     return centroid;
+}
+
+template <class PointType>
+void SemanticRoom<PointType>::setSweepParameters(int pan_start, int pan_step, int pan_end,
+                        int tilt_start, int tilt_step, int tilt_end)
+{
+    m_pan_start = pan_start;
+    m_pan_step = pan_step;
+    m_pan_end = pan_end;
+    m_tilt_start = tilt_start;
+    m_tilt_step = tilt_step;
+    m_tilt_end = tilt_end;
 }
