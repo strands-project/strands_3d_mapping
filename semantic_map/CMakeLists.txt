@@ -63,6 +63,7 @@ set(HDRS
     include/semantic_map/reg_transforms.h
     include/semantic_map/room_utilities.h
     include/semantic_map/mongodb_interface.h
+    include/semantic_map/sweep_parameters.h
 )
 
 set(HDRS_IMPL
@@ -88,6 +89,7 @@ set(SRCS
     src/reg_transforms.cpp
     src/room_utilities.cpp
     src/mongodb_interface.cpp
+    src/sweep_parameters.cpp
 )
 
 add_library(semantic_map ${HDRS} ${HDRS_IMPL} ${SRCS})

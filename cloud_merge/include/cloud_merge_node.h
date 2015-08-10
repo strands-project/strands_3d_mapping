@@ -49,6 +49,7 @@
 #include <semantic_map/reg_features.h>
 #include <semantic_map/room_utilities.h>
 #include <semantic_map/mongodb_interface.h>
+#include <semantic_map/sweep_parameters.h>
 
 #include "cloud_merge.h"
 
@@ -702,7 +703,8 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         std::stringstream ss(controlString.data);
         std::string temp; ss>>temp;
         ss>>pan_start; ss>>pan_step; ss>>pan_end; ss>>tilt_start; ss>>tilt_step; ss>>tilt_end;
-        aSemanticRoom.setSweepParameters(pan_start, pan_step, pan_end, tilt_start, tilt_step, tilt_end);
+        SweepParameters sweepParams(pan_start, pan_step, pan_end, tilt_start, tilt_step, tilt_end);
+        aSemanticRoom.setSweepParameters(sweepParams);
     }
 }
 

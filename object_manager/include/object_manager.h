@@ -781,8 +781,8 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         returned_object.object_mask = cluster_image;
 
         int pan_angle = 0, tilt_angle = 0;
-        semantic_map_registration_transforms::getPtuAnglesForIntPosition(observation.m_pan_start, observation.m_pan_step, observation.m_pan_end,
-                                                                         observation.m_tilt_start, observation.m_tilt_step, observation.m_tilt_end,
+        semantic_map_registration_transforms::getPtuAnglesForIntPosition(observation.m_SweepParameters.m_pan_start, observation.m_SweepParameters.m_pan_step, observation.m_SweepParameters.m_pan_end,
+                                                                         observation.m_SweepParameters.m_tilt_start, observation.m_SweepParameters.m_tilt_step, observation.m_SweepParameters.m_tilt_end,
                                                                          best_index, pan_angle, tilt_angle);
 
         returned_object.pan_angle = pan_angle;
