@@ -125,8 +125,6 @@ public:
     static Eigen::Vector4f computeCentroid(CloudPtr cloud);
 
     // public members (should be private ...)
-//    int                                              m_pan_start, m_pan_step, m_pan_end;
-//    int                                              m_tilt_start, m_tilt_step, m_tilt_end;
     SweepParameters                                    m_SweepParameters;
 
 };

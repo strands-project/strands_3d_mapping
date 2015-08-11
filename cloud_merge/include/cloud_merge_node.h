@@ -705,6 +705,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         ss>>pan_start; ss>>pan_step; ss>>pan_end; ss>>tilt_start; ss>>tilt_step; ss>>tilt_end;
         SweepParameters sweepParams(pan_start, pan_step, pan_end, tilt_start, tilt_step, tilt_end);
         aSemanticRoom.setSweepParameters(sweepParams);
+        ROS_INFO_STREAM("Sweep will have "<<sweepParams.getNumberOfIntermediatePositions()<<" intermediate positions");
     }
 }
 
