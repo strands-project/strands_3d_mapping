@@ -64,7 +64,7 @@ add_library(supervoxel_segmentation src/supervoxel_segmentation.cpp ${include_di
 add_library(pfhrgb_estimation src/pfhrgb_estimation.cpp ${include_dir}/pfhrgb_estimation.h)
 # This library deals with the annotations in the data set
 add_library(dataset_annotations src/dataset_annotations.cpp ${include_dir}/dataset_annotations.h)
-# TODO: What does this library do?
+# This is the library bringing it all together, for easy querying
 add_library(retrieval_client src/retrieval_client.cpp ${include_dir}/retrieval_client.h)
 
 # This library needs the k_means_tree compiled to work
@@ -83,7 +83,7 @@ target_link_libraries(retrieval_client object_retrieval sift supervoxel_segmenta
 add_executable(create_scan_folders src/create_scan_folders.cpp)
 target_link_libraries(create_scan_folders metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
-# This executable does all the actual work
+# This executable does all the actual experiments
 add_executable(test_retrieval src/test_retrieval.cpp)
 target_link_libraries(test_retrieval object_retrieval retrieval_client dataset_annotations sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
