@@ -92,7 +92,7 @@ namespace semantic_map_room_utilities
 
         if (cloudTransformsReg.size() == clouds.size())
         {
-            for (size_t j=0; j<clouds.size()/3; j++)
+            for (size_t j=0; j<clouds.size(); j++)
             {
                 Cloud transformed_cloud;
                 pcl_ros::transformPointCloud(*clouds[j], transformed_cloud,cloudTransformsReg[j]);
