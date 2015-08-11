@@ -136,13 +136,14 @@ SemanticMapNode<PointType>::SemanticMapNode(ros::NodeHandle nh) : m_messageStore
         ROS_INFO_STREAM("All the dynamic clusters will be computer (comparing with the metaroom).");
     }
 
-    m_NodeHandle.param<bool>("use_NDT_registration",m_bUseNDTRegistration,true);
-    if (m_bUseNDTRegistration)
-    {
+//    m_NodeHandle.param<bool>("use_NDT_registration",m_bUseNDTRegistration,true);
+//    if (m_bUseNDTRegistration)
+//    {
+        m_bUseNDTRegistration = true;
         ROS_INFO_STREAM("The default registration method between sweeps is NDT.");
-    } else {
-        ROS_INFO_STREAM("The default registration between sweeps will use the computed image features (and RANSAC), if available. If not available defaulting to NDT registration.");
-    }
+//    } else {
+//        ROS_INFO_STREAM("The default registration between sweeps will use the computed image features (and RANSAC), if available. If not available defaulting to NDT registration.");
+//    }
 
 
 
@@ -278,7 +279,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     if (!found)
     {
         ROS_INFO_STREAM("Initializing metaroom.");
-    } else {
+    }/* else {
 
         if ((!m_bUseNDTRegistration) && (rawPoses !=NULL) && (mr_features.size() != 0) && (room_features.size() != 0))
         {
@@ -347,7 +348,7 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         } else {
             ROS_INFO_STREAM("Preregistered sweep poses not found or ORB features not computed. Registering with NDT.");
         }
-    }
+    }*/
 
     auto updateIteration = metaroom->updateMetaRoom(aRoom,"",do_registration);
 
