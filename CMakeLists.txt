@@ -7,6 +7,14 @@ add_definitions(-std=c++11 -O4)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
+set(k_means_tree_dir ${CMAKE_CURRENT_SOURCE_DIR}/k_means_tree)
+set(k_means_tree_library_dir ${k_means_tree_dir}/build)
+include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
+link_directories(${k_means_tree_library_dir})
+
+set(cereal_include_dir ${k_means_tree_dir}/cereal/include)
+include_directories(${cereal_include_dir})
+
 ExternalProject_Add(k_means_tree_project
   DOWNLOAD_COMMAND ""
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/k_means_tree"
@@ -14,11 +22,11 @@ ExternalProject_Add(k_means_tree_project
   #BUILD_COMMAND "cmake --build ."
   #CONFIGURE_COMMAND ${CMAKE_COMMAND}
   #CMAKE_ARGS .
-  BINARY_DIR ${CMAKE_SOURCE_DIR}/k_means_tree_test_build
+  BINARY_DIR ${k_means_tree_library_dir} #${CMAKE_SOURCE_DIR}/k_means_tree_test_build
   BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
   #BUILD_IN_SOURCE 1
   #--Install step---------------
-  INSTALL_DIR ${CMAKE_SOURCE_DIR}/k_means_tree_test_install
+  #INSTALL_DIR ${CMAKE_SOURCE_DIR}/k_means_tree_test_install
   INSTALL_COMMAND ""
 )
 
@@ -35,9 +43,9 @@ find_package(OpenCV REQUIRED)
 find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
 
-set(k_means_tree_dir /home/nbore/Workspace/k_means_tree)
-include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
-link_directories(${k_means_tree_dir}/build)
+#set(k_means_tree_dir /home/nbore/Workspace/k_means_tree)
+#include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
+#link_directories(${k_means_tree_dir}/build)
 
 # THIS WILL GET REPLACED BY THE RELEASED VERSION, PART OF ROS INSTALLATION
 set(room_parser_dir /home/nbore/catkin_ws/src/strands_3d_mapping/metaroom_xml_parser)
