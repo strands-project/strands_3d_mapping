@@ -10,7 +10,7 @@ add_definitions(${PCL_DEFINITIONS})
 
 find_package(OpenCV REQUIRED)
 
-include_directories(include impl)
+include_directories(include impl cereal/include)
 
 add_library(k_means_tree src/k_means_tree.cpp include/k_means_tree/k_means_tree.h impl/k_means_tree.hpp)
 add_library(vocabulary_tree src/vocabulary_tree.cpp include/vocabulary_tree/vocabulary_tree.h impl/vocabulary_tree.hpp)
