@@ -1,9 +1,26 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(object_3d_retrieval)
 
+include(ExternalProject)
+
 add_definitions(-std=c++11 -O4)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+
+ExternalProject_Add(k_means_tree_project
+  DOWNLOAD_COMMAND ""
+  SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/k_means_tree"
+  #CONFIGURE_COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/libav_trunk/configure" --enable-shared --enable-gpl --prefix="${CATKIN_DEVEL_PREFIX}"#--enable-libx264
+  #BUILD_COMMAND "cmake --build ."
+  #CONFIGURE_COMMAND ${CMAKE_COMMAND}
+  #CMAKE_ARGS .
+  BINARY_DIR ${CMAKE_SOURCE_DIR}/k_means_tree_test_build
+  BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
+  #BUILD_IN_SOURCE 1
+  #--Install step---------------
+  INSTALL_DIR ${CMAKE_SOURCE_DIR}/k_means_tree_test_install
+  INSTALL_COMMAND ""
+)
 
 find_package(PCL 1.6 REQUIRED COMPONENTS common io search visualization surface kdtree features surface segmentation octree filter keypoints)
 include_directories(${PCL_INCLUDE_DIRS})
@@ -37,6 +54,8 @@ add_library(supervoxel_segmentation src/supervoxel_segmentation.cpp ${include_di
 add_library(pfhrgb_estimation src/pfhrgb_estimation.cpp ${include_dir}/pfhrgb_estimation.h)
 add_library(dataset_annotations src/dataset_annotations.cpp ${include_dir}/dataset_annotations.h)
 add_library(retrieval_client src/retrieval_client.cpp ${include_dir}/retrieval_client.h)
+
+add_dependencies(object_retrieval k_means_tree_project)
 
 target_link_libraries(sift ${OpenCV_LIBS})
 target_link_libraries(register_objects sift ${OpenCV_LIBS} ${PCL_LIBRARIES})
