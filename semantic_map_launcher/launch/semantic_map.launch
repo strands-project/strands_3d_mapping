@@ -51,6 +51,10 @@
     <node machine="$(arg machine)" pkg="object_manager" type="object_manager_node" name="object_manager_node" output="screen" respawn="true">
         <param name="log_objects_to_db" value="$(arg log_objects_to_db)"/>
     </node>
+
+        <node name="do_sweep" pkg="cloud_merge" type="do_sweep.py" output="screen" respawn="true">
+        </node>
+
 	
     <!-- Action server for executing the PTU sweeps 
     <include file="$(find scitos_ptu)/launch/ptu_action_server_metric_map.launch"> 
