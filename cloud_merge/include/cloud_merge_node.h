@@ -496,8 +496,12 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             if (m_bRegisterAndCorrectSweep)
             {
                 // load precalibrated camera poses
-                std::vector<tf::StampedTransform> regTransforms = semantic_map_registration_transforms::loadRegistrationTransforms("default", true);
-                if (regTransforms.size() != aSemanticRoom.getIntermediateClouds().size())
+//                std::vector<tf::StampedTransform> regTransforms = semantic_map_registration_transforms::loadRegistrationTransforms("default", true);
+               std::vector<tf::StampedTransform> corresponding_registeredPoses;
+               corresponding_registeredPoses = semantic_map_registration_transforms::loadCorrespondingRegistrationTransforms(aSemanticRoom.m_SweepParameters);
+                ROS_INFO_STREAM("Corresponing registered poses "<<corresponding_registeredPoses.size()<<" original transforms "<<aSemanticRoom.getIntermediateCloudTransforms().size());
+
+                if (corresponding_registeredPoses.size() != aSemanticRoom.getIntermediateClouds().size())
                 {
                     ROS_ERROR_STREAM("Cannot correct sweep as the number of precalibrated sweep poses is not the same as the number of intermediate point clouds in this sweep "/*<<regTransforms.size<<"  "<<aSemanticRoom.getIntermediateClouds().size()*/);
                 } else {
@@ -523,8 +527,10 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     for (size_t i=0; i<origTransforms.size(); i++)
                     {
                         tf::StampedTransform transform = origTransforms[i];
-                        transform.setOrigin(regTransforms[i].getOrigin());
-                        transform.setBasis(regTransforms[i].getBasis());
+                        transform.setOrigin(corresponding_registeredPoses[i].getOrigin());
+                        transform.setBasis(corresponding_registeredPoses[i].getBasis());
+//                        transform.setOrigin(regTransforms[i].getOrigin());
+//                        transform.setBasis(regTransforms[i].getBasis());
                         aSemanticRoom.addIntermediateCloudCameraParametersCorrected(aCameraModel);
                         aSemanticRoom.addIntermediateRoomCloudRegisteredTransform(transform);
                     }
