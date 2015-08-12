@@ -109,6 +109,8 @@ add_executable(create_subsegment_features src/create_subsegment_features.cpp)
 target_link_libraries(create_subsegment_features object_retrieval retrieval_client)
 
 configure_file(scripts/menu.py menu.py COPYONLY)
+configure_file(scripts/training_menu.py training_menu.py COPYONLY)
+configure_file(scripts/querying_menu.py querying_menu.py COPYONLY)
 
 # We are quite strict with the warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")

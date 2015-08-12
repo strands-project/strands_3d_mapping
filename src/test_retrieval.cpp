@@ -348,6 +348,8 @@ void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments,
 
 int main(int argc, char** argv)
 {
+    // TODO: make the paths configurable
+
     string root_path = "/home/nbore/Data/Instances/";
     string scan_path = root_path + "scan_segments";
     string segment_path = root_path + "supervoxel_segments";
@@ -364,6 +366,8 @@ int main(int argc, char** argv)
     obr_scans_noise.segment_name = "scan";
     object_retrieval obr_segments_noise(noise_segment_path);
 
+    // TODO: Delete from here
+
     //compute_and_save_segments(obr_scans);
     //compute_and_save_segments(obr_scans_noise);
 
@@ -376,7 +380,7 @@ int main(int argc, char** argv)
     //save_split_features(obr_segments_noise);
     //exit(0);
 
-    // probably train using the noise segments
+    // train using the noise segments
     //obr_segments_noise.train_grouped_vocabulary(12000, false);
 
     // TODO: add something like obr_segments_noise.get_scan_count()
