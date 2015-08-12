@@ -71,6 +71,49 @@ The utilities for loading the intermediate clouds are:
 * `loadIntermediateCloudsCompleteDataForTopologicalWaypoint`
  
 
+### Sweep XML utilities
+
+The sweep XML is an `std::string`
+
+The utilities for finding sweep XMLS are:
+* `getSweepXmls` # takes a folder where to search as argument. Returns a `vector<string>`
+* `getSweepXmlsForTopologicalWaypoint`
+
+### Dynamic cluster utilities
+
+The dynamic clusters type is:
+
+```template <class PointType> std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>```
+
+The dynamic cluster  utilities are:
+* `loadDynamicClustersFromSingleSweep`
+* `loadDynamicClustersFromMultipleSweeps`
+* `loadDynamicClustersForTopologicalWaypoint`
+ 
+
+### Labelled data utilities
+
+The labelled data type is:
+
+```
+    template <class PointType>
+    struct LabelledData
+    {
+        boost::shared_ptr<pcl::PointCloud<PointType>>               completeCloud;
+        tf::StampedTransform                                        transformToGlobal;
+        tf::Vector3                                                 sweepCenter;
+        std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>  objectClouds;
+        std::vector<std::string>                                    objectLabels;
+        boost::posix_time::ptime                                    sweepTime;
+        std::string                                                 waypoint;
+
+    };
+```
+
+The labelled data utilities are:
+* loadLabelledDataFromSingleSweep
+
+
 
 
 
