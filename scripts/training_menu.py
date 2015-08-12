@@ -52,13 +52,17 @@ class TrainingPicker(object):
         if option == "1":
             self.set_data_path()
         elif option == "2":
-            print " Running create_scan_folders...\n"
-            system("./create_scan_folders " + self.data_path)
+            print " Running train_vocabulary_tree...\n"
+            system("./train_vocabulary_tree " + self.annotated_data_path + " " + self.noise_data_path + " 1")
         elif option == "3":
-            print " Running create_convex_folders...\n"
-            system("./create_convex_folders " + self.data_path)
+            print " Running train_vocabulary_tree...\n"
+            system("./train_vocabulary_tree " + self.annotated_data_path + " " + self.noise_data_path + " 2")
         elif option == "4":
-            return
+            print " Running train_vocabulary_tree...\n"
+            system("./train_vocabulary_tree " + self.annotated_data_path + " " + self.noise_data_path + " 3")
+        elif option == "5":
+            print " Running train_vocabulary_tree...\n"
+            system("./train_vocabulary_tree " + self.annotated_data_path + " " + self.noise_data_path + " 4")
         elif option == "6":
             return
         else:
