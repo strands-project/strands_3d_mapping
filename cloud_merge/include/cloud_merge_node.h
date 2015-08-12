@@ -438,8 +438,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         ROS_INFO_STREAM("Pan tilt sweep stopped");
         m_bAquisitionPhase = false;
 
-        // publish the merged cloud for table detection
-        m_CloudMerge.subsampleMergedCloud(m_VoxelSizeTabletop,m_VoxelSizeTabletop,m_VoxelSizeTabletop);
+        // publish the merged cloud for table detection        
         CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
         if (merged_cloud->points.size() != 0)
         { // only process this room if it has any points
@@ -559,14 +558,18 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
             // publishing the observation cloud
             CloudPtr completeCloud = aSemanticRoom.getCompleteRoomCloud();
+            CloudPtr subsampled_cloud (new Cloud);
+            pcl::VoxelGrid<PointType> vg;
+            vg.setInputCloud (completeCloud);
+            vg.setLeafSize (m_VoxelSizeTabletop,m_VoxelSizeTabletop,m_VoxelSizeTabletop);
+            vg.filter (*subsampled_cloud);
+
             sensor_msgs::PointCloud2 msg_cloud;
-            pcl::toROSMsg(*completeCloud, msg_cloud);
+            pcl::toROSMsg(*subsampled_cloud, msg_cloud);
             m_PublisherMergedCloud.publish(msg_cloud);
 
             // subsample again for visualization and metaroom purposes
-//            completeCloud = CloudMerge<PointType>::filterPointCloud(completeCloud, m_CutoffDistance); // distance filtering, remove outliers and nans
-            CloudPtr subsampled_cloud (new Cloud);
-            pcl::VoxelGrid<PointType> vg;
+            subsampled_cloud->clear();
             vg.setInputCloud (completeCloud);
             vg.setLeafSize (m_VoxelSizeObservation,m_VoxelSizeObservation,m_VoxelSizeObservation);
             vg.filter (*subsampled_cloud);
