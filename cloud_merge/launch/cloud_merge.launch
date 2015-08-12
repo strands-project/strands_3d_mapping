@@ -11,8 +11,8 @@
   <arg name="voxel_size_observation"      default="0.03" />
   <arg name="point_cutoff_distance"       default="4.0"/>
 
-  <arg name="input_rgb"           	  default="/head_xtion/rgb/image_color" />
-  <arg name="input_depth"           	  default="/head_xtion/depth/image_rect" />
+  <arg name="input_rgb"           	  default="/head_xtion/rgb/image_rect_color" />
+  <arg name="input_depth"           	  default="/head_xtion/depth/image_raw" />
   <arg name="input_caminfo_rgb"       	  default="/head_xtion/rgb/camera_info" />
   <arg name="input_caminfo_depth"     	  default="/head_xtion/depth/camera_info" />
   
