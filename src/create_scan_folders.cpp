@@ -56,7 +56,13 @@ void get_room_from_xml(vector<string>& cloud_paths, vector<Entities>& entities)
 
 int main(int argc, char** argv)
 {
-    string summary_xml_path = "/home/nbore/Data/semantic_map";
+    if (argc < 2) {
+        cout << "Please supply the path containing the sweeps..." << endl;
+        return 0;
+    }
+
+    // TODO: Change this path to be configurable, maybe have a global conf file?
+    string summary_xml_path(argv[1]); //"/home/nbore/Data/semantic_map";
     vector<Entities> entities;
     get_rooms(entities, summary_xml_path);
     vector<string> cloud_paths;

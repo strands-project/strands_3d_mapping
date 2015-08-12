@@ -155,7 +155,7 @@ void pick_segments(CloudT::Ptr& subsegment_keypoints, CloudT::Ptr& cloud, vector
 int main(int argc, char** argv)
 {
     if (argc < 2) {
-        cout << "Please supply a point cloud to segment!" << endl;
+        cout << "Please supply a point cloud .pcd to segment..." << endl;
         return -1;
     }
 

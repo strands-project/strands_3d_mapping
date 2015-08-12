@@ -79,10 +79,6 @@ target_link_libraries(supervoxel_segmentation ${OpenCV_LIBS} ${PCL_LIBRARIES})
 target_link_libraries(pfhrgb_estimation ${PCL_LIBRARIES})
 target_link_libraries(retrieval_client object_retrieval sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
-# This executable creates a folder structure from the sweeps
-add_executable(create_scan_folders src/create_scan_folders.cpp)
-target_link_libraries(create_scan_folders metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
-
 # This executable does all the actual experiments
 add_executable(test_retrieval src/test_retrieval.cpp)
 target_link_libraries(test_retrieval object_retrieval retrieval_client dataset_annotations sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
@@ -95,6 +91,24 @@ target_link_libraries(test_visualize_query object_retrieval retrieval_client dat
 # This executable visualizes the convex segmentation, interactively
 add_executable(test_convex_segmentation src/test_convex_segmentation.cpp)
 target_link_libraries(test_convex_segmentation supervoxel_segmentation pfhrgb_estimation ${PCL_LIBRARIES})
+
+# This executable creates a folder structure from the sweeps
+add_executable(create_scan_folders src/create_scan_folders.cpp)
+target_link_libraries(create_scan_folders metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+# This executable splits the scans into convex segments and creates a folder hierarchy
+add_executable(create_convex_folders src/create_convex_folders.cpp)
+target_link_libraries(create_convex_folders object_retrieval retrieval_client)
+
+# This executable extracts PFHRGB features for each of the convex segments
+add_executable(create_convex_features src/create_convex_features.cpp)
+target_link_libraries(create_convex_features object_retrieval retrieval_client)
+
+# This executable further splits the convex segments into subsegments and saves the corresponding features
+add_executable(create_subsegment_features src/create_subsegment_features.cpp)
+target_link_libraries(create_subsegment_features object_retrieval retrieval_client)
+
+configure_file(scripts/menu.py menu.py COPYONLY)
 
 # We are quite strict with the warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
