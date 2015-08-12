@@ -496,7 +496,9 @@ void SemanticRoomXMLParser<PointType>::saveIntermediateImagesToXML(SemanticRoom<
 template <class PointType>
 SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const std::string& xmlFile, bool deepLoad, bool verbose)
 {
-    ROS_INFO_STREAM("Loading room from "<<xmlFile);
+    if (verbose){
+        ROS_INFO_STREAM("Loading room from "<<xmlFile);
+    }
     SemanticRoom<PointType> aRoom;
 
 
@@ -803,8 +805,9 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
 
     delete xmlReader;
 
-
-    ROS_INFO_STREAM("... finished loading.");
+    if (verbose){
+        ROS_INFO_STREAM("... finished loading.");
+    }
     return aRoom;
 }
 
