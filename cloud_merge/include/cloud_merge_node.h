@@ -546,7 +546,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     std::string roomXMLPath = parser.saveRoomAsXML(aSemanticRoom);
                     unsigned found = roomXMLPath.find_last_of("/");
                     std::string base_path = roomXMLPath.substr(0,found+1);
-                    RegistrationFeatures reg(true);
+                    RegistrationFeatures reg(false);
                     reg.saveOrbFeatures<PointType>(aSemanticRoom,base_path);
 
                 }

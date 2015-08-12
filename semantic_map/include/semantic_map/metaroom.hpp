@@ -268,7 +268,7 @@ MetaRoomUpdateIteration<PointType>    MetaRoom<PointType>::updateMetaRoom(Semant
         // Save ORB features in metaroom folder. Will be used later on for registration with other sweeps
         MetaRoomXMLParser<PointType> meta_parser;
         QString meta_folder = meta_parser.findMetaRoomLocation(this);
-        RegistrationFeatures reg(true);
+        RegistrationFeatures reg(false);
         reg.saveOrbFeatures<pcl::PointXYZRGB>(aRoom,meta_folder.toStdString());
 
         if (aRoom.getIntermediateCloudTransforms().size() >0)
