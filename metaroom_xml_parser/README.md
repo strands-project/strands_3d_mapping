@@ -111,7 +111,7 @@ The labelled data type is:
 ```
 
 The labelled data utilities are:
-* loadLabelledDataFromSingleSweep
+* `loadLabelledDataFromSingleSweep`
 
 
 
