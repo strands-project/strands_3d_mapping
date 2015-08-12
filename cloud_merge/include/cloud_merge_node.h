@@ -128,6 +128,7 @@ private:
 
     double                                                                      m_VoxelSizeTabletop;
     double                                                                      m_VoxelSizeObservation;
+    double                                                                      m_CutoffDistance;
     bool                                                                        m_bRegisterAndCorrectSweep;
     std::string                                                                 m_sRegisteredPoseLocation;
 
@@ -309,13 +310,12 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
 
     m_NodeHandle.param<double>("voxel_size_table_top",m_VoxelSizeTabletop,0.01);
     m_NodeHandle.param<double>("voxel_size_observation",m_VoxelSizeObservation,0.05);
-    double cutoffDistance;
-    m_NodeHandle.param<double>("point_cutoff_distance",cutoffDistance,4.0);
-    m_CloudMerge.setMaximumPointDistance(cutoffDistance);
+    m_NodeHandle.param<double>("point_cutoff_distance",m_CutoffDistance,4.0);
+    m_CloudMerge.setMaximumPointDistance(m_CutoffDistance);
 
     ROS_INFO_STREAM("Voxel size for the table top point cloud is "<<m_VoxelSizeTabletop);
     ROS_INFO_STREAM("Voxel size for the observation and metaroom point cloud is "<<m_VoxelSizeObservation);
-    ROS_INFO_STREAM("Point cutoff distance set to "<<cutoffDistance);
+    ROS_INFO_STREAM("Point cutoff distance set to "<<m_CutoffDistance);
 
 
     m_NodeHandle.param<bool>("register_and_correct_sweep",m_bRegisterAndCorrectSweep,true);
@@ -444,20 +444,11 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         if (merged_cloud->points.size() != 0)
         { // only process this room if it has any points
 
-            sensor_msgs::PointCloud2 msg_cloud;
-            pcl::toROSMsg(*merged_cloud, msg_cloud);
-            m_PublisherMergedCloud.publish(msg_cloud);
-
-
             CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
             // add complete cloud to semantic room
             aSemanticRoom.setCompleteRoomCloud(merged_cloud);
 
-            // subsample again for visualization and metaroom purposes
-            m_CloudMerge.subsampleMergedCloud(m_VoxelSizeObservation,m_VoxelSizeObservation,m_VoxelSizeObservation);
-            merged_cloud = m_CloudMerge.getMergedCloud();
-            pcl::toROSMsg(*merged_cloud, msg_cloud);
-            m_PublisherMergedCloudDownsampled.publish(msg_cloud);
+
 
             // set room end time
             aSemanticRoom.setRoomLogEndTime(ros::Time::now().toBoost());
@@ -541,6 +532,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     // transform merged cloud to map frame
                     CloudPtr completeCloud = aSemanticRoom.getCompleteRoomCloud();
                     pcl_ros::transformPointCloud(*completeCloud, *completeCloud,origin);
+                    completeCloud = CloudMerge<PointType>::filterPointCloud(completeCloud, m_CutoffDistance); // distance filtering
                     ROS_INFO_STREAM("..done");
                     aSemanticRoom.setCompleteRoomCloud(completeCloud);
                     std::string roomXMLPath = parser.saveRoomAsXML(aSemanticRoom);
@@ -564,6 +556,24 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             }
 
             m_PublisherRoomObservation.publish(obs_msg);
+
+            // publishing the observation cloud
+            CloudPtr completeCloud = aSemanticRoom.getCompleteRoomCloud();
+            sensor_msgs::PointCloud2 msg_cloud;
+            pcl::toROSMsg(*completeCloud, msg_cloud);
+            m_PublisherMergedCloud.publish(msg_cloud);
+
+            // subsample again for visualization and metaroom purposes
+//            completeCloud = CloudMerge<PointType>::filterPointCloud(completeCloud, m_CutoffDistance); // distance filtering, remove outliers and nans
+            CloudPtr subsampled_cloud (new Cloud);
+            pcl::VoxelGrid<PointType> vg;
+            vg.setInputCloud (completeCloud);
+            vg.setLeafSize (m_VoxelSizeObservation,m_VoxelSizeObservation,m_VoxelSizeObservation);
+            vg.filter (*subsampled_cloud);
+
+            sensor_msgs::PointCloud2 sub_msg_cloud;
+            pcl::toROSMsg(*subsampled_cloud, sub_msg_cloud);
+            m_PublisherMergedCloudDownsampled.publish(sub_msg_cloud);
 
             if (m_bLogToDB)
             {

@@ -89,6 +89,7 @@ namespace semantic_map_room_utilities
         std::vector<CloudPtr> clouds= aRoom.getIntermediateClouds();
 
         CloudPtr mergedCloudRegistered(new Cloud);
+        CloudPtr roomCompleteCloud = aRoom.getCompleteRoomCloud();
 
         if (cloudTransformsReg.size() == clouds.size())
         {
@@ -98,7 +99,9 @@ namespace semantic_map_room_utilities
                 pcl_ros::transformPointCloud(*clouds[j], transformed_cloud,cloudTransformsReg[j]);
                 *mergedCloudRegistered+=transformed_cloud;
             }
+            mergedCloudRegistered->header = roomCompleteCloud->header;
             aRoom.setCompleteRoomCloud(mergedCloudRegistered);
+
         } else {
             ROS_INFO_STREAM("Cannot rebuild registered cloud. Not enough registered transforms."<<cloudTransformsReg.size()<<"  "<<clouds.size());
         }
