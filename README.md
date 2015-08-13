@@ -13,7 +13,7 @@ Start all the nodes in this repository using:
 Data acquisition
 =================
 
-To collect sweeps, use the action server from:
+To collect sweeps, use the action server from: `cloud_merge do_sweep.py`
 
 To start the action server manually (already launched with `roslaunch semantic_map_launcher semantic_map.launch`):
 
