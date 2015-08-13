@@ -6,7 +6,6 @@
 #include <eigen_cereal/eigen_cereal.h>
 
 using namespace std;
-using namespace retrieval_client;
 
 int main(int argc, char** argv)
 {
@@ -16,7 +15,7 @@ int main(int argc, char** argv)
              << " 2. Add annotated data to convex segment vocabulary tree\n"
              << " 3. Train subsegment vocabulary tree on noise data\n"
              << " 4. Add annotated data to subsegment vocabulary tree" << endl;
-        return;
+        return 0;
     }
 
     string annotated_root_path(argv[1]); // "/home/nbore/Data/Instances/";
@@ -35,20 +34,20 @@ int main(int argc, char** argv)
     int noise_segments_size = 63136;
 
     switch (option) {
-        case 1:
-            obr_segments_noise.train_vocabulary_incremental(4000, false); // 12000
-            break;
-        case 2:
-            obr_segments_noise.add_others_to_vocabulary(10000, obr_segments_annotated.segment_path, noise_segments_size);
-            break;
-        case 3:
-            obr_segments_noise.train_grouped_vocabulary(12000, false);
-            break;
-        case 4:
-            obr_segments_noise.add_others_to_grouped_vocabulary(10000, obr_segments_annotated, noise_scans_size);
-            break;
-        default:
-            cout << "The option provded is not valid..." << endl;
+    case 1:
+        obr_segments_noise.train_vocabulary_incremental(4000, false); // 12000
+        break;
+    case 2:
+        obr_segments_noise.add_others_to_vocabulary(10000, obr_segments_annotated.segment_path, noise_segments_size);
+        break;
+    case 3:
+        obr_segments_noise.train_grouped_vocabulary(12000, false);
+        break;
+    case 4:
+        obr_segments_noise.add_others_to_grouped_vocabulary(10000, obr_segments_annotated, noise_scans_size);
+        break;
+    default:
+        cout << "The option provided is not valid..." << endl;
     }
 
     return 0;

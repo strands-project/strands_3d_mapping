@@ -104,9 +104,21 @@ target_link_libraries(create_convex_folders object_retrieval retrieval_client)
 add_executable(create_convex_features src/create_convex_features.cpp)
 target_link_libraries(create_convex_features object_retrieval retrieval_client)
 
+# This executable precomputes SIFT features for all of the scans
+add_executable(create_scan_sift_features src/create_scan_sift_features.cpp)
+target_link_libraries(create_scan_sift_features object_retrieval retrieval_client)
+
 # This executable further splits the convex segments into subsegments and saves the corresponding features
 add_executable(create_subsegment_features src/create_subsegment_features.cpp)
 target_link_libraries(create_subsegment_features object_retrieval retrieval_client)
+
+# This executable precomputes vocabulary vectors for the subsegments
+add_executable(create_subsegment_vocabulary_vectors src/create_subsegment_vocabulary_vectors.cpp)
+target_link_libraries(create_subsegment_vocabulary_vectors object_retrieval retrieval_client)
+
+# This executable precomputes vocabulary vectors for the subsegments
+add_executable(train_vocabulary_tree src/train_vocabulary_tree.cpp)
+target_link_libraries(train_vocabulary_tree object_retrieval)
 
 configure_file(scripts/menu.py menu.py COPYONLY)
 configure_file(scripts/training_menu.py training_menu.py COPYONLY)
