@@ -8,8 +8,8 @@ Changelog for package metaroom_xml_parser
 * metaroom_xml_parser tf dependencies
 * Contributors: Rares Ambrus
 
-Forthcoming
------------
+0.0.10 (2015-08-13)
+-------------------
 * updated changelogs
 * Removed debug print
 * Added methods to load labelled data & example program

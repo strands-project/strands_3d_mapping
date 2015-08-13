@@ -2,8 +2,8 @@
 Changelog for package object_manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.10 (2015-08-13)
+-------------------
 * updated changelogs
 * debug print
 * Added object manager library as CMake target

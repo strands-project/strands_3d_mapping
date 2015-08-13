@@ -5,8 +5,8 @@ Changelog for package ekz_public_lib
 0.0.4 (2014-11-12)
 ------------------
 
-Forthcoming
------------
+0.0.10 (2015-08-13)
+-------------------
 * updated changelogs
 * Fixed pcl dependency and removed g2o
 * Removed opencv2 dependency

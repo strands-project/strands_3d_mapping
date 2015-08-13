@@ -2,8 +2,8 @@
 Changelog for package semantic_map_launcher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.10 (2015-08-13)
+-------------------
 * updated changelogs
 * Added a launch file argument to switch between NDT registration and image feature registration for registering sweeps. Default is NDT
 * Logging the sweeps to mongodb enabled by default

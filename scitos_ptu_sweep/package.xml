@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>scitos_ptu_sweep</name>
-  <version>0.0.9</version>
+  <version>0.0.10</version>
   <description>The scitos PTU sweep package</description>
 
   <maintainer email="pulidofentanes@gmail.com">Jaime Pulido Fentanes</maintainer>

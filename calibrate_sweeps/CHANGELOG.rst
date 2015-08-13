@@ -2,8 +2,8 @@
 Changelog for package calibrate_sweeps
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.10 (2015-08-13)
+-------------------
 * updated changelogs
 * Fixed sweep registration bug
 * Fixed typo

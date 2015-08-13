@@ -2,8 +2,8 @@
 Changelog for package strands_sweep_registration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.10 (2015-08-13)
+-------------------
 * updated changelogs
 * Added ceres and suitesparse libraries in package.xml
 * Fixed pcl dependency and removed g2o

@@ -15,8 +15,8 @@ Changelog for package semantic_map
 * Moved headers in the include/semantic_map folder
 * Contributors: Rares Ambrus
 
-Forthcoming
------------
+0.0.10 (2015-08-13)
+-------------------
 * updated changelogs
 * Fixed return statement to get rid of warning
 * Updated debug statement

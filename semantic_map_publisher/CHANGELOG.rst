@@ -2,8 +2,8 @@
 Changelog for package semantic_map_publisher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.10 (2015-08-13)
+-------------------
 * updated changelogs
 * Added WaypointTimestampService ObservationInstanceService and ObservationOctomapInstanceService
 * Added sensor origin service
