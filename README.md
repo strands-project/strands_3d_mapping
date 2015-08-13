@@ -47,10 +47,53 @@ Use:
 
 Once the calibration has been executed, the parameters are saved in `~/.ros/semanticMap/` from where they are loaded whenever needed. All sweeps recorded up to this point are automatically corrected using the registered sweeps.
 
-Reinitialize the metarooms
+Meta-Rooms
+====================
+
+The Meta-Rooms are created by the `semantic_map semantic_map_node`. To start, run:
+
+```roslaunch semantic_map semantic_map.launch```
+
+For more information check out the `semantic_map` package. 
+
+The dynamic clusters are published on the `/local_metric_map/dynamic_clusters` topic and the Meta-Rooms are published on the `/local_metric_map/metaroom` topic. 
+
+Reinitialize the Meta-Rooms
 ============================
 After the calibration you can re-initialize the metarooms (in general a good idea, as the registration between the sweeps should be better now that the poses have been calibrated).
 
 ```rosservice call /local_metric_map/ClearMetaroomService "waypoint_id: - 'WayPointXYZ' initialize: true"```
 
 Set the argument initialize to `true` and provide all the waypoints for which you want to re-initialize the metarooms in the `waypoint_id` list. 
+
+Access invidual dynamic clusters
+==================================
+
+The package `object_manager` allows access to individual dynamic clusters, via a number of services. To start use:
+
+```rosrun object_manager object_manager_node```
+
+For more information check out the `object_manager` package.
+
+semantic_map_publisher
+==================================
+
+The package `semantic_map_publisher` provides a number of services for accessing previously collected data which is stored on the disk. To start use:
+
+```rosrun semantic_map_publisher semantic_map_publisher```
+
+For more information check out the `semantic_map_publisher` package.
+
+Accessing saved data  
+======================
+
+The package `metaroom_xml_parser` provides a number of utilities for reading previously saved sweep data. These include utilities for accessing:
+
+* merged point clouds
+* individual point clouds
+* dynamic clusters
+* labelled data
+* sweep xml files.
+
+Check out the `metaroom_xml_parser` package for more information. 
+
