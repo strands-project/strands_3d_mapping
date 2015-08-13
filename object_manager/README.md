@@ -50,3 +50,9 @@ The point cloud corresponding to the requested dynamic cluster is also published
 The cluster mask is also published as an image on the topic: `/object_manager/requested_object_mask`
 
 Note that the clusters are logged to the database when calling the `DynamicObjectsService` or  the `GetDynamicObjectService` (if the `log_to_db` argument is set to `True`). Calling these services multiple times does not affect (negatively) the logging. 
+
+## Export logged dynamic clusters from mongodb
+
+```rosrun object_manager load_objects_from_mongo /path/where/to/export/data/```
+
+The data exported is saved according to the sweeps where the clusters were extracted (i.e. `YYYYMMDD/patrol_run_#/room_#/...`)
