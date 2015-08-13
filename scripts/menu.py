@@ -49,19 +49,19 @@ class ExecutablePicker(object):
                 self.set_data_path()
             elif option == "2":
                 print " Running create_scan_folders...\n"
-                system("./create_scan_folders " + self.data_path)
+                system("./create_scan_folders " + self.data_path + "/")
             elif option == "3":
                 print " Running create_convex_folders...\n"
-                system("./create_convex_folders " + self.data_path)
+                system("./create_convex_folders " + self.data_path + "/")
             elif option == "4":
                 print " Running create_convex_features...\n"
-                system("./create_convex_features " + self.data_path)
+                system("./create_convex_features " + self.data_path + "/")
             elif option == "5":
                 print " Running create_subsegment_features...\n"
-                system("./create_subsegment_features " + self.data_path)
+                system("./create_subsegment_features " + self.data_path + "/")
             elif option == "6":
                 print " Running create_scan_sift_features...\n"
-                system("./create_scan_sift_features " + self.data_path)
+                system("./create_scan_sift_features " + self.data_path + "/")
             elif option == "7":
                 print " Entering the vocabulary training menu..."
                 picker = TrainingPicker()

@@ -20,6 +20,7 @@
 #include <cereal/types/unordered_map.hpp>
 #include <cereal/types/utility.hpp>
 #include <eigen_cereal/eigen_cereal.h>
+#include <cereal/archives/json.hpp>
 
 namespace retrieval_client {
 
@@ -942,6 +943,28 @@ void reweight_query_vocabulary_sift(vector<index_score>& reweight_grown_scores, 
     compute_grow_subsegment_scores(reweight_grown_scores, reweight_oversegment_indices, reweight_scores, reweight_hints, query_features, mapping,
                                    obr_segments, obr_scans, obr_scans_annotations, nbr_query, noise_scans_size);
     obr_segments.gvt.restore_old_weights(original_norm_constants, original_weights);
+}
+
+int read_noise_segment_size(object_retrieval& obr)
+{
+    int noise_segment_size;
+    ifstream in(obr.segment_path + "/number_segments.cereal");
+    {
+        cereal::JSONInputArchive archive_i(in);
+        archive_i(noise_segment_size);
+    }
+    in.close();
+    return noise_segment_size;
+}
+
+void write_noise_segment_size(int noise_segment_size, object_retrieval& obr)
+{
+    ofstream out(obr.segment_path + "/number_segments.cereal");
+    {
+        cereal::JSONOutputArchive archive_o(out);
+        archive_o(noise_segment_size);
+    }
+    out.close();
 }
 
 } // namespace retrieval_client

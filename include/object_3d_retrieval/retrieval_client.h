@@ -73,7 +73,8 @@ void reweight_query_vocabulary_sift(std::vector<index_score>& reweight_grown_sco
                                     object_retrieval& obr_scans, object_retrieval& obr_scans_annotations, object_retrieval& obr_segments,
                                     object_retrieval& obr_segments_annotations, int noise_scans_size, std::map<vocabulary_tree<HistT, 8>::node*, int>& mapping,
                                     SiftCloudT* optional_sift_query_features = NULL, CloudT* optional_sift_query_keypoints = NULL);
-
+int read_noise_segment_size(object_retrieval& obr);
+void write_noise_segment_size(int noise_segment_size, object_retrieval& obr);
 
 } // namespace retrieval_client
 

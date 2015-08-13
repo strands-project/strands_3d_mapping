@@ -35,36 +35,38 @@ class QueryingPicker(object):
 
     def run(self):
 
-        print (" \n"
-               " Working on annotated data path " + self.annotated_data_path + "\n"
-               " and noise data path " + self.noise_data_path + "\n"
-               " \n"
-               " 1. Set data paths (if you want to change)\n"
-               " 2. Benchmark convex segment vocabulary tree querying\n"
-               " 3. Benchmark convex segment vocabulary tree with re-weighting\n"
-               " 4. Benchmark subsegment vocabulary tree querying\n"
-               " 5. Benchmark subsegment vocabulary tree with re-weighting\n"
-               " 6. Exit\n")
-        option = raw_input(" Please enter an option 1-6: ")
+        while True:
 
-        if option == "1":
-            self.set_data_path()
-        elif option == "2":
-            print " Running query_vocabulary...\n"
-            system("./query_vocabulary " + self.annotated_data_path + " " + self.noise_data_path + " 1")
-        elif option == "3":
-            print " Running query_vocabulary...\n"
-            system("./query_vocabulary " + self.annotated_data_path + " " + self.noise_data_path + " 2")
-        elif option == "4":
-            print " Running query_vocabulary...\n"
-            system("./query_vocabulary " + self.annotated_data_path + " " + self.noise_data_path + " 3")
-        elif option == "5":
-            print " Running query_vocabulary...\n"
-            system("./query_vocabulary " + self.annotated_data_path + " " + self.noise_data_path + " 4")
-        elif option == "6":
-            return
-        else:
-            print " Option " + option + " is not valid."
+            print (" \n"
+                   " Working on annotated data path " + self.annotated_data_path + "\n"
+                   " and noise data path " + self.noise_data_path + "\n"
+                   " \n"
+                   " 1. Set data paths (if you want to change)\n"
+                   " 2. Benchmark convex segment vocabulary tree querying\n"
+                   " 3. Benchmark convex segment vocabulary tree with re-weighting\n"
+                   " 4. Benchmark subsegment vocabulary tree querying\n"
+                   " 5. Benchmark subsegment vocabulary tree with re-weighting\n"
+                   " 6. Exit\n")
+            option = raw_input(" Please enter an option 1-6: ")
+
+            if option == "1":
+                self.set_data_path()
+            elif option == "2":
+                print " Running query_vocabulary...\n"
+                system("./query_vocabulary " + self.annotated_data_path + "/ " + self.noise_data_path + "/ 1")
+            elif option == "3":
+                print " Running query_vocabulary...\n"
+                system("./query_vocabulary " + self.annotated_data_path + "/ " + self.noise_data_path + "/ 2")
+            elif option == "4":
+                print " Running query_vocabulary...\n"
+                system("./query_vocabulary " + self.annotated_data_path + "/ " + self.noise_data_path + "/ 3")
+            elif option == "5":
+                print " Running query_vocabulary...\n"
+                system("./query_vocabulary " + self.annotated_data_path + "/ " + self.noise_data_path + "/ 4")
+            elif option == "6":
+                return
+            else:
+                print " Option " + option + " is not valid."
 
 if __name__ == "__main__":
 

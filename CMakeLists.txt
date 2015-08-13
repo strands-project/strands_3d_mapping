@@ -118,7 +118,7 @@ target_link_libraries(create_subsegment_vocabulary_vectors object_retrieval retr
 
 # This executable precomputes vocabulary vectors for the subsegments
 add_executable(train_vocabulary_tree src/train_vocabulary_tree.cpp)
-target_link_libraries(train_vocabulary_tree object_retrieval)
+target_link_libraries(train_vocabulary_tree object_retrieval retrieval_client)
 
 configure_file(scripts/menu.py menu.py COPYONLY)
 configure_file(scripts/training_menu.py training_menu.py COPYONLY)

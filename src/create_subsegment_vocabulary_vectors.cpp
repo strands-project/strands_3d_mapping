@@ -16,7 +16,7 @@ int main(int argc, char** argv)
     }
 
     string annotated_root_path(argv[1]); // "/home/nbore/Data/Instances/";
-    string annotated_scan_path = annotated_root_path + "scans";
+    string annotated_scan_path = annotated_root_path + "scan_segments";
 
     string noise_root_path(argv[2]); // "/home/nbore/Data/semantic_map/";
     string noise_scan_path = noise_root_path + "scans";
