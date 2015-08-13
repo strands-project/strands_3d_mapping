@@ -1,7 +1,9 @@
 Package for building local metric maps
 ==========================
 
-# Dependencies
+# cloud_merge_node 
+
+## Dependencies
 
 Make sure you have Qt installed on the robot by getting the rqt packages:
 ```bash
@@ -10,9 +12,9 @@ sudo apt-get install ros-hydro-rqt
 sudo apt-get install ros-hydro-qt-build
 ```
 
-# Description 
+## Description 
 
-The package acquires data from the RGBD sensor, as the PTU unit does a sweep, stopping at various positions as provided as input to the `scitos_ptu ptu_pan_tilt_metric_map.py` action server. (As an alternative, one can use the `do_sweep.py` action server from this package, which provides a higher level interface to doing a sweep). 
+The `cloud_merge_node` acquires data from the RGBD sensor, as the PTU unit does a sweep, stopping at various positions as provided as input to the `scitos_ptu ptu_pan_tilt_metric_map.py` action server. (As an alternative, one can use the `do_sweep.py` action server from this package, which provides a higher level interface to doing a sweep). 
 
 As the PTU stops at a position, a number of RGBD frames are collected and averaged, with the purpose of reducing noise. Each one of these frames are converted to the global frame of reference, and merged together to form an observation point cloud, which is further processed by the `semantic_map semantic_map_node` node. 
 
@@ -24,17 +26,19 @@ The observations are stored on the disk, in the folder
 ~.semanticMap/ 
 ```
 
-To start this node, run:
+To start the `cloud_merge_node`, run:
 ```
-roslaunch cloud_merge cloud_merge.launch```
+roslaunch cloud_merge cloud_merge.launch
 ```
 
-## Input topics
+
+
+### Input topics
 
  * `/ptu/log`  : this topic provides information about the sweep (i.e. parameters, started, position reached, finished).
  * `/current_node` : the waypoint id received on this topic is associated with the sweep collected
 
-## Output topics    
+### Output topics    
 
 * `/local_metric_map/intermediate_point_cloud` - RGBD point cloud corresponding to an intermediate position
 * `/local_metric_map/merged_point_cloud` - merged point cloud with resolution specified by the `voxel_size_table_top` parameter
@@ -45,7 +49,7 @@ roslaunch cloud_merge cloud_merge.launch```
 * `/local_metric_map/rgb/camera_info` - camera info message corresponding to the image published on the `/local_metric_map/rgb/rgb_filtered` topic
 * `/local_metric_map/room_observations` - string message containing the absolute path to the xml file corresponding to the collected sweep. This is used by the `semantic_map semantic_map_node` to trigger a Meta-Room update. 
 
-## Parameters:
+### Parameters:
 
 * `save_intermediate` (true/false)- whether to save the intermediate point clouds to disk; default `true`
 * `cleanup` (true/false) - whether to remove previously saved data from `~/.semanticMap/`; default `false`
@@ -60,7 +64,7 @@ roslaunch cloud_merge cloud_merge.launch```
 * `input_depth` - name of the topic for the depth image (this is used when generate_pointclouds is true); default `/head_xtion/depth/image_raw` 
 * `input_caminfo` - name of the topic for the camera parameters (this is used when generate_pointclouds is true); default `/head_xtion/rgb/camera_info`
 
-## Extracting data from mongodb
+### Extracting data from mongodb
 
 After logging some data, you can extract if from the database and saved it to disk in a folder of your choice using:
 
@@ -75,3 +79,22 @@ rosrun metaroom_xml_parser load_multiple_files /path/where/to/load/from/
 ```
 
 (Note the `/` at the end of the path in the command above). 
+
+# do_sweeps.py
+
+To start the action server manually:
+
+rosrun cloud_merge do_sweep.py
+
+Use:
+
+rosrun actionlib axclient.py /do_sweep
+
+This action server takes as input a string, with the following values defined: "complete", "medium", "short", "shortest". Internally the action server from scitos_ptu called ptu_action_server_metric_map.py is used, so make sure that is running.
+
+The behavior is the following:
+
+If sweep type is complete, the sweep is started with parameters -160 20 160 -30 30 30 -> 51 positions
+If sweep type is medium, the sweep is started with parameters -160 20 160 -30 30 -30 -> 17 positions
+If sweep type is short, the sweep is started with parameters -160 40 160 -30 30 -30 -> 9 positions
+If sweep type is shortest, the sweep is started with parameters -160 60 140 -30 30 -30 -> 6 positions (there might be blank areas with this sweep type, depending on the environment).
