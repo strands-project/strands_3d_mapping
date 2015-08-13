@@ -4,6 +4,15 @@ Changelog for package semantic_map_launcher
 
 Forthcoming
 -----------
+* updated changelogs
+* Added a launch file argument to switch between NDT registration and image feature registration for registering sweeps. Default is NDT
+* Logging the sweeps to mongodb enabled by default
+* Added support for getting only the latest dynamic clusters
+* separate function for updating room with metaroom
+* Logging objects to the database parameter
+* Added semantic_map_launcher packager (just a launch file with all the mapping nodes)
+* Contributors: Marc Hanheide, Rares, Rares Ambrus
+
 * Added a launch file argument to switch between NDT registration and image feature registration for registering sweeps. Default is NDT
 * Logging the sweeps to mongodb enabled by default
 * Added support for getting only the latest dynamic clusters

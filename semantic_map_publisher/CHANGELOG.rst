@@ -4,6 +4,19 @@ Changelog for package semantic_map_publisher
 
 Forthcoming
 -----------
+* updated changelogs
+* Added WaypointTimestampService ObservationInstanceService and ObservationOctomapInstanceService
+* Added sensor origin service
+* Service calls always return true
+* Generate messages dependency
+* Package renaming
+* Updated dependencies for semantic_map_publisher package
+* Removing dynamic cluster service
+* Error checking
+* Removed debug map saving
+* Added new publisher node
+* Contributors: Marc Hanheide, Rares, Rares Ambrus
+
 * Added WaypointTimestampService ObservationInstanceService and ObservationOctomapInstanceService
 * Added sensor origin service
 * Service calls always return true

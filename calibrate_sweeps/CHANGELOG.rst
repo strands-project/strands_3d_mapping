@@ -4,6 +4,19 @@ Changelog for package calibrate_sweeps
 
 Forthcoming
 -----------
+* updated changelogs
+* Fixed sweep registration bug
+* Fixed typo
+* message generation dependency
+* Updating packages with new include paths
+* Package renaming
+* Updated dependencies for calibrate_sweeps package
+* Transforming to the map frame of reference after rebuilding clouds
+* bugfix
+* Fixed CMakeLists.txt
+* Adding calibrate sweeps action server as a separate package
+* Contributors: Marc Hanheide, Rares, Rares Ambrus
+
 * Fixed sweep registration bug
 * Fixed typo
 * message generation dependency

@@ -4,6 +4,14 @@ Changelog for package semantic_map_to_2d
 
 Forthcoming
 -----------
+* updated changelogs
+* Remove bad install target.
+* Add depend on semantic_map_publisher.
+* Add depend on semantic_map_publisher.
+* Fix gencpp dependency.
+* Add node to publish 2d map of waypoint sweeps.
+* Contributors: Chris Burbridge, Marc Hanheide
+
 * Remove bad install target.
 * Add depend on semantic_map_publisher.
 * Add depend on semantic_map_publisher.

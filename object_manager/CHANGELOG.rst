@@ -4,6 +4,42 @@ Changelog for package object_manager
 
 Forthcoming
 -----------
+* updated changelogs
+* debug print
+* Added object manager library as CMake target
+* Safety copy
+* Bugfix - saving additional view
+* Logging the transform from the camera frame of ref to the map frame of ref for the additional view point clouds
+* Logging and loading objects tracks from mongodb
+* Added saving and loading of dynamic object tracks
+* Added DynamicObjectTracks message
+* Testing of saving/loading/logging additional views for dynamic objects
+* Subscribing to the object views topic and adding views to dynamic objects
+* Logging/reading additional views to/from mongodb
+* Additional views and saving/loading from disk
+* Service calls always return true
+* Removed unnecessary compilation of classes
+* Logging objects to the database parameter
+* Node to export dynamic elements out of mongodb
+* Removing debug cv window
+* Also logging room run number (useful for reading objects  from mongo and saving them in the proper folder structure on the disk)
+* Saving dynamic objects in mongodb
+* Dynamic object utilities
+* Saving and loading dynamic objects on the disk
+* added dynamic_object_xml_parser class
+* added dynami_object class
+* Added dynamic_object files and openmp dependency
+* Install targets
+* Updated dependencies for object_manager package
+* Removed debug cv window
+* Returning pan and tilt PTU angles in the service message
+* Get object service
+* Mask extraction
+* Added centroids
+* Filtering ground points
+* Added object manager class
+* Contributors: Marc Hanheide, Rares, Rares Ambrus
+
 * debug print
 * Added object manager library as CMake target
 * Safety copy

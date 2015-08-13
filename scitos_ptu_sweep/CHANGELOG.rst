@@ -7,6 +7,8 @@ Changelog for package scitos_ptu_sweep
 
 Forthcoming
 -----------
+* updated changelogs
+* Contributors: Marc Hanheide
 
 0.0.9 (2014-11-23)
 ------------------

@@ -4,6 +4,13 @@ Changelog for package strands_sweep_registration
 
 Forthcoming
 -----------
+* updated changelogs
+* Added ceres and suitesparse libraries in package.xml
+* Fixed pcl dependency and removed g2o
+* Restructuring package to follow ros naming conventions
+* Package renaming
+* Contributors: Marc Hanheide, Rares Ambrus
+
 * Added ceres and suitesparse libraries in package.xml
 * Fixed pcl dependency and removed g2o
 * Restructuring package to follow ros naming conventions
