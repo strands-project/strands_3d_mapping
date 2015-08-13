@@ -120,6 +120,9 @@ target_link_libraries(create_subsegment_vocabulary_vectors object_retrieval retr
 add_executable(train_vocabulary_tree src/train_vocabulary_tree.cpp)
 target_link_libraries(train_vocabulary_tree object_retrieval retrieval_client)
 
+add_executable(query_vocabulary src/query_vocabulary.cpp)
+target_link_libraries(query_vocabulary object_retrieval retrieval_client dataset_annotations)
+
 configure_file(scripts/menu.py menu.py COPYONLY)
 configure_file(scripts/training_menu.py training_menu.py COPYONLY)
 configure_file(scripts/querying_menu.py querying_menu.py COPYONLY)

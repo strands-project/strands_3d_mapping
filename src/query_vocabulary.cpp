@@ -101,8 +101,8 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
         find_top_oversegments_grow_and_score(first_scores, second_scores, hints, oversegment_indices, features, mapping, obr_segments,
                                              obr_scans, obr_scans_annotations, nbr_reweight_query, nbr_initial_query, noise_scans_size); // nbr_query if no reweight
 
+        vector<index_score> reweight_scores;
         if (benchmark_reweighting) {
-            vector<index_score> reweight_scores;
             reweight_query_vocabulary_sift(reweight_scores, second_scores, first_scores, hints, oversegment_indices, cloud, features, keypoints, segment_id, nbr_query,
                                            nbr_initial_query, obr_scans, obr_scans_annotations, obr_segments, obr_segments_annotations, noise_scans_size, mapping);
         }
@@ -112,8 +112,10 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
         //dataset_annotations::calculate_correct_ratio_exclude_sweep_precise(instance_correct_ratios, instance, scan_id, second_scores, obr_scans_annotations, noise_scans_size);
         //first_scores.resize(nbr_query);
         //dataset_annotations::calculate_correct_ratio_exclude_sweep_precise(usual_correct_ratios, instance, scan_id, first_scores, obr_scans_annotations, noise_scans_size);
-        reweight_scores.resize(nbr_query);
-        dataset_annotations::calculate_correct_ratio_exclude_sweep_precise(reweight_correct_ratios, instance, scan_id, reweight_scores, obr_scans_annotations, noise_scans_size);
+        if (benchmark_reweighting) {
+            reweight_scores.resize(nbr_query);
+            dataset_annotations::calculate_correct_ratio_exclude_sweep_precise(reweight_correct_ratios, instance, scan_id, reweight_scores, obr_scans_annotations, noise_scans_size);
+        }
         cout << "Number of features: " << features->size() << endl;
 
         instance_mean_features[instance].first += features->size();
@@ -254,15 +256,15 @@ int main(int argc, char** argv)
     int option = atoi(argv[3]);
 
     object_retrieval obr_scans_annotated(annotated_scan_path);
-    obr_scans.segment_name = "scan";
+    obr_scans_annotated.segment_name = "scan";
     object_retrieval obr_segments_annotated(annotated_segment_path);
 
     object_retrieval obr_scans_noise(noise_scan_path);
     obr_scans_noise.segment_name = "scan";
     object_retrieval obr_segments_noise(noise_segment_path);
 
-    int noise_scans_size = 3526;
-    int noise_segments_size = 63136;
+    int noise_scans_size = retrieval_client::read_noise_segment_size(obr_scans_noise);
+    int noise_segments_size = retrieval_client::read_noise_segment_size(obr_segments_noise);
 
     Eigen::Matrix3f K;
     string matrix_file = annotated_root_path + "K.cereal"; // this is a bit of a hack, we don't actually store this at any point
@@ -273,20 +275,23 @@ int main(int argc, char** argv)
     }
 
     vector<dataset_annotations::voxel_annotation> annotations;
-    string annotations_file = segment_path + "/voxel_annotations.cereal";
-    dataset_annotations::list_annotated_supervoxels(annotations, annotations_file, K, obr_segments);
+    string annotations_file = annotated_segment_path + "/voxel_annotations.cereal";
+    dataset_annotations::list_annotated_supervoxels(annotations, annotations_file, K, obr_segments_annotated);
 
     query_in_dataset_iterator query_data_iter(annotations, obr_segments_annotated);
 
     switch (option) {
     case 1:
-        query_supervoxels(query_data_iter, obr_segments_noise, obr_segments_annotated, obr_scans_annotated, noise_scans_size, noise_segments_size);
+        query_supervoxels(query_data_iter, obr_segments_noise, obr_segments_annotated, obr_scans_annotated, noise_scans_size, noise_segments_size, false);
         break;
     case 2:
-        query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments_annotated, obr_scans_annotated, noise_scans_size);
+        query_supervoxels(query_data_iter, obr_segments_noise, obr_segments_annotated, obr_scans_annotated, noise_scans_size, noise_segments_size, true);
         break;
     case 3:
-        query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments_annotated, obr_scans_annotated, noise_scans_size);
+        query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments_annotated, obr_scans_annotated, noise_scans_size, false);
+        break;
+    case 4:
+        query_supervoxel_oversegments(query_data_iter, K, obr_segments_noise, obr_scans_noise, obr_segments_annotated, obr_scans_annotated, noise_scans_size, true);
         break;
     default:
         cout << "The option provided is not valid..." << endl;
