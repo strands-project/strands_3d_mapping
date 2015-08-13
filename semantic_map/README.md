@@ -26,8 +26,8 @@ To start this node run:
 
 ## Output topics 
 
-* /local_metric_map/metaroom - RGBD point cloud corresponding to a meta-room, published after a new observation has been processed. 
-* /local_metric_map/dynamic_clusters - RGBD point cloud corresponding to the dynamic clusters, published after a new observation has been processed.
+* `/local_metric_map/metaroom` - RGBD point cloud corresponding to a meta-room, published after a new observation has been processed. 
+* `/local_metric_map/dynamic_clusters` - RGBD point cloud corresponding to the dynamic clusters, published after a new observation has been processed.
 
 ## ClearMetaroomService
 
