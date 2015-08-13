@@ -84,17 +84,17 @@ rosrun metaroom_xml_parser load_multiple_files /path/where/to/load/from/
 
 To start the action server manually:
 
-rosrun cloud_merge do_sweep.py
+```rosrun cloud_merge do_sweep.py```
 
 Use:
 
-rosrun actionlib axclient.py /do_sweep
+```rosrun actionlib axclient.py /do_sweep```
 
-This action server takes as input a string, with the following values defined: "complete", "medium", "short", "shortest". Internally the action server from scitos_ptu called ptu_action_server_metric_map.py is used, so make sure that is running.
+This action server takes as input a string, with the following values defined: "complete", "medium", "short", "shortest". Internally the action server from `scitos_ptu ptu_action_server_metric_map.py` is used, so make sure that is running.
 
 The behavior is the following:
 
-If sweep type is complete, the sweep is started with parameters -160 20 160 -30 30 30 -> 51 positions
-If sweep type is medium, the sweep is started with parameters -160 20 160 -30 30 -30 -> 17 positions
-If sweep type is short, the sweep is started with parameters -160 40 160 -30 30 -30 -> 9 positions
-If sweep type is shortest, the sweep is started with parameters -160 60 140 -30 30 -30 -> 6 positions (there might be blank areas with this sweep type, depending on the environment).
+If sweep type is `complete`, the sweep is started with parameters `-160 20 160 -30 30 30` -> 51 positions
+If sweep type is `medium`, the sweep is started with parameters `-160 20 160 -30 30 -30` -> 17 positions
+If sweep type is `short`, the sweep is started with parameters `-160 40 160 -30 30 -30` -> 9 positions
+If sweep type is `shortest`, the sweep is started with parameters `-160 60 140 -30 30 -30` -> 6 positions (there might be blank areas with this sweep type, depending on the environment).
