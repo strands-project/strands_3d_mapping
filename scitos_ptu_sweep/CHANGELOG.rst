@@ -5,6 +5,11 @@ Changelog for package scitos_ptu_sweep
 0.0.4 (2014-11-12)
 ------------------
 
+0.0.10 (2015-08-13)
+-------------------
+* updated changelogs
+* Contributors: Marc Hanheide
+
 0.0.9 (2014-11-23)
 ------------------
 

@@ -9,6 +9,65 @@ Changelog for package cloud_merge
 * Changed cloud_merge include statement by prefixing it with the package_name
 * Contributors: Rares Ambrus
 
+0.0.10 (2015-08-13)
+-------------------
+* updated changelogs
+* Updated dependencies for cloud_merge package
+* merge from hydro-devel
+* bugfix
+* Loading camera params from file
+* Computing ORB features
+* Register individual sweep clouds using precomputed sweep poses
+* Added parameters for loading precalibrated sweep poses
+* Changed launch file parameters to disable logging the intermediate clouds to the datacenter. Also enabled updating the metaroom with new observations
+* Moved mongodb_interface class to the semantic_map package. Updated corresponding include files
+* SemanticMapSummaryParser no longer templated (not required). Some methods are still templated, todo remove the templates by avoiding instantiating objects of type MetaRoom or SemanticRoom (which are templated)
+* Added explicit template instantiation for cloud_merge package
+* More informative print statement
+* save_intermediate_images parameter defaults to false
+* Renamed save_intermediate parameter to save_intermediate_clouds
+* Added save_intermediate_images parameter to the launch file
+* Saving intermediate images default value false
+* Since we are using images no need to wait for the TF to reflect the PTU movement
+* Bugfix - rgb camera info message
+* Bugfix - loading proper cam info parameters for intermediate depth images
+* bugfix cam info topic
+* Added launch file parameters for depth and rgb camera parameter topics
+* When saving intermediate images: added transforms for both depth and rgb cameras as well as camera parameters for each intermediate position
+* Added one more input camera info topic for the depth camera
+* Added debug message when saving intermediate images
+* Added empty readme file
+* Retrieving intermediate cloud images and adding them to the new room
+* Contributors: Marc Hanheide, Rares, Rares Ambrus, RaresAmbrus
+
+* Updated dependencies for cloud_merge package
+* merge from hydro-devel
+* bugfix
+* Loading camera params from file
+* Computing ORB features
+* Register individual sweep clouds using precomputed sweep poses
+* Added parameters for loading precalibrated sweep poses
+* Changed launch file parameters to disable logging the intermediate clouds to the datacenter. Also enabled updating the metaroom with new observations
+* Moved mongodb_interface class to the semantic_map package. Updated corresponding include files
+* SemanticMapSummaryParser no longer templated (not required). Some methods are still templated, todo remove the templates by avoiding instantiating objects of type MetaRoom or SemanticRoom (which are templated)
+* Added explicit template instantiation for cloud_merge package
+* More informative print statement
+* save_intermediate_images parameter defaults to false
+* Renamed save_intermediate parameter to save_intermediate_clouds
+* Added save_intermediate_images parameter to the launch file
+* Saving intermediate images default value false
+* Since we are using images no need to wait for the TF to reflect the PTU movement
+* Bugfix - rgb camera info message
+* Bugfix - loading proper cam info parameters for intermediate depth images
+* bugfix cam info topic
+* Added launch file parameters for depth and rgb camera parameter topics
+* When saving intermediate images: added transforms for both depth and rgb cameras as well as camera parameters for each intermediate position
+* Added one more input camera info topic for the depth camera
+* Added debug message when saving intermediate images
+* Added empty readme file
+* Retrieving intermediate cloud images and adding them to the new room
+* Contributors: Rares, Rares Ambrus, RaresAmbrus
+
 0.0.9 (2014-11-23)
 ------------------
 * Fixed bug: transforming intermediate cloud to global frame of ref before adding it to the merged cloud (it's still saved in the local frame of ref)
