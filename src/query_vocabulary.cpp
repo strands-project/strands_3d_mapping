@@ -48,7 +48,7 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
 {
     const int nbr_query = 20;
     const int nbr_reweight_query = 31;
-    const int nbr_initial_query = 200;
+    const int nbr_initial_query = 500;
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
 
