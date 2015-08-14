@@ -1,4 +1,4 @@
-#include "dynamic_object_xml_parser.h"
+#include "object_manager/dynamic_object_xml_parser.h"
 
 #include <pcl/io/pcd_io.h>
 

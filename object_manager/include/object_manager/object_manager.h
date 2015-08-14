@@ -49,10 +49,10 @@
 
 // application includes
 #include <metaroom_xml_parser/load_utilities.h>
-#include "dynamic_object.h"
-#include "dynamic_object_xml_parser.h"
-#include "dynamic_object_utilities.h"
-#include "dynamic_object_mongodb_interface.h"
+#include "object_manager/dynamic_object.h"
+#include "object_manager/dynamic_object_xml_parser.h"
+#include "object_manager/dynamic_object_utilities.h"
+#include "object_manager/dynamic_object_mongodb_interface.h"
 
 template <class PointType>
 class ObjectManager {

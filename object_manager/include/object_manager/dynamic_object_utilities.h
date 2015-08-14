@@ -7,8 +7,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
-#include <dynamic_object.h>
-#include <dynamic_object_xml_parser.h>
+#include <object_manager/dynamic_object.h>
+#include <object_manager/dynamic_object_xml_parser.h>
 
 namespace dynamic_object_utilities
 {

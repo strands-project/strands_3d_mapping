@@ -20,7 +20,7 @@
 
 #include <QString>
 
-#include "dynamic_object.h"
+#include "object_manager/dynamic_object.h"
 
 class DynamicObjectMongodbInterface {
 public:
