@@ -36,8 +36,8 @@ include_directories(include
 
 
 set(HDRS
-    include/cloud_merge.h
-    include/cloud_merge_node.h)
+    include/cloud_merge/cloud_merge.h
+    include/cloud_merge/cloud_merge_node.h)
 
 set(SRCS
     src/cloud_merge.cpp
@@ -62,7 +62,7 @@ install(TARGETS cloud_merge
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(DIRECTORY include/
+install(DIRECTORY include/cloud_merge/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 
