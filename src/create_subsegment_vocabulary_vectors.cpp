@@ -35,6 +35,10 @@ int main(int argc, char** argv)
     obr_segments_noise.gvt.set_min_match_depth(3); // the depth has to match the one in the querying file!
     obr_segments_noise.gvt.compute_normalizing_constants();
 
+    //read_supervoxel_groups(obr_segments); // this should not be needed here
+
+    //obr_segments.gvt.compute_leaf_vocabulary_vectors(); // this should definitely not be needed
+
     retrieval_client::save_oversegmented_grouped_vocabulary_index_vectors(obr_scans_annotated, obr_segments_noise);
     retrieval_client::save_oversegmented_grouped_vocabulary_index_vectors(obr_scans_noise, obr_segments_noise);
 

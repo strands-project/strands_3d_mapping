@@ -40,14 +40,12 @@ struct query_in_dataset_iterator {
     }
 };
 
-// OK
 template <typename Iterator>
 void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
                                    object_retrieval& obr_segments, object_retrieval& obr_scans,
                                    object_retrieval& obr_segments_annotations, object_retrieval& obr_scans_annotations,
                                    int noise_scans_size, const bool benchmark_reweighting)
 {
-    // TODO: these numbers should be adjusted depending on benchmark_reweighing
     const int nbr_query = 20;
     const int nbr_reweight_query = 31;
     const int nbr_initial_query = 200;
@@ -66,18 +64,9 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
 
     obr_segments.gvt.get_node_mapping(mapping);
 
-    // this is something that I have to do in the setup I think? But we need
-    //save_oversegmented_grouped_vocabulary_index_vectors(obr_scans, obr_segments);
-    //save_oversegmented_grouped_vocabulary_index_vectors(obr_scans_annotations, obr_segments);
-    //exit(0);
-
     map<string, pair<float, int> > instance_correct_ratios;
     map<string, pair<float, int> > usual_correct_ratios;
     map<string, pair<float, int> > reweight_correct_ratios;
-
-    map<string, pair<int, int> > instance_mean_features;
-
-    map<string, int> instance_number_queries;
 
     chrono::time_point<std::chrono::system_clock> start, end;
     start = chrono::system_clock::now();
@@ -89,10 +78,6 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
     int scan_id;
     int segment_id;
     while (query_iterator.get_next_query(instance, cloud, features, keypoints, scan_id, segment_id)) {
-
-        instance_number_queries[instance] += 1;
-
-        cout << "Features: " << features->size() << endl;
 
         vector<index_score> first_scores; // scores
         vector<index_score> second_scores; // updated_scores;
@@ -108,30 +93,24 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
         }
 
 
-        //second_scores.resize(nbr_query);
-        //dataset_annotations::calculate_correct_ratio_exclude_sweep_precise(instance_correct_ratios, instance, scan_id, second_scores, obr_scans_annotations, noise_scans_size);
-        //first_scores.resize(nbr_query);
-        //dataset_annotations::calculate_correct_ratio_exclude_sweep_precise(usual_correct_ratios, instance, scan_id, first_scores, obr_scans_annotations, noise_scans_size);
+        second_scores.resize(nbr_query);
+        dataset_annotations::calculate_correct_ratio_exclude_sweep_precise(instance_correct_ratios, instance, scan_id, second_scores, obr_scans_annotations, noise_scans_size);
+
+        first_scores.resize(nbr_query);
+        dataset_annotations::calculate_correct_ratio_exclude_sweep_precise(usual_correct_ratios, instance, scan_id, first_scores, obr_scans_annotations, noise_scans_size);
+
         if (benchmark_reweighting) {
             reweight_scores.resize(nbr_query);
             dataset_annotations::calculate_correct_ratio_exclude_sweep_precise(reweight_correct_ratios, instance, scan_id, reweight_scores, obr_scans_annotations, noise_scans_size);
         }
         cout << "Number of features: " << features->size() << endl;
 
-        instance_mean_features[instance].first += features->size();
-        instance_mean_features[instance].second += 1;
     }
 
     end = chrono::system_clock::now();
     chrono::duration<double> elapsed_seconds = end-start;
 
     cout << "Benchmark took " << elapsed_seconds.count() << " seconds" << endl;
-
-    for (pair<const string, pair<float, int> > c : instance_correct_ratios) {
-        cout << c.first << ":" << endl;
-        cout << "Mean features: " << float(instance_mean_features[c.first].first)/float(instance_mean_features[c.first].second) << endl;
-        cout << "Number of queries: " << instance_number_queries[c.first] << endl;
-    }
 
     cout << "First round correct ratios: " << endl;
     for (pair<const string, pair<float, int> > c : instance_correct_ratios) {
@@ -147,12 +126,10 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
     }
 }
 
-// OK
 template <typename Iterator>
 void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments, object_retrieval& obr_segments_annotations,
                        object_retrieval& obr_scans_annotations, int noise_scans_size, int noise_segments_size, const bool benchmark_reweighting)
 {
-    // TODO: these numbers should be adjusted depending on benchmark_reweighing
     const int nbr_query = 20;
     const int nbr_reweight_query = 51;
 
@@ -164,13 +141,6 @@ void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments,
 
     map<string, pair<float, int> > instance_correct_ratios;
     map<string, pair<float, int> > reweight_correct_ratios;
-
-    vector<pair<float, int> > decay_correct_ratios;
-    vector<int> intermediate_points;
-    for (int i = 0; i < noise_scans_size; i += 100) {
-        intermediate_points.push_back(i);
-        decay_correct_ratios.push_back(make_pair(0.0f, 0));
-    }
 
     chrono::time_point<std::chrono::system_clock> start, end;
     start = chrono::system_clock::now();
@@ -202,13 +172,15 @@ void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments,
             }
         }
 
-        reweight_scores.resize(nbr_query);
-        for (index_score& s : reweight_scores) {
-            if (s.first < noise_segments_size) {
-                s.first = 0; // scan_ind_for_segment(s.first, obr_segments); // not needed since < noise_scans_size -> false
-            }
-            else {
-                s.first = scan_ind_for_segment(s.first-noise_segments_size, obr_segments_annotations) + noise_scans_size;
+        if (benchmark_reweighting) {
+            reweight_scores.resize(nbr_query);
+            for (index_score& s : reweight_scores) {
+                if (s.first < noise_segments_size) {
+                    s.first = 0; // scan_ind_for_segment(s.first, obr_segments); // not needed since < noise_scans_size -> false
+                }
+                else {
+                    s.first = scan_ind_for_segment(s.first-noise_segments_size, obr_segments_annotations) + noise_scans_size;
+                }
             }
         }
 
