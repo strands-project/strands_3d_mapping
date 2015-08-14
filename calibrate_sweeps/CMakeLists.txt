@@ -4,7 +4,7 @@ project(calibrate_sweeps)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp message_generation qt_build semantic_map metaroom_xml_parser strands_sweep_registration)
+find_package(catkin REQUIRED COMPONENTS roscpp message_generation qt_build semantic_map metaroom_xml_parser strands_sweep_registration actionlib actionlib_msgs)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
 set(CMAKE_PREFIX_PATH /usr/share/pcl-1.7/ ${CMAKE_PREFIX_PATH})
@@ -33,8 +33,8 @@ generate_messages(
 catkin_package(
    INCLUDE_DIRS
    LIBRARIES 
-   CATKIN_DEPENDS semantic_map metaroom_xml_parser strands_sweep_registration
-   DEPENDS
+   CATKIN_DEPENDS semantic_map metaroom_xml_parser strands_sweep_registration actionlib actionlib_msgs
+   DEPENDS libceres-dev suitesparse qt_ros
 )
 
 include_directories(
@@ -47,6 +47,7 @@ add_dependencies(calibrate_sweep_as calibrate_sweeps_generate_messages_cpp)
  target_link_libraries(calibrate_sweep_as
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
   )
 
 ############################# INSTALL TARGETS

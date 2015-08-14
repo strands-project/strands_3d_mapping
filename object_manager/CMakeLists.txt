@@ -81,16 +81,19 @@ add_dependencies(load_objects_from_mongo load_objects_from_mongo_generate_messag
  target_link_libraries(dynamic_object
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
   )
 
  target_link_libraries(object_manager_node
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
   )
 
  target_link_libraries(load_objects_from_mongo
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
   )
 
 ############################# INSTALL TARGETS

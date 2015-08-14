@@ -55,6 +55,7 @@ add_dependencies(semantic_map_publisher semantic_map_generate_messages_cpp primi
  target_link_libraries(semantic_map_publisher
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
   )
 
 ############################# INSTALL TARGETS
