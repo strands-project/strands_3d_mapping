@@ -1,4 +1,4 @@
-#include "load_utilities.h"
+#include "metaroom_xml_parser/load_utilities.h"
 
 
 std::vector<semantic_map_registration_features::RegistrationFeatures> semantic_map_registration_features::loadRegistrationFeaturesFromSingleSweep(std::string sweepXmlPath, bool verbose, std::string registrationFeaturesFilename)

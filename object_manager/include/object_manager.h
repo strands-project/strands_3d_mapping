@@ -48,7 +48,7 @@
 #include <cv_bridge/cv_bridge.h>
 
 // application includes
-#include "load_utilities.h"
+#include <metaroom_xml_parser/load_utilities.h>
 #include "dynamic_object.h"
 #include "dynamic_object_xml_parser.h"
 #include "dynamic_object_utilities.h"

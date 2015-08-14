@@ -34,15 +34,17 @@
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 
+#include <metaroom_xml_parser/load_utilities.h>
+#include <strands_sweep_registration/RobotContainer.h>
+
 #include "room_xml_parser.h"
 #include "metaroom_xml_parser.h"
 #include "semantic_map_summary_parser.h"
 #include "reg_features.h"
 #include "reg_transforms.h"
 #include "room_utilities.h"
-#include "load_utilities.h"
 
-#include <strands_sweep_registration/RobotContainer.h>
+
 
 template <class PointType>
 class SemanticMapNode {
