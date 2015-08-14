@@ -4,16 +4,30 @@
 #include "object_3d_retrieval/retrieval_client.h"
 
 #include <eigen_cereal/eigen_cereal.h>
+#include <boost/filesystem.hpp>
 
 using namespace std;
 
 void save_noise_data_sizes(object_retrieval& obr_scans_noise, object_retrieval& obr_segments_noise)
 {
-    int noise_scans_size = 3526;
-    int noise_segments_size = 63136;
+    int i;
+    for (i = 0; ; ++i) {
+        string folder = obr_scans_noise.get_folder_for_segment_id(i);
+        if (!boost::filesystem::is_directory(folder)) {
+            break;
+        }
+    }
+    cout << "Number of scans: " << i << endl;
+    retrieval_client::write_noise_segment_size(i, obr_scans_noise);
 
-    retrieval_client::write_noise_segment_size(noise_scans_size, obr_scans_noise);
-    retrieval_client::write_noise_segment_size(noise_segments_size, obr_segments_noise);
+    for (i = 0; ; ++i) {
+        string folder = obr_segments_noise.get_folder_for_segment_id(i);
+        if (!boost::filesystem::is_directory(folder)) {
+            break;
+        }
+    }
+    cout << "Number of segments: " << i << endl;
+    retrieval_client::write_noise_segment_size(i, obr_segments_noise);
 }
 
 int main(int argc, char** argv)
@@ -46,7 +60,7 @@ int main(int argc, char** argv)
 
     switch (option) {
     case 1:
-        //obr_segments_noise.train_vocabulary_incremental(4000, false);
+        obr_segments_noise.train_vocabulary_incremental(4000, false);
         save_noise_data_sizes(obr_scans_noise, obr_segments_noise);
         break;
     case 2:

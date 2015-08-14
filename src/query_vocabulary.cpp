@@ -240,8 +240,9 @@ int main(int argc, char** argv)
     if (argc < 4) {
         cout << " Please supply the annotated data path, the noise data path and the option: \n"
              << " 1. Benchmark convex segment vocabulary tree querying\n"
-             << " 2. Benchmark subsegment vocabulary tree querying\n"
-             << " 3. Benchmark subsegment vocabulary tree with re-weighting" << endl;
+             << " 2. Benchmark convex segment vocabulary tree with re-weighting"
+             << " 3. Benchmark subsegment vocabulary tree querying\n"
+             << " 4. Benchmark subsegment vocabulary tree with re-weighting" << endl;
         return 0;
     }
 
