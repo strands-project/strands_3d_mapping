@@ -47,8 +47,8 @@ void query_supervoxel_oversegments(Iterator& query_iterator, Eigen::Matrix3f& K,
                                    int noise_scans_size, const bool benchmark_reweighting)
 {
     const int nbr_query = 20;
-    const int nbr_reweight_query = 31;
-    const int nbr_initial_query = 500;
+    const int nbr_reweight_query = 31; // change this if you want to vary the number of re-weighting examples
+    const int nbr_initial_query = 500; // change this if you want to vary the number of initial subsegments
 
     map<vocabulary_tree<HistT, 8>::node*, int> mapping;
 
@@ -131,7 +131,7 @@ void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments,
                        object_retrieval& obr_scans_annotations, int noise_scans_size, int noise_segments_size, const bool benchmark_reweighting)
 {
     const int nbr_query = 20;
-    const int nbr_reweight_query = 51;
+    const int nbr_reweight_query = 51; // change this if you want to vary the number of re-weighting examples
 
     if (obr_segments.vt.empty()) {
         obr_segments.read_vocabulary(obr_segments.vt);
@@ -154,6 +154,7 @@ void query_supervoxels(Iterator& query_iterator, object_retrieval& obr_segments,
     while (query_iterator.get_next_query(instance, cloud, features, keypoints, scan_id, segment_id)) {
         vector<index_score> scores;
         obr_segments.vt.top_combined_similarities(scores, features, nbr_reweight_query);
+        // obr_segments.vt.top_similarities(scores, features, nbr_reweight_query); // using L1 norm instead
 
         vector<index_score> reweight_scores;
 
