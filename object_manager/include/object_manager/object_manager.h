@@ -668,8 +668,8 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
     fc.setInputCloud (object_cloud);
     fc.setVerticalFOV (45);
     fc.setHorizontalFOV (55);
-    fc.setNearPlaneDistance (.5);
-    fc.setFarPlaneDistance (3.5);
+    fc.setNearPlaneDistance (.2);
+    fc.setFarPlaneDistance (4.0);
 
     int max_overlap = 0;
     int best_index = -1;
