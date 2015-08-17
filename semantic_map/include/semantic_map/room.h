@@ -24,6 +24,8 @@
 
 #include "roombase.h"
 
+#include <semantic_map/sweep_parameters.h>
+
 
 
 template <class PointType>
@@ -116,14 +118,14 @@ public:
     void setRoomLogEndTime(const boost::posix_time::ptime& logEndTime);
     boost::posix_time::ptime getRoomLogEndTime();
     boost::posix_time::ptime getRoomTime();
+    void setSweepParameters(SweepParameters sweep_params);
 
     bool operator==(const SemanticRoom& rhs); // equality operator -> deep comparison of all fields
 
     static Eigen::Vector4f computeCentroid(CloudPtr cloud);
 
     // public members (should be private ...)
-    int                                              pan_start, pan_step, pan_end;
-    int                                              tilt_start, tilt_step, tilt_end;
+    SweepParameters                                    m_SweepParameters;
 
 };
 

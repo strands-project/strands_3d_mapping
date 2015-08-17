@@ -1,4 +1,4 @@
-#include "dynamic_object_mongodb_interface.h"
+#include "object_manager/dynamic_object_mongodb_interface.h"
 #include <boost/filesystem.hpp>
 
 using namespace std;

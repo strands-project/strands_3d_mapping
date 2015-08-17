@@ -40,7 +40,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/filters/passthrough.h>
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include "load_utilities.h"
+#include <metaroom_xml_parser/load_utilities.h>
 #include <semantic_map/room_xml_parser.h>
 
 #include <octomap_ros/conversions.h>
@@ -72,6 +72,7 @@ public:
     typedef typename semantic_map_publisher::ObservationOctomapService::Response ObservationOctomapServiceResponse;
     typedef typename semantic_map_publisher::ObservationOctomapInstanceService::Request ObservationOctomapInstanceServiceRequest;
     typedef typename semantic_map_publisher::ObservationOctomapInstanceService::Response ObservationOctomapInstanceServiceResponse;
+
 
 
     struct ObsStruct {

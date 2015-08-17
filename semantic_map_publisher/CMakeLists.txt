@@ -48,13 +48,14 @@ include_directories(include
   ${cloud_register_INCLUDE_DIRS}
 )
 
-add_executable(semantic_map_publisher include/semantic_map_publisher.h src/semantic_map_publisher.cpp src/semantic_map_publisher_main.cpp)
+add_executable(semantic_map_publisher include/semantic_map_publisher/semantic_map_publisher.h src/semantic_map_publisher.cpp src/semantic_map_publisher_main.cpp)
 add_dependencies(semantic_map_publisher semantic_map_generate_messages_cpp primitive_extraction_generate_messages_cpp semantic_map_publisher_generate_messages_cpp)
 
 
  target_link_libraries(semantic_map_publisher
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
   )
 
 ############################# INSTALL TARGETS
@@ -65,7 +66,7 @@ install(TARGETS semantic_map_publisher
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(DIRECTORY include/
+install(DIRECTORY include/semantic_map_publisher/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 

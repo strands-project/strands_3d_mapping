@@ -491,7 +491,7 @@ private:
     }
 
     template <class PointType>
-    void saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString qrootFolder)
+    void saveSemanticRooms(QXmlStreamWriter* xmlWriter, QString qrootFolder, bool verbose = false)
     {
         xmlWriter->writeStartElement("SemanticRooms");
 
@@ -519,8 +519,11 @@ private:
 
             if (!isValidDate)
             {
-                std::cout<<"Skipping folder "<<dateFolders[i].toStdString()<<" as it doesn't have the right format."<<std::endl;
-                continue;
+                if (verbose)
+                {
+                    ROS_INFO_STREAM("Skipping folder "<<dateFolders[i].toStdString()<<" as it doesn't have the right format.");
+                    continue;
+                }
             }
 
             QString dateFolder = qrootFolder+dateFolders[i];
@@ -573,7 +576,10 @@ private:
                     xmlWriter->writeEndElement();
 
                     xmlWriter->writeEndElement();
-                    ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
+                    if (verbose)
+                    {
+                        ROS_INFO_STREAM("Added room "<<roomXmlFile.toStdString());
+                    }
                 }
             }
         }

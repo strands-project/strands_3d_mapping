@@ -18,7 +18,7 @@ rosbuild_prepare_qt4(QtCore QtXml)
 catkin_package(
    INCLUDE_DIRS include
    CATKIN_DEPENDS metaroom_xml_parser image_geometry cpp_common roscpp rosconsole tf_conversions
-   DEPENDS libceres-dev suitesparse
+   DEPENDS libceres-dev suitesparse qt_build
    LIBRARIES PixelFunction_strands_room Camera_strands_room  Frame_strands_room Sweep_strands_room util_strands_room pair3DError_strands_room ProblemFrameConnection_strands_room RobotContainer_strands_room
 )
 

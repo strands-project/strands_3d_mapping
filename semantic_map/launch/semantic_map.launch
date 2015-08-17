@@ -3,8 +3,9 @@
   <arg name="save_intermediate"           default="false" />
   <arg name="log_to_db"           	  default="false" />
   <arg name="update_metaroom"             default="true" />
-  <arg name="machine"   	default="localhost" />
-  <arg name="use_NDT_registration"             default="true" />
+  <arg name="machine"   		  default="localhost" />
+  <!-- <arg name="use_NDT_registration"   default="true" /> -->
+  <arg name="min_object_size"             default="500" />
 
   <arg name="user"   	default="" />
   <arg name="newest_dynamic_clusters" default="false" />
@@ -16,7 +17,8 @@
 	<param name="log_to_db"  type="bool" value="$(arg log_to_db)"/>
 	<param name="update_metaroom"  type="bool" value="$(arg update_metaroom)"/>
 	<param name="newest_dynamic_clusters"  type="bool" value="$(arg newest_dynamic_clusters)"/>
-	<param name="use_NDT_registration"  type="bool" value="$(arg use_NDT_registration)"/>
+	<!-- <param name="use_NDT_registration"  type="bool" value="$(arg use_NDT_registration)"/> -->
+	<param name="min_object_size"  type="int" value="$(arg min_object_size)"/>
   </node>
 
 </launch>

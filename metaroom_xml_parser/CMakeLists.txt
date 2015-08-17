@@ -4,7 +4,7 @@ project(metaroom_xml_parser)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs qt_build image_geometry tf)
+find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs qt_build image_geometry tf pcl_ros)
 
 set(CMAKE_CXX_FLAGS "-O4 -g -fPIC -std=c++0x -fpermissive")
 
@@ -18,7 +18,7 @@ rosbuild_prepare_qt4(QtCore QtXml)
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES metaroom_xml_parser
-   DEPENDS qt_build image_geometry libqt4-dev
+   DEPENDS qt_build image_geometry libqt4-dev pcl_ros
 )
 
 include_directories(include
@@ -26,10 +26,10 @@ include_directories(include
 )
 
 set(HDRS
-    include/simple_xml_parser.h
-    include/simple_summary_parser.h
-    include/load_utilities.h
-    include/load_utilities.hpp
+    include/metaroom_xml_parser/simple_xml_parser.h
+    include/metaroom_xml_parser/simple_summary_parser.h
+    include/metaroom_xml_parser/load_utilities.h
+    include/metaroom_xml_parser/load_utilities.hpp
     )
 
 set(SRCS
@@ -83,6 +83,6 @@ install(TARGETS metaroom_xml_parser  load_single_file load_multiple_files
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(DIRECTORY include/
+install(DIRECTORY include/metaroom_xml_parser/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )

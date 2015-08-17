@@ -134,7 +134,7 @@ public:
                 start = index1 + QString("<Centroid>").length();
                 QString centroidS = room_file.mid(start,index2-start);
 
-                ROS_INFO_STREAM("Room saved in mongodb: "<<room_log_name_from_xml.toStdString()<<"  "<<room_run_number_from_xml.toStdString()<<"  "<<centroidS.toStdString());
+//                ROS_INFO_STREAM("Room saved in mongodb: "<<room_log_name_from_xml.toStdString()<<"  "<<room_run_number_from_xml.toStdString()<<"  "<<centroidS.toStdString());
 
                 new_room.entityType = SEMANTIC_MAP_ROOM;
                 QString room_xml_file = room_log_name_from_xml + "/room_" + room_run_number_from_xml;
@@ -152,6 +152,8 @@ public:
             }
 
         }
+
+        ROS_INFO_STREAM(toRet.size()<<" rooms found in mongodb.");
 
         return toRet;
     }

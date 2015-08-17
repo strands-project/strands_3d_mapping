@@ -1,4 +1,4 @@
-#include "simple_summary_parser.h"
+#include "metaroom_xml_parser/simple_summary_parser.h"
 
 SimpleSummaryParser::SimpleSummaryParser(std::string xmlFile)
 {

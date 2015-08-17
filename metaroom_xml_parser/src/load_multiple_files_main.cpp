@@ -1,5 +1,5 @@
-#include "simple_xml_parser.h"
-#include "simple_summary_parser.h"
+#include "metaroom_xml_parser/simple_xml_parser.h"
+#include "metaroom_xml_parser/simple_summary_parser.h"
 
 typedef pcl::PointXYZRGB PointType;
 

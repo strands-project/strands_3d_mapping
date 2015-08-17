@@ -1,12 +1,8 @@
-#include "strands_sweep_registration/RobotContainer.h"
-
-//#include "simple_xml_parser.h"
-//#include "simple_summary_parser.h"
-//#include <semantic_map/room_xml_parser.h>
 #include <tf_conversions/tf_eigen.h>
-#include <load_utilities.h>
+#include <metaroom_xml_parser/load_utilities.h>
 
 #include "strands_sweep_registration/pair3DError.h"
+#include "strands_sweep_registration/RobotContainer.h"
 
 typedef pcl::PointXYZRGB PointType;
 typedef typename SimpleSummaryParser::EntityStruct Entities;

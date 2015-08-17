@@ -12,7 +12,8 @@
 #include <semantic_map/reg_features.h>
 #include <semantic_map/room_utilities.h>
 #include <semantic_map/reg_transforms.h>
-#include "load_utilities.h"
+#include <semantic_map/sweep_parameters.h>
+#include <metaroom_xml_parser/load_utilities.h>
 #include <strands_sweep_registration/RobotContainer.h>
 
 typedef pcl::PointXYZRGB PointType;
@@ -26,6 +27,9 @@ void execute(const calibrate_sweeps::CalibrateSweepsGoalConstPtr& goal, Server* 
 {
     ROS_INFO_STREAM("Received calibrate message. Min/max sweeps: "<<goal->min_num_sweeps<<" "<<goal->max_num_sweeps);
     calibrate_sweeps::CalibrateSweepsResult res;
+
+    SweepParameters complete_sweep_parameters (-160, 20, 160, -30, 30, 30);
+    ROS_INFO_STREAM("Calibrating using sweeps with paramters "<<complete_sweep_parameters);
 
     std::string sweep_location;
     if (goal->sweep_location=="")
@@ -107,12 +111,19 @@ void execute(const calibrate_sweeps::CalibrateSweepsGoalConstPtr& goal, Server* 
 
     for (size_t i=0; i<goal->max_num_sweeps && i<matchingObservations.size(); i++)
     {
+        // check if sweep parameters correspond
+        SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(matchingObservations[i],true);
+        if (aRoom.m_SweepParameters != complete_sweep_parameters){
+            ROS_INFO_STREAM("Skipping "<<matchingObservations[i]<<" sweep parameters not correct: "<<aRoom.m_SweepParameters<<" Required parameters "<<complete_sweep_parameters);
+            continue; // not a match
+        }
+
         // check if the orb features have already been computed
         std::vector<semantic_map_registration_features::RegistrationFeatures> features = semantic_map_registration_features::loadRegistrationFeaturesFromSingleSweep(matchingObservations[i], false);
         if (features.size() == 0)
         {
             // recompute orb
-            SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(matchingObservations[i],true);
+
             unsigned found = matchingObservations[i].find_last_of("/");
             std::string base_path = matchingObservations[i].substr(0,found+1);
             RegistrationFeatures reg(false);
@@ -142,6 +153,9 @@ void execute(const calibrate_sweeps::CalibrateSweepsGoalConstPtr& goal, Server* 
     registeredPoses = semantic_map_registration_transforms::loadRegistrationTransforms(registeredPosesFile);
     ROS_INFO_STREAM("Calibration poses saved at: "<<registeredPosesFile);
 
+    std::string sweepParametersFile = semantic_map_registration_transforms::saveSweepParameters(complete_sweep_parameters);
+    ROS_INFO_STREAM("Calibration sweep parameters saved at: "<<sweepParametersFile);
+
     double*** rawPoses = rc->poses;
     unsigned int x,y;
     std::string rawPosesFile = semantic_map_registration_transforms::saveRegistrationTransforms(rawPoses, rc->todox,rc->todoy);
@@ -167,13 +181,24 @@ void execute(const calibrate_sweeps::CalibrateSweepsGoalConstPtr& goal, Server* 
     {
         SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(usedObs,true);
         auto origTransforms = aRoom.getIntermediateCloudTransforms();
-	aRoom.clearIntermediateCloudRegisteredTransforms();
-	aRoom.clearIntermediateCloudCameraParametersCorrected();
+        aRoom.clearIntermediateCloudRegisteredTransforms();
+        aRoom.clearIntermediateCloudCameraParametersCorrected();
+
+        std::vector<tf::StampedTransform> corresponding_registeredPoses;
+        corresponding_registeredPoses = semantic_map_registration_transforms::loadCorrespondingRegistrationTransforms(aRoom.m_SweepParameters);
+        ROS_INFO_STREAM("Corresponing registered poses "<<corresponding_registeredPoses.size()<<" original transforms "<<origTransforms.size());
+        if (corresponding_registeredPoses.size() != origTransforms.size()){
+            ROS_ERROR_STREAM("Cannot use registered poses to correct sweep: "<<usedObs);
+            continue;
+        }
+
         for (size_t i=0; i<origTransforms.size(); i++)
         {
             tf::StampedTransform transform = origTransforms[i];
-            transform.setOrigin(registeredPoses[i].getOrigin());
-            transform.setBasis(registeredPoses[i].getBasis());
+//            transform.setOrigin(registeredPoses[i].getOrigin());
+//            transform.setBasis(registeredPoses[i].getBasis());
+            transform.setOrigin(corresponding_registeredPoses[i].getOrigin());
+            transform.setBasis(corresponding_registeredPoses[i].getBasis());
             aRoom.addIntermediateCloudCameraParametersCorrected(aCameraModel);
             aRoom.addIntermediateRoomCloudRegisteredTransform(transform);
         }

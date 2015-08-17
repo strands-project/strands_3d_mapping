@@ -48,11 +48,11 @@
 #include <cv_bridge/cv_bridge.h>
 
 // application includes
-#include "load_utilities.h"
-#include "dynamic_object.h"
-#include "dynamic_object_xml_parser.h"
-#include "dynamic_object_utilities.h"
-#include "dynamic_object_mongodb_interface.h"
+#include <metaroom_xml_parser/load_utilities.h>
+#include "object_manager/dynamic_object.h"
+#include "object_manager/dynamic_object_xml_parser.h"
+#include "object_manager/dynamic_object_utilities.h"
+#include "object_manager/dynamic_object_mongodb_interface.h"
 
 template <class PointType>
 class ObjectManager {
@@ -127,6 +127,7 @@ private:
     bool                                                                        m_bTrackingStarted;
     DynamicObject::Ptr                                                          m_objectTracked;
     std::string                                                                 m_objectTrackedObservation; // for saving
+    int										m_MinClusterSize;
 };
 
 template <class PointType>
@@ -159,7 +160,10 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh) : m_TransformListene
         ROS_INFO_STREAM("The dynamic objects will NOT be logged to the database.");
     }
 
-    m_NodeHandle.param<std::string>("additional_views_topic",m_additionalViewsTopic,"/object_learning/object_view");
+    m_NodeHandle.param<int>("min_object_size",m_MinClusterSize,500);
+    ROS_INFO_STREAM("ObjectManager:: min object size set to "<<m_MinClusterSize);
+    
+m_NodeHandle.param<std::string>("additional_views_topic",m_additionalViewsTopic,"/object_learning/object_view");
     ROS_INFO_STREAM("The additional views topic is "<<m_additionalViewsTopic);
     m_SubscriberAdditionalObjectViews = m_NodeHandle.subscribe(m_additionalViewsTopic,1, &ObjectManager<PointType>::additionalViewsCallback,this);
 
@@ -542,7 +546,7 @@ std::vector<DynamicObject::Ptr>  ObjectManager<PointType>::loadDynamicObjectsFro
     sweep.dynamicClusterCloud = filterGroundClusters(sweep.dynamicClusterCloud, 0.2);
 
     double tolerance = 0.03;
-    int min_cluster_size = 800;
+    int min_cluster_size = m_MinClusterSize;
     int max_cluster_size = 10000;
     // split into clusters
     typename pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
@@ -663,9 +667,9 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
     pcl::FrustumCulling<PointType> fc;
     fc.setInputCloud (object_cloud);
     fc.setVerticalFOV (45);
-    fc.setHorizontalFOV (15);
-    fc.setNearPlaneDistance (.5);
-    fc.setFarPlaneDistance (3.5);
+    fc.setHorizontalFOV (55);
+    fc.setNearPlaneDistance (.2);
+    fc.setFarPlaneDistance (4.0);
 
     int max_overlap = 0;
     int best_index = -1;
@@ -781,8 +785,8 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         returned_object.object_mask = cluster_image;
 
         int pan_angle = 0, tilt_angle = 0;
-        semantic_map_registration_transforms::getPtuAnglesForIntPosition(observation.pan_start, observation.pan_step, observation.pan_end,
-                                                                         observation.tilt_start, observation.tilt_step, observation.tilt_end,
+        semantic_map_registration_transforms::getPtuAnglesForIntPosition(observation.m_SweepParameters.m_pan_start, observation.m_SweepParameters.m_pan_step, observation.m_SweepParameters.m_pan_end,
+                                                                         observation.m_SweepParameters.m_tilt_start, observation.m_SweepParameters.m_tilt_step, observation.m_SweepParameters.m_tilt_end,
                                                                          best_index, pan_angle, tilt_angle);
 
         returned_object.pan_angle = pan_angle;

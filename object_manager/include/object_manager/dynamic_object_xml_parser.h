@@ -7,7 +7,7 @@
 #include <QDebug>
 
 #include <fstream>
-#include "dynamic_object.h"
+#include "object_manager/dynamic_object.h"
 
 
 class DynamicObjectXMLParser {

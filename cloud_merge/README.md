@@ -1,7 +1,9 @@
 Package for building local metric maps
 ==========================
 
-# Dependencies
+# cloud_merge_node 
+
+## Dependencies
 
 Make sure you have Qt installed on the robot by getting the rqt packages:
 ```bash
@@ -10,92 +12,59 @@ sudo apt-get install ros-hydro-rqt
 sudo apt-get install ros-hydro-qt-build
 ```
 
-# Description 
+## Description 
 
-The local metric map consists of a series of meta-rooms, each corresponding to a different location. A meta-room contains only those parts of the scene which are observed to be static, and it is created incrementally as the robot re-observes the same location over time.
+The `cloud_merge_node` acquires data from the RGBD sensor, as the PTU unit does a sweep, stopping at various positions as provided as input to the `scitos_ptu ptu_pan_tilt_metric_map.py` action server. (As an alternative, one can use the `do_sweep.py` action server from this package, which provides a higher level interface to doing a sweep). 
 
-Some data is stored on the disk, in the folder
+As the PTU stops at a position, a number of RGBD frames are collected and averaged, with the purpose of reducing noise. Each one of these frames are converted to the global frame of reference, and merged together to form an observation point cloud, which is further processed by the `semantic_map semantic_map_node` node. 
+
+If the sweep intermediate positions have been calibrated (using the `calibrate_sweeps calibrate_sweep_as` action server) and the parameter `register_and_correct_sweep` is set to `true`, the collected sweeps are also registered. Note that this registration is for the intermediate point clouds making up the sweep, and not between two sweeps.
+
+The observations are stored on the disk, in the folder
 
 ```bash
 ~.semanticMap/ 
 ```
 
-This contains room observations (with or without individual point clouds) and meta-room information, each with a corresponding xml file. Whenever a new observation is available, the appropriate meta-room is loaded and updated. A statistical analyzer checks a set of previous observations for data which has been removed from the meta-room by mistake due to misalignment errors. The system is based on the assumption that the robots conducts patrol runs, and the patrol run number (or name) is used to keep track of room observations, which are stored inside the corresponding patrol folders. Both the patrol number and the observation ID are computed automatically. 
-
-Data is published on the following topics:
-
-* /local_metric_map/depth/depth_filtered - averaged depth frames corresponding to an intermediate position
-* /local_metric_map/depth/rgb_filtered - averaged RGB frames corresponding to an intermediate position
-* /local_metric_map/intermediate_point_cloud - RGBD point cloud corresponding to an intermediate position
-* /local_metric_map/merged_point_cloud - RGBD point cloud corresponding to a complete observation
-
-
-# Local metric map nodes
-
-To run the metric map nodes do the following:
-
-```bash
+To start the `cloud_merge_node`, run:
+```
 roslaunch cloud_merge cloud_merge.launch
 ```
 
-Launch parameters:
-* save_intermediate (true/false)- whether to save the intermediate point clouds to disk; default true
-* cleanup (true/false) - whether to remove previously saved data; default false
-* generate_pointclouds (true/false) - generate point clouds from RGBD images or use the point clouds produced by the camera driver directly; default true
-* log_to_db (true/false) - whether to log data to mongodb database
-* voxel_size_table_top (double) - the cell size to downsample the merged point cloud to before being published for detecting table tops; default 0.01 m
-* voxel_size_observation (double) - the cell size to downsample the merge point cloud to for visualisation purposes in rviz; default 0.03 m
-* point_cutoff_distance (double) - maximum distance after which data should be discarded when constructing the merged point cloud; default 4.0 m
-* max_instances (int) - how many instances of each observation to keep stored on disk; default 2
-* input_cloud - name of the topic for the RGBD input point clouds (this is used when generate_pointclouds is false); default /depth_registered/points
-* input_rgb - name of the topic for the RGB image (this is used when generate_pointclouds is true); default /head_xtion/rgb/image_color
-* input_depth - name of the topic for the depth image (this is used when generate_pointclouds is true); default /head_xtion/depth_registered/image_rect 
-* input_caminfo - name of the topic for the camera parameters (this is used when generate_pointclouds is true); default /head_xtion/rgb/camera_info
 
 
-You can also run 
+### Input topics
 
-```bash
-roslaunch cloud_merge mapping.launch
-```
-This will start both the `cloud_merge` node and the `semantic_map` node. 
+ * `/ptu/log`  : this topic provides information about the sweep (i.e. parameters, started, position reached, finished).
+ * `/current_node` : the waypoint id received on this topic is associated with the sweep collected
 
-## Start the pan tilt action server:
-```bash
-rosrun scitos_ptu ptu_action_server_metric_map.py
-```
+### Output topics    
 
-# How to run and check that everything is working
+* `/local_metric_map/intermediate_point_cloud` - RGBD point cloud corresponding to an intermediate position
+* `/local_metric_map/merged_point_cloud` - merged point cloud with resolution specified by the `voxel_size_table_top` parameter
+* `/local_metric_map/merged_point_cloud_downsampled` - merged point cloud with resolution specified by the `voxel_size_observation` parameter
+* `/local_metric_map/depth/depth_filtered` - averaged depth frames corresponding to an intermediate position
+* `/local_metric_map/rgb/rgb_filtered` - averaged RGB frames corresponding to an intermediate position
+* `/local_metric_map/depth/camera_info` - camera info message corresponding to the image published on the `/local_metric_map/depth/depth_filtered` topic
+* `/local_metric_map/rgb/camera_info` - camera info message corresponding to the image published on the `/local_metric_map/rgb/rgb_filtered` topic
+* `/local_metric_map/room_observations` - string message containing the absolute path to the xml file corresponding to the collected sweep. This is used by the `semantic_map semantic_map_node` to trigger a Meta-Room update. 
 
-Start the mapping nodes on the machine where you have connected the head camera:
+### Parameters:
 
-```bash
-roslaunch cloud_merge mapping.launch
-```
+* `save_intermediate` (true/false)- whether to save the intermediate point clouds to disk; default `true`
+* `cleanup` (true/false) - whether to remove previously saved data from `~/.semanticMap/`; default `false`
+* `generate_pointclouds` (true/false) - generate point clouds from RGBD images or use the point clouds produced by the camera driver directly; default `true`. Note that setting `false` here has not been used for a while and might not work as expected. 
+* `log_to_db` (true/false) - whether to log data to mongodb database; default `true`
+* `voxel_size_table_top` (double) - the cell size to downsample the merged point cloud to before being published for detecting table tops; default `0.01 m`
+* `voxel_size_observation` (double) - the cell size to downsample the merge point cloud to for visualisation purposes in rviz; default `0.03 m`
+* `point_cutoff_distance` (double) - maximum distance after which data should be discarded when constructing the merged point cloud; default `4.0 m`
+* `max_instances` (int) - how many instances of each observation to keep stored on disk; default `2`
+* `input_cloud` - name of the topic for the RGBD input point clouds (this is used when `generate_pointclouds` is `false`); default `/depth_registered/points`. Note: this has not been used for a while and might not work as expected.
+* `input_rgb` - name of the topic for the RGB image (this is used when generate_pointclouds is true); default `/head_xtion/rgb/image_color`
+* `input_depth` - name of the topic for the depth image (this is used when generate_pointclouds is true); default `/head_xtion/depth/image_raw` 
+* `input_caminfo` - name of the topic for the camera parameters (this is used when generate_pointclouds is true); default `/head_xtion/rgb/camera_info`
 
-Start the ptu action server on the computer where you have access to the scitos header:
-
-```bash
-rosrun scitos_ptu ptu_action_server_metric_map.py 
-```
-
-Add a sweep task to the scheduler (python):
-
-```bash
-def create_3d_scan_task(waypoint_name):
-    task = Task(start_node_id=waypoint_name, end_node_id=waypoint_name, action='ptu_pan_tilt_metric_map', max_duration=rospy.Duration(240))
-    task_utils.add_int_argument(task, '-160')
-    task_utils.add_int_argument(task, '20')
-    task_utils.add_int_argument(task, '160')
-    task_utils.add_int_argument(task, '-25')
-    task_utils.add_int_argument(task, '25')
-    task_utils.add_int_argument(task, '25')
-    return task
-```
- 
-Execute a few sweeps. Some data will be stored on the disk, at `~.semanticMap/`, in particular a fixed number of observations (or sweep data) at each waypoint, determined by the value set in the `max_instances` parameter. Old data will be deleted automatically. 
-
-In addition, if the parameter `log_to_db` is set to `true`, sweep data will be logged to the mongodb database in the `metric_maps` database. 
+### Extracting data from mongodb
 
 After logging some data, you can extract if from the database and saved it to disk in a folder of your choice using:
 
@@ -109,4 +78,23 @@ After extracting data from the database, you can load all the recorded observati
 rosrun metaroom_xml_parser load_multiple_files /path/where/to/load/from/
 ```
 
-(Note the `/` at the end of the path in the command above). The [file](  https://github.com/RaresAmbrus/strands_3d_mapping/blob/hydro-devel/metaroom_xml_parser/src/loadMultipleFilesMain.cpp)  should be a good starting point if you want to use the logged data.  
+(Note the `/` at the end of the path in the command above). 
+
+# do_sweeps.py
+
+To start the action server manually:
+
+```rosrun cloud_merge do_sweep.py```
+
+Use:
+
+```rosrun actionlib axclient.py /do_sweep```
+
+This action server takes as input a string, with the following values defined: "complete", "medium", "short", "shortest". Internally the action server from `scitos_ptu ptu_action_server_metric_map.py` is used, so make sure that is running.
+
+The behavior is the following:
+
+If sweep type is `complete`, the sweep is started with parameters `-160 20 160 -30 30 30` -> 51 positions
+If sweep type is `medium`, the sweep is started with parameters `-160 20 160 -30 30 -30` -> 17 positions
+If sweep type is `short`, the sweep is started with parameters `-160 40 160 -30 30 -30` -> 9 positions
+If sweep type is `shortest`, the sweep is started with parameters `-160 60 140 -30 30 -30` -> 6 positions (there might be blank areas with this sweep type, depending on the environment).

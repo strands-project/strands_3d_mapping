@@ -52,10 +52,10 @@ catkin_package(
 
 set(HDRS
 
-    include/dynamic_object.h
-    include/dynamic_object_utilities.h
-    include/dynamic_object_xml_parser.h
-    include/dynamic_object_mongodb_interface.h
+    include/object_manager/dynamic_object.h
+    include/object_manager/dynamic_object_utilities.h
+    include/object_manager/dynamic_object_xml_parser.h
+    include/object_manager/dynamic_object_mongodb_interface.h
 )
 
 set(SRCS
@@ -72,7 +72,7 @@ include_directories(include
 
 add_library(dynamic_object ${HDRS} ${SRCS})
 
-add_executable(object_manager_node   ${HDRS} ${SRCS} include/object_manager.h src/object_manager.cpp src/object_manager_main.cpp)
+add_executable(object_manager_node   ${HDRS} ${SRCS} include/object_manager/object_manager.h src/object_manager.cpp src/object_manager_main.cpp)
 add_dependencies(object_manager_node object_manager_node_generate_messages_cpp)
 
 add_executable(load_objects_from_mongo ${HDRS} ${SRCS} src/load_objects_from_mongo.cpp)
@@ -81,27 +81,30 @@ add_dependencies(load_objects_from_mongo load_objects_from_mongo_generate_messag
  target_link_libraries(dynamic_object
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
   )
 
  target_link_libraries(object_manager_node
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
   )
 
  target_link_libraries(load_objects_from_mongo
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
   )
 
 ############################# INSTALL TARGETS
 
-install(TARGETS object_manager_node load_objects_from_mongo
+install(TARGETS dynamic_object object_manager_node load_objects_from_mongo
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(DIRECTORY include/
+install(DIRECTORY include/object_manager/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 

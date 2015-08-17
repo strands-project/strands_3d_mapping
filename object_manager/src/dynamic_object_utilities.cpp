@@ -1,4 +1,4 @@
-#include "dynamic_object_utilities.h"
+#include "object_manager/dynamic_object_utilities.h"
 #include <QDir>
 
 using namespace std;

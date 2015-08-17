@@ -201,6 +201,7 @@ public:
 
         CloudPtr filtered_cloud(new Cloud);
         extract.filter (*filtered_cloud);
+        filtered_cloud->header = input->header;
 
         *input = *filtered_cloud;
 

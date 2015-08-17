@@ -49,6 +49,7 @@
 #include <semantic_map/reg_features.h>
 #include <semantic_map/room_utilities.h>
 #include <semantic_map/mongodb_interface.h>
+#include <semantic_map/sweep_parameters.h>
 
 #include "cloud_merge.h"
 
@@ -127,6 +128,7 @@ private:
 
     double                                                                      m_VoxelSizeTabletop;
     double                                                                      m_VoxelSizeObservation;
+    double                                                                      m_CutoffDistance;
     bool                                                                        m_bRegisterAndCorrectSweep;
     std::string                                                                 m_sRegisteredPoseLocation;
 
@@ -308,13 +310,12 @@ CloudMergeNode<PointType>::CloudMergeNode(ros::NodeHandle nh) : m_TransformListe
 
     m_NodeHandle.param<double>("voxel_size_table_top",m_VoxelSizeTabletop,0.01);
     m_NodeHandle.param<double>("voxel_size_observation",m_VoxelSizeObservation,0.05);
-    double cutoffDistance;
-    m_NodeHandle.param<double>("point_cutoff_distance",cutoffDistance,4.0);
-    m_CloudMerge.setMaximumPointDistance(cutoffDistance);
+    m_NodeHandle.param<double>("point_cutoff_distance",m_CutoffDistance,4.0);
+    m_CloudMerge.setMaximumPointDistance(m_CutoffDistance);
 
     ROS_INFO_STREAM("Voxel size for the table top point cloud is "<<m_VoxelSizeTabletop);
     ROS_INFO_STREAM("Voxel size for the observation and metaroom point cloud is "<<m_VoxelSizeObservation);
-    ROS_INFO_STREAM("Point cutoff distance set to "<<cutoffDistance);
+    ROS_INFO_STREAM("Point cutoff distance set to "<<m_CutoffDistance);
 
 
     m_NodeHandle.param<bool>("register_and_correct_sweep",m_bRegisterAndCorrectSweep,true);
@@ -437,26 +438,16 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
         ROS_INFO_STREAM("Pan tilt sweep stopped");
         m_bAquisitionPhase = false;
 
-        // publish the merged cloud for table detection
-        m_CloudMerge.subsampleMergedCloud(m_VoxelSizeTabletop,m_VoxelSizeTabletop,m_VoxelSizeTabletop);
+        // publish the merged cloud for table detection        
         CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
         if (merged_cloud->points.size() != 0)
         { // only process this room if it has any points
-
-            sensor_msgs::PointCloud2 msg_cloud;
-            pcl::toROSMsg(*merged_cloud, msg_cloud);
-            m_PublisherMergedCloud.publish(msg_cloud);
-
 
             CloudPtr merged_cloud = m_CloudMerge.getMergedCloud();
             // add complete cloud to semantic room
             aSemanticRoom.setCompleteRoomCloud(merged_cloud);
 
-            // subsample again for visualization and metaroom purposes
-            m_CloudMerge.subsampleMergedCloud(m_VoxelSizeObservation,m_VoxelSizeObservation,m_VoxelSizeObservation);
-            merged_cloud = m_CloudMerge.getMergedCloud();
-            pcl::toROSMsg(*merged_cloud, msg_cloud);
-            m_PublisherMergedCloudDownsampled.publish(msg_cloud);
+
 
             // set room end time
             aSemanticRoom.setRoomLogEndTime(ros::Time::now().toBoost());
@@ -495,8 +486,12 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             if (m_bRegisterAndCorrectSweep)
             {
                 // load precalibrated camera poses
-                std::vector<tf::StampedTransform> regTransforms = semantic_map_registration_transforms::loadRegistrationTransforms("default", true);
-                if (regTransforms.size() != aSemanticRoom.getIntermediateClouds().size())
+//                std::vector<tf::StampedTransform> regTransforms = semantic_map_registration_transforms::loadRegistrationTransforms("default", true);
+               std::vector<tf::StampedTransform> corresponding_registeredPoses;
+               corresponding_registeredPoses = semantic_map_registration_transforms::loadCorrespondingRegistrationTransforms(aSemanticRoom.m_SweepParameters);
+                ROS_INFO_STREAM("Corresponing registered poses "<<corresponding_registeredPoses.size()<<" original transforms "<<aSemanticRoom.getIntermediateCloudTransforms().size());
+
+                if (corresponding_registeredPoses.size() != aSemanticRoom.getIntermediateClouds().size())
                 {
                     ROS_ERROR_STREAM("Cannot correct sweep as the number of precalibrated sweep poses is not the same as the number of intermediate point clouds in this sweep "/*<<regTransforms.size<<"  "<<aSemanticRoom.getIntermediateClouds().size()*/);
                 } else {
@@ -522,8 +517,10 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     for (size_t i=0; i<origTransforms.size(); i++)
                     {
                         tf::StampedTransform transform = origTransforms[i];
-                        transform.setOrigin(regTransforms[i].getOrigin());
-                        transform.setBasis(regTransforms[i].getBasis());
+                        transform.setOrigin(corresponding_registeredPoses[i].getOrigin());
+                        transform.setBasis(corresponding_registeredPoses[i].getBasis());
+//                        transform.setOrigin(regTransforms[i].getOrigin());
+//                        transform.setBasis(regTransforms[i].getBasis());
                         aSemanticRoom.addIntermediateCloudCameraParametersCorrected(aCameraModel);
                         aSemanticRoom.addIntermediateRoomCloudRegisteredTransform(transform);
                     }
@@ -534,12 +531,13 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                     // transform merged cloud to map frame
                     CloudPtr completeCloud = aSemanticRoom.getCompleteRoomCloud();
                     pcl_ros::transformPointCloud(*completeCloud, *completeCloud,origin);
+                    completeCloud = CloudMerge<PointType>::filterPointCloud(completeCloud, m_CutoffDistance); // distance filtering
                     ROS_INFO_STREAM("..done");
                     aSemanticRoom.setCompleteRoomCloud(completeCloud);
                     std::string roomXMLPath = parser.saveRoomAsXML(aSemanticRoom);
                     unsigned found = roomXMLPath.find_last_of("/");
                     std::string base_path = roomXMLPath.substr(0,found+1);
-                    RegistrationFeatures reg(true);
+                    RegistrationFeatures reg(false);
                     reg.saveOrbFeatures<PointType>(aSemanticRoom,base_path);
 
                 }
@@ -557,6 +555,28 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
             }
 
             m_PublisherRoomObservation.publish(obs_msg);
+
+            // publishing the observation cloud
+            CloudPtr completeCloud = aSemanticRoom.getCompleteRoomCloud();
+            CloudPtr subsampled_cloud (new Cloud);
+            pcl::VoxelGrid<PointType> vg;
+            vg.setInputCloud (completeCloud);
+            vg.setLeafSize (m_VoxelSizeTabletop,m_VoxelSizeTabletop,m_VoxelSizeTabletop);
+            vg.filter (*subsampled_cloud);
+
+            sensor_msgs::PointCloud2 msg_cloud;
+            pcl::toROSMsg(*subsampled_cloud, msg_cloud);
+            m_PublisherMergedCloud.publish(msg_cloud);
+
+            // subsample again for visualization and metaroom purposes
+            subsampled_cloud->clear();
+            vg.setInputCloud (completeCloud);
+            vg.setLeafSize (m_VoxelSizeObservation,m_VoxelSizeObservation,m_VoxelSizeObservation);
+            vg.filter (*subsampled_cloud);
+
+            sensor_msgs::PointCloud2 sub_msg_cloud;
+            pcl::toROSMsg(*subsampled_cloud, sub_msg_cloud);
+            m_PublisherMergedCloudDownsampled.publish(sub_msg_cloud);
 
             if (m_bLogToDB)
             {
@@ -692,6 +712,19 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
         m_CloudMerge.resetIntermediateCloud();
         m_CloudMerge.resetMergedCloud();
+    }
+
+
+    std::string parameters_string("sweep_parameters");
+    if (std::equal(parameters_string.begin(), parameters_string.end(), controlString.data.begin()) && m_bAquisitionPhase){
+        ROS_INFO_STREAM("Sweep paramters "<<controlString.data);
+        int pan_start, pan_step, pan_end, tilt_start, tilt_step, tilt_end;
+        std::stringstream ss(controlString.data);
+        std::string temp; ss>>temp;
+        ss>>pan_start; ss>>pan_step; ss>>pan_end; ss>>tilt_start; ss>>tilt_step; ss>>tilt_end;
+        SweepParameters sweepParams(pan_start, pan_step, pan_end, tilt_start, tilt_step, tilt_end);
+        aSemanticRoom.setSweepParameters(sweepParams);
+        ROS_INFO_STREAM("Sweep will have "<<sweepParams.getNumberOfIntermediatePositions()<<" intermediate positions");
     }
 }
 

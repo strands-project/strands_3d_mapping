@@ -16,6 +16,7 @@ template <class PointType>
 void RoomBase<PointType>::setCompleteRoomCloud(CloudPtr completeCloud)
 {
     *m_CompleteRoomCloud = *completeCloud;
+    m_CompleteRoomCloud->header = completeCloud->header;
     m_CompleteRoomCloudLoaded = true;
 
     // compute and set the centroid

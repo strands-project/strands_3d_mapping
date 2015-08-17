@@ -293,3 +293,112 @@ void semantic_map_registration_transforms::getPtuAnglesForIntPosition(int pan_st
         cout<<"For intermediate position "<<int_position<<" the PTU angles are pan: "<<pan_angle<<"  tilt: "<<tilt_angle<<endl;
     }
 }
+
+std::string semantic_map_registration_transforms::saveSweepParameters(SweepParameters sweepParams, bool verbose, std::string file)
+{
+    // get home folder
+    passwd* pw = getpwuid(getuid());
+    std::string path(pw->pw_dir);
+
+    path+="/.ros/";
+    if ( ! boost::filesystem::exists( path ) )
+    {
+        if (!boost::filesystem::create_directory(path))
+        {
+            cerr<<"Cannot create folder "<<path<<endl;
+            return "";
+        }
+    }
+
+    path+="semanticMap/";
+    if ( ! boost::filesystem::exists( path ) )
+    {
+        if (!boost::filesystem::create_directory(path))
+        {
+            cerr<<"Cannot create folder "<<path<<endl;
+            return "";
+        }
+    }
+
+    string fileName = path+file;
+    if (verbose)
+    {
+        cout<<"Saving sweep parameters data at "<<fileName<<endl;
+    }
+
+    ofstream out;
+    out.open(fileName);
+
+    out<<sweepParams.m_pan_start<<" "<<sweepParams.m_pan_step<<" "<<sweepParams.m_pan_end<<" "<<sweepParams.m_tilt_start<<" "<<sweepParams.m_tilt_step<<" "<<sweepParams.m_tilt_end;
+
+    out.close();
+    return fileName;
+}
+
+void semantic_map_registration_transforms::loadSweepParameters(SweepParameters& sweepParams, bool verbose, std::string file)
+{
+    double*** toRet;
+
+    if (file == "default") // load data from the default path
+    {
+        passwd* pw = getpwuid(getuid());
+        std::string path(pw->pw_dir);
+
+        path+="/.ros/semanticMap/sweep_paramters.txt";
+        file = path;
+    }
+
+    if (verbose)
+    {
+        cout<<"Loading sweep parameters from "<<file<<endl;
+    }
+
+    ifstream fin;
+    fin.open(file);
+
+    if (!fin.good())
+    {
+        return;
+    }
+
+    fin>>sweepParams.m_pan_start>>sweepParams.m_pan_step>>sweepParams.m_pan_end>>sweepParams.m_tilt_start>>sweepParams.m_tilt_step>>sweepParams.m_tilt_end;
+    fin.close();
+    return;
+}
+
+
+std::vector<tf::StampedTransform> semantic_map_registration_transforms::loadCorrespondingRegistrationTransforms(SweepParameters my_sweep_params,
+                                                                          std::string transforms_file,
+                                                                          std::string sweep_params_file,
+                                                                          bool verbose)
+{
+    // load calibrated data
+    std::vector<tf::StampedTransform> allTransforms = semantic_map_registration_transforms::loadRegistrationTransforms(transforms_file, verbose);
+    std::vector<tf::StampedTransform> empty;
+    std::vector<tf::StampedTransform> toRet;
+    SweepParameters calibrate_sweep_parameters;
+    semantic_map_registration_transforms::loadSweepParameters(calibrate_sweep_parameters, verbose, sweep_params_file);
+
+    // find matching transforms for current sweep parameters from calibrate sweep parameters
+    int number_of_positions = my_sweep_params.getNumberOfIntermediatePositions();
+    for (int k=0; k<number_of_positions; k++){
+        int corresp_pos;
+        my_sweep_params.findCorrespondingPosition(calibrate_sweep_parameters,k, corresp_pos);
+        if (corresp_pos == -1){
+            cerr<<"Error while finding corresponding registered transform. Sweep parameters: "<<my_sweep_params<<endl;
+            return empty; // could not find a corresponding position
+        }
+        int my_pan, my_tilt, their_pan, their_tilt;
+        my_sweep_params.getAnglesForPosition(my_pan, my_tilt, k);
+        calibrate_sweep_parameters.getAnglesForPosition(their_pan, their_tilt, corresp_pos);
+        if ((my_pan != their_pan) ||(my_tilt != their_tilt)){
+            cerr<<"Error while finding corresponding registered transform. Sweep parameters: "<<my_sweep_params<<endl;
+            cerr<<"Calibrated sweep parameters "<<calibrate_sweep_parameters<<endl;
+            cerr<<"Current position "<<k<<". Sweep angles "<<my_pan<<" "<<my_tilt<<". Calibrated sweep angles "<<their_pan<<" "<<their_tilt<<endl;
+            return empty;
+        }
+        toRet.push_back(allTransforms[corresp_pos]); // add the corresponding transform
+    }
+
+    return toRet;
+}

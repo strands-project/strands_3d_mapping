@@ -1,4 +1,4 @@
-#include "cloud_merge_node.h"
+#include "cloud_merge/cloud_merge_node.h"
 
 void callback(const std_msgs::String& controlString)
 {

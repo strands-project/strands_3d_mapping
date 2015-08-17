@@ -248,12 +248,12 @@ std::string SemanticRoomXMLParser<PointType>::saveRoomAsXML(SemanticRoom<PointTy
 
     // RoomIntermediateClouds
     xmlWriter->writeStartElement("RoomIntermediateClouds");
-    xmlWriter->writeAttribute("pan_start",QString::number(aRoom.pan_start));
-    xmlWriter->writeAttribute("pan_step",QString::number(aRoom.pan_step));
-    xmlWriter->writeAttribute("pan_end",QString::number(aRoom.pan_end));
-    xmlWriter->writeAttribute("tilt_start",QString::number(aRoom.tilt_start));
-    xmlWriter->writeAttribute("tilt_step",QString::number(aRoom.tilt_step));
-    xmlWriter->writeAttribute("tilt_end",QString::number(aRoom.tilt_end));
+    xmlWriter->writeAttribute("pan_start",QString::number(aRoom.m_SweepParameters.m_pan_start));
+    xmlWriter->writeAttribute("pan_step",QString::number(aRoom.m_SweepParameters.m_pan_step));
+    xmlWriter->writeAttribute("pan_end",QString::number(aRoom.m_SweepParameters.m_pan_end));
+    xmlWriter->writeAttribute("tilt_start",QString::number(aRoom.m_SweepParameters.m_tilt_start));
+    xmlWriter->writeAttribute("tilt_step",QString::number(aRoom.m_SweepParameters.m_tilt_step));
+    xmlWriter->writeAttribute("tilt_end",QString::number(aRoom.m_SweepParameters.m_tilt_end));
 
     std::vector<CloudPtr> roomIntermediateClouds = aRoom.getIntermediateClouds();
     std::vector<tf::StampedTransform> roomIntermediateCloudTransforms = aRoom.getIntermediateCloudTransforms();    
@@ -496,7 +496,9 @@ void SemanticRoomXMLParser<PointType>::saveIntermediateImagesToXML(SemanticRoom<
 template <class PointType>
 SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const std::string& xmlFile, bool deepLoad, bool verbose)
 {
-    ROS_INFO_STREAM("Loading room from "<<xmlFile);
+    if (verbose){
+        ROS_INFO_STREAM("Loading room from "<<xmlFile);
+    }
     SemanticRoom<PointType> aRoom;
 
 
@@ -721,32 +723,32 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
                 if (attributes.hasAttribute("pan_start"))
                 {
                     QString val = attributes.value("pan_start").toString();
-                    aRoom.pan_start = val.toInt();
+                    aRoom.m_SweepParameters.m_pan_start = val.toInt();
                 }
                 if (attributes.hasAttribute("pan_step"))
                 {
                     QString val = attributes.value("pan_step").toString();
-                    aRoom.pan_step = val.toInt();
+                    aRoom.m_SweepParameters.m_pan_step = val.toInt();
                 }
                 if (attributes.hasAttribute("pan_end"))
                 {
                     QString val = attributes.value("pan_end").toString();
-                    aRoom.pan_end = val.toInt();
+                    aRoom.m_SweepParameters.m_pan_end = val.toInt();
                 }
                 if (attributes.hasAttribute("tilt_start"))
                 {
                     QString val = attributes.value("tilt_start").toString();
-                    aRoom.tilt_start = val.toInt();
+                    aRoom.m_SweepParameters.m_tilt_start = val.toInt();
                 }
                 if (attributes.hasAttribute("tilt_step"))
                 {
                     QString val = attributes.value("tilt_step").toString();
-                    aRoom.tilt_step = val.toInt();
+                    aRoom.m_SweepParameters.m_tilt_step = val.toInt();
                 }
                 if (attributes.hasAttribute("tilt_end"))
                 {
                     QString val = attributes.value("tilt_end").toString();
-                    aRoom.tilt_end = val.toInt();
+                    aRoom.m_SweepParameters.m_tilt_end = val.toInt();
                 }
             }
 
@@ -803,8 +805,9 @@ SemanticRoom<PointType> SemanticRoomXMLParser<PointType>::loadRoomFromXML(const 
 
     delete xmlReader;
 
-
-    ROS_INFO_STREAM("... finished loading.");
+    if (verbose){
+        ROS_INFO_STREAM("... finished loading.");
+    }
     return aRoom;
 }
 
