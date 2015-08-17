@@ -523,6 +523,9 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
     }
 
     // publish dynamic clusters
+    // transform back into the sweep frame of ref (before metaroom registration, to align with the previously published sweep point cloud)
+    Eigen::Matrix4f inverseRoomTransform = aRoom.getRoomTransform().inverse();
+    pcl::transformPointCloud (*dynamicClusters, *dynamicClusters, inverseRoomTransform);
     sensor_msgs::PointCloud2 msg_clusters;
     pcl::toROSMsg(*dynamicClusters, msg_clusters);
     msg_clusters.header.frame_id="/map";
