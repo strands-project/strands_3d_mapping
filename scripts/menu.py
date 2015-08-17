@@ -29,8 +29,8 @@ class ExecutablePicker(object):
         while True:
 
             print (" \n"
-                   " Please make sure to do the following in order"
-                   " with all of your data folders\n"
+                   " Please make sure to do the following in order both"
+                   " for the noise data folder and for the annotated data\n"
                    " \n"
                    " Working on data path " + self.data_path + "\n"
                    " \n"
