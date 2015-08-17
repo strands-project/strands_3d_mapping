@@ -667,7 +667,7 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
     pcl::FrustumCulling<PointType> fc;
     fc.setInputCloud (object_cloud);
     fc.setVerticalFOV (45);
-    fc.setHorizontalFOV (15);
+    fc.setHorizontalFOV (55);
     fc.setNearPlaneDistance (.5);
     fc.setFarPlaneDistance (3.5);
 
