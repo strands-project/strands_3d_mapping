@@ -125,6 +125,7 @@ private:
     std::map<std::string, std::string>                                          m_waypointToSweepFileMap;
     bool                                                                        m_bLogToDB;
     bool                                                                        m_bTrackingStarted;
+    bool                                                                        m_bSaveMask;
     DynamicObject::Ptr                                                          m_objectTracked;
     std::string                                                                 m_objectTrackedObservation; // for saving
     int										m_MinClusterSize;
@@ -159,6 +160,15 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh) : m_TransformListene
     } else {
         ROS_INFO_STREAM("The dynamic objects will NOT be logged to the database.");
     }
+    m_NodeHandle.param<bool>("save_mask",m_bSaveMask,true);
+    if (m_bLogToDB)
+    {
+        ROS_INFO_STREAM("The dynamic object mask (image and indices) will be saved on the disk.");
+    } else {
+        ROS_INFO_STREAM("The dynamic object mask (image and indices) will NOT be saved on the disk.");
+    }
+
+
 
     m_NodeHandle.param<int>("min_object_size",m_MinClusterSize,500);
     ROS_INFO_STREAM("ObjectManager:: min object size set to "<<m_MinClusterSize);
@@ -775,6 +785,7 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
 //        cv::imwrite("image.jpg", cluster_image);
 //        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
 
+
         const Eigen::Affine3d eigenTr(best_transform.cast<double>());
         tf::transformEigenToTF(eigenTr,returned_object.transform_to_map);
         returned_object.object_cloud = CloudPtr(new Cloud());
@@ -783,6 +794,24 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
 
         returned_object.object_indices.insert(returned_object.object_indices.begin(), src_indices.begin(),src_indices.end());
         returned_object.object_mask = cluster_image;
+
+        // save mask and indices
+        if (m_bSaveMask) {
+            // find observation folder
+            int slash_pos = observation_xml.find_last_of("/");
+            std::string observation_folder = observation_xml.substr(0, slash_pos);
+            std::string mask_image = observation_folder + "/" + object_id + "_mask.jpg";
+            cv::imwrite(mask_image, cluster_image);
+            std::string mask_indices = observation_folder + "/" + object_id + "_mask.txt";
+            ofstream mask_indices_os;
+            mask_indices_os.open(mask_indices);
+            for (int index : returned_object.object_indices){
+                mask_indices_os << index<<" ";
+            }
+            mask_indices_os.close();
+            ROS_INFO_STREAM("Object mask saved at: "<<mask_image);
+            ROS_INFO_STREAM("Object mask indices saved at: "<<mask_indices);
+        }
 
         int pan_angle = 0, tilt_angle = 0;
         semantic_map_registration_transforms::getPtuAnglesForIntPosition(observation.m_SweepParameters.m_pan_start, observation.m_SweepParameters.m_pan_step, observation.m_SweepParameters.m_pan_end,

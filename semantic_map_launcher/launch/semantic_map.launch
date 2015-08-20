@@ -5,6 +5,7 @@
   <arg name="save_intermediate_images" default="false" />
   <arg name="log_to_db" default="true" />
   <arg name="log_objects_to_db" default="true" />
+  <arg name="save_mask" default="true" />
   <arg name="cleanup" default="false" />
   <arg name="cache_old_data" default="false" />
   <arg name="max_instances" default="10" />
@@ -53,6 +54,7 @@
     <node machine="$(arg machine)" pkg="object_manager" type="object_manager_node" name="object_manager_node" output="screen" respawn="true">
         <param name="log_objects_to_db" value="$(arg log_objects_to_db)"/>
         <param name="min_object_size" value="$(arg min_object_size)"/>
+        <param name="save_mask" value="$(arg save_mask)"/>
     </node>
 
         <node name="do_sweep" pkg="cloud_merge" type="do_sweep.py" output="screen" respawn="true">
