@@ -33,7 +33,7 @@ string annotation_for_scan(int i, object_retrieval& obr)
         ifstream f;
         f.open(annotations_file);
         f >> annotation;
-        f.close();
+        f.close(); 
     }
     return annotation;
 }

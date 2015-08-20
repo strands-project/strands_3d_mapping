@@ -8,7 +8,7 @@
 #include "object_3d_retrieval/pfhrgb_estimation.h"
 #include "object_3d_retrieval/register_objects.h"
 
-#include "simple_xml_parser.h"
+#include <metaroom_xml_parser/simple_xml_parser.h>
 #include <tf_conversions/tf_eigen.h>
 
 #include <cereal/archives/binary.hpp>

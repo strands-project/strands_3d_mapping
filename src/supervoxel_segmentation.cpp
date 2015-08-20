@@ -3,21 +3,19 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/filters/approximate_voxel_grid.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
 #include <boost/graph/graph_utility.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/iteration_macros.hpp>
 #include <boost/graph/graph_traits.hpp>
-#include <boost/graph/graphviz.hpp>
 #include <boost/graph/one_bit_color_map.hpp>
 #include <boost/graph/stoer_wagner_min_cut.hpp>
 #include <boost/range/adaptor/reversed.hpp>
+#include <boost/graph/copy.hpp>
 
 #include <unordered_map>
-
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
 
 #include <cereal/archives/binary.hpp>
 
@@ -125,6 +123,8 @@ void supervoxel_segmentation::preprocess_cloud(CloudT::Ptr& cloud_out, CloudT::P
     outrem.filter(*cloud_out);
 }
 
+// this might be more useful if it takes as input two point clouds and two
+// normal clouds
 float supervoxel_segmentation::boundary_convexness(VoxelT::Ptr& first_supervoxel,
                                                    VoxelT::Ptr& second_supervoxel)
 {
@@ -187,33 +187,6 @@ float supervoxel_segmentation::boundary_convexness(VoxelT::Ptr& first_supervoxel
     mean_prod /= count;
 
     return mean_prod;
-}
-
-void supervoxel_segmentation::visualize_boost_graph(Graph& graph_in)
-{
-    string filename = "tmp.dot";
-    string imagefile = "tmp.png";
-    std::ofstream file;
-    file.open(filename);
-    boost::write_graphviz(file, graph_in);
-    file.close();
-    std::string command = "dot -Tpng " + filename + " > " + imagefile;
-    system(command.c_str());
-    //command = "gvfs-open " + imagefile;
-    //system(command.c_str());
-
-    cv::Mat image;
-    image = cv::imread(imagefile, CV_LOAD_IMAGE_COLOR);   // Read the file
-
-    if(!image.data) {
-        cout <<  "Could not open or find the image" << endl ;
-        exit(0);
-    }
-
-    cv::namedWindow("Display window", cv::WINDOW_AUTOSIZE);// Create a window for display.
-    cv::imshow("Display window", image);                   // Show our image inside it.
-
-    cv::waitKey(0);
 }
 
 void supervoxel_segmentation::graph_cut(vector<Graph*>& graphs_out, Graph& graph_in, float threshold)
@@ -457,8 +430,8 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph
     supervoxel_map supervoxel_clusters;
     multimap<uint32_t, uint32_t> supervoxel_adjacency;
 
-    bool use_transform = true; // false this far
-    float seed_resolution = 0.1f;
+    bool use_transform = false; // false this far
+    float seed_resolution = 0.2f;
     float color_importance = 0.6f;
     float spatial_importance = 0.4f;
     float normal_importance = 1.0f;
@@ -509,7 +482,8 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph
     return graph;
 }
 
-void supervoxel_segmentation::visualize_segments(vector<CloudT::Ptr>& clouds_out)
+// add option to subsample here
+void supervoxel_segmentation::visualize_segments(vector<CloudT::Ptr>& clouds_out, bool subsample)
 {
     int colormap[][3] = {
         {166,206,227},
@@ -562,8 +536,21 @@ void supervoxel_segmentation::visualize_segments(vector<CloudT::Ptr>& clouds_out
 
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
     viewer->setBackgroundColor(1, 1, 1);
-    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(colored_cloud);
-    viewer->addPointCloud<PointT>(colored_cloud, rgb, "sample cloud");
+    if (subsample) {
+        CloudT::Ptr subsampled_cloud(new CloudT);
+
+        pcl::ApproximateVoxelGrid<PointT> vf;
+        vf.setInputCloud(colored_cloud);
+        vf.setLeafSize(0.05f, 0.05f, 0.05f);
+        vf.filter(*subsampled_cloud);
+
+        pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(subsampled_cloud);
+        viewer->addPointCloud<PointT>(subsampled_cloud, rgb, "sample cloud");
+    }
+    else {
+        pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(colored_cloud);
+        viewer->addPointCloud<PointT>(colored_cloud, rgb, "sample cloud");
+    }
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
     //viewer->addCoordinateSystem(1.0);
     viewer->initCameraParameters();
@@ -572,7 +559,8 @@ void supervoxel_segmentation::visualize_segments(vector<CloudT::Ptr>& clouds_out
     }
 }
 
-void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& full_segments, vector<CloudT::Ptr>& segments, CloudT::Ptr& cloud, vector<Graph*>& graphs)
+void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& full_segments, map<size_t, size_t>& indices,
+                                                         vector<CloudT::Ptr>& segments, CloudT::Ptr& cloud, vector<Graph*>& graphs)
 {
     using vertex_iterator = boost::graph_traits<Graph>::vertex_iterator;
 
@@ -581,6 +569,7 @@ void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& fu
     octree.setInputCloud(cloud);
     octree.addPointsFromInputCloud();
 
+    size_t i = 0;
     for (Graph* g : graphs) {
         // first, form the complete voxel cloud
         typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name = boost::get(boost::vertex_name, *g);
@@ -590,6 +579,7 @@ void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& fu
         for (tie(vertex_iter, vertex_end) = boost::vertices(*g); vertex_iter != vertex_end; ++vertex_iter) {
             vertex_name_property name = boost::get(vertex_name, *vertex_iter);
             *graph_voxels += *segments[name.m_value];
+            indices.insert(make_pair(name.m_value, i));
         }
 
         pcl::octree::OctreePointCloudSearch<PointT> octree_segment(3*voxel_resolution); // 2* for querying segmentation
@@ -614,6 +604,134 @@ void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& fu
             extract.filter(cloud_p);
             *full_segments.back() += cloud_p;
         }
+
+        ++i;
+    }
+}
+
+// we do not need to preserve the graph, only modify the segments
+// we need some way of getting at the underlying voxels here
+// indices denote which segment each supervoxel belongs to
+// are the segments and output of the class, in that case merge those clouds as well
+// store a graph with pair<float, float> as edge property?
+void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& merged_segments, map<size_t, size_t>& indices,
+                                                         vector<CloudT::Ptr>& full_segments, Graph& graph_in)
+{
+    typename boost::property_map<Graph, boost::vertex_index_t>::type vertex_id = boost::get(boost::vertex_index, graph_in); // size_t?
+    typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name = boost::get(boost::vertex_name, graph_in);
+    typename boost::property_map<Graph, boost::edge_weight_t>::type edge_id = boost::get(boost::edge_weight, graph_in);
+
+    // definitions for the merged graph
+    typedef boost::property<boost::edge_weight_t, pair<float, float> > edge_weight_property_dual;
+    typedef boost::property<boost::vertex_name_t, size_t> vertex_name_property_dual;
+    using graph_dual = boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, vertex_name_property_dual, edge_weight_property_dual>;
+    using vertex_dual = boost::graph_traits<graph_dual>::vertex_descriptor;
+    using vertex_index_dual = boost::graph_traits<graph_dual>::vertices_size_type;
+    using edge_dual = boost::graph_traits<graph_dual>::edge_descriptor;
+
+    graph_dual graph(indices.size());
+
+    typename boost::property_map<graph_dual, boost::vertex_index_t>::type vertex_id_dual = boost::get(boost::vertex_index, graph); // size_t?
+    typename boost::property_map<graph_dual, boost::vertex_name_t>::type vertex_name_dual = boost::get(boost::vertex_name, graph); // float?
+    typename boost::property_map<graph_dual, boost::edge_weight_t>::type edge_id_dual = boost::get(boost::edge_weight, graph);
+
+    bool flag;
+    edge_dual dual_edge;
+
+    using edge_iterator = boost::graph_traits<Graph>::edge_iterator;
+    edge_iterator edge_it, edge_end;
+    for (tie(edge_it, edge_end) = boost::edges(graph_in); edge_it != edge_end; ++edge_it) {
+        float weight = boost::get(edge_id, *edge_it);
+        Vertex u = source(*edge_it, graph_in);
+        Vertex v = target(*edge_it, graph_in);
+        vertex_name_property from = boost::get(vertex_name, u);
+        vertex_name_property to = boost::get(vertex_name, v);
+        if (indices[from.m_value] == indices[to.m_value]) {
+            continue;
+        }
+        // either there is no edge or there is already one...
+        tie(dual_edge, flag) = boost::edge(indices[from.m_value], indices[to.m_value], graph);
+        if (flag) {
+            pair<float, float>& weights = boost::get(edge_id_dual, dual_edge); // this needs to be the mean weight instead, count associated with edge, starts at 1
+            weights.first += weight; weights.second += 1.0f;
+        }
+        else {
+            tie(dual_edge, flag) = boost::add_edge(indices[from.m_value], indices[to.m_value], make_pair(weight, 1.0f), graph);
+            boost::get(vertex_name_dual, indices[from.m_value]) = indices[from.m_value];
+            boost::get(vertex_name_dual, indices[to.m_value]) = indices[to.m_value];
+        }
+    }
+
+    //visualize_boost_graph(graph);
+
+    // keep a list of vertices that we need to traverse before we're done
+    bool traversed = false;
+    map<size_t, set<size_t> > merged_indices;
+    for (size_t i = 0; i < full_segments.size(); ++i) {
+        merged_indices[i].insert(i);
+    }
+
+    float threshold = -0.1f; // up for tuning
+
+    cout << "Pre merge number of segments: " << merged_indices.size() << endl;
+    cout << "Number of edges: " << boost::num_edges(graph) << endl;
+
+    using edge_iterator_dual = boost::graph_traits<graph_dual>::edge_iterator;
+    edge_iterator_dual dual_edge_it, dual_edge_end;
+    while (!traversed) {
+        traversed = true;
+        for (tie(dual_edge_it, dual_edge_end) = boost::edges(graph); dual_edge_it != dual_edge_end; ++dual_edge_it) {
+            pair<float, float> merge_weight = boost::get(edge_id_dual, *dual_edge_it);
+            vertex_dual u = source(*dual_edge_it, graph);
+            vertex_dual v = target(*dual_edge_it, graph);
+            vertex_name_property_dual new_source = boost::get(vertex_name_dual, u);
+            vertex_name_property_dual old_target = boost::get(vertex_name_dual, v);
+            cout << "Weight: " << merge_weight.first / merge_weight.second << endl;
+            if (merge_weight.first / merge_weight.second > threshold) {
+                typename boost::graph_traits<graph_dual>::adjacency_iterator ai, ai_end;
+                for (tie(ai, ai_end) = boost::adjacent_vertices(v, graph);  ai != ai_end; ++ai) {
+                    if (*ai == u) {
+                        continue;
+                    }
+                    tie(dual_edge, flag) = boost::edge(v, *ai, graph);
+                    pair<float, float> weight = boost::get(edge_id_dual, dual_edge);
+                    tie(dual_edge, flag) = boost::edge(u, *ai, graph);
+                    if (flag) {
+                        pair<float, float>& weights = boost::get(edge_id_dual, dual_edge);
+                        weights.first += weight.first; weights.second += weight.second; // this needs to be the mean weight instead, count associated with edge, starts at 1
+                    }
+                    else {
+                        tie(dual_edge, flag) = boost::add_edge(u, *ai, weight, graph);
+                    }
+                }
+                // now, delete edges and vertex of v
+                merged_indices[new_source.m_value].insert(merged_indices[old_target.m_value].begin(), merged_indices[old_target.m_value].end());
+                merged_indices.erase(old_target.m_value);
+                boost::clear_vertex(v, graph);
+                boost::remove_vertex(v, graph);
+                traversed = false;
+                break;
+            }
+        }
+    }
+
+    cout << "Post merge number of segments: " << merged_indices.size() << endl;
+    cout << "Number of edges: " << boost::num_edges(graph) << endl;
+
+    for (const pair<size_t, set<size_t> >& s : merged_indices) {
+        if (true) {//s.second.size() > 1) {
+            CloudT::Ptr merged_cloud(new CloudT);
+            cout << "Post process merging " << s.second.size() << " full segments " << endl;
+            for (size_t i : s.second) {
+                *merged_cloud += *full_segments[i];
+                cout << i << " ";
+            }
+            cout << endl;
+            merged_segments.push_back(merged_cloud);
+        }
+        else {
+            merged_segments.push_back(full_segments[s.first]);
+        }
     }
 }
 
@@ -621,19 +739,28 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::compute_convex_oversegm
 {
     vector<CloudT::Ptr> segments;
     Graph* graph_in = create_supervoxel_graph(segments, cloud_in);
+    Graph graph_copy;
+    boost::copy_graph(*graph_in, graph_copy);
     vector<Graph*> graphs_out;
     recursive_split(graphs_out, *graph_in);
 
     cout << "Graphs size: " << graphs_out.size() << endl;
 
-    create_full_segment_clouds(clouds_out, segments, cloud_in, graphs_out);
+    map<size_t, size_t> indices;
+    vector<CloudT::Ptr> full_segments;
+    create_full_segment_clouds(full_segments, indices, segments, cloud_in, graphs_out);
+
+    post_merge_convex_segments(clouds_out, indices, full_segments, graph_copy);
 
     for (Graph* g : graphs_out) {
         delete g;
     }
 
     if (visualize) {
-        visualize_segments(clouds_out);
+        visualize_segments(full_segments, true);
+    }
+    if (visualize) {
+        visualize_segments(clouds_out, true);
     }
 
     return graph_in;

@@ -6,6 +6,10 @@
 #include <pcl/segmentation/supervoxel_clustering.h>
 
 #include <boost/graph/incremental_components.hpp>
+#include <boost/graph/graphviz.hpp>
+
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include <cereal/types/vector.hpp>
 #include <cereal/types/utility.hpp>
@@ -82,17 +86,47 @@ public:
     void connected_components(std::vector<Graph*>& graphs_out, Graph& graph_in);
     void recursive_split(std::vector<Graph*>& graphs_out, Graph& graph_in);
     void graph_cut(std::vector<Graph *>& graphs_out, Graph& graph_in, float threshold);
-    void visualize_boost_graph(Graph& graph_in);
+    //void visualize_boost_graph(Graph& graph_in);
     float mean_graph_weight(Graph& graph_in);
     size_t graph_size(Graph& graph_in);
     size_t graph_edges_size(Graph& graph_in);
-    void visualize_segments(std::vector<CloudT::Ptr>& clouds_out);
-    void create_full_segment_clouds(std::vector<CloudT::Ptr>& full_segments, std::vector<CloudT::Ptr>& segments,
-                                    CloudT::Ptr& cloud, std::vector<Graph*>& graphs);
+    void visualize_segments(std::vector<CloudT::Ptr>& clouds_out, bool subsample = false);
+    void post_merge_convex_segments(std::vector<CloudT::Ptr>& merged_segments, std::map<size_t, size_t>& indices,
+                                    std::vector<CloudT::Ptr>& full_segments, Graph& graph_in);
+    void create_full_segment_clouds(std::vector<CloudT::Ptr>& full_segments, std::map<size_t, size_t>& indices,
+                                    std::vector<CloudT::Ptr>& segments, CloudT::Ptr& cloud, std::vector<Graph*>& graphs);
     void save_graph(Graph& g, const std::string& filename) const;
     void load_graph(Graph& g, const std::string& filename) const;
 
-    supervoxel_segmentation() : voxel_resolution(0.012f) {}
+    template <typename GraphT>
+    void visualize_boost_graph(GraphT& graph_in)
+    {
+        std::string filename = "tmp.dot";
+        std::string imagefile = "tmp.png";
+        std::ofstream file;
+        file.open(filename);
+        boost::write_graphviz(file, graph_in);
+        file.close();
+        std::string command = "dot -Tpng " + filename + " > " + imagefile;
+        system(command.c_str());
+        //command = "gvfs-open " + imagefile;
+        //system(command.c_str());
+
+        cv::Mat image;
+        image = cv::imread(imagefile, CV_LOAD_IMAGE_COLOR);   // Read the file
+
+        if(!image.data) {
+            std::cout <<  "Could not open or find the image" << std::endl;
+            exit(0);
+        }
+
+        cv::namedWindow("Display window", cv::WINDOW_AUTOSIZE);// Create a window for display.
+        cv::imshow("Display window", image);                   // Show our image inside it.
+
+        cv::waitKey(0);
+    }
+
+    supervoxel_segmentation() : voxel_resolution(0.02f) {}
 };
 
 #endif // SUPERVOXEL_SEGMENTATION_H

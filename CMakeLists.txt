@@ -44,9 +44,9 @@ find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
 
 # TODO: Replace this with installed ROS version
-set(room_parser_dir /home/nbore/catkin_ws/src/strands_3d_mapping/metaroom_xml_parser)
+set(room_parser_dir /home/nbore/Workspace/dynamic_objects/catkin_ws/src/strands_3d_mapping/metaroom_xml_parser)
 include_directories(${room_parser_dir}/include)
-link_directories(/home/nbore/catkin_ws/devel/lib)
+link_directories(/home/nbore/Workspace/dynamic_objects/catkin_ws/devel/lib)
 
 # The main header location
 include_directories(include)
@@ -91,6 +91,11 @@ target_link_libraries(test_visualize_query object_retrieval retrieval_client dat
 # This executable visualizes the convex segmentation, interactively
 add_executable(test_convex_segmentation src/test_convex_segmentation.cpp)
 target_link_libraries(test_convex_segmentation supervoxel_segmentation pfhrgb_estimation ${PCL_LIBRARIES})
+
+# This executable tests the convex segmentation on a merged room sweep
+add_executable(test_sweep_segmentation src/test_sweep_segmentation.cpp)
+target_link_libraries(test_sweep_segmentation supervoxel_segmentation pfhrgb_estimation metaroom_xml_parser
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 # This executable creates a folder structure from the sweeps
 add_executable(create_scan_folders src/create_scan_folders.cpp)
