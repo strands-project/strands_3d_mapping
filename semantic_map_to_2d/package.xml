@@ -1,6 +1,6 @@
 <package>
   <name>semantic_map_to_2d</name>
-  <version>0.0.11</version>
+  <version>0.0.12</version>
   <description>
 	This package provides a node that publishes a 2d version of the latest semantic map for 
 	a fiven waypoint. A service is provided for changing the currently being published
