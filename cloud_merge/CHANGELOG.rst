@@ -9,6 +9,9 @@ Changelog for package cloud_merge
 * Changed cloud_merge include statement by prefixing it with the package_name
 * Contributors: Rares Ambrus
 
+Forthcoming
+-----------
+
 0.0.11 (2015-08-21)
 -------------------
 * Fixed some dependencies

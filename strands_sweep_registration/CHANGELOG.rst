@@ -2,6 +2,9 @@
 Changelog for package strands_sweep_registration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.0.11 (2015-08-21)
 -------------------
 * Fixed some dependencies

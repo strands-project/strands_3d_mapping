@@ -2,6 +2,9 @@
 Changelog for package object_manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.0.11 (2015-08-21)
 -------------------
 * Changed near/far plane distance
