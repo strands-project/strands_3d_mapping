@@ -2,6 +2,9 @@
 Changelog for package semantic_map_to_2d
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.0.10 (2015-08-13)
 -------------------
 * updated changelogs
