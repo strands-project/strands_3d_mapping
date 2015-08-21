@@ -2,8 +2,8 @@
 Changelog for package calibrate_sweeps
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.11 (2015-08-21)
+-------------------
 * Fixed some dependencies
 * Moved metaroom_xml_parser headers into include/metaroom_xml_parser and adapted other projects
 * Update README.md

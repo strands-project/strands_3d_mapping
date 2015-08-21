@@ -8,8 +8,8 @@ Changelog for package metaroom_xml_parser
 * metaroom_xml_parser tf dependencies
 * Contributors: Rares Ambrus
 
-Forthcoming
------------
+0.0.11 (2015-08-21)
+-------------------
 * Merge remote-tracking branch 'upstream/hydro-devel' into hydro-devel
 * Moved metaroom_xml_parser headers into include/metaroom_xml_parser and adapted other projects
 * Update README.md

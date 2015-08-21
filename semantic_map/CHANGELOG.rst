@@ -15,8 +15,8 @@ Changelog for package semantic_map
 * Moved headers in the include/semantic_map folder
 * Contributors: Rares Ambrus
 
-Forthcoming
------------
+0.0.11 (2015-08-21)
+-------------------
 * Bugfix (introduced 2 commits ago ...)
 * Publishing the dynamic clusters in the same frame of ref as the sweep (before metaroom registration)
 * Moved metaroom_xml_parser headers into include/metaroom_xml_parser and adapted other projects

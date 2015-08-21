@@ -2,8 +2,8 @@
 Changelog for package semantic_map_publisher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.11 (2015-08-21)
+-------------------
 * Fixed some dependencies
 * Moved semantic_map_publisher headers into include/semantic_map_publisher
 * Moved metaroom_xml_parser headers into include/metaroom_xml_parser and adapted other projects

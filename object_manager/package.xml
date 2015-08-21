@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>object_manager</name>
-  <version>0.0.10</version>
+  <version>0.0.11</version>
   <description>The object_manager package</description>
 
   <maintainer email="raambrus@kth.se">Rares Ambrus</maintainer>

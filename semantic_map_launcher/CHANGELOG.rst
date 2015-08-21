@@ -2,8 +2,8 @@
 Changelog for package semantic_map_launcher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.11 (2015-08-21)
+-------------------
 * Update README.md
 * Added parameter for minimum clustered object size
 * Added empty readmes
