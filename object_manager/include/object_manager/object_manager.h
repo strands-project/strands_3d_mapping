@@ -44,7 +44,7 @@
 #include <pcl/filters/frustum_culling.h>
 #include <semantic_map/room_xml_parser.h>
 #include <semantic_map/reg_transforms.h>
-
+#include <semantic_map/reg_features.h>
 #include <cv_bridge/cv_bridge.h>
 
 // application includes
@@ -754,6 +754,41 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
             ROS_ERROR("No points found in cluster from intermediate clouds. Aborting.");
             return false;
         }
+
+        // reproject intermediate cloud using original camera parameters
+        auto camParamOrig = observation.getIntermediateCloudCameraParameters();
+        double fx = camParamOrig[0].fx();
+        double fy = camParamOrig[0].fy();
+        double center_x = camParamOrig[0].cx();
+        double center_y = camParamOrig[0].cy();
+        double cx = 0.001 / fx;
+        double cy = 0.001 / fy;
+
+        CloudPtr reprojected_cloud(new Cloud);
+        RegistrationFeatures reg;
+
+        std::pair<cv::Mat,cv::Mat> rgbAndDepth = reg.createRGBandDepthFromPC(transformedCloud);
+
+        pcl::PointXYZRGB point;
+        for (size_t y = 0; y < rgbAndDepth.first.rows; ++y) {
+           for (size_t x = 0; x < rgbAndDepth.first.cols; ++x) {
+
+              uint16_t depth = rgbAndDepth.second.at<u_int16_t>(y, x)/* * 1000*/;
+              if (!(depth != 0))
+              {
+                  point.x = point.y = point.z = std::numeric_limits<float>::quiet_NaN();
+              } else {
+                 point.x = (x - center_x) * depth * cx;
+                 point.y = (y - center_y) * depth * cy;
+                 point.z = depth * 0.001f;
+              }
+              uint32_t rgb = ((uint8_t)rgbAndDepth.first.at<cv::Vec3b>(y, x)[2] << 16 | rgbAndDepth.first.at<cv::Vec3b>(y, x)[1] << 8 | rgbAndDepth.first.at<cv::Vec3b>(y, x)[0]);
+              point.rgb = *reinterpret_cast<float*>(&rgb);
+
+              reprojected_cloud->points[y*rgbAndDepth.first.cols + x] = point;
+           }
+        }
+        *transformedCloud = *reprojected_cloud;
 
         cv::Mat cluster_image = cv::Mat::zeros(480, 640, CV_8UC3);
         int top_y = -1, bottom_y = 640, top_x = -1, bottom_x = 640;
