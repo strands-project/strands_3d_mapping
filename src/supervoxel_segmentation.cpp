@@ -719,7 +719,7 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
     cout << "Number of edges: " << boost::num_edges(graph) << endl;
 
     for (const pair<size_t, set<size_t> >& s : merged_indices) {
-        if (true) {//s.second.size() > 1) {
+        if (s.second.size() > 1) {
             CloudT::Ptr merged_cloud(new CloudT);
             cout << "Post process merging " << s.second.size() << " full segments " << endl;
             for (size_t i : s.second) {
@@ -727,10 +727,14 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
                 cout << i << " ";
             }
             cout << endl;
-            merged_segments.push_back(merged_cloud);
+            if (merged_cloud->size() > 0) {
+                merged_segments.push_back(merged_cloud);
+            }
         }
         else {
-            merged_segments.push_back(full_segments[s.first]);
+            if (full_segments[s.first]->size() > 0) {
+                merged_segments.push_back(full_segments[s.first]);
+            }
         }
     }
 }

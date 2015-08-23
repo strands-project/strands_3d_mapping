@@ -132,6 +132,17 @@ configure_file(scripts/menu.py menu.py COPYONLY)
 configure_file(scripts/training_menu.py training_menu.py COPYONLY)
 configure_file(scripts/querying_menu.py querying_menu.py COPYONLY)
 
+##################### NEW DYNAMIC OBJECT RETRIEVAL VERSION ###########################
+
+add_executable(dynamic_init_folders src/dynamic_init_folders.cpp)
+target_link_libraries(dynamic_init_folders metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(dynamic_convex_segmentation src/dynamic_convex_segmentation.cpp)
+target_link_libraries(dynamic_convex_segmentation supervoxel_segmentation metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(dynamic_extract_convex_features src/dynamic_extract_convex_features.cpp)
+target_link_libraries(dynamic_extract_convex_features pfhrgb_estimation metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
 # We are quite strict with the warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
 
