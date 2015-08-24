@@ -143,6 +143,15 @@ target_link_libraries(dynamic_convex_segmentation supervoxel_segmentation metaro
 add_executable(dynamic_extract_convex_features src/dynamic_extract_convex_features.cpp)
 target_link_libraries(dynamic_extract_convex_features pfhrgb_estimation metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(dynamic_create_subsegments src/dynamic_create_subsegments.cpp)
+target_link_libraries(dynamic_create_subsegments pfhrgb_estimation metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(dynamic_init_vocabulary src/dynamic_init_vocabulary.cpp)
+target_link_libraries(dynamic_init_vocabulary ${PCL_LIBRARIES})
+
+add_executable(dynamic_train_vocabulary src/dynamic_train_vocabulary.cpp)
+target_link_libraries(dynamic_train_vocabulary vocabulary_tree metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
 # We are quite strict with the warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
 

@@ -20,6 +20,61 @@
 
 namespace dynamic_object_retrieval {
 
+struct vocabulary_summary {
+
+    std::string vocabulary_type; // can be either "standard" or "incremental"
+
+    std::string noise_data_path;
+    std::string annotated_data_path;
+
+    size_t nbr_noise_segments;
+    size_t nbr_annotated_segments;
+
+    size_t vocabulary_tree_size;
+
+    size_t min_segment_features;
+    size_t max_training_features;
+    size_t max_append_features;
+
+    void load(const boost::filesystem::path& data_path)
+    {
+        std::ifstream in((data_path / boost::filesystem::path("vocabulary_summary.json")).string());
+        {
+            cereal::JSONInputArchive archive_i(in);
+            archive_i(*this);
+        }
+    }
+
+    void save(const boost::filesystem::path& data_path) const
+    {
+        std::ofstream out((data_path / boost::filesystem::path("vocabulary_summary.json")).string());
+        {
+            cereal::JSONOutputArchive archive_o(out);
+            archive_o(*this);
+        }
+    }
+
+    template <class Archive>
+    void serialize(Archive& archive)
+    {
+        archive(cereal::make_nvp("noise_data_path", noise_data_path),
+                cereal::make_nvp("annotated_data_path", annotated_data_path),
+                cereal::make_nvp("nbr_noise_segments", nbr_noise_segments),
+                cereal::make_nvp("nbr_annotated_segments", nbr_annotated_segments),
+                cereal::make_nvp("vocabulary_tree_size", vocabulary_tree_size),
+                cereal::make_nvp("min_segment_features", min_segment_features),
+                cereal::make_nvp("max_training_features", max_training_features),
+                cereal::make_nvp("max_append_features", max_append_features));
+    }
+
+    vocabulary_summary() : vocabulary_type("standard"), noise_data_path(""), annotated_data_path(""), nbr_noise_segments(0), nbr_annotated_segments(0),
+        vocabulary_tree_size(0), min_segment_features(20), max_training_features(10000), max_append_features(10000)
+    {
+
+    }
+
+};
+
 struct data_summary {
     // maps indices in vt to convex segment ids
     std::vector<std::string> index_convex_segment_paths;

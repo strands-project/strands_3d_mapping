@@ -15,6 +15,7 @@
  */
 
 using PointT = pcl::PointXYZRGB;
+using HistT = pcl::Histogram<250>;
 
 namespace dynamic_object_retrieval {
 
@@ -90,6 +91,26 @@ struct segment_path_iterator : public segment_iterator_base, public std::iterato
     segment_path_iterator() : segment_iterator_base() {}
 };
 
+struct segment_sweep_path_iterator : public segment_iterator_base, public std::iterator<std::forward_iterator_tag, boost::filesystem::path> {
+
+    mutable boost::filesystem::path current_value;
+
+    boost::filesystem::path& operator* () const
+    {
+        current_value = current_path.parent_path();
+        return current_value;
+    }
+
+    segment_sweep_path_iterator(const std::vector<std::string>& xmls,
+                                const std::string& folder_name,
+                                const std::string& segment_name) :
+        segment_iterator_base(xmls, folder_name, segment_name)
+    {
+
+    }
+    segment_sweep_path_iterator() : segment_iterator_base() {}
+};
+
 template <typename CloudT>
 struct segment_cloud_iterator : public segment_iterator_base, public std::iterator<std::forward_iterator_tag, typename CloudT::Ptr> {
 
@@ -117,6 +138,23 @@ struct segment_cloud_iterator : public segment_iterator_base, public std::iterat
 };
 
 // iterators over all convex segments
+
+struct convex_segment_sweep_path_map {
+
+    boost::filesystem::path data_path;
+
+    segment_sweep_path_iterator begin()
+    {
+        return segment_sweep_path_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "segment");
+    }
+
+    segment_sweep_path_iterator end()
+    {
+        return segment_sweep_path_iterator();
+    }
+
+    convex_segment_sweep_path_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
+};
 
 struct convex_segment_map {
 
@@ -190,7 +228,7 @@ struct convex_segment_cloud_map {
 
 struct convex_feature_cloud_map {
 
-    using iterator = segment_cloud_iterator<pcl::PointCloud<pcl::PFHRGBSignature250> >;
+    using iterator = segment_cloud_iterator<pcl::PointCloud<HistT> >;
 
     boost::filesystem::path data_path;
 
@@ -205,6 +243,25 @@ struct convex_feature_cloud_map {
     }
 
     convex_feature_cloud_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
+};
+
+struct convex_keypoint_cloud_map {
+
+    using iterator = segment_cloud_iterator<pcl::PointCloud<PointT> >;
+
+    boost::filesystem::path data_path;
+
+    iterator begin()
+    {
+        return iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "keypoint");
+    }
+
+    iterator end()
+    {
+        return iterator();
+    }
+
+    convex_keypoint_cloud_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
 };
 
 // iterators over all subsegments
@@ -245,7 +302,7 @@ struct subsegment_feature_map {
 
 struct subsegment_feature_cloud_map {
 
-    using iterator = segment_cloud_iterator<pcl::PointCloud<pcl::PFHRGBSignature250> >;
+    using iterator = segment_cloud_iterator<pcl::PointCloud<HistT> >;
 
     boost::filesystem::path data_path;
 
@@ -319,7 +376,7 @@ struct sweep_convex_segment_cloud_map {
 
 struct sweep_convex_feature_cloud_map {
 
-    using iterator = segment_cloud_iterator<pcl::PointCloud<pcl::PFHRGBSignature250> >;
+    using iterator = segment_cloud_iterator<pcl::PointCloud<HistT> >;
 
     boost::filesystem::path sweep_path;
 
@@ -374,7 +431,7 @@ struct sweep_subsegment_feature_map {
 
 struct sweep_subsegment_feature_cloud_map {
 
-    using iterator = segment_cloud_iterator<pcl::PointCloud<pcl::PFHRGBSignature250> >;
+    using iterator = segment_cloud_iterator<pcl::PointCloud<HistT> >;
 
     boost::filesystem::path sweep_path;
 
