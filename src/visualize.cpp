@@ -1,0 +1,47 @@
+#include "dynamic_object_retrieval/visualize.h"
+
+#include <pcl/visualization/pcl_visualizer.h>
+#include <cereal/archives/binary.hpp>
+
+POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
+                                   (float[250], histogram, histogram)
+)
+
+using namespace std;
+
+namespace dynamic_object_retrieval {
+
+void visualize(CloudT::Ptr& cloud)
+{
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer ("3D Viewer"));
+    viewer->setBackgroundColor(1, 1, 1);
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(cloud);
+    viewer->addPointCloud<PointT>(cloud, rgb, "sample cloud");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
+    //viewer->addCoordinateSystem(1.0);
+    viewer->initCameraParameters();
+    while (!viewer->wasStopped()) {
+        viewer->spinOnce(100);
+    }
+}
+
+// we need to put these in some file as they will be used throughout, summary_convenience?
+void save_vocabulary(vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path)
+{
+    ofstream out((vocabulary_path / "vocabulary.cereal").string(), ios::binary);
+    {
+        cereal::BinaryOutputArchive archive_o(out);
+        archive_o(vt);
+    }
+}
+
+void load_vocabulary(vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path)
+{
+    ifstream in((vocabulary_path / "vocabulary.cereal").string(), ios::binary);
+    {
+        cereal::BinaryInputArchive archive_i(in);
+        archive_i(vt);
+    }
+}
+
+}

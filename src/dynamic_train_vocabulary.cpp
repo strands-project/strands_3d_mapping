@@ -1,5 +1,6 @@
 #include "dynamic_object_retrieval/summary_types.h"
 #include "dynamic_object_retrieval/summary_iterators.h"
+#include "dynamic_object_retrieval/visualize.h"
 
 #include "vocabulary_tree/vocabulary_tree.h"
 
@@ -16,25 +17,6 @@ using HistCloudT = pcl::PointCloud<HistT>;
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
                                    (float[250], histogram, histogram)
 )
-
-// we need to put these in some file as they will be used throughout, summary_convenience?
-void save_vocabulary(vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path)
-{
-    ofstream out((vocabulary_path / "vocabulary.cereal").string(), std::ios::binary);
-    {
-        cereal::BinaryOutputArchive archive_o(out);
-        archive_o(vt);
-    }
-}
-
-void load_vocabulary(vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path)
-{
-    ifstream in((vocabulary_path / "vocabulary.cereal").string(), std::ios::binary);
-    {
-        cereal::BinaryInputArchive archive_i(in);
-        archive_i(vt);
-    }
-}
 
 template <typename SegmentMapT>
 size_t add_segments(SegmentMapT& segment_features, const boost::filesystem::path& vocabulary_path,

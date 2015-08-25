@@ -1,5 +1,6 @@
 #include "object_3d_retrieval/supervoxel_segmentation.h"
 #include "dynamic_object_retrieval/summary_types.h"
+#include "dynamic_object_retrieval/summary_iterators.h"
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/filters/approximate_voxel_grid.h>
@@ -26,6 +27,11 @@ pair<int, vector<string> > convex_segment_cloud(int counter, const boost::filesy
 
     if (summary.nbr_segments > 0) {
         cout << "Segments already extracted for " << xml_path.string() << ", skipping folder..." << endl;
+        counter += summary.nbr_segments;
+        convex_segment_map convex_segment_paths(xml_path.parent_path());
+        for (const boost::filesystem::path& path : convex_segment_paths) {
+            segment_paths.push_back(path.string());
+        }
         return make_pair(counter, segment_paths);
     }
 
