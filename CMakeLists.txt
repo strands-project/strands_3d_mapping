@@ -134,12 +134,15 @@ configure_file(scripts/querying_menu.py querying_menu.py COPYONLY)
 
 ##################### NEW DYNAMIC OBJECT RETRIEVAL VERSION ###########################
 
-add_library(dynamic_retrieval src/dynamic_retrieval.cpp include/dynamic_object_retrieval/dynamic_retrieval.h
-            include/dynamic_object_retrieval/summary_types.h include/dynamic_object_retrieval/summary_iterators.h)
-target_link_libraries(dynamic_retrieval vocabulary_tree ${PCL_LIBRARIES})
-
 add_library(dynamic_visualize src/visualize.cpp include/dynamic_object_retrieval/visualize.h)
 target_link_libraries(dynamic_visualize vocabulary_tree ${PCL_LIBRARIES})
+
+add_library(extract_sift src/extract_sift.cpp include/extract_sift/extract_sift.h)
+target_link_libraries(extract_sift dynamic_visualize sift metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_library(dynamic_retrieval src/dynamic_retrieval.cpp include/dynamic_object_retrieval/dynamic_retrieval.h
+            include/dynamic_object_retrieval/summary_types.h include/dynamic_object_retrieval/summary_iterators.h)
+target_link_libraries(dynamic_retrieval vocabulary_tree extract_sift ${PCL_LIBRARIES})
 
 add_executable(dynamic_init_folders src/dynamic_init_folders.cpp)
 target_link_libraries(dynamic_init_folders metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
@@ -160,7 +163,10 @@ add_executable(dynamic_train_vocabulary src/dynamic_train_vocabulary.cpp)
 target_link_libraries(dynamic_train_vocabulary vocabulary_tree dynamic_visualize metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_query_vocabulary src/dynamic_query_vocabulary.cpp)
-target_link_libraries(dynamic_query_vocabulary vocabulary_tree dynamic_visualize dynamic_retrieval ${PCL_LIBRARIES})
+target_link_libraries(dynamic_query_vocabulary vocabulary_tree register_objects dynamic_visualize dynamic_retrieval extract_sift ${PCL_LIBRARIES})
+
+add_executable(dynamic_extract_sift src/dynamic_extract_sift.cpp)
+target_link_libraries(dynamic_extract_sift extract_sift  metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 # We are quite strict with the warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")

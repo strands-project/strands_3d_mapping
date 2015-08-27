@@ -15,6 +15,7 @@ using HistCloudT = pcl::PointCloud<HistT>;
 namespace dynamic_object_retrieval {
 
 void visualize(CloudT::Ptr& cloud);
+void visualize(CloudT::Ptr& cloud, float subsample_size);
 void save_vocabulary(vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path);
 void load_vocabulary(vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path);
 

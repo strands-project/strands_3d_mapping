@@ -1,6 +1,7 @@
 #include "dynamic_object_retrieval/visualize.h"
 
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/filters/approximate_voxel_grid.h>
 #include <cereal/archives/binary.hpp>
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
@@ -17,6 +18,26 @@ void visualize(CloudT::Ptr& cloud)
     viewer->setBackgroundColor(1, 1, 1);
     pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(cloud);
     viewer->addPointCloud<PointT>(cloud, rgb, "sample cloud");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
+    //viewer->addCoordinateSystem(1.0);
+    viewer->initCameraParameters();
+    while (!viewer->wasStopped()) {
+        viewer->spinOnce(100);
+    }
+}
+
+void visualize(CloudT::Ptr& cloud, float subsample_size)
+{
+    CloudT::Ptr subsampled_cloud(new CloudT);
+    pcl::ApproximateVoxelGrid<PointT> vf;
+    vf.setInputCloud(cloud);
+    vf.setLeafSize(subsample_size, subsample_size, subsample_size);
+    vf.filter(*subsampled_cloud);
+
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer ("3D Viewer"));
+    viewer->setBackgroundColor(1, 1, 1);
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(subsampled_cloud);
+    viewer->addPointCloud<PointT>(subsampled_cloud, rgb, "sample cloud");
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
     //viewer->addCoordinateSystem(1.0);
     viewer->initCameraParameters();

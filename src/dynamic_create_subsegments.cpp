@@ -14,6 +14,11 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
                                    (float[250], histogram, histogram)
 )
 
+void save_sweep_data()
+{
+
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) {
@@ -27,8 +32,17 @@ int main(int argc, char** argv)
     dynamic_object_retrieval::convex_keypoint_cloud_map segment_keypoints(data_path);
     dynamic_object_retrieval::convex_segment_sweep_path_map segment_sweep_paths(data_path);
 
+    dynamic_object_retrieval::data_summary summary;
+    summary.load(data_path);
+
+    summary.index_subsegment_paths.clear();
+    summary.nbr_subsegments = 0;
+
     boost::filesystem::path current_path;
+    dynamic_object_retrieval::sweep_summary sweep_data;
+    vector<string> segment_paths;
     int counter;
+    int vt_index = 0;
     for (auto tup : dynamic_object_retrieval::zip(segment_features, segment_keypoints, segment_sweep_paths)) {
         HistCloudT::Ptr features;
         CloudT::Ptr keypoints;
@@ -36,6 +50,13 @@ int main(int argc, char** argv)
         tie(features, keypoints, sweep_path) = tup;
         // maybe we should have an iterator for getting the number as well
         if (current_path != sweep_path) {
+            if (!current_path.empty()) {
+                // save the counter goddammit
+                sweep_data.nbr_segments = counter;
+                sweep_data.save(current_path / "subsegments");
+            }
+            sweep_data.load(sweep_path / "subsegments");
+            // maybe check here if subsegment were already extracted?????? should be easy, can just use summary_iterators again
             current_path = sweep_path;
             counter = 0;
         }
@@ -71,10 +92,23 @@ int main(int argc, char** argv)
             boost::filesystem::path keypoint_path = subsegment_folder_path / (string("keypoint") + identifier);
             pcl::io::savePCDFileBinary(feature_path.string(), *subsegment_features);
             pcl::io::savePCDFileBinary(keypoint_path.string(), *subsegment_keypoints);
+            segment_paths.push_back(keypoint_path.string());
+            sweep_data.segment_indices.push_back(vt_index);
             cout << "Done saving..." << endl;
             ++counter;
+            ++vt_index;
         }
     }
+
+    if (!current_path.empty()) {
+        sweep_data.nbr_segments = counter;
+        sweep_data.save(current_path / "subsegments");
+    }
+
+    summary.index_subsegment_paths.insert(summary.index_subsegment_paths.end(), segment_paths.begin(), segment_paths.end());
+    summary.nbr_subsegments = vt_index;
+
+    summary.save(data_path);
 
     return 0;
 }
