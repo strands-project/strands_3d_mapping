@@ -65,4 +65,28 @@ void load_vocabulary(vocabulary_tree<HistT, 8>& vt, const boost::filesystem::pat
     }
 }
 
+void save_vocabulary(grouped_vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path)
+{
+    ofstream out((vocabulary_path / "grouped_vocabulary.cereal").string(), ios::binary);
+    {
+        cereal::BinaryOutputArchive archive_o(out);
+        archive_o(vt);
+    }
+
+    //string group_file = segment_path + "/" + descriptor_config::grouped_associations_file;
+    //vt.save_group_associations(group_file);
+}
+
+void load_vocabulary(grouped_vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path)
+{
+    ifstream in((vocabulary_path / "grouped_vocabulary.cereal").string(), ios::binary);
+    {
+        cereal::BinaryInputArchive archive_i(in);
+        archive_i(vt);
+    }
+
+    //string group_file = segment_path + "/" + descriptor_config::grouped_associations_file;
+    //vt.load_group_associations(group_file);
+}
+
 }

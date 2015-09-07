@@ -23,7 +23,7 @@ struct segment_iterator_base {
 
     // for iterating sweeps
     std::vector<std::string> folder_xmls; // very easy to just swap this for different values
-    std::string folder_name;
+    std::string folder_name; // either "convex_segments" or "subsegments"
     std::string segment_name; // so that we can iterate over both "segment" and "feature"
     std::vector<std::string>::iterator xml_iter;
     std::vector<std::string>::iterator end_iter;
@@ -109,6 +109,30 @@ struct segment_sweep_path_iterator : public segment_iterator_base, public std::i
 
     }
     segment_sweep_path_iterator() : segment_iterator_base() {}
+};
+
+struct segment_sweep_index_iterator : public segment_iterator_base, public std::iterator<std::forward_iterator_tag, size_t> {
+
+    mutable size_t current_value;
+    mutable bool first;
+
+    size_t& operator* () const
+    {
+        if (!first && current_segment == 0) {
+            ++current_value;
+        }
+        first = false;
+        return current_value;
+    }
+
+    segment_sweep_index_iterator(const std::vector<std::string>& xmls,
+                                 const std::string& folder_name,
+                                 const std::string& segment_name) :
+        segment_iterator_base(xmls, folder_name, segment_name), current_value(0), first(true)
+    {
+
+    }
+    segment_sweep_index_iterator() : segment_iterator_base() {}
 };
 
 template <typename CloudT>
@@ -265,6 +289,23 @@ struct convex_keypoint_cloud_map {
 };
 
 // iterators over all subsegments
+
+struct subsegment_sweep_index_map {
+
+    boost::filesystem::path data_path;
+
+    segment_sweep_index_iterator begin()
+    {
+        return segment_sweep_index_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "segment");
+    }
+
+    segment_sweep_index_iterator end()
+    {
+        return segment_sweep_index_iterator();
+    }
+
+    subsegment_sweep_index_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
+};
 
 struct subsegment_map {
 

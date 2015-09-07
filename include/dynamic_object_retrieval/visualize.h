@@ -5,6 +5,7 @@
 #include <pcl/point_cloud.h>
 
 #include <vocabulary_tree/vocabulary_tree.h>
+#include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
 #include <boost/filesystem.hpp>
 
 using PointT = pcl::PointXYZRGB;
@@ -18,6 +19,8 @@ void visualize(CloudT::Ptr& cloud);
 void visualize(CloudT::Ptr& cloud, float subsample_size);
 void save_vocabulary(vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path);
 void load_vocabulary(vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path);
+void save_vocabulary(grouped_vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path);
+void load_vocabulary(grouped_vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path);
 
 }
 
