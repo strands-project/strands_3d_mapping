@@ -76,9 +76,9 @@ size_t add_segments(SegmentMapT& segment_features, const boost::filesystem::path
 
 // with some small differences, this could be used instead of the first one
 // add VocabularyT::index_type in the classes
-// also, add an iterator that returns sweep index for convex_segments
+// also, add an iterator that returns segment and sweep index for segments
 template <typename VocabularyT, typename SegmentMapT, typename SweepMapT>
-pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, SweepMapT& sweep_numbers,
+pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, SweepMapT& sweep_indices,
                                           const boost::filesystem::path& vocabulary_path,
                                           const vocabulary_summary& summary, bool training,
                                           size_t segment_offset, size_t sweep_offset)
@@ -101,7 +101,7 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, SweepMa
     size_t sweep_i;
     // add an iterator with the segment nbr??? maybe not
     // but! add an iterator with the sweep nbr!
-    for (auto tup : zip(segment_features, sweep_numbers)) {
+    for (auto tup : zip(segment_features, sweep_indices)) {
 
         HistCloudT::Ptr features_i;
         tie(features_i, sweep_i) = tup;
