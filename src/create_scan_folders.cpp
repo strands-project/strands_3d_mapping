@@ -2,9 +2,8 @@
 #include <pcl/point_cloud.h>
 
 #include <tf_conversions/tf_eigen.h>
-#include "simple_xml_parser.h"
-#include "simple_summary_parser.h"
-#include "simple_xml_parser.h"
+#include <metaroom_xml_parser/simple_xml_parser.h>
+#include <metaroom_xml_parser/simple_summary_parser.h>
 
 using namespace std;
 

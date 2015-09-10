@@ -43,10 +43,12 @@ find_package(OpenCV REQUIRED)
 find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
 
-# TODO: Replace this with installed ROS version
-set(room_parser_dir /home/nbore/catkin_ws/src/strands_3d_mapping/metaroom_xml_parser)
-include_directories(${room_parser_dir}/include)
-link_directories(/home/nbore/catkin_ws/devel/lib)
+# If the debian package metaroom_xml_parser fails to work for you, get
+# https://github.com/strands-project/strands_3d_mapping, compile in a catkin_ws
+# and add something like the following:
+#set(room_parser_dir /home/nbore/catkin_ws/src/strands_3d_mapping/metaroom_xml_parser)
+#include_directories(${room_parser_dir}/include)
+#link_directories(/home/nbore/catkin_ws/devel/lib)
 
 # The main header location
 include_directories(include)
@@ -86,7 +88,7 @@ target_link_libraries(test_retrieval object_retrieval retrieval_client dataset_a
 # This executable visualizes the query as part of a big map
 add_executable(test_visualize_query src/test_visualize_query.cpp)
 target_link_libraries(test_visualize_query object_retrieval retrieval_client dataset_annotations sift supervoxel_segmentation pfhrgb_estimation k_means_tree
-                      ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} metaroom_xml_parser ${ROS_LIBRARIES})
+                      ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${ROS_LIBRARIES})
 
 # This executable visualizes the convex segmentation, interactively
 add_executable(test_convex_segmentation src/test_convex_segmentation.cpp)
@@ -94,7 +96,7 @@ target_link_libraries(test_convex_segmentation supervoxel_segmentation pfhrgb_es
 
 # This executable creates a folder structure from the sweeps
 add_executable(create_scan_folders src/create_scan_folders.cpp)
-target_link_libraries(create_scan_folders metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(create_scan_folders ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 # This executable splits the scans into convex segments and creates a folder hierarchy
 add_executable(create_convex_folders src/create_convex_folders.cpp)
