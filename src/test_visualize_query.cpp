@@ -112,13 +112,16 @@ void query_cloud(CloudT::Ptr& cloud, Eigen::Matrix3f& K, object_retrieval& obr_s
     find_top_oversegments_grow_and_score(first_scores, reweight_scores, hints, oversegment_indices, features, mapping, obr_segments,
                                          obr_scans, obr_scans_annotations, nbr_reweight_query, nbr_initial_query, noise_scans_size); // nbr_query if no reweight
 
-    /*SiftCloudT::Ptr sift_features(new SiftCloudT);
+#if 0
+    SiftCloudT::Ptr sift_features(new SiftCloudT);
     CloudT::Ptr sift_keypoints(new CloudT);
     compute_sift_features_for_query(sift_features, sift_keypoints, cloud, K);
 
-    reweight_query_vocabulary_sift(reweight_scores, second_scores, first_scores, hints, oversegment_indices, cloud, features, keypoints, -1, nbr_query,
+    vector<index_score> dummy_scores; // dummy scores
+    reweight_query_vocabulary_sift(dummy_scores, reweight_scores, first_scores, hints, oversegment_indices, cloud, features, keypoints, -1, nbr_query,
                                    nbr_initial_query, obr_scans, obr_scans_annotations, obr_segments, obr_segments_annotations, noise_scans_size, mapping,
-                                   &(*sift_features), &(*sift_keypoints));*/
+                                   &(*sift_features), &(*sift_keypoints));
+#endif
 
     cout << "Number of features: " << features->size() << endl;
 

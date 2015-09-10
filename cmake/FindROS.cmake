@@ -19,7 +19,7 @@ FIND_PATH(ROS_INCLUDE_DIR
 GET_FILENAME_COMPONENT( ROS_LIBRARY_DIR ${ROS_LIBRARY_DIR} PATH )
 
 IF( ROS_INCLUDE_DIR AND ROS_LIBRARY_DIR )
-    SET( ROS_LIBRARIES image_geometry cpp_common roscpp rosconsole tf_conversions )
+    SET( ROS_LIBRARIES image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser )
     SET( ROS_FOUND TRUE )
 ELSE( ROS_INCLUDE_DIR AND ROS_LIBRARY_DIR )
     SET( ROS_FOUND FALSE )

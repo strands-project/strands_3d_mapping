@@ -43,10 +43,12 @@ find_package(OpenCV REQUIRED)
 find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
 
-# TODO: Replace this with installed ROS version
-set(room_parser_dir /home/nbore/Workspace/dynamic_objects/catkin_ws/src/strands_3d_mapping/metaroom_xml_parser)
-include_directories(${room_parser_dir}/include)
-link_directories(/home/nbore/Workspace/dynamic_objects/catkin_ws/devel/lib)
+# If the debian package metaroom_xml_parser fails to work for you, get
+# https://github.com/strands-project/strands_3d_mapping, compile in a catkin_ws
+# and add something like the following:
+#set(room_parser_dir /home/nbore/catkin_ws/src/strands_3d_mapping/metaroom_xml_parser)
+#include_directories(${room_parser_dir}/include)
+#link_directories(/home/nbore/catkin_ws/devel/lib)
 
 # The main header location
 include_directories(include)
@@ -86,7 +88,7 @@ target_link_libraries(test_retrieval object_retrieval retrieval_client dataset_a
 # This executable visualizes the query as part of a big map
 add_executable(test_visualize_query src/test_visualize_query.cpp)
 target_link_libraries(test_visualize_query object_retrieval retrieval_client dataset_annotations sift supervoxel_segmentation pfhrgb_estimation k_means_tree
-                      ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} metaroom_xml_parser ${ROS_LIBRARIES})
+                      ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${ROS_LIBRARIES})
 
 # This executable visualizes the convex segmentation, interactively
 add_executable(test_convex_segmentation src/test_convex_segmentation.cpp)
@@ -94,12 +96,12 @@ target_link_libraries(test_convex_segmentation supervoxel_segmentation pfhrgb_es
 
 # This executable tests the convex segmentation on a merged room sweep
 add_executable(test_sweep_segmentation src/test_sweep_segmentation.cpp)
-target_link_libraries(test_sweep_segmentation supervoxel_segmentation pfhrgb_estimation metaroom_xml_parser
+target_link_libraries(test_sweep_segmentation supervoxel_segmentation pfhrgb_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 # This executable creates a folder structure from the sweeps
 add_executable(create_scan_folders src/create_scan_folders.cpp)
-target_link_libraries(create_scan_folders metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(create_scan_folders ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 # This executable splits the scans into convex segments and creates a folder hierarchy
 add_executable(create_convex_folders src/create_convex_folders.cpp)
@@ -138,35 +140,35 @@ add_library(dynamic_visualize src/visualize.cpp include/dynamic_object_retrieval
 target_link_libraries(dynamic_visualize vocabulary_tree ${PCL_LIBRARIES})
 
 add_library(extract_sift src/extract_sift.cpp include/extract_sift/extract_sift.h)
-target_link_libraries(extract_sift dynamic_visualize sift metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(extract_sift dynamic_visualize sift ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_library(dynamic_retrieval src/dynamic_retrieval.cpp include/dynamic_object_retrieval/dynamic_retrieval.h
             include/dynamic_object_retrieval/summary_types.h include/dynamic_object_retrieval/summary_iterators.h)
 target_link_libraries(dynamic_retrieval vocabulary_tree extract_sift ${PCL_LIBRARIES})
 
 add_executable(dynamic_init_folders src/dynamic_init_folders.cpp)
-target_link_libraries(dynamic_init_folders metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(dynamic_init_folders ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_convex_segmentation src/dynamic_convex_segmentation.cpp)
-target_link_libraries(dynamic_convex_segmentation supervoxel_segmentation metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(dynamic_convex_segmentation supervoxel_segmentation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_extract_convex_features src/dynamic_extract_convex_features.cpp)
-target_link_libraries(dynamic_extract_convex_features pfhrgb_estimation metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(dynamic_extract_convex_features pfhrgb_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_create_subsegments src/dynamic_create_subsegments.cpp)
-target_link_libraries(dynamic_create_subsegments pfhrgb_estimation metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(dynamic_create_subsegments pfhrgb_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_init_vocabulary src/dynamic_init_vocabulary.cpp)
 target_link_libraries(dynamic_init_vocabulary ${PCL_LIBRARIES})
 
 add_executable(dynamic_train_vocabulary src/dynamic_train_vocabulary.cpp)
-target_link_libraries(dynamic_train_vocabulary vocabulary_tree dynamic_visualize metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(dynamic_train_vocabulary vocabulary_tree dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_query_vocabulary src/dynamic_query_vocabulary.cpp)
 target_link_libraries(dynamic_query_vocabulary vocabulary_tree register_objects dynamic_visualize dynamic_retrieval extract_sift ${PCL_LIBRARIES})
 
 add_executable(dynamic_extract_sift src/dynamic_extract_sift.cpp)
-target_link_libraries(dynamic_extract_sift extract_sift  metaroom_xml_parser ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(dynamic_extract_sift extract_sift  ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 # We are quite strict with the warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
