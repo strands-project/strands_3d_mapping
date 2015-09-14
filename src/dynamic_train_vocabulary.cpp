@@ -6,6 +6,7 @@
 #include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
 
 #include <cereal/archives/binary.hpp>
+#include <pcl/common/centroid.h>
 
 using namespace std;
 using namespace dynamic_object_retrieval;
@@ -18,6 +19,11 @@ using HistCloudT = pcl::PointCloud<HistT>;
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
                                    (float[250], histogram, histogram)
 )
+
+set<pair<int, int> > compute_group_adjacencies(CloudT::Ptr& centroids)
+{
+
+}
 
 template <typename SegmentMapT>
 size_t add_segments(SegmentMapT& segment_features, const boost::filesystem::path& vocabulary_path,
@@ -77,9 +83,9 @@ size_t add_segments(SegmentMapT& segment_features, const boost::filesystem::path
 // with some small differences, this could be used instead of the first one
 // add VocabularyT::index_type in the classes
 // also, add an iterator that returns segment and sweep index for segments
-template <typename VocabularyT, typename SegmentMapT, typename SweepMapT>
-pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, SweepMapT& sweep_indices,
-                                          const boost::filesystem::path& vocabulary_path,
+template <typename VocabularyT, typename SegmentMapT, typename KeypointMapT, typename SweepMapT>
+pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, KeypointMapT& segment_keypoints,
+                                          SweepMapT& sweep_indices, const boost::filesystem::path& vocabulary_path,
                                           const vocabulary_summary& summary, bool training,
                                           size_t segment_offset, size_t sweep_offset)
 {
@@ -87,44 +93,62 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, SweepMa
     size_t max_training_features = summary.max_training_features;
     size_t max_append_features = summary.max_append_features;
 
-    VocabularyT vt;
+    VocabularyT vt("root_path");
 
     if (!training) {
         load_vocabulary(vt, vocabulary_path);
     }
 
     HistCloudT::Ptr features(new HistCloudT);
+    CloudT::Ptr centroids(new CloudT);
+    vector<set<pair<int, int> > > adjacencies;
     vector<pair<int, int> > indices;
     // VocabularyT::indices_type; !!!!!!!!!!!!
 
     size_t counter = 0;
     size_t sweep_i;
+    size_t last_sweep = 0;
     // add an iterator with the segment nbr??? maybe not
     // but! add an iterator with the sweep nbr!
-    for (auto tup : zip(segment_features, sweep_indices)) {
+    for (auto tup : zip(segment_features, segment_keypoints, sweep_indices)) {
 
         HistCloudT::Ptr features_i;
-        tie(features_i, sweep_i) = tup;
+        CloudT::Ptr keypoints_i;
+        tie(features_i, keypoints_i, sweep_i) = tup;
 
         // train on a subset of the provided features
-        if (training && features->size() > max_training_features) {
-            vt.set_input_cloud(features, indices);
-            vt.add_points_from_input_cloud(false);
-            features->clear();
-            indices.clear();
-            training = false;
-        }
+        if (sweep_i != last_sweep) {
 
-        if (!training && features->size() > max_append_features) {
-            vt.append_cloud(features, indices, false);
-            features->clear();
-            indices.clear();
+            adjacencies.push_back(compute_group_adjacencies(centroids));
+            centroids->clear();
+
+            if (training && features->size() > max_training_features) {
+                vt.set_input_cloud(features, indices);
+                vt.add_points_from_input_cloud(adjacencies, false);
+                features->clear();
+                indices.clear();
+                adjacencies.clear();
+                training = false;
+            }
+
+            if (!training && features->size() > max_append_features) {
+                vt.append_cloud(features, indices, adjacencies, false);
+                features->clear();
+                indices.clear();
+                adjacencies.clear();
+            }
+
+            last_sweep = sweep_i;
         }
 
         if (features_i->size() < min_segment_features) {
             ++counter;
             continue;
         }
+
+        Eigen::Vector4f point;
+        pcl::compute3DCentroid(*keypoints_i, point);
+        centroids->back().getVector4fMap() = point;
         features->insert(features->end(), features_i->begin(), features_i->end());
         pair<int, int> index(segment_offset + counter, sweep_offset + sweep_i);
         for (size_t i = 0; i < features_i->size(); ++i) {
@@ -158,15 +182,17 @@ void train_vocabulary(const boost::filesystem::path& vocabulary_path)
     else if (summary.vocabulary_type == "incremental") {
         subsegment_feature_cloud_map noise_segment_features(noise_data_path);
         subsegment_feature_cloud_map annotated_segment_features(annotated_data_path);
+        subsegment_cloud_map noise_segment_keypoints(noise_data_path);
+        subsegment_cloud_map annotated_segment_keypoints(annotated_data_path);
         subsegment_sweep_index_map noise_sweep_indices(noise_data_path);
         subsegment_sweep_index_map annotated_sweep_indices(annotated_data_path);
         tie(summary.nbr_noise_segments, summary.nbr_noise_sweeps) =
                 add_segments_grouped<grouped_vocabulary_tree<HistT, 8> >(
-                    noise_segment_features, noise_sweep_indices,
+                    noise_segment_features, noise_segment_keypoints, noise_sweep_indices,
                     vocabulary_path, summary, true, 0, 0);
         tie(summary.nbr_annotated_segments, summary.nbr_annotated_sweeps) =
                 add_segments_grouped<grouped_vocabulary_tree<HistT, 8> >(
-                    annotated_segment_features, annotated_sweep_indices, vocabulary_path,
+                    annotated_segment_features, annotated_segment_keypoints, annotated_sweep_indices, vocabulary_path,
                     summary, false, summary.nbr_noise_segments, summary.nbr_noise_sweeps);
     }
 

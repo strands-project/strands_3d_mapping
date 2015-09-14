@@ -324,6 +324,25 @@ struct subsegment_map {
     subsegment_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
 };
 
+struct subsegment_cloud_map {
+
+    using iterator = segment_cloud_iterator<pcl::PointCloud<PointT> >;
+
+    boost::filesystem::path data_path;
+
+    iterator begin()
+    {
+        return iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "segment");
+    }
+
+    iterator end()
+    {
+        return iterator();
+    }
+
+    subsegment_cloud_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
+};
+
 struct subsegment_feature_map {
 
     boost::filesystem::path data_path;

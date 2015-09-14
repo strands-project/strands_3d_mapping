@@ -64,7 +64,7 @@ protected:
 
     void recursive_create_vocabulary_vector_from_ind(std::map<node*, double>& vvector, int i, node* n, int current_depth);
 
-    void cache_group_adjacencies(int start_ind, std::vector<std::set<std::pair<int, int> > > &adjacencies);
+    void cache_group_adjacencies(int start_ind, std::vector<std::set<std::pair<int, int> > >& adjacencies);
     void cache_vocabulary_vectors(int start_ind, CloudPtrT& cloud);
     void save_cached_vocabulary_vectors_for_group(std::vector<vocabulary_vector> &vectors, int i);
     void load_cached_vocabulary_vectors_for_group(std::vector<vocabulary_vector> &vectors, std::set<std::pair<int, int> > &adjacencies, int i);
@@ -88,7 +88,9 @@ public:
 
     void set_input_cloud(CloudPtrT& new_cloud, std::vector<pair<int, int> >& indices);
     void append_cloud(CloudPtrT& extra_cloud, vector<pair<int, int> >& indices, bool store_points = true);
+    void append_cloud(CloudPtrT& extra_cloud, vector<pair<int, int> >& indices, std::vector<std::set<std::pair<int, int> > >& adjacencies, bool store_points = true);
     void add_points_from_input_cloud(bool save_cloud = true);
+    void add_points_from_input_cloud(std::vector<std::set<std::pair<int, int> > >& adjacencies, bool save_cloud = true);
     void top_grouped_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results = 20);
     void top_combined_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results);
     void top_optimized_similarities(std::vector<std::tuple<int, int, double> >& scores, CloudPtrT& query_cloud, size_t nbr_results);
@@ -103,6 +105,7 @@ public:
     void load_group_associations(const string& group_file);
 
     grouped_vocabulary_tree() : super(), nbr_points(0), nbr_groups(0) {}
+    grouped_vocabulary_tree(const std::string& save_state_path) : super(), nbr_points(0), nbr_groups(0), save_state_path(save_state_path) {}
 };
 
 #include "grouped_vocabulary_tree.hpp"

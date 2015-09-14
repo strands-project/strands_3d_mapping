@@ -299,6 +299,18 @@ void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vec
 }
 
 template <typename Point, size_t K>
+void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vector<pair<int, int> >& indices, vector<set<pair<int, int> > >& adjacencies, bool store_points)
+{
+    if (save_state_path.empty()) {
+        cout << "If adjacencies are used, need to initialize with the cache path..." << endl;
+        exit(-1);
+    }
+    cache_group_adjacencies(nbr_groups, adjacencies);
+    adjacencies.clear();
+    append_cloud(extra_cloud, indices, store_points);
+}
+
+template <typename Point, size_t K>
 void grouped_vocabulary_tree<Point, K>::add_points_from_input_cloud(bool save_cloud)
 {
     super::add_points_from_input_cloud(true);
@@ -306,6 +318,18 @@ void grouped_vocabulary_tree<Point, K>::add_points_from_input_cloud(bool save_cl
     if (!save_cloud) {
         super::cloud->clear();
     }
+}
+
+template <typename Point, size_t K>
+void grouped_vocabulary_tree<Point, K>::add_points_from_input_cloud(vector<set<pair<int, int> > >& adjacencies, bool save_cloud)
+{
+    if (save_state_path.empty()) {
+        cout << "If adjacencies are used, need to initialize with the cache path..." << endl;
+        exit(-1);
+    }
+    cache_group_adjacencies(0, adjacencies);
+    adjacencies.clear();
+    add_points_from_input_cloud(save_cloud);
 }
 
 template <typename Point, size_t K>
