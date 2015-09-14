@@ -6,9 +6,8 @@
 #include <unordered_map>
 #include <Eigen/Sparse>
 
-
 /*
- * k_means_tree
+ * grouped_vocabulary_tree
  *
  * This class describes a collection of points that occurr together
  *
@@ -29,21 +28,30 @@ protected:
 public:
 
     using cloud_idx_score = std::pair<int, double>;
+    using result_type = std::tuple<int, int, double>;
 
 public: // protected:
 
+    // maps from global index to group index, so this is completely superfluous
+    // DEPRECATED:
     std::unordered_map<int, int> index_group; // why isn't this a vector????
+
+    // maps from global index to (group index, index within group)
     std::unordered_map<int, std::pair<int, int> > group_subgroup;
     size_t nbr_points;
     size_t nbr_groups;
 
 protected:
 
-    //std::vector<Eigen::SparseVector<int>, Eigen::aligned_allocator<Eigen::SparseVector<int> > > leaf_vocabulary_vectors;
-    std::vector<std::unordered_map<int, int> > leaf_vocabulary_vectors;
-    std::vector<std::unordered_map<int, int> > intermediate_node_vocabulary_vectors;
-    std::map<node*, leaf_range> leaf_ranges;
-    unordered_map<int, int> min_group_index;
+    // TODO: check if any of these are necessary, clean up this mess of a class!
+    std::vector<std::unordered_map<int, int> > leaf_vocabulary_vectors; // are these really necessary?
+    std::vector<std::unordered_map<int, int> > intermediate_node_vocabulary_vectors; // or these
+    std::map<node*, leaf_range> leaf_ranges; // or these?
+    unordered_map<int, int> min_group_index; // or these?
+
+    std::string save_state_path;
+
+    map<node*, int> mapping; // for mapping to unique node IDs that can be used in the next run, might be empty
 
 protected:
 
@@ -56,7 +64,14 @@ protected:
 
     void recursive_create_vocabulary_vector_from_ind(std::map<node*, double>& vvector, int i, node* n, int current_depth);
 
+    void cache_group_adjacencies(int start_ind, std::vector<std::set<std::pair<int, int> > > &adjacencies);
+    void cache_vocabulary_vectors(int start_ind, CloudPtrT& cloud);
+    void save_cached_vocabulary_vectors_for_group(std::vector<vocabulary_vector> &vectors, int i);
+    void load_cached_vocabulary_vectors_for_group(std::vector<vocabulary_vector> &vectors, std::set<std::pair<int, int> > &adjacencies, int i);
+
 public:
+
+    void query_vocabulary(std::vector<result_type>& results, CloudPtrT& query_cloud, size_t nbr_query);
 
     void get_subgroups_for_group(std::set<int>& subgroups, int group_id);
     int get_id_for_group_subgroup(int group_id, int subgroup_id);

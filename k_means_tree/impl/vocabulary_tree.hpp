@@ -6,6 +6,12 @@
 
 #include <chrono> // DEBUG
 
+template <typename Point, size_t K>
+void vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type>& results, CloudPtrT& query_cloud, size_t nbr_results)
+{
+    top_combined_similarities(results, query_cloud, nbr_results);
+}
+
 template <typename Key, typename Value1, typename Value2>
 set<Key> key_intersection(const map<Key, Value1>& lhs, const map<Key, Value2>& rhs)
 {
@@ -361,6 +367,7 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smalles
 }
 
 // keep in mind that smaller_freqs will be modified here
+// why is this in this class rather than in grouped_vocabulary_tree???
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smallest_ind_combination, CloudPtrT& cloud, vector<map<int, double> >& smaller_freqs, vector<double>& pnorms,
                                                             pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, map<node*, int>& mapping, int hint) // TODO: const
@@ -565,6 +572,109 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& smalles
         included_centers.push_back(remaining_centers.at(minind));
         remaining_centers.erase(remaining_centers.begin() + minind);
         smallest_ind_combination.push_back(remaining_indices.at(minind));
+        remaining_indices.erase(remaining_indices.begin() + minind);
+    }
+
+    return last_dist;
+}
+
+template <typename Point, size_t K>
+double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& included_indices, CloudPtrT& cloud, vector<vocabulary_vector>& smaller_freqs,
+                                                            set<pair<int, int> > adjacencies, map<node*, int>& mapping, map<int, node*>& inverse_mapping, int hint) // TODO: const
+{
+    // used to return which indices are picked
+    vector<int> remaining_indices;
+    for (int i = 0; i < smaller_freqs.size(); ++i) {
+        remaining_indices.push_back(i);
+    }
+
+    vector<double> pnorms(smaller_freqs.size(), 0.0); // compute these from smaller_freqs and current vocab weights
+    for (int i = 0; i < smaller_freqs.size(); ++i) {
+        for (const pair<int, pair<int, double> >& u : smaller_freqs[i].vec) {
+            pnorms[i] += pexp(inverse_mapping[u.first]->weight*double(u.second.first));
+        }
+    }
+
+    // first compute vectors to describe cloud and smaller_clouds
+    map<int, double> cloud_freqs;
+    double qnorm = compute_query_index_vector(cloud_freqs, cloud, mapping);
+    double vnorm = 0.0;
+
+    map<int, double> source_freqs; // to be filled in
+
+    if (hint != -1) {
+        if (hint >= smaller_freqs.size()) {
+            cout << "Using hint = " << hint << endl;
+            cout << "We have total voxels: " << smaller_freqs.size() << endl;
+            exit(0);
+        }
+    }
+
+    double last_dist = std::numeric_limits<double>::infinity(); // large
+    // repeat until the smallest vector is
+    while (!smaller_freqs.empty()) {
+        double mindist = std::numeric_limits<double>::infinity(); // large
+        int minind = -1;
+
+        for (size_t i = 0; i < smaller_freqs.size(); ++i) {
+            // if added any parts, check if close enough to previous ones
+            if (!included_indices.empty()) {
+                bool close_enough = false;
+                for (int j : included_indices) {
+                    if (adjacencies.count(make_pair(j, remaining_indices.at(i))) ||
+                        adjacencies.count(make_pair(remaining_indices.at(i), j))) {
+                        close_enough = true;
+                        break;
+                    }
+                }
+                if (!close_enough) {
+                    continue;
+                }
+            }
+            else if (hint != -1) {
+                i = hint;
+            }
+
+            double normalization = 1.0/std::max(pnorms[i] + vnorm, qnorm);
+            double dist = 1.0;
+            for (const pair<const int, double>& v : cloud_freqs) {
+                // compute the distance that we are interested in
+                double sum_val = 0.0;
+                if (source_freqs.count(v.first) != 0) { // this could be maintained in a map as a pair with cloud_freqs
+                    sum_val += source_freqs[v.first];
+                }
+                if (smaller_freqs[i].vec.count(v.first) != 0) {
+                    sum_val += inverse_mapping[v.first]->weight*double(smaller_freqs[i].vec[v.first].first);
+                }
+                if (sum_val != 0) {
+                    dist -= normalization*std::min(v.second, sum_val);
+                }
+            }
+            if (dist < mindist) {
+                mindist = dist;
+                minind = i;
+            }
+
+            if (hint != -1 && included_indices.empty()) {
+                break;
+            }
+        }
+
+        if (mindist > last_dist) {
+            break;
+        }
+
+        last_dist = mindist;
+        vnorm += pnorms[minind];
+
+        for (pair<const int, pair<int, double> >& v : smaller_freqs[minind].vec) {
+            source_freqs[v.first] += inverse_mapping[v.first]->weight*double(v.second.first);
+        }
+
+        // remove the ind that we've used in the score now
+        smaller_freqs.erase(smaller_freqs.begin() + minind);
+        pnorms.erase(pnorms.begin() + minind);
+        included_indices.push_back(remaining_indices.at(minind));
         remaining_indices.erase(remaining_indices.begin() + minind);
     }
 
@@ -975,7 +1085,7 @@ double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, double>& 
 }
 
 template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, int>& query_id_freqs, CloudPtrT& query_cloud)
+void vocabulary_tree<Point, K>::compute_query_vector(map<node*, int>& query_id_freqs, CloudPtrT& query_cloud)
 {
     Eigen::Matrix<float, super::rows, 1> pe;
 
@@ -999,7 +1109,7 @@ void vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, int>& query
 }
 
 template <typename Point, size_t K>
-double vocabulary_tree<Point, K>::compute_query_vector(std::map<node*, pair<double, int> >& query_id_freqs, CloudPtrT& query_cloud)
+double vocabulary_tree<Point, K>::compute_query_vector(map<node*, pair<double, int> >& query_id_freqs, CloudPtrT& query_cloud)
 {
     for (PointT p : query_cloud->points) {
         std::vector<node*> path;
@@ -1042,6 +1152,24 @@ void vocabulary_tree<Point, K>::compute_query_index_vector(map<int, int>& query_
     for (const pair<node*, int>& u : query_node_freqs) {
         query_index_freqs[mapping[u.first]] = u.second;
     }
+}
+
+// this version computes the unnormalized and normalized histograms, basically the both base version at the same time
+template <typename Point, size_t K>
+vocabulary_vector vocabulary_tree<Point, K>::compute_query_index_vector(CloudPtrT& query_cloud, map<node*, int>& mapping)
+{
+    // the mapping is gonna have to be internal to the class, no real idea in having it outside
+    vocabulary_vector vec;
+    map<node*, int> query_node_freqs;
+    compute_query_vector(query_node_freqs, query_cloud);
+    vec.norm = 0.0;
+    for (const pair<node*, int>& u : query_node_freqs) {
+        double element = u.first->weight*double(u.second);
+        vec.vec[mapping[u.first]] = make_pair(u.second, element);
+        vec.norm += pexp(element);
+    }
+
+    return vec;
 }
 
 template <typename Point, size_t K>

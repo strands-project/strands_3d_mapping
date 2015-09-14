@@ -222,6 +222,17 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const boost::filesyst
     return get_sift_for_cloud_path(cloud_path, cloud);
 }
 
+pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const vector<boost::filesystem::path>& cloud_paths)
+{
+    CloudT::Ptr cloud(new CloudT);
+    for (boost::filesystem::path cloud_path : cloud_paths) {
+        CloudT::Ptr keypoints(new CloudT);
+        pcl::io::loadPCDFile(cloud_path.string(), *keypoints);
+        *cloud += *keypoints;
+    }
+    return get_sift_for_cloud_path(cloud_paths[0], cloud);
+}
+
 pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const boost::filesystem::path& cloud_path, CloudT::Ptr& cloud)
 {
     boost::filesystem::path sweep_path = cloud_path.parent_path().parent_path();

@@ -3,6 +3,8 @@
 
 #include "k_means_tree/k_means_tree.h"
 #include <cereal/types/map.hpp>
+#include <cereal/types/utility.hpp>
+#include <cereal/types/unordered_map.hpp>
 
 /*
  * k_means_tree
@@ -16,6 +18,23 @@ struct inverted_file {
     template <class Archive> void serialize(Archive& archive)
     {
         archive(source_id_freqs);
+    }
+};
+
+// this is used for storing vocabulary vectors outside of the voc tree
+struct vocabulary_vector
+{
+    // the norm of the vector
+    double norm;
+    // the values of the vector, both unnormalized histogram and normalized
+    // the normalized value is redundant as it can be computes from 1st+norm
+    std::unordered_map<int, std::pair<int, double> > vec;
+
+    // for cereal serialization
+    template <class Archive>
+    void serialize(Archive& archive)
+    {
+        archive(norm, vec);
     }
 };
 
@@ -34,6 +53,7 @@ protected:
 public:
 
     using cloud_idx_score = std::pair<int, double>;
+    using result_type = cloud_idx_score;
     using typename super::leaf;
     using typename super::node;
 
@@ -65,6 +85,7 @@ protected:
 
 public:
 
+    void query_vocabulary(std::vector<result_type>& results, CloudPtrT& query_cloud, size_t nbr_results);
     double compute_new_weights(std::map<int, double>& original_norm_constants, std::map<node*, double>& original_weights,
                                std::map<int, double>& weighted_indices, CloudPtrT& query_cloud);
     double compute_new_weights(std::map<int, double>& original_norm_constants, std::map<node*, double>& original_weights,
@@ -78,6 +99,8 @@ public:
                                      pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, std::map<node*, int>& mapping, int hint = -1);
     double compute_min_combined_dist(std::vector<int>& smallest_ind_combination, CloudPtrT& cloud, std::vector<std::map<int, int> >& smaller_freqs,
                                      pcl::PointCloud<pcl::PointXYZRGB>::Ptr& centers, std::map<node*, int>& mapping, std::map<int, node *>& inverse_mapping, int hint = -1);
+    double compute_min_combined_dist(std::vector<int>& smallest_ind_combination, CloudPtrT& cloud, std::vector<vocabulary_vector>& smaller_freqs,
+                                     std::set<std::pair<int, int> > adjacencies, std::map<node*, int>& mapping, std::map<int, node*>& inverse_mapping, int hint);
 
     void set_min_match_depth(int depth);
     void compute_normalizing_constants(); // this also computes the weights
@@ -94,6 +117,8 @@ public:
 
     double compute_query_index_vector(std::map<int, double>& query_index_freqs, CloudPtrT& query_cloud, std::map<node*, int>& mapping);
     void compute_query_index_vector(std::map<int, int>& query_index_freqs, CloudPtrT& query_cloud, std::map<node*, int>& mapping);
+    vocabulary_vector compute_query_index_vector(CloudPtrT& query_cloud, std::map<node *, int> &mapping);
+
     size_t deep_count_sets();
 
     template <class Archive> void save(Archive& archive) const;
