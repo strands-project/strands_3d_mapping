@@ -20,9 +20,19 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
                                    (float[250], histogram, histogram)
 )
 
-set<pair<int, int> > compute_group_adjacencies(CloudT::Ptr& centroids)
+// TODO: finish this
+set<pair<int, int> > compute_group_adjacencies(CloudT::Ptr& centroids, float adj_dist)
 {
+    set<pair<int, int> > adjacencies;
 
+    for (int i = 0; i < centroids->size(); ++i) {
+        for (int j = 0; j < i; ++j) {
+            if ((centroids->at(i).getVector3fMap()-centroids->at(j).getVector3fMap()).norm() < adj_dist) {
+                adjacencies.insert(make_pair(i, j));
+                // adjacencies.insert(make_pair(j, i));
+            }
+        }
+    }
 }
 
 template <typename SegmentMapT>
@@ -119,7 +129,7 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, Keypoin
         // train on a subset of the provided features
         if (sweep_i != last_sweep) {
 
-            adjacencies.push_back(compute_group_adjacencies(centroids));
+            adjacencies.push_back(compute_group_adjacencies(centroids, 0.3f));
             centroids->clear();
 
             if (training && features->size() > max_training_features) {
