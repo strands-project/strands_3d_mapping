@@ -15,7 +15,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
 using namespace std;
 
 template <typename IndexT>
-void visualize_retrived_paths(vector<pair<boost::filesystem::path, IndexT> >& retrieved_paths)
+void visualize_retrieved_paths(vector<pair<boost::filesystem::path, IndexT> >& retrieved_paths)
 {
     using path_index_type = pair<boost::filesystem::path, IndexT>;
 
@@ -39,8 +39,8 @@ void query_and_visualize(const boost::filesystem::path& cloud_path, const boost:
     result_type retrieved_paths;
     result_type reweighted_paths;
     tie(retrieved_paths, reweighted_paths) = dynamic_object_retrieval::query_reweight_vocabulary<VocabularyT>(cloud_path, 10, vocabulary_path, summary);
-    visualize_retrived_paths(retrieved_paths);
-    visualize_retrived_paths(reweighted_paths);
+    visualize_retrieved_paths(retrieved_paths);
+    visualize_retrieved_paths(reweighted_paths);
 }
 
 int main(int argc, char** argv)
