@@ -84,6 +84,7 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type
     vector<vector<int> > oversegment_indices = apply_permutation_vector(updated_indices, p);
 
     updated_scores.resize(nbr_query);
+    // how should we return the oversegment indices????
     oversegment_indices.resize(nbr_query);
 }
 
@@ -118,6 +119,11 @@ void grouped_vocabulary_tree<Point, K>::cache_vocabulary_vectors(int start_ind, 
     // fuck, we need boost to create folders in the adjacencies
     boost::filesystem::path cache_path = boost::filesystem::path(save_state_path) / "vocabulary_vectors";
     boost::filesystem::create_directory(cache_path);
+
+    // we need this to compute the vectors
+    if (mapping.empty()) {
+        super::get_node_mapping(mapping);
+    }
 
     int first_group = group_subgroup[start_ind].first;
     int current_group = first_group;
@@ -295,7 +301,8 @@ void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vec
     nbr_groups = index_group_ind + 1;
 
     super::append_cloud(temp_cloud, new_indices, store_points);
-    cache_vocabulary_vectors(0, extra_cloud);
+    // here we save our vocabulary vectors in a folder structure
+    cache_vocabulary_vectors(nbr_points-temp_cloud->size(), temp_cloud);
 }
 
 template <typename Point, size_t K>
@@ -314,6 +321,7 @@ template <typename Point, size_t K>
 void grouped_vocabulary_tree<Point, K>::add_points_from_input_cloud(bool save_cloud)
 {
     super::add_points_from_input_cloud(true);
+    // here we save our vocabulary vectors in a folder structure
     cache_vocabulary_vectors(0, super::cloud);
     if (!save_cloud) {
         super::cloud->clear();
