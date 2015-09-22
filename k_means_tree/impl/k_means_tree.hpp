@@ -7,33 +7,6 @@
 
 using namespace std;
 
-template <typename Key, typename Value>
-void map_intersection(map<Key, Value>& lhs, map<Key, Value> const& rhs)
-{
-    typedef typename map<Key, Value>::iterator input_iterator1;
-    typedef typename map<Key, Value>::const_iterator input_iterator2;
-
-    input_iterator1 it1 = lhs.begin();
-    input_iterator2 it2 = rhs.cbegin();
-    input_iterator1 end1 = lhs.end();
-    input_iterator2 end2 = rhs.cend();
-    while (it1 != end1 && it2 != end2) {
-        if (it1->first == it2->first) {
-            it1->second += it2->second;
-            ++it1;
-            ++it2;
-        }
-        else {
-            if (it1->first < it2->first) {
-                ++it1;
-            }
-            else {
-                ++it2;
-            }
-        }
-    }
-}
-
 template <typename Point>
 typename map_proxy<Point>::map_type eig(Point& v)
 {
@@ -58,33 +31,6 @@ typename map_proxy<pcl::PointXYZRGB>::map_type eig(pcl::PointXYZRGB& v);
 
 template <>
 typename map_proxy<pcl::PointXYZRGB>::const_map_type eig(const pcl::PointXYZRGB& v);
-
-/*template <typename Key, typename Value>
-set<Key> add_values(map<Key, Value>& lhs, const map<Key, Value>& rhs)
-{
-    typedef typename map<Key, Value1>::iterator input_iterator1;
-    typedef typename map<Key, Value2>::const_iterator input_iterator2;
-
-    input_iterator1 it1 = lhs.begin();
-    input_iterator2 it2 = rhs.cbegin();
-    input_iterator1 end1 = lhs.end();
-    input_iterator2 end2 = rhs.cend();
-    while (it1 != end1 && it2 != end2) {
-        if (it1->first == it2->first) {
-            it1->second += it2->second;
-            ++it1;
-            ++it2;
-        }
-        else {
-            if (it1->first < it2->first) {
-                ++it1;
-            }
-            else {
-                ++it2;
-            }
-        }
-    }
-}*/
 
 template <typename Point, size_t K, typename Data, int Lp>
 float k_means_tree<Point, K, Data, Lp>::norm_func(const PointT& p1, const PointT& p2) const
@@ -193,7 +139,6 @@ vector<size_t> k_means_tree<Point, K, Data, Lp>::sample_with_replacement(size_t 
     vector<size_t> result;
     for (size_t i = 0; i < dim; ++i) {
         result.push_back(dis(generator));
-        //result.push_back(rand()%upper);
     }
 
     return result;
@@ -203,7 +148,7 @@ template <typename Point, size_t K, typename Data, int Lp>
 bool k_means_tree<Point, K, Data, Lp>::compare_centroids(const Eigen::Matrix<float, rows, dim>& centroids,
                                                      const Eigen::Matrix<float, rows, dim>& last_centroids) const
 {
-    return centroids.isApprox(last_centroids, 1e-30f);//1e-30f);
+    return centroids.isApprox(last_centroids, 1e-30f);
 }
 
 template <typename Point, size_t K, typename Data, int Lp>
@@ -213,7 +158,6 @@ typename k_means_tree<Point, K, Data, Lp>::leaf_range k_means_tree<Point, K, Dat
     std::cout << subcloud->size() << std::endl;
 
     // do k-means of the points, iteratively call this again?
-    //PointT centroids[dim];
     Eigen::Matrix<float, rows, dim> centroids;
     Eigen::Matrix<float, rows, dim> last_centroids;
     Eigen::Matrix<float, 1, dim> distances;
@@ -221,7 +165,6 @@ typename k_means_tree<Point, K, Data, Lp>::leaf_range k_means_tree<Point, K, Dat
     // first, pick centroids at random
     vector<size_t> inds = sample_with_replacement(subcloud->size());
     for (size_t i = 0; i < dim; ++i) {
-        //centroids[i] = subcloud->points[inds[i]];
         centroids.col(i) = eig(subcloud->points[inds[i]]);
     }
     last_centroids.setZero();
@@ -231,7 +174,6 @@ typename k_means_tree<Point, K, Data, Lp>::leaf_range k_means_tree<Point, K, Dat
     int skip = std::max(1 << int(log2(double(subcloud->size())/1000.0)), 1);
 
     std::vector<int> clusters[dim];
-    //float cluster_distances[dim];
     size_t min_iter = std::max(50, int(subcloud->size()/100)); // 50 100
     size_t counter = 0;
     PointT p;
@@ -240,8 +182,6 @@ typename k_means_tree<Point, K, Data, Lp>::leaf_range k_means_tree<Point, K, Dat
         for (std::vector<int>& c : clusters) {
             c.clear();
         }
-        //int ind = 0;
-        //for (const PointT& p : subcloud->points) {
         int _subcloud_size = subcloud->size();
         for (int ind = 0; ind < _subcloud_size; ind += skip) {
             p = subcloud->at(ind);
@@ -270,12 +210,10 @@ typename k_means_tree<Point, K, Data, Lp>::leaf_range k_means_tree<Point, K, Dat
             }
             if (nbr == 0) {
                 vector<size_t> temp = sample_with_replacement(subcloud->size());
-                //centroids[i] = subcloud->at(temp.back());
                 centroids.col(i) = eig(subcloud->at(temp.back()));
             }
             else {
                 acc *= 1.0/double(nbr);
-                //eig(centroids[i]) = acc.template cast<float>();
                 centroids.col(i) = acc.template cast<float>();
             }
         }
@@ -286,19 +224,14 @@ typename k_means_tree<Point, K, Data, Lp>::leaf_range k_means_tree<Point, K, Dat
 
     leaf_range range(cloud->size(), 0);
     for (size_t i = 0; i < dim; ++i) {
-        //std::cout << i << " size: " << clusters[i].size() << std::endl;
         if (current_depth == depth || clusters[i].size() <= 1) {
             leaf* l = new leaf;
             l->inds.resize(clusters[i].size());
             for (size_t j = 0; j < clusters[i].size(); ++j) {
                 l->inds[j] = subinds[clusters[i][j]];
             }
-            //l->centroid = centroids[i];
             eig(l->centroid) = centroids.col(i);
 
-            /*if (clusters[i].empty()) {
-                eig(l->centroid).setZeros();
-            }*/
             l->range.first = leaves.size();
             l->range.second = leaves.size()+1;
             leaves.push_back(l);
@@ -308,7 +241,6 @@ typename k_means_tree<Point, K, Data, Lp>::leaf_range k_means_tree<Point, K, Dat
             continue;
         }
         node* n = new node;
-        //n->centroid = centroids[i];
         eig(n->centroid) = centroids.col(i);
         CloudPtrT childcloud(new CloudT);
         childcloud->resize(clusters[i].size());
@@ -322,14 +254,6 @@ typename k_means_tree<Point, K, Data, Lp>::leaf_range k_means_tree<Point, K, Dat
         nodes[i] = n;
         range.first = std::min(range.first, rangei.first);
         range.second = std::max(range.second, rangei.second);
-
-        /*pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
-        inliers->indices = clusters[i];
-        pcl::ExtractIndices<PointT> extract;
-        extract.setInputCloud(subcloud);
-        extract.setIndices(inliers);
-        extract.setNegative(false);
-        extract.filter (*childcloud);*/
     }
 
     return range;
@@ -393,21 +317,6 @@ void k_means_tree<Point, K, Data, Lp>::unfold_nodes(vector<pair<node*, int> >& d
 template <typename Point, size_t K, typename Data, int Lp>
 void k_means_tree<Point, K, Data, Lp>::flatten_nodes(CloudPtrT& nodecloud, node* n)
 {
-    if (n->is_leaf) {
-        leaf* l = static_cast<leaf*>(n);
-        for (size_t ind : l->inds) {
-            nodecloud->push_back(cloud->at(ind));
-        }
-        return;
-    }
-    for (node* c : n->children) {
-        flatten_nodes(nodecloud, c);
-    }
-}
-
-template <typename Point, size_t K, typename Data, int Lp>
-void k_means_tree<Point, K, Data, Lp>::flatten_nodes_optimized(CloudPtrT& nodecloud, node* n)
-{
     for (int i = n->range.first; i < n->range.second; ++i) {
         for (int ind : leaves[i]->inds) {
             nodecloud->push_back(cloud->at(ind));
@@ -425,18 +334,6 @@ void k_means_tree<Point, K, Data, Lp>::get_cloud_for_point_at_level(CloudPtrT& n
     }
     node* n = path[level];
     flatten_nodes(nodecloud, n);
-}
-
-template <typename Point, size_t K, typename Data, int Lp>
-void k_means_tree<Point, K, Data, Lp>::get_cloud_for_point_at_level_optimized(CloudPtrT& nodecloud, const PointT& p, size_t level)
-{
-    vector<node*> path;
-    unfold_nodes(path, &root, p);
-    if (level >= path.size()) {
-        return;
-    }
-    node* n = path[level];
-    flatten_nodes_optimized(nodecloud, n);
 }
 
 template <typename Point, size_t K, typename Data, int Lp>

@@ -59,36 +59,36 @@ add_library(sift include/sift/sift.cpp include/sift/sift.h)
 # This library registers objects for us using SIFT
 add_library(register_objects src/register_objects.cpp ${include_dir}/register_objects.h)
 # This library provides a lot of convenience functions for dealing with VT
-add_library(object_retrieval src/descriptor_config.cpp ${include_dir}/descriptor_config.h src/object_retrieval.cpp ${include_dir}/object_retrieval.h)
+#add_library(object_retrieval src/descriptor_config.cpp ${include_dir}/descriptor_config.h src/object_retrieval.cpp ${include_dir}/object_retrieval.h)
 # This library does the convex segmentation
 add_library(supervoxel_segmentation src/supervoxel_segmentation.cpp ${include_dir}/supervoxel_segmentation.h)
 # This library computes PFHRGB features, among other things
 add_library(pfhrgb_estimation src/pfhrgb_estimation.cpp ${include_dir}/pfhrgb_estimation.h)
 # This library deals with the annotations in the data set
-add_library(dataset_annotations src/dataset_annotations.cpp ${include_dir}/dataset_annotations.h)
+#add_library(dataset_annotations src/dataset_annotations.cpp ${include_dir}/dataset_annotations.h)
 # This is the library bringing it all together, for easy querying
-add_library(retrieval_client src/retrieval_client.cpp ${include_dir}/retrieval_client.h)
+#add_library(retrieval_client src/retrieval_client.cpp ${include_dir}/retrieval_client.h)
 
 # This library needs the k_means_tree compiled to work
-add_dependencies(object_retrieval k_means_tree_project)
+#add_dependencies(object_retrieval k_means_tree_project)
 
 # Link all of our libraries
 target_link_libraries(sift ${OpenCV_LIBS})
 target_link_libraries(register_objects sift ${OpenCV_LIBS} ${PCL_LIBRARIES})
-target_link_libraries(object_retrieval vocabulary_tree reweighted_vocabulary_tree register_objects ${PCL_LIBRARIES})
-target_link_libraries(dataset_annotations object_retrieval ${OpenCV_LIBS} ${PCL_LIBRARIES})
+#target_link_libraries(object_retrieval vocabulary_tree reweighted_vocabulary_tree register_objects ${PCL_LIBRARIES})
+#target_link_libraries(dataset_annotations object_retrieval ${OpenCV_LIBS} ${PCL_LIBRARIES})
 target_link_libraries(supervoxel_segmentation ${OpenCV_LIBS} ${PCL_LIBRARIES})
 target_link_libraries(pfhrgb_estimation ${PCL_LIBRARIES})
-target_link_libraries(retrieval_client object_retrieval sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
+#target_link_libraries(retrieval_client object_retrieval sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 # This executable does all the actual experiments
-add_executable(test_retrieval src/test_retrieval.cpp)
-target_link_libraries(test_retrieval object_retrieval retrieval_client dataset_annotations sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
+#add_executable(test_retrieval src/test_retrieval.cpp)
+#target_link_libraries(test_retrieval object_retrieval retrieval_client dataset_annotations sift supervoxel_segmentation pfhrgb_estimation k_means_tree ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 # This executable visualizes the query as part of a big map
-add_executable(test_visualize_query src/test_visualize_query.cpp)
-target_link_libraries(test_visualize_query object_retrieval retrieval_client dataset_annotations sift supervoxel_segmentation pfhrgb_estimation k_means_tree
-                      ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${ROS_LIBRARIES})
+#add_executable(test_visualize_query src/test_visualize_query.cpp)
+#target_link_libraries(test_visualize_query object_retrieval retrieval_client dataset_annotations sift supervoxel_segmentation pfhrgb_estimation k_means_tree
+#                      ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${ROS_LIBRARIES})
 
 # This executable visualizes the convex segmentation, interactively
 add_executable(test_convex_segmentation src/test_convex_segmentation.cpp)
@@ -100,35 +100,35 @@ target_link_libraries(test_sweep_segmentation supervoxel_segmentation pfhrgb_est
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 # This executable creates a folder structure from the sweeps
-add_executable(create_scan_folders src/create_scan_folders.cpp)
-target_link_libraries(create_scan_folders ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+#add_executable(create_scan_folders src/create_scan_folders.cpp)
+#target_link_libraries(create_scan_folders ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 # This executable splits the scans into convex segments and creates a folder hierarchy
-add_executable(create_convex_folders src/create_convex_folders.cpp)
-target_link_libraries(create_convex_folders object_retrieval retrieval_client)
+#add_executable(create_convex_folders src/create_convex_folders.cpp)
+#target_link_libraries(create_convex_folders object_retrieval retrieval_client)
 
 # This executable extracts PFHRGB features for each of the convex segments
-add_executable(create_convex_features src/create_convex_features.cpp)
-target_link_libraries(create_convex_features object_retrieval retrieval_client)
+#add_executable(create_convex_features src/create_convex_features.cpp)
+#target_link_libraries(create_convex_features object_retrieval retrieval_client)
 
 # This executable precomputes SIFT features for all of the scans
-add_executable(create_scan_sift_features src/create_scan_sift_features.cpp)
-target_link_libraries(create_scan_sift_features object_retrieval retrieval_client)
+#add_executable(create_scan_sift_features src/create_scan_sift_features.cpp)
+#target_link_libraries(create_scan_sift_features object_retrieval retrieval_client)
 
 # This executable further splits the convex segments into subsegments and saves the corresponding features
-add_executable(create_subsegment_features src/create_subsegment_features.cpp)
-target_link_libraries(create_subsegment_features object_retrieval retrieval_client)
+#add_executable(create_subsegment_features src/create_subsegment_features.cpp)
+#target_link_libraries(create_subsegment_features object_retrieval retrieval_client)
 
 # This executable precomputes vocabulary vectors for the subsegments
-add_executable(create_subsegment_vocabulary_vectors src/create_subsegment_vocabulary_vectors.cpp)
-target_link_libraries(create_subsegment_vocabulary_vectors object_retrieval retrieval_client)
+#add_executable(create_subsegment_vocabulary_vectors src/create_subsegment_vocabulary_vectors.cpp)
+#target_link_libraries(create_subsegment_vocabulary_vectors object_retrieval retrieval_client)
 
 # This executable precomputes vocabulary vectors for the subsegments
-add_executable(train_vocabulary_tree src/train_vocabulary_tree.cpp)
-target_link_libraries(train_vocabulary_tree object_retrieval retrieval_client)
+#add_executable(train_vocabulary_tree src/train_vocabulary_tree.cpp)
+#target_link_libraries(train_vocabulary_tree object_retrieval retrieval_client)
 
-add_executable(query_vocabulary src/query_vocabulary.cpp)
-target_link_libraries(query_vocabulary object_retrieval retrieval_client dataset_annotations)
+#add_executable(query_vocabulary src/query_vocabulary.cpp)
+#target_link_libraries(query_vocabulary object_retrieval retrieval_client dataset_annotations)
 
 configure_file(scripts/menu.py menu.py COPYONLY)
 configure_file(scripts/training_menu.py training_menu.py COPYONLY)

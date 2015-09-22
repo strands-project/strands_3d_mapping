@@ -1,7 +1,7 @@
 #include "k_means_tree/k_means_tree.h"
 #include "vocabulary_tree/vocabulary_tree.h"
 #include "grouped_vocabulary_tree/grouped_vocabulary_tree.h"
-#include "reweighted_vocabulary_tree/reweighted_vocabulary_tree.h"
+//#include "reweighted_vocabulary_tree/reweighted_vocabulary_tree.h"
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/visualization/pcl_visualizer.h>
@@ -28,7 +28,7 @@ int main(int argc, char** argv)
 
     for (size_t depth = 0; depth < 5; ++depth) {
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr nodecloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-        kmt3.get_cloud_for_point_at_level_optimized(nodecloud, point, depth);
+        kmt3.get_cloud_for_point_at_level(nodecloud, point, depth);
         std::cout << "node cloud size: " << nodecloud->size() << std::endl;
         /*for (pcl::PointXYZRGB& p : nodecloud->points) {
             p.r = 255;
@@ -51,7 +51,7 @@ int main(int argc, char** argv)
 
     k_means_tree<pcl::Histogram<100>, 8> kmt;
     vocabulary_tree<pcl::Histogram<100>, 8> vt;
-    reweighted_vocabulary_tree<pcl::Histogram<100>, 8> rvt;
+    //reweighted_vocabulary_tree<pcl::Histogram<100>, 8> rvt;
     grouped_vocabulary_tree<pcl::Histogram<100>, 8> gvt;
 
     return 0;
