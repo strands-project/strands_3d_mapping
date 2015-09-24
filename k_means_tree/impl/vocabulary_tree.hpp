@@ -425,29 +425,27 @@ void vocabulary_tree<Point, K>::compute_normalizing_constants()
 }
 
 template <typename Point, size_t K>
-void vocabulary_tree<Point, K>::top_combined_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results)
+void vocabulary_tree<Point, K>::top_combined_similarities(std::vector<result_type>& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
     std::map<node*, double> query_id_freqs;
     double qnorm = compute_query_vector(query_id_freqs, query_cloud);
     std::map<int, double> map_scores;
 
-    int skipped = 0;
+    //int skipped = 0;
     for (const std::pair<node*, double>& v : query_id_freqs) {
         double qi = v.second;
         std::map<int, int> source_id_freqs;
         source_freqs_for_node(source_id_freqs, v.first);
-
         /*if (source_id_freqs.size() < 20) {
             ++skipped;
             continue;
         }*/
-
         for (const std::pair<int, int>& u : source_id_freqs) {
             map_scores[u.first] += std::min(v.first->weight*double(u.second), qi);
         }
     }
 
-    cout << "Skipped " << float(skipped)/float(query_id_freqs.size()) << endl;
+    //cout << "Skipped " << float(skipped)/float(query_id_freqs.size()) << endl;
 
     for (pair<const int, double>& u : map_scores) {
         double dbnorm = db_vector_normalizing_constants[u.first];
@@ -455,9 +453,13 @@ void vocabulary_tree<Point, K>::top_combined_similarities(std::vector<cloud_idx_
     }
 
     // this could probably be optimized a bit also, quite big copy operattion
-    scores.insert(scores.end(), map_scores.begin(), map_scores.end());
-    std::sort(scores.begin(), scores.end(), [](const cloud_idx_score& s1, const cloud_idx_score& s2) {
-        return s1.second < s2.second; // find min elements!
+    //scores.insert(scores.end(), map_scores.begin(), map_scores.end());
+    scores.reserve(map_scores.size());
+    for (const pair<int, double>& s : map_scores) {
+        scores.push_back(result_type {s.first, s.second});
+    }
+    std::sort(scores.begin(), scores.end(), [](const result_type& s1, const result_type& s2) {
+        return s1.score < s2.score; // find min elements!
     });
 
     if (nbr_results > 0) {

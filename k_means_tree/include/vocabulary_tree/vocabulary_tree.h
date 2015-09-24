@@ -38,6 +38,14 @@ struct vocabulary_vector
     }
 };
 
+struct vocabulary_result {
+    int index;
+    float score;
+
+    vocabulary_result(int index, float score) : index(index), score(score) {}
+    vocabulary_result() {}
+};
+
 template <typename Point, size_t K>
 class vocabulary_tree : public k_means_tree<Point, K, inverted_file> {
 protected:
@@ -50,7 +58,7 @@ protected:
 public:
 
     using cloud_idx_score = std::pair<int, double>;
-    using result_type = cloud_idx_score;
+    using result_type = vocabulary_result; //cloud_idx_score;
     using typename super::leaf;
     using typename super::node;
 
@@ -96,7 +104,7 @@ public:
     void append_cloud(CloudPtrT& extra_cloud, std::vector<int>& extra_indices, bool store_points = true);
     void add_points_from_input_cloud(bool save_cloud = true);
 
-    void top_combined_similarities(std::vector<cloud_idx_score>& scores, CloudPtrT& query_cloud, size_t nbr_results);
+    void top_combined_similarities(std::vector<result_type>& scores, CloudPtrT& query_cloud, size_t nbr_results);
 
     double compute_query_index_vector(std::map<int, double>& query_index_freqs, CloudPtrT& query_cloud, std::map<node*, int>& mapping);
     void compute_query_index_vector(std::map<int, int>& query_index_freqs, CloudPtrT& query_cloud, std::map<node*, int>& mapping);

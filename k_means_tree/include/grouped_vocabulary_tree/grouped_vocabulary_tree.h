@@ -13,6 +13,15 @@
  *
  */
 
+// we need these two initial indices to denote the indices
+// of the group and the index within the group
+struct grouped_result : public vocabulary_result {
+    int group_index;
+    int subgroup_index;
+    grouped_result(float score, int group_index, int subgroup_index) : vocabulary_result(0, score), group_index(group_index), subgroup_index(subgroup_index) {}
+    grouped_result() : vocabulary_result() {}
+};
+
 template <typename Point, size_t K>
 class grouped_vocabulary_tree : public vocabulary_tree<Point, K> {
 protected:
@@ -28,7 +37,7 @@ protected:
 public:
 
     using cloud_idx_score = std::pair<int, double>;
-    using result_type = std::tuple<int, int, double>;
+    using result_type = grouped_result; //std::tuple<int, int, double>;
 
 public: // protected:
 

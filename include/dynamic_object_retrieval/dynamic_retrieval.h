@@ -34,12 +34,12 @@ vector<boost::filesystem::path> get_retrieved_paths(const vector<IndexT>& scores
     vector<boost::filesystem::path> retrieved_paths;
     size_t offset = summary.nbr_noise_segments;
     for (IndexT s : scores) {
-        int vt_index = std::get<0>(s); // is this actually correct for grouped_vocabulary_tree?
-        if (vt_index < offset) {
-            retrieved_paths.push_back(boost::filesystem::path(noise_summary.index_convex_segment_paths[vt_index]));
+        // TODO: vt index is not correct for grouped_vocabulary
+        if (s.index < offset) {
+            retrieved_paths.push_back(boost::filesystem::path(noise_summary.index_convex_segment_paths[s.index]));
         }
         else {
-            retrieved_paths.push_back(boost::filesystem::path(annotated_summary.index_convex_segment_paths[vt_index-offset]));
+            retrieved_paths.push_back(boost::filesystem::path(annotated_summary.index_convex_segment_paths[s.index-offset]));
         }
     }
 
@@ -114,7 +114,8 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
         if (std::isinf(spatial_score)) {
             continue;
         }
-        weighted_indices.insert(make_pair(get<1>(s.second), spatial_score));
+        // TODO: vt index is not correct for grouped_vocabulary
+        weighted_indices.insert(make_pair(s.second.index, spatial_score));
         weight_sum += spatial_score;
     }
 

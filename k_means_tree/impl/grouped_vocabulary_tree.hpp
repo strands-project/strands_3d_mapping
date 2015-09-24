@@ -65,17 +65,17 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type
         vector<vocabulary_vector> vectors;
         set<pair<int, int> > adjacencies;
 
-        load_cached_vocabulary_vectors_for_group(vectors, adjacencies, get<0>(scores[i]));
+        load_cached_vocabulary_vectors_for_group(vectors, adjacencies, scores[i].group_index);
 
         vector<int> selected_indices;
         // get<1>(scores[i])) is actually the index within the group!
-        double score = super::compute_min_combined_dist(selected_indices, query_cloud, vectors, adjacencies, mapping, inverse_mapping, get<1>(scores[i]));
-        updated_scores.push_back(result_type(get<0>(scores[i]), get<1>(scores[i]), score));
+        double score = super::compute_min_combined_dist(selected_indices, query_cloud, vectors, adjacencies, mapping, inverse_mapping, scores[i].subgroup_index);
+        updated_scores.push_back(result_type{ score, scores[i].group_index, scores[i].subgroup_index });
         updated_indices.push_back(selected_indices);
     }
 
     auto p = sort_permutation_vector(updated_scores, [](const result_type& s1, const result_type& s2) {
-        return get<2>(s1) < get<2>(s2); // find min elements!
+        return s1.score < s2.score; // find min elements!
     });
 
     // the new scores after growing and re-ordering
@@ -86,6 +86,9 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type
     updated_scores.resize(nbr_query);
     // how should we return the oversegment indices????
     oversegment_indices.resize(nbr_query);
+    for (result_type& s : updated_scores) {
+        s.index = get_id_for_group_subgroup(s.group_index, s.subgroup_index);
+    }
 }
 
 
@@ -426,36 +429,40 @@ void grouped_vocabulary_tree<Point, K>::top_optimized_similarities(vector<tuple<
 template <typename Point, size_t K>
 void grouped_vocabulary_tree<Point, K>::top_combined_similarities(vector<result_type>& scores, CloudPtrT& query_cloud, size_t nbr_results)
 {
-    vector<cloud_idx_score> smaller_scores;
+    vector<vocabulary_result> smaller_scores;
     super::top_combined_similarities(smaller_scores, query_cloud, 0);
+    // this should just be the result_types directly instead
     map<int, pair<int, double> > map_scores;
-    for (const cloud_idx_score& s : smaller_scores) {
+    for (const vocabulary_result& s : smaller_scores) {
         if (map_scores.size() >= nbr_results) {
             break;
         }
-        pair<int, int> groups = group_subgroup[s.first];
+        pair<int, int> groups = group_subgroup[s.index];
         if (map_scores.count(groups.first) > 0) {
             pair<int, double>& value = map_scores[groups.first];
-            if (s.second < value.second) {
+            if (s.score < value.second) {
                 value.first = groups.second;
-                value.second = s.second;
+                value.second = s.score;
             }
         }
         else {
-            map_scores[groups.first] = make_pair(groups.second, s.second);
+            map_scores[groups.first] = make_pair(groups.second, s.score);
         }
     }
     scores.reserve(map_scores.size());
     for (const pair<int, pair<int, double> >& s : map_scores) {
-        scores.push_back(make_tuple(s.first, s.second.first, s.second.second));
+        scores.push_back(result_type{ s.second.second, s.first, s.second.first });
     }
     //scores.insert(scores.end(), map_scores.begin(), map_scores.end());
     std::sort(scores.begin(), scores.end(), [](const result_type& s1, const result_type& s2) {
-        return get<2>(s1) < get<2>(s2); // find min elements!
+        return s1.score < s2.score; // find min elements!
     });
     if (nbr_results > 0) {
         scores.resize(nbr_results);
     }
+    /*for (result_type& s : scores) {
+        s.index = get_id_for_group_subgroup(s.group_index, s.subgroup_index);
+    }*/
 }
 
 template <typename Point, size_t K>

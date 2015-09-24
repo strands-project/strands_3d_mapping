@@ -64,14 +64,14 @@ int main(int argc, char** argv)
 
     int nbr_results = 10; // the top results that we get back
 
-    using index_score = vocabulary_tree<HistT, 8>::cloud_idx_score;
-    vector<index_score> scores;
+    using result_type = vocabulary_tree<HistT, 8>::result_type;
+    vector<result_type> scores;
     // both of these are interesting to try out
     vt.top_combined_similarities(scores, query_cloud, nbr_results);
     //vt.top_similarities(scores, query_cloud, nbr_results);
 
-    for (index_score score : scores) {
-        cout << "We got index " << score.first << " with score " << score.second << endl;
+    for (result_type score : scores) {
+        cout << "We got index " << score.index << " with score " << score.score << endl;
     }
 
     return 0;
