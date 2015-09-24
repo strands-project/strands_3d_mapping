@@ -17,7 +17,6 @@ using HistT = pcl::Histogram<250>;
 using HistCloudT = pcl::PointCloud<HistT>;
 using SiftT = pcl::Histogram<128>;
 using SiftCloudT = pcl::PointCloud<SiftT>;
-using index_score = vocabulary_tree<HistT, 8>::cloud_idx_score;
 
 namespace dynamic_object_retrieval {
 

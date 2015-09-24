@@ -4,7 +4,6 @@
 #include "vocabulary_tree/vocabulary_tree.h"
 
 #include <unordered_map>
-#include <Eigen/Sparse>
 
 /*
  * grouped_vocabulary_tree
@@ -36,7 +35,6 @@ protected:
 
 public:
 
-    using cloud_idx_score = std::pair<int, double>;
     using result_type = grouped_result; //std::tuple<int, int, double>;
 
 public: // protected:

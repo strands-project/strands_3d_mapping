@@ -57,7 +57,6 @@ protected:
 
 public:
 
-    using cloud_idx_score = std::pair<int, double>;
     using result_type = vocabulary_result; //cloud_idx_score;
     using typename super::leaf;
     using typename super::node;
