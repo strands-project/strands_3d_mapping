@@ -16,7 +16,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
 int main(int argc, char** argv)
 {
     if (argc < 2) {
-        cout << "Please supply a point cloud .pcd to segment..." << endl;
+        cout << "Please supply the path containing the sweeps..." << endl;
         return -1;
     }
 

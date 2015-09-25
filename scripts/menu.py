@@ -35,11 +35,11 @@ class ExecutablePicker(object):
                    " Working on data path " + self.data_path + "\n"
                    " \n"
                    " 1. Set data path (if you want to change)\n"
-                   " 2. Create scan folders\n"
-                   " 3. Create convex segment folders\n"
-                   " 4. Extract features from convex segments\n"
-                   " 5. Segment convex features into subsegments\n"
-                   " 6. Extract SIFT features from scans (needed for re-weighting)\n"
+                   " 2. Init sweep segment folders\n"
+                   " 3. Create convex segments\n"
+                   " 4. Extract PFHRGB features\n"
+                   " 5. Segment keypoints into subsegments\n"
+                   " 6. Extract SIFT from sweeps (for re-weighting)\n"
                    " 7. Vocabulary training menu\n"
                    " 8. Querying & benchmarking menu\n"
                    " 9. Exit\n")
@@ -48,20 +48,20 @@ class ExecutablePicker(object):
             if option == "1":
                 self.set_data_path()
             elif option == "2":
-                print " Running create_scan_folders...\n"
-                system("./create_scan_folders " + self.data_path + "/")
+                print " Running dynamic_init_folders...\n"
+                system("./dynamic_init_folders " + self.data_path + "/")
             elif option == "3":
-                print " Running create_convex_folders...\n"
-                system("./create_convex_folders " + self.data_path + "/")
+                print " Running dynamic_convex_segmentation...\n"
+                system("./dynamic_convex_segmentation " + self.data_path + "/")
             elif option == "4":
-                print " Running create_convex_features...\n"
-                system("./create_convex_features " + self.data_path + "/")
+                print " Running dynamic_extract_convex_features...\n"
+                system("./dynamic_extract_convex_features " + self.data_path + "/")
             elif option == "5":
-                print " Running create_subsegment_features...\n"
-                system("./create_subsegment_features " + self.data_path + "/")
+                print " Running dynamic_create_subsegments...\n"
+                system("./dynamic_create_subsegments " + self.data_path + "/")
             elif option == "6":
-                print " Running create_scan_sift_features...\n"
-                system("./create_scan_sift_features " + self.data_path + "/")
+                print " Running dynamic_extract_sift...\n"
+                system("./dynamic_extract_sift " + self.data_path + "/")
             elif option == "7":
                 print " Entering the vocabulary training menu..."
                 picker = TrainingPicker()

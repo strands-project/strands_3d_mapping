@@ -73,7 +73,7 @@ pair<int, vector<string> > convex_segment_cloud(int counter, const boost::filesy
 int main(int argc, char** argv)
 {
     if (argc < 2) {
-        cout << "Please supply a point cloud .pcd to segment..." << endl;
+        cout << "Please supply the path containing the sweeps..." << endl;
         return -1;
     }
 
