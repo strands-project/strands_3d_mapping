@@ -103,7 +103,7 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, Keypoin
     size_t max_training_features = summary.max_training_features;
     size_t max_append_features = summary.max_append_features;
 
-    VocabularyT vt("root_path");
+    VocabularyT vt(vocabulary_path.string());
 
     if (!training) {
         load_vocabulary(vt, vocabulary_path);
