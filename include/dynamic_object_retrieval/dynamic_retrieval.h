@@ -20,6 +20,16 @@ using SiftCloudT = pcl::PointCloud<SiftT>;
 
 namespace dynamic_object_retrieval {
 
+template <typename VocabularyT>
+struct path_result {
+    using type =  boost::filesystem::path;
+};
+
+template <>
+struct path_result<grouped_vocabulary_tree<HistT, 8> > {
+    using type = vector<boost::filesystem::path>;
+};
+
 template <typename IndexT>
 vector<boost::filesystem::path> get_retrieved_paths(const vector<IndexT>& scores, const vocabulary_summary& summary)
 {
@@ -58,11 +68,34 @@ get_retrieved_path_scores(const std::vector<IndexT>& scores, const vocabulary_su
     return path_scores;
 }
 
-// take a potentially cached vt as argument, this might allow us to choose vt type as well!
-// this should just be the first round, then there should be a separate function for re-weighting
-// maybe introduce a new struct type called path_index_score or something
+template <typename IndexT, typename GroupT>
+std::vector<std::pair<std::vector<boost::filesystem::path>, IndexT> >
+get_retrieved_path_scores(const std::vector<IndexT>& scores, const std::vector<GroupT>& groups, const vocabulary_summary& summary)
+{
+    // OK, now we need to get the paths for all of the stuff within the scans instead, so basically
+    // we need to get a subsegment_sweep__path_iterator and add all of the path corresponding to groups
+    std::vector<std::pair<std::vector<boost::filesystem::path>, IndexT> > path_scores;
+
+    for (auto tup : dynamic_object_retrieval::zip(scores, groups)) {
+        path_scores.push_back(make_pair(vector<boost::filesystem::path>(), get<0>(tup)));
+
+        int sweep_id = get<0>(tup).group_index;
+        boost::filesystem::path sweep_path = dynamic_object_retrieval::get_sweep_xml(sweep_id, summary);
+        dynamic_object_retrieval::sweep_subsegment_map subsegments(sweep_path);
+        int counter = 0;
+        for (const boost::filesystem::path& path : subsegments) {
+            if (std::find(get<1>(tup).begin(), get<1>(tup).end(), counter) != get<1>(tup).end()) {
+                path_scores.back().first.push_back(path);
+            }
+            ++counter;
+        }
+    }
+
+    return path_scores;
+}
+
 template <typename VocabularyT>
-std::vector<std::pair<boost::filesystem::path, typename VocabularyT::result_type> >
+std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >
 query_vocabulary(HistCloudT::Ptr& features, size_t nbr_query, VocabularyT& vt,
                  const boost::filesystem::path& vocabulary_path,
                  const vocabulary_summary& summary)
@@ -81,16 +114,37 @@ query_vocabulary(HistCloudT::Ptr& features, size_t nbr_query, VocabularyT& vt,
     return get_retrieved_path_scores(scores, summary);
 }
 
-// this might have to be with a specialization for grouped_vocabulary_tree
-// or rather, I could use a special return type for grouped voc tree
+// OK, the solution here is to turn the groups into the path scores
+template <>
+std::vector<std::pair<path_result<grouped_vocabulary_tree<HistT, 8> >::type, typename grouped_vocabulary_tree<HistT, 8>::result_type> >
+query_vocabulary(HistCloudT::Ptr& features, size_t nbr_query, grouped_vocabulary_tree<HistT, 8>& vt,
+                 const boost::filesystem::path& vocabulary_path,
+                 const vocabulary_summary& summary)
+{
+    // we need to cache the vt if we are to do this multiple times
+    if (vt.empty()) {
+        load_vocabulary(vt, vocabulary_path);
+        vt.set_min_match_depth(3);
+        vt.compute_normalizing_constants();
+    }
+
+    // add some common methods in vt for querying, really only one!
+    std::vector<typename grouped_vocabulary_tree<HistT, 8>::result_type> scores;
+    std::vector<typename grouped_vocabulary_tree<HistT, 8>::group_type> groups;
+    vt.query_vocabulary(scores, groups, features, nbr_query);
+
+    return get_retrieved_path_scores(scores, groups, summary);
+}
+
+// this should definitely be generic to both!
 template <typename VocabularyT>
-std::vector<std::pair<boost::filesystem::path, typename VocabularyT::result_type> >
+std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >
 reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
                CloudT::Ptr& sift_keypoints, size_t nbr_query, VocabularyT& vt,
-               const std::vector<std::pair<boost::filesystem::path, typename VocabularyT::result_type> >& path_scores,
+               const std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >& path_scores,
                const boost::filesystem::path& vocabulary_path, const vocabulary_summary& summary)
 {
-    using result_type = std::vector<std::pair<boost::filesystem::path, typename VocabularyT::result_type> >;
+    using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
     map<int, double> weighted_indices;
     double weight_sum = 0.0;
@@ -136,13 +190,13 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
 // this should just be the first round, then there should be a separate function for re-weighting
 // maybe introduce a new struct type called path_index_score or something
 template <typename VocabularyT>
-pair<std::vector<std::pair<boost::filesystem::path, typename VocabularyT::result_type> >,
-std::vector<std::pair<boost::filesystem::path, typename VocabularyT::result_type> > >
+pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
+std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
 query_reweight_vocabulary(const boost::filesystem::path& cloud_path, size_t nbr_query,
                           const boost::filesystem::path& vocabulary_path,
                           const vocabulary_summary& summary)
 {
-    using result_type = std::vector<std::pair<boost::filesystem::path, typename VocabularyT::result_type> >;
+    using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
     HistCloudT::Ptr features(new HistCloudT);
     pcl::io::loadPCDFile(cloud_path.string(), *features);

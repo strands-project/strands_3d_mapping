@@ -35,7 +35,7 @@ vector<int> sort_permutation_vector(const vector<T>& vec, Compare compare)
 // this has the advantage that it is independent of what we are representing
 // we also need to store the adjacency of subsegments within the sweeps
 template <typename Point, size_t K>
-void grouped_vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type>& results, CloudPtrT& query_cloud, size_t nbr_query)
+void grouped_vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type>& results, vector<group_type>& groups, CloudPtrT& query_cloud, size_t nbr_query)
 {
     // need a way to get
     // 1. mapping - can get this directly but would need to cache
@@ -59,7 +59,7 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type
     }
 
     std::vector<result_type> updated_scores;
-    std::vector<vector<int> > updated_indices;
+    std::vector<group_type> updated_indices;
     //vector<index_score> total_scores;
     for (size_t i = 0; i < scores.size(); ++i) {
         vector<vocabulary_vector> vectors;
@@ -81,11 +81,11 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type
     // the new scores after growing and re-ordering
     results = apply_permutation_vector(updated_scores, p);
     // the subsegment indices within the sweep, not used atm (but we should be able to retrieve this somehow!!)
-    vector<vector<int> > oversegment_indices = apply_permutation_vector(updated_indices, p);
+    groups = apply_permutation_vector(updated_indices, p);
 
     updated_scores.resize(nbr_query);
     // how should we return the oversegment indices????
-    oversegment_indices.resize(nbr_query);
+    groups.resize(nbr_query);
     for (result_type& s : updated_scores) {
         s.index = get_id_for_group_subgroup(s.group_index, s.subgroup_index);
     }

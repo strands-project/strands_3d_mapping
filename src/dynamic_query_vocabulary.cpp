@@ -14,10 +14,10 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
 
 using namespace std;
 
-template <typename IndexT>
-void visualize_retrieved_paths(vector<pair<boost::filesystem::path, IndexT> >& retrieved_paths)
+template <typename IndexT, typename PathT>
+void visualize_retrieved_paths(vector<pair<PathT, IndexT> >& retrieved_paths)
 {
-    using path_index_type = pair<boost::filesystem::path, IndexT>;
+    using path_index_type = pair<PathT, IndexT>;
 
     for (path_index_type s : retrieved_paths) {
         IndexT index;
@@ -30,11 +30,32 @@ void visualize_retrieved_paths(vector<pair<boost::filesystem::path, IndexT> >& r
     }
 }
 
+template <typename IndexT>
+void visualize_retrieved_paths(vector<pair<vector<boost::filesystem::path>, IndexT> >& retrieved_paths)
+{
+    using path_index_type = pair<vector<boost::filesystem::path>, IndexT>;
+
+    for (path_index_type s : retrieved_paths) {
+        IndexT index;
+        vector<boost::filesystem::path> paths;
+        tie(paths, index) = s;
+        CloudT::Ptr cloud(new CloudT);
+        cout << "Paths: " << endl;
+        for (boost::filesystem::path& path : paths) {
+            cout << path.string() << endl;
+            CloudT::Ptr temp(new CloudT);
+            pcl::io::loadPCDFile(path.string(), *temp);
+            *cloud += *temp;
+        }
+        dynamic_object_retrieval::visualize(cloud);
+    }
+}
+
 template <typename VocabularyT>
 void query_and_visualize(const boost::filesystem::path& cloud_path, const boost::filesystem::path& vocabulary_path,
                          const dynamic_object_retrieval::vocabulary_summary& summary)
 {
-    using result_type = vector<pair<boost::filesystem::path, typename VocabularyT::result_type> >;
+    using result_type = vector<pair<typename dynamic_object_retrieval::path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
     result_type retrieved_paths;
     result_type reweighted_paths;

@@ -36,6 +36,7 @@ protected:
 public:
 
     using result_type = grouped_result; //std::tuple<int, int, double>;
+    using group_type = vector<int>;
 
 public: // protected:
 
@@ -60,7 +61,7 @@ protected:
 
 public:
 
-    void query_vocabulary(std::vector<result_type>& results, CloudPtrT& query_cloud, size_t nbr_query);
+    void query_vocabulary(std::vector<result_type>& results, std::vector<group_type>& groups, CloudPtrT& query_cloud, size_t nbr_query);
 
     void get_subgroups_for_group(std::set<int>& subgroups, int group_id);
     int get_id_for_group_subgroup(int group_id, int subgroup_id);

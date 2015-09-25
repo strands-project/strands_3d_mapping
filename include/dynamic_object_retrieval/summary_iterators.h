@@ -19,6 +19,18 @@ using HistT = pcl::Histogram<250>;
 
 namespace dynamic_object_retrieval {
 
+boost::filesystem::path get_sweep_xml(size_t sweep_id, const vocabulary_summary& summary)
+{
+    std::vector<std::string> xmls;
+    if (sweep_id < summary.nbr_noise_sweeps) {
+        xmls = semantic_map_load_utilties::getSweepXmls<PointT>(summary.noise_data_path);
+    }
+    else {
+        xmls = semantic_map_load_utilties::getSweepXmls<PointT>(summary.annotated_data_path);
+    }
+    return boost::filesystem::path(xmls[sweep_id]);
+}
+
 struct segment_iterator_base {
 
     // for iterating sweeps
