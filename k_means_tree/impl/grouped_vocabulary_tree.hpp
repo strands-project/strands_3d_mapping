@@ -2,9 +2,9 @@
 
 #include <cereal/types/unordered_map.hpp>
 #include <cereal/types/utility.hpp>
-#include <cereal/archives/binary.hpp>
 #include <cereal/types/set.hpp>
 #include <cereal/types/vector.hpp>
+#include <cereal/types/string.hpp>
 #include <cereal/archives/binary.hpp>
 #include <fstream>
 
@@ -99,8 +99,8 @@ void grouped_vocabulary_tree<Point, K>::cache_group_adjacencies(int start_ind, v
     boost::filesystem::create_directory(cache_path);
 
     for (int i = 0; i < adjacencies.size(); ++i) {
-        stringstream ss("group");
-        ss << setfill('0') << setw(6) << start_ind + i;
+        stringstream ss;
+        ss << "group" << setfill('0') << setw(6) << start_ind + i;
         boost::filesystem::path group_path = cache_path / ss.str();
         boost::filesystem::create_directory(group_path);
 
@@ -128,30 +128,42 @@ void grouped_vocabulary_tree<Point, K>::cache_vocabulary_vectors(int start_ind, 
         super::get_node_mapping(mapping);
     }
 
-    int first_group = group_subgroup[start_ind].first;
-    int current_group = first_group;
+    int current_group = group_subgroup[super::indices[start_ind]].first;
+    cout << "Indices elem: " << super::indices[start_ind] << endl;
+    cout << "Index first ind: " << current_group << endl;
     int current_subgroup = 0;
     vector<vocabulary_vector> current_vectors;
     CloudPtrT current_cloud(new CloudT);
 
     // iterate through all the groups and create the vocabulary vectors and norms
-    for (int i = 0; i < cloud->size(); ++i) {
-        pair<int, int> group = group_subgroup[start_ind + i]; // this will have to be index in cleaned up cloud
-        if (group.first != current_group) {
-            save_cached_vocabulary_vectors_for_group(current_vectors, current_group);
-            current_group = group.first;
-            current_vectors.clear();
+    for (int i = 0; i <= cloud->size(); ++i) {
+        pair<int, int> group;
+        if (i == cloud->size()) {
+            group = make_pair(-1, -1);
+        }
+        else {
+            group = group_subgroup[super::indices[start_ind + i]]; // this will have to be index in cleaned up cloud
         }
 
-        if (group.second != current_subgroup) {
+        if (group.second != current_subgroup || group.first != current_group) {
+
             if (!current_cloud->empty()) {
                 vocabulary_vector vec = super::compute_query_index_vector(current_cloud, mapping);
                 current_vectors.push_back(vec);
             }
             current_subgroup = group.second;
             current_cloud->clear();
+
+            if (group.first != current_group) {
+                save_cached_vocabulary_vectors_for_group(current_vectors, current_group);
+                current_group = group.first;
+                current_vectors.clear();
+            }
         }
-        current_cloud->push_back(cloud->at(i));
+
+        if (i < cloud->size()) {
+            current_cloud->push_back(cloud->at(i));
+        }
         // now, get all of the elements in the group
         // wait 2 s, what happens if we split up one group in the middle?????? we need to make sure that does never happen
         // if group_subgroup was a vector this would be more natural
@@ -168,8 +180,8 @@ void grouped_vocabulary_tree<Point, K>::save_cached_vocabulary_vectors_for_group
 {
     boost::filesystem::path cache_path = boost::filesystem::path(save_state_path) / "vocabulary_vectors";
 
-    stringstream ss("group");
-    ss << setfill('0') << setw(6) << i;
+    stringstream ss;
+    ss << "group" << setfill('0') << setw(6) << i;
     boost::filesystem::path group_path = cache_path / ss.str();
     boost::filesystem::create_directory(group_path);
 
@@ -188,8 +200,8 @@ void grouped_vocabulary_tree<Point, K>::load_cached_vocabulary_vectors_for_group
 {
     boost::filesystem::path cache_path = boost::filesystem::path(save_state_path) / "vocabulary_vectors";
 
-    stringstream ss("group");
-    ss << setfill('0') << setw(6) << i;
+    stringstream ss;
+    ss << "group" << setfill('0') << setw(6) << i;
     boost::filesystem::path group_path = cache_path / ss.str();
 
     boost::filesystem::path vectors_path = group_path / "vectors.cereal";
@@ -254,7 +266,7 @@ void grouped_vocabulary_tree<Point, K>::set_input_cloud(CloudPtrT& new_cloud, ve
     }
 
     nbr_points = counter;
-    nbr_groups = index_group_ind + 1;
+    nbr_subgroups = index_group_ind + 1;
 
     cout << "New indices size: " << temp_indices.size() << endl;
 
@@ -285,7 +297,7 @@ void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vec
     vector<int> new_indices(temp_indices.size());
 
     pair<int, int> previous_p = make_pair(-1, -1);
-    int index_group_ind = nbr_groups - 1;
+    int index_group_ind = nbr_subgroups - 1;
     int counter = 0;
     for (const pair<int, int>& p : temp_indices) {
         // everything with this index pair should have the same label, assume ordered
@@ -299,7 +311,7 @@ void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vec
     }
 
     nbr_points += counter;
-    nbr_groups = index_group_ind + 1;
+    nbr_subgroups = index_group_ind + 1; // this is actually not the number of groups, but the number of subgroups!
 
     super::append_cloud(temp_cloud, new_indices, store_points);
     // here we save our vocabulary vectors in a folder structure
@@ -313,7 +325,16 @@ void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vec
         cout << "If adjacencies are used, need to initialize with the cache path..." << endl;
         exit(-1);
     }
-    cache_group_adjacencies(nbr_groups, adjacencies);
+    std::cout << "First index: " << group_subgroup[nbr_subgroups-1].first+1 << std::endl;
+    std::set<int> temp;
+    for (const pair<int, pair<int, int> >& t : group_subgroup) {
+        temp.insert(t.second.first);
+    }
+    cout << "Groups: " << endl;
+    for (int t : temp) {
+        cout << t << endl;
+    }
+    cache_group_adjacencies(group_subgroup[nbr_subgroups-1].first+1, adjacencies); // super::indices.back() skulle också funka
     adjacencies.clear();
     append_cloud(extra_cloud, indices, store_points);
 }
@@ -470,7 +491,7 @@ template <class Archive>
 void grouped_vocabulary_tree<Point, K>::load(Archive& archive)
 {
     super::load(archive);
-    archive(nbr_points, nbr_groups, group_subgroup);
+    archive(nbr_points, nbr_subgroups, group_subgroup, save_state_path);
 }
 
 template <typename Point, size_t K>
@@ -478,5 +499,5 @@ template <class Archive>
 void grouped_vocabulary_tree<Point, K>::save(Archive& archive) const
 {
     super::save(archive);
-    archive(nbr_points, nbr_groups, group_subgroup);
+    archive(nbr_points, nbr_subgroups, group_subgroup, save_state_path);
 }

@@ -63,12 +63,12 @@ target_link_libraries(supervoxel_segmentation ${OpenCV_LIBS} ${PCL_LIBRARIES})
 target_link_libraries(pfhrgb_estimation ${PCL_LIBRARIES})
 
 # This executable visualizes the convex segmentation, interactively
-add_executable(test_convex_segmentation src/test_convex_segmentation.cpp)
-target_link_libraries(test_convex_segmentation supervoxel_segmentation pfhrgb_estimation ${PCL_LIBRARIES})
+add_executable(demo_convex_segmentation src/demo_convex_segmentation.cpp)
+target_link_libraries(demo_convex_segmentation supervoxel_segmentation pfhrgb_estimation ${PCL_LIBRARIES})
 
-# This executable tests the convex segmentation on a merged room sweep
-add_executable(test_sweep_segmentation src/test_sweep_segmentation.cpp)
-target_link_libraries(test_sweep_segmentation supervoxel_segmentation pfhrgb_estimation
+# This executable demos the convex segmentation on a merged room sweep
+add_executable(demo_sweep_segmentation src/demo_sweep_segmentation.cpp)
+target_link_libraries(demo_sweep_segmentation supervoxel_segmentation pfhrgb_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 configure_file(scripts/menu.py menu.py COPYONLY)
@@ -113,4 +113,10 @@ target_link_libraries(dynamic_extract_sift extract_sift  ${ROS_LIBRARIES} ${Open
 
 # We are quite strict with the warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-style-cast")
+
+############### TESTING PROGRAMS ##################
+
+add_executable(test_added_count test/test_added_count.cpp)
+add_executable(test_feature_keypoint_match test/test_feature_keypoint_match.cpp)
+target_link_libraries(test_feature_keypoint_match ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 

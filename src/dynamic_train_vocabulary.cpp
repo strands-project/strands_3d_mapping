@@ -96,8 +96,7 @@ size_t add_segments(SegmentMapT& segment_features, const boost::filesystem::path
 template <typename VocabularyT, typename SegmentMapT, typename KeypointMapT, typename SweepMapT>
 pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, KeypointMapT& segment_keypoints,
                                           SweepMapT& sweep_indices, const boost::filesystem::path& vocabulary_path,
-                                          const vocabulary_summary& summary, bool training,
-                                          size_t segment_offset, size_t sweep_offset)
+                                          const vocabulary_summary& summary, bool training, const size_t sweep_offset)
 {
     size_t min_segment_features = summary.min_segment_features;
     size_t max_training_features = summary.max_training_features;
@@ -113,7 +112,6 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, Keypoin
     CloudT::Ptr centroids(new CloudT);
     vector<set<pair<int, int> > > adjacencies;
     vector<pair<int, int> > indices;
-    // VocabularyT::indices_type; !!!!!!!!!!!!
 
     size_t counter = 0;
     size_t sweep_i;
@@ -142,6 +140,7 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, Keypoin
             }
 
             if (!training && features->size() > max_append_features) {
+                cout << "Appending " << features->size() << " points in " << adjacencies.size() << " groups" << endl;
                 vt.append_cloud(features, indices, adjacencies, false);
                 features->clear();
                 indices.clear();
@@ -158,9 +157,11 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, Keypoin
 
         Eigen::Vector4f point;
         pcl::compute3DCentroid(*keypoints_i, point);
+        centroids->push_back(PointT());
         centroids->back().getVector4fMap() = point;
         features->insert(features->end(), features_i->begin(), features_i->end());
-        pair<int, int> index(segment_offset + counter, sweep_offset + sweep_i);
+
+        pair<int, int> index(sweep_offset + sweep_i, centroids->size()-1);
         for (size_t i = 0; i < features_i->size(); ++i) {
             indices.push_back(index);
         }
@@ -169,7 +170,8 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, Keypoin
     }
 
     // append the rest
-    vt.append_cloud(features, indices, false);
+    cout << "Appending " << features->size() << " points in " << adjacencies.size() << " groups" << endl;
+    vt.append_cloud(features, indices, adjacencies, false);
     save_vocabulary(vt, vocabulary_path);
 
     return make_pair(counter, sweep_i + 1);
@@ -192,18 +194,18 @@ void train_vocabulary(const boost::filesystem::path& vocabulary_path)
     else if (summary.vocabulary_type == "incremental") {
         subsegment_feature_cloud_map noise_segment_features(noise_data_path);
         subsegment_feature_cloud_map annotated_segment_features(annotated_data_path);
-        subsegment_cloud_map noise_segment_keypoints(noise_data_path);
-        subsegment_cloud_map annotated_segment_keypoints(annotated_data_path);
+        subsegment_keypoint_cloud_map noise_segment_keypoints(noise_data_path);
+        subsegment_keypoint_cloud_map annotated_segment_keypoints(annotated_data_path);
         subsegment_sweep_index_map noise_sweep_indices(noise_data_path);
         subsegment_sweep_index_map annotated_sweep_indices(annotated_data_path);
         tie(summary.nbr_noise_segments, summary.nbr_noise_sweeps) =
                 add_segments_grouped<grouped_vocabulary_tree<HistT, 8> >(
                     noise_segment_features, noise_segment_keypoints, noise_sweep_indices,
-                    vocabulary_path, summary, true, 0, 0);
+                    vocabulary_path, summary, true, 0);
         tie(summary.nbr_annotated_segments, summary.nbr_annotated_sweeps) =
                 add_segments_grouped<grouped_vocabulary_tree<HistT, 8> >(
                     annotated_segment_features, annotated_segment_keypoints, annotated_sweep_indices, vocabulary_path,
-                    summary, false, summary.nbr_noise_segments, summary.nbr_noise_sweeps);
+                    summary, false, summary.nbr_noise_sweeps);
     }
 
     summary.save(vocabulary_path);

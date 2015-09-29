@@ -31,11 +31,6 @@ boost::filesystem::path get_sweep_xml(size_t sweep_id, const vocabulary_summary&
     return boost::filesystem::path(xmls[sweep_id]);
 }
 
-void init_iterators(const boost::filesystem::path& data_path)
-{
-    semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string());
-}
-
 struct segment_iterator_base {
 
     // for iterating sweeps
@@ -403,6 +398,25 @@ struct subsegment_feature_cloud_map {
     }
 
     subsegment_feature_cloud_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
+};
+
+struct subsegment_keypoint_cloud_map {
+
+    using iterator = segment_cloud_iterator<pcl::PointCloud<PointT> >;
+
+    boost::filesystem::path data_path;
+
+    iterator begin()
+    {
+        return iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "keypoint");
+    }
+
+    iterator end()
+    {
+        return iterator();
+    }
+
+    subsegment_keypoint_cloud_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
 };
 
 // iterators over convex segments of one sweep

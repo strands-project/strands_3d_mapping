@@ -68,7 +68,7 @@ void k_means_tree<Point, K, Data, Lp>::append_cloud(CloudPtrT& extra_cloud, bool
 template <typename Point, size_t K, typename Data, int Lp>
 void k_means_tree<Point, K, Data, Lp>::assign_extra(CloudPtrT& subcloud, node* n, const vector<int>& subinds)
 {
-    std::cout << subcloud->size() << std::endl;
+    //std::cout << subcloud->size() << std::endl;
 
     Eigen::Matrix<float, rows, dim> centroids;
     Eigen::Matrix<float, 1, dim> distances;
@@ -154,8 +154,8 @@ bool k_means_tree<Point, K, Data, Lp>::compare_centroids(const Eigen::Matrix<flo
 template <typename Point, size_t K, typename Data, int Lp>
 typename k_means_tree<Point, K, Data, Lp>::leaf_range k_means_tree<Point, K, Data, Lp>::assign_nodes(CloudPtrT& subcloud, node** nodes, size_t current_depth, const vector<int>& subinds)
 {
-    std::cout << "Now doing level " << current_depth << std::endl;
-    std::cout << subcloud->size() << std::endl;
+    //std::cout << "Now doing level " << current_depth << std::endl;
+    //std::cout << subcloud->size() << std::endl;
 
     // do k-means of the points, iteratively call this again?
     Eigen::Matrix<float, rows, dim> centroids;

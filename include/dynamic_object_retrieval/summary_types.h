@@ -60,7 +60,8 @@ struct vocabulary_summary {
     template <class Archive>
     void serialize(Archive& archive)
     {
-        archive(cereal::make_nvp("noise_data_path", noise_data_path),
+        archive(cereal::make_nvp("vocabulary_type", vocabulary_type),
+                cereal::make_nvp("noise_data_path", noise_data_path),
                 cereal::make_nvp("annotated_data_path", annotated_data_path),
                 cereal::make_nvp("nbr_noise_segments", nbr_noise_segments),
                 cereal::make_nvp("nbr_annotated_segments", nbr_annotated_segments),
@@ -73,7 +74,7 @@ struct vocabulary_summary {
     }
 
     vocabulary_summary() : vocabulary_type("standard"), noise_data_path(""), annotated_data_path(""), nbr_noise_segments(0), nbr_annotated_segments(0),
-        nbr_noise_sweeps(0), nbr_annotated_sweeps(0), vocabulary_tree_size(0), min_segment_features(20), max_training_features(10000), max_append_features(10000)
+        nbr_noise_sweeps(0), nbr_annotated_sweeps(0), vocabulary_tree_size(0), min_segment_features(20), max_training_features(10000), max_append_features(100000)
     {
 
     }

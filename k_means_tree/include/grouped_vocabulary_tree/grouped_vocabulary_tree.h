@@ -43,7 +43,7 @@ public: // protected:
     // maps from global index to (group index, index within group)
     std::unordered_map<int, std::pair<int, int> > group_subgroup;
     size_t nbr_points;
-    size_t nbr_groups;
+    size_t nbr_subgroups;
 
 protected:
 
@@ -76,8 +76,8 @@ public:
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);
 
-    grouped_vocabulary_tree() : super(), nbr_points(0), nbr_groups(0) {}
-    grouped_vocabulary_tree(const std::string& save_state_path) : super(), nbr_points(0), nbr_groups(0), save_state_path(save_state_path) {}
+    grouped_vocabulary_tree() : super(), nbr_points(0), nbr_subgroups(0) {}
+    grouped_vocabulary_tree(const std::string& save_state_path) : super(), nbr_points(0), nbr_subgroups(0), save_state_path(save_state_path) {}
 };
 
 #include "grouped_vocabulary_tree.hpp"
