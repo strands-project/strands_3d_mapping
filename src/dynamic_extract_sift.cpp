@@ -19,6 +19,7 @@ int main(int argc, char** argv)
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
     for (const string& xml : folder_xmls) {
+        std::cout << "Analyzing sweep: " << xml << std::endl;
         extract_sift::extract_sift_for_sweep(boost::filesystem::path(xml));
     }
 

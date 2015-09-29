@@ -32,7 +32,7 @@ class QueryingPicker(object):
                    " 1. Set vocabulary path (if you want to change)\n"
                    " 2. Query vocabulary for point cloud\n"
                    " 3. Exit\n")
-            option = raw_input(" Please enter an option 1-6: ")
+            option = raw_input(" Please enter an option 1-3: ")
 
             if option == "1":
                 self.set_data_path()

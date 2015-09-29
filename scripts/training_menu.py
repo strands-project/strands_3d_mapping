@@ -31,11 +31,11 @@ class TrainingPicker(object):
                    " \n"
                    " Working on vocabulary path " + self.vocabulary_path + "\n"
                    " \n"
-                   " 1. Set data paths (if you want to change)\n"
+                   " 1. Set vocabulary path (if you want to change)\n"
                    " 2. Initialize vocabulary folders and files\n"
                    " 3. Build vocabulary tree representation\n"
                    " 4. Exit\n")
-            option = raw_input(" Please enter an option 1-7: ")
+            option = raw_input(" Please enter an option 1-4: ")
 
             if option == "1":
                 self.set_data_path()

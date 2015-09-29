@@ -46,7 +46,7 @@ pair<int, vector<string> > convex_segment_cloud(int counter, const boost::filesy
 
     supervoxel_segmentation ss;
     vector<CloudT::Ptr> convex_segments;
-    Graph* g = ss.compute_convex_oversegmentation(convex_segments, filtered_cloud, true);
+    Graph* g = ss.compute_convex_oversegmentation(convex_segments, filtered_cloud, false);
 
     delete g;
 

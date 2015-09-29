@@ -160,7 +160,7 @@ void extract_nonoverlapping_sift(SiftCloudT::Ptr& sweep_features, CloudT::Ptr& s
     }
 }
 
-void extract_sift_for_sweep(const boost::filesystem::path& xml_path)
+void extract_sift_for_sweep(const boost::filesystem::path& xml_path, bool visualize)
 {
     using scan_data = semantic_map_load_utilties::IntermediateCloudCompleteData<PointT>;
     scan_data data = semantic_map_load_utilties::loadIntermediateCloudsCompleteDataFromSingleSweep<PointT>(xml_path.string());
@@ -209,7 +209,10 @@ void extract_sift_for_sweep(const boost::filesystem::path& xml_path)
     SiftCloudT::Ptr sweep_features(new SiftCloudT);
     CloudT::Ptr sweep_keypoints(new CloudT);
     extract_nonoverlapping_sift(sweep_features, sweep_keypoints, cropped_clouds, data.vIntermediateRoomCloudTransforms);
-    dynamic_object_retrieval::visualize(sweep_keypoints);
+
+    if (visualize) {
+        dynamic_object_retrieval::visualize(sweep_keypoints);
+    }
 
     pcl::io::savePCDFileBinary((xml_path.parent_path() / "sift_features.pcd").string(), *sweep_features);
     pcl::io::savePCDFileBinary((xml_path.parent_path() / "sift_keypoints.pcd").string(), *sweep_keypoints);

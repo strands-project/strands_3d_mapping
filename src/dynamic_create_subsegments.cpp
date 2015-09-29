@@ -1,6 +1,7 @@
 #include "dynamic_object_retrieval/summary_types.h"
 #include "dynamic_object_retrieval/summary_iterators.h"
 #include "object_3d_retrieval/pfhrgb_estimation.h"
+#include <cassert>
 
 using namespace std;
 
@@ -13,11 +14,6 @@ using HistCloudT = pcl::PointCloud<HistT>;
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
                                    (float[250], histogram, histogram)
 )
-
-void save_sweep_data()
-{
-
-}
 
 int main(int argc, char** argv)
 {
@@ -32,6 +28,11 @@ int main(int argc, char** argv)
     dynamic_object_retrieval::convex_keypoint_cloud_map segment_keypoints(data_path);
     dynamic_object_retrieval::convex_segment_sweep_path_map segment_sweep_paths(data_path);
 
+    // DEBUG
+    //dynamic_object_retrieval::convex_feature_map feature_paths(data_path);
+    //dynamic_object_retrieval::convex_keypoint_map keypoint_paths(data_path);
+    // /DEBUG
+
     dynamic_object_retrieval::data_summary summary;
     summary.load(data_path);
 
@@ -43,11 +44,20 @@ int main(int argc, char** argv)
     vector<string> segment_paths;
     int counter;
     int vt_index = 0;
+
     for (auto tup : dynamic_object_retrieval::zip(segment_features, segment_keypoints, segment_sweep_paths)) {
+        //boost::filesystem::path feature_path;
+        //boost::filesystem::path keypoint_path;
         HistCloudT::Ptr features;
         CloudT::Ptr keypoints;
         boost::filesystem::path sweep_path;
+
         tie(features, keypoints, sweep_path) = tup;
+
+        //cout << feature_path.string() << " size: " << features->size() << endl;
+        //cout << keypoint_path.string() << " size: " << keypoints->size() << endl;
+        assert(features->size() == keypoints->size());
+
         // maybe we should have an iterator for getting the number as well
         if (current_path != sweep_path) {
             if (!current_path.empty()) {
@@ -59,11 +69,12 @@ int main(int argc, char** argv)
             // maybe check here if subsegment were already extracted?????? should be easy, can just use summary_iterators again
             current_path = sweep_path;
             counter = 0;
+
+            cout << "Found feature path: " << sweep_path.string() << endl;
         }
         boost::filesystem::path subsegment_folder_path = sweep_path / "subsegments";
 
         cout << "Found cloud of size: " << features->size() << endl;
-        cout << "Found feature path: " << sweep_path.string() << endl;
 
         vector<HistCloudT::Ptr> split_features;
         vector<CloudT::Ptr> split_keypoints;
@@ -84,7 +95,6 @@ int main(int argc, char** argv)
                 exit(0);
             }
 
-            cout << "Saving features and keypoints..." << endl;
             stringstream ss;
             ss << setw(4) << setfill('0') << counter;
             string identifier = ss.str() + ".pcd";
@@ -94,7 +104,6 @@ int main(int argc, char** argv)
             pcl::io::savePCDFileBinary(keypoint_path.string(), *subsegment_keypoints);
             segment_paths.push_back(keypoint_path.string());
             sweep_data.segment_indices.push_back(vt_index);
-            cout << "Done saving..." << endl;
             ++counter;
             ++vt_index;
         }

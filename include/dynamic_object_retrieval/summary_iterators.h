@@ -31,14 +31,21 @@ boost::filesystem::path get_sweep_xml(size_t sweep_id, const vocabulary_summary&
     return boost::filesystem::path(xmls[sweep_id]);
 }
 
+void init_iterators(const boost::filesystem::path& data_path)
+{
+    semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string());
+}
+
 struct segment_iterator_base {
 
     // for iterating sweeps
     std::vector<std::string> folder_xmls; // very easy to just swap this for different values
     std::string folder_name; // either "convex_segments" or "subsegments"
     std::string segment_name; // so that we can iterate over both "segment" and "feature"
-    std::vector<std::string>::iterator xml_iter;
-    std::vector<std::string>::iterator end_iter;
+    size_t xml_pos;
+    size_t xml_size;
+    //std::vector<std::string>::iterator xml_iter;
+    //std::vector<std::string>::iterator end_iter;
     boost::filesystem::path current_path;
     size_t current_nbr_segments;
     size_t current_segment;
@@ -46,16 +53,21 @@ struct segment_iterator_base {
     // for iterating
     bool operator!= (const segment_iterator_base& other) const // we basically make this a synonyme for at_end
     {
-        return xml_iter != end_iter;
+        //return xml_iter != end_iter;
+        return xml_pos < xml_size;
     }
     bool operator== (const segment_iterator_base& other) const // we basically make this a synonyme for at_end
     {
-        return xml_iter == end_iter;
+        //return xml_iter == end_iter;
+        return xml_pos >= xml_size;
     }
     void load_next_summary()
     {
-        if (xml_iter != end_iter) {
-            current_path = boost::filesystem::path(*xml_iter).parent_path() / folder_name;
+        //if (xml_iter != end_iter) {
+        if (xml_pos < xml_size) {
+            std::cout << "Analyzing sweep: " << folder_xmls[xml_pos] << std::endl;
+            //current_path = boost::filesystem::path(*xml_iter).parent_path() / folder_name;
+            current_path = boost::filesystem::path(folder_xmls[xml_pos]).parent_path() / folder_name;
             sweep_summary summary;
             summary.load(current_path);
             current_nbr_segments = summary.nbr_segments;
@@ -66,7 +78,8 @@ struct segment_iterator_base {
     {
         ++current_segment;
         if (current_segment >= current_nbr_segments) {
-            ++xml_iter;
+            //++xml_iter;
+            ++xml_pos;
             load_next_summary();
         }
     }
@@ -74,7 +87,8 @@ struct segment_iterator_base {
                           const std::string& folder_name,
                           const std::string& segment_name) :
         folder_xmls(xmls), folder_name(folder_name), segment_name(segment_name),
-        xml_iter(folder_xmls.begin()), end_iter(folder_xmls.end())
+        xml_pos(0), xml_size(folder_xmls.size())
+        //xml_iter(folder_xmls.begin()), end_iter(folder_xmls.end()), temp(0)
     {
         load_next_summary();
     }
