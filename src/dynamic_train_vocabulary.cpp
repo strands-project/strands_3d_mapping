@@ -141,6 +141,11 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, Keypoin
 
             if (!training && features->size() > max_append_features) {
                 cout << "Appending " << features->size() << " points in " << adjacencies.size() << " groups" << endl;
+                if (sweep_offset + last_sweep == 15) {
+                    cout << "AT !%!%!%!% 15" << endl;
+                }
+                cout << adjacencies.size() << endl;
+                cout << features->size() << endl;
                 vt.append_cloud(features, indices, adjacencies, false);
                 features->clear();
                 indices.clear();
@@ -171,6 +176,12 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, Keypoin
 
     // append the rest
     cout << "Appending " << features->size() << " points in " << adjacencies.size() << " groups" << endl;
+    if (sweep_offset + last_sweep == 15) {
+        cout << "AT !%!%!%!% 15" << endl;
+    }
+    cout << adjacencies.size() << endl;
+    cout << features->size() << endl;
+    adjacencies.push_back(compute_group_adjacencies(centroids, 0.3f));
     vt.append_cloud(features, indices, adjacencies, false);
     save_vocabulary(vt, vocabulary_path);
 

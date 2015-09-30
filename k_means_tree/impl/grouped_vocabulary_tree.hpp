@@ -326,13 +326,13 @@ void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vec
         exit(-1);
     }
     std::cout << "First index: " << group_subgroup[nbr_subgroups-1].first+1 << std::endl;
-    std::set<int> temp;
+    std::map<int, int> temp;
     for (const pair<int, pair<int, int> >& t : group_subgroup) {
-        temp.insert(t.second.first);
+        temp[t.second.first] += 1;
     }
     cout << "Groups: " << endl;
-    for (int t : temp) {
-        cout << t << endl;
+    for (pair<int, int> t : temp) {
+        cout << t.first << ": " << t.second << endl;
     }
     cache_group_adjacencies(group_subgroup[nbr_subgroups-1].first+1, adjacencies); // super::indices.back() skulle också funka
     adjacencies.clear();
