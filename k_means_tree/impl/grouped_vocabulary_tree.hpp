@@ -129,8 +129,6 @@ void grouped_vocabulary_tree<Point, K>::cache_vocabulary_vectors(int start_ind, 
     }
 
     int current_group = group_subgroup[super::indices[start_ind]].first;
-    cout << "Indices elem: " << super::indices[start_ind] << endl;
-    cout << "Index first ind: " << current_group << endl;
     int current_subgroup = 0;
     vector<vocabulary_vector> current_vectors;
     CloudPtrT current_cloud(new CloudT);
@@ -325,15 +323,7 @@ void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vec
         cout << "If adjacencies are used, need to initialize with the cache path..." << endl;
         exit(-1);
     }
-    std::cout << "First index: " << group_subgroup[nbr_subgroups-1].first+1 << std::endl;
-    std::map<int, int> temp;
-    for (const pair<int, pair<int, int> >& t : group_subgroup) {
-        temp[t.second.first] += 1;
-    }
-    cout << "Groups: " << endl;
-    for (pair<int, int> t : temp) {
-        cout << t.first << ": " << t.second << endl;
-    }
+
     cache_group_adjacencies(group_subgroup[nbr_subgroups-1].first+1, adjacencies); // super::indices.back() skulle också funka
     adjacencies.clear();
     append_cloud(extra_cloud, indices, store_points);
