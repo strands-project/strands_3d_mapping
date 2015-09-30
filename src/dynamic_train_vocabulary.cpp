@@ -84,7 +84,10 @@ size_t add_segments(SegmentMapT& segment_features, const boost::filesystem::path
     }
 
     // append the rest
-    vt.append_cloud(features, indices, false);
+    if (features->size() > 0) {
+        vt.append_cloud(features, indices, false);
+    }
+
     save_vocabulary(vt, vocabulary_path);
 
     return counter;
@@ -175,10 +178,11 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, Keypoin
     // append the rest
     cout << "Appending " << features->size() << " points in " << adjacencies.size() << " groups" << endl;
 
-    cout << adjacencies.size() << endl;
-    cout << features->size() << endl;
-    adjacencies.push_back(compute_group_adjacencies(centroids, 0.3f));
-    vt.append_cloud(features, indices, adjacencies, false);
+    if (features->size() > 0) {
+        adjacencies.push_back(compute_group_adjacencies(centroids, 0.3f));
+        vt.append_cloud(features, indices, adjacencies, false);
+    }
+
     save_vocabulary(vt, vocabulary_path);
 
     return make_pair(counter, sweep_i + 1);

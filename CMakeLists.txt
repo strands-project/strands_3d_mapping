@@ -117,6 +117,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-st
 ############### TESTING PROGRAMS ##################
 
 add_executable(test_added_count test/test_added_count.cpp)
+target_link_libraries(test_added_count vocabulary_tree dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(test_feature_keypoint_match test/test_feature_keypoint_match.cpp)
 target_link_libraries(test_feature_keypoint_match ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
-
