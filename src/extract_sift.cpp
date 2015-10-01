@@ -218,6 +218,116 @@ void extract_sift_for_sweep(const boost::filesystem::path& xml_path, bool visual
     pcl::io::savePCDFileBinary((xml_path.parent_path() / "sift_keypoints.pcd").string(), *sweep_keypoints);
 }
 
+tuple<cv::Mat, cv::Mat, int, int> compute_image_for_cloud(CloudT::Ptr& cloud, const Eigen::Matrix3f& K)
+{
+    vector<int> xs, ys;
+    vector<cv::Vec3b> colors;
+    vector<float> depths;
+    xs.reserve(cloud->size());
+    ys.reserve(cloud->size());
+    colors.reserve(cloud->size());
+    depths.reserve(cloud->size());
+
+    for (PointT& p : cloud->points) {
+        if (!pcl::isFinite(p)) {
+            continue;
+        }
+        Eigen::Vector3f q = K*p.getVector3fMap();
+        int x = int(q(0)/q(2) + 0.5f);
+        int y = int(q(1)/q(2) + 0.5f);
+        if (true) {//x >= 0 && y >= 0) {
+            xs.push_back(x);
+            ys.push_back(y);
+            cv::Vec3b temp;
+            temp[0] = p.b;
+            temp[1] = p.g;
+            temp[2] = p.r;
+            colors.push_back(temp);
+            depths.push_back(p.z);
+        }
+    }
+
+    std::vector<int>::iterator minx = std::min_element(xs.begin(), xs.end());
+    std::vector<int>::iterator maxx = std::max_element(xs.begin(), xs.end());
+    std::vector<int>::iterator miny = std::min_element(ys.begin(), ys.end());
+    std::vector<int>::iterator maxy = std::max_element(ys.begin(), ys.end());
+
+    int height = *maxy - *miny + 1;
+    int width = *maxx - *minx + 1;
+    cv::Mat image = cv::Mat::zeros(height, width, CV_8UC3);
+    cv::Mat depth = cv::Mat::zeros(height, width, CV_32F);
+
+    for (size_t i = 0; i < xs.size(); ++i) {
+        int y = ys[i] - *miny;
+        int x = xs[i] - *minx;
+        image.at<cv::Vec3b>(y, x) = colors[i];
+        depth.at<float>(y, x) = depths[i];
+    }
+
+    return make_tuple(image, depth, *minx, *miny);
+}
+
+pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_features(cv::Mat& image, cv::Mat& depth, int minx, int miny, const Eigen::Matrix3f& K)
+{
+    std::vector<cv::KeyPoint> cv_keypoints;
+    cv::FastFeatureDetector detector;
+    detector.detect(image, cv_keypoints);
+
+    //-- Step 2: Calculate descriptors (feature vectors)
+    cv::SIFT::DescriptorParams descriptor_params;
+    descriptor_params.isNormalize = true; // always true, shouldn't matter
+    descriptor_params.magnification = 3.0; // 3.0 default
+    descriptor_params.recalculateAngles = true; // true default
+
+    cv::Mat cv_features;
+    cv::SiftDescriptorExtractor extractor;
+    extractor.compute(image, cv_keypoints, cv_features);
+
+    CloudT::Ptr keypoints(new CloudT);
+    // get back to 3d coordinates
+    for (cv::KeyPoint k : cv_keypoints) {
+        cv::Point2f p2 = k.pt;
+        Eigen::Vector3f p3;
+        p3(0) = p2.x + float(minx);
+        p3(1) = p2.y + float(miny);
+        p3(2) = 1.0f;
+        p3 = K.colPivHouseholderQr().solve(p3);
+        p3 *= depth.at<float>(int(p2.y), int(p2.x))/p3(2);
+        PointT p;
+        p.getVector3fMap() = p3;
+        keypoints->push_back(p);
+    }
+
+    //cv::Mat img_keypoints;
+    //cv::drawKeypoints(image, cv_keypoints, img_keypoints, cv::Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+    //cv::imshow("my keypoints", img_keypoints);
+    //cv::waitKey(0);
+
+    SiftCloudT::Ptr features(new SiftCloudT);
+    features->reserve(cv_features.rows);
+    for (int j = 0; j < cv_features.rows; ++j) {
+        // we need to check if the points are finite
+        SiftT sp;
+        for (int k = 0; k < 128; ++k) {
+            sp.histogram[k] = cv_features.at<float>(j, k);
+        }
+        features->push_back(sp);
+    }
+
+    return make_pair(features, keypoints);
+}
+
+pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_for_cloud(CloudT::Ptr& cloud, const Eigen::Matrix3f& K)
+{
+    int minx, miny;
+    cv::Mat image, depth;
+    tie(image, depth, minx, miny) = compute_image_for_cloud(cloud, K);
+    SiftCloudT::Ptr features;
+    CloudT::Ptr keypoints;
+    tie(features, keypoints) = extract_sift_features(image, depth, minx, miny, K);
+    return make_pair(features, keypoints);
+}
+
 pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const boost::filesystem::path& cloud_path)
 {
     CloudT::Ptr cloud(new CloudT);

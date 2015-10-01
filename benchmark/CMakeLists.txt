@@ -54,4 +54,5 @@ set(include_dir include/${PROJECT_NAME})
 ############### TESTING PROGRAMS ##################
 
 add_executable(benchmark_query_vocabulary src/benchmark_query_vocabulary.cpp)
-target_link_libraries(benchmark_query_vocabulary vocabulary_tree dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(benchmark_query_vocabulary vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

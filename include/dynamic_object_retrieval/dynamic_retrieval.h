@@ -5,6 +5,7 @@
 #include "dynamic_object_retrieval/visualize.h"
 #include "dynamic_object_retrieval/summary_iterators.h"
 #include "extract_sift/extract_sift.h"
+#include "object_3d_retrieval/pfhrgb_estimation.h"
 
 #include <vocabulary_tree/vocabulary_tree.h>
 #include <object_3d_retrieval/register_objects.h>
@@ -187,8 +188,7 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
 }
 
 // take a potentially cached vt as argument, to allow caching
-// this should just be the first round, then there should be a separate function for re-weighting
-// maybe introduce a new struct type called path_index_score or something
+// potentially mark this as DEPRECATED, use the funcion below instead
 template <typename VocabularyT>
 pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
@@ -207,6 +207,31 @@ query_reweight_vocabulary(const boost::filesystem::path& cloud_path, size_t nbr_
     SiftCloudT::Ptr sift_features;
     CloudT::Ptr sift_keypoints;
     tie(sift_features, sift_keypoints) = extract_sift::get_sift_for_cloud_path(cloud_path);
+    result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
+
+    return make_pair(retrieved_paths, reweighted_paths);
+}
+
+template <typename VocabularyT>
+pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
+std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
+query_reweight_vocabulary(CloudT::Ptr& query_cloud, const Eigen::Matrix3f& K, size_t nbr_query,
+                          const boost::filesystem::path& vocabulary_path,
+                          const vocabulary_summary& summary)
+{
+    using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
+
+    HistCloudT::Ptr features(new HistCloudT);
+    CloudT::Ptr keypoints(new CloudT);
+    pfhrgb_estimation::compute_features(features, keypoints, query_cloud);
+
+    VocabularyT vt;
+    result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
+
+    SiftCloudT::Ptr sift_features;
+    CloudT::Ptr sift_keypoints;
+    tie(sift_features, sift_keypoints) = extract_sift::extract_sift_for_cloud(query_cloud, K);
+
     result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
 
     return make_pair(retrieved_paths, reweighted_paths);
