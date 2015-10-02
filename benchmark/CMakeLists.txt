@@ -46,7 +46,8 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../build)
 set(include_dir include/${PROJECT_NAME})
 
 # DEMO: add_library
-#add_library(sift include/sift/sift.cpp include/sift/sift.h)
+add_library(benchmark_retrieval src/benchmark_retrieval.cpp include/${PROJECT_NAME}/benchmark_retrieval.h)
+target_link_libraries(benchmark_retrieval ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 # DEMO: configure_file
 #configure_file(scripts/menu.py menu.py COPYONLY)
@@ -54,5 +55,6 @@ set(include_dir include/${PROJECT_NAME})
 ############### TESTING PROGRAMS ##################
 
 add_executable(benchmark_query_vocabulary src/benchmark_query_vocabulary.cpp)
-target_link_libraries(benchmark_query_vocabulary vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
+target_link_libraries(benchmark_query_vocabulary benchmark_retrieval
+                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

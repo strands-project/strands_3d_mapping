@@ -2,8 +2,10 @@
 #include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
 #include <dynamic_object_retrieval/summary_iterators.h>
 #include <dynamic_object_retrieval/dynamic_retrieval.h>
+#include <object_3d_benchmark/benchmark_retrieval.h>
 #include <metaroom_xml_parser/load_utilities.h>
 #include <pcl/point_types.h>
+#include <image_geometry/pinhole_camera_model.h>
 
 using namespace std;
 
@@ -16,6 +18,9 @@ using HistCloudT = pcl::PointCloud<HistT>;
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
                                    (float[250], histogram, histogram)
 )
+
+// there is no way to associate the extracted segments directly with any particular object
+// how do we get the annotation of an object?
 
 int main(int argc, char** argv)
 {
@@ -32,26 +37,33 @@ int main(int argc, char** argv)
     summary.load(vocabulary_path);
 
     LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
-    semantic_map_load_utilties::IntermediateCloudCompleteData<PointT> data = semantic_map_load_utilties::loadIntermediateCloudsCompleteDataFromSingleSweep<PointT>(sweep_xml);
 
-    image_geometry::PinholeCameraModel model = data.vIntermediateRoomCloudCamParams[0];
-    cv::Matx33d cvK = model.intrinsicMatrix();
-    Eigen::Matrix3d dK = Eigen::Map<Eigen::Matrix3d>(cvK.val);
-    Eigen::Matrix3f K = dK.cast<float>().transpose();
-
-    cout << K << endl;
-    return 0;
+    Eigen::Matrix3f K = benchmark_retrieval::get_camera_matrix(sweep_xml);
 
     for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels)) {
-        CloudT::Ptr object_cloud;
-        string object_label;
-        tie(object_cloud, object_label) = tup;
+        CloudT::Ptr query_cloud;
+        string query_label;
+        tie(query_cloud, query_label) = tup;
 
+        vector<CloudT::Ptr> retrieved_clouds;
         if (summary.vocabulary_type == "standard") {
-            dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(object_cloud, K, 10, vocabulary_path, summary);
+            auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary);
+            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
         }
         else if (summary.vocabulary_type == "incremental") {
-            dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(object_cloud, K, 10, vocabulary_path, summary);
+            auto results = dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary);
+            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
+        }
+
+        vector<pair<CloudT::Ptr, string> > cloud_labels = benchmark_retrieval::find_labels(retrieved_clouds, labels);
+
+        for (auto tup : cloud_labels) {
+            CloudT::Ptr retrieved_cloud;
+            string retrieved_label;
+            tie(retrieved_cloud, retrieved_label) = tup;
+
+            cout << "Query label: " << query_label << endl;
+            cout << "Retrieved label: " << retrieved_label << endl;
         }
     }
 
