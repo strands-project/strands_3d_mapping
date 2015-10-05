@@ -339,6 +339,7 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const vector<boost::f
 {
     CloudT::Ptr cloud(new CloudT);
     for (boost::filesystem::path cloud_path : cloud_paths) {
+        cout << "Loading cloud: " << cloud_path.string() << endl;
         CloudT::Ptr keypoints(new CloudT);
         pcl::io::loadPCDFile(cloud_path.string(), *keypoints);
         *cloud += *keypoints;

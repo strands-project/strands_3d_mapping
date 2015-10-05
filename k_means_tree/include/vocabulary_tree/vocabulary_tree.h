@@ -93,7 +93,7 @@ public:
 
     double compute_vocabulary_norm(CloudPtrT& cloud);
     double compute_min_combined_dist(std::vector<int>& smallest_ind_combination, CloudPtrT& cloud, std::vector<vocabulary_vector>& smaller_freqs,
-                                     std::set<std::pair<int, int> > adjacencies, std::map<node*, int>& mapping, std::map<int, node*>& inverse_mapping, int hint);
+                                     std::set<std::pair<int, int> >& adjacencies, std::map<node*, int>& mapping, std::map<int, node*>& inverse_mapping, int hint);
 
     void set_min_match_depth(int depth);
     void compute_normalizing_constants(); // this also computes the weights

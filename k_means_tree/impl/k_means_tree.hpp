@@ -403,4 +403,5 @@ void k_means_tree<Point, K, Data, Lp>::load(Archive& archive)
     archive(root);
     cout << "Setting up the leaves vector" << endl;
     append_leaves(&root);
+    cout << "Finished loading k_means_tree" << endl;
 }

@@ -22,13 +22,18 @@ namespace dynamic_object_retrieval {
 boost::filesystem::path get_sweep_xml(size_t sweep_id, const vocabulary_summary& summary)
 {
     std::vector<std::string> xmls;
+    std::cout << "Looking a sweep_id: " << sweep_id << std::endl;
+    std::cout << "And number of noise sweeps: " << summary.nbr_noise_sweeps << std::endl;
     if (sweep_id < summary.nbr_noise_sweeps) {
         xmls = semantic_map_load_utilties::getSweepXmls<PointT>(summary.noise_data_path);
     }
     else {
         xmls = semantic_map_load_utilties::getSweepXmls<PointT>(summary.annotated_data_path);
+        sweep_id -= summary.nbr_noise_sweeps;
     }
-    return boost::filesystem::path(xmls[sweep_id]);
+    std::cout << "Number of xmls: " << xmls.size() << std::endl;
+    std::cout << "Index: " << sweep_id << std::endl;
+    return boost::filesystem::path(xmls[sweep_id]).parent_path();
 }
 
 struct segment_iterator_base {
@@ -527,6 +532,23 @@ struct sweep_subsegment_feature_map {
     }
 
     sweep_subsegment_feature_map(const boost::filesystem::path& sweep_path) : sweep_path(sweep_path / "room.xml") {}
+};
+
+struct sweep_subsegment_keypoint_map {
+
+    boost::filesystem::path sweep_path;
+
+    segment_path_iterator begin()
+    {
+        return segment_path_iterator(std::vector<std::string>({sweep_path.string()}), "subsegments", "keypoint");
+    }
+
+    segment_path_iterator end()
+    {
+        return segment_path_iterator();
+    }
+
+    sweep_subsegment_keypoint_map(const boost::filesystem::path& sweep_path) : sweep_path(sweep_path / "room.xml") {}
 };
 
 struct sweep_subsegment_feature_cloud_map {

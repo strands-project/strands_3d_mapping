@@ -33,6 +33,8 @@ set<pair<int, int> > compute_group_adjacencies(CloudT::Ptr& centroids, float adj
             }
         }
     }
+
+    return adjacencies;
 }
 
 template <typename SegmentMapT>

@@ -189,7 +189,7 @@ void vocabulary_tree<Point, K>::source_freqs_for_node(std::map<int, int>& source
 
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& included_indices, CloudPtrT& cloud, vector<vocabulary_vector>& smaller_freqs,
-                                                            set<pair<int, int> > adjacencies, map<node*, int>& mapping, map<int, node*>& inverse_mapping, int hint) // TODO: const
+                                                            set<pair<int, int> >& adjacencies, map<node*, int>& mapping, map<int, node*>& inverse_mapping, int hint) // TODO: const
 {
     // used to return which indices are picked
     vector<int> remaining_indices;
@@ -212,6 +212,7 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& include
     map<int, double> source_freqs; // to be filled in
 
     if (hint != -1) {
+        cout << "We got hint: " << hint << endl; // REMOVE
         if (hint >= smaller_freqs.size()) {
             cout << "Using hint = " << hint << endl;
             cout << "We have total voxels: " << smaller_freqs.size() << endl;
@@ -462,7 +463,7 @@ void vocabulary_tree<Point, K>::top_combined_similarities(std::vector<result_typ
         return s1.score < s2.score; // find min elements!
     });
 
-    if (nbr_results > 0) {
+    if (nbr_results > 0 && scores.size() > nbr_results) {
         scores.resize(nbr_results);
     }
 }
@@ -605,4 +606,5 @@ void vocabulary_tree<Point, K>::load(Archive& archive)
     archive(indices);
     archive(db_vector_normalizing_constants);
     archive(N);
+    cout << "Finished loading vocabulary_tree" << endl;
 }

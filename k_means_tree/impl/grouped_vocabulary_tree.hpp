@@ -35,7 +35,7 @@ vector<int> sort_permutation_vector(const vector<T>& vec, Compare compare)
 // this has the advantage that it is independent of what we are representing
 // we also need to store the adjacency of subsegments within the sweeps
 template <typename Point, size_t K>
-void grouped_vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type>& results, vector<group_type>& groups, CloudPtrT& query_cloud, size_t nbr_query)
+void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& results, vector<group_type>& groups, CloudPtrT& query_cloud, size_t nbr_query)
 {
     // need a way to get
     // 1. mapping - can get this directly but would need to cache
@@ -65,13 +65,19 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type
         vector<vocabulary_vector> vectors;
         set<pair<int, int> > adjacencies;
 
+        cout << "Loading " << i << ":th score with group: " << scores[i].group_index << endl;
+        cout << "Loading " << i << ":th score with subsegment: " << scores[i].subgroup_index << endl;
+        cout << "Loading " << i << ":th score with index: " << scores[i].index << endl;
         load_cached_vocabulary_vectors_for_group(vectors, adjacencies, scores[i].group_index);
 
         vector<int> selected_indices;
         // get<1>(scores[i])) is actually the index within the group!
-        double score = super::compute_min_combined_dist(selected_indices, query_cloud, vectors, adjacencies, mapping, inverse_mapping, scores[i].subgroup_index);
+        double score = super::compute_min_combined_dist(selected_indices, query_cloud, vectors, adjacencies,
+                                                        mapping, inverse_mapping, scores[i].subgroup_index);
         updated_scores.push_back(result_type{ score, scores[i].group_index, scores[i].subgroup_index });
         updated_indices.push_back(selected_indices);
+
+        cout << "Found " << selected_indices.size() << " number of subsegments..." << endl;
     }
 
     auto p = sort_permutation_vector(updated_scores, [](const result_type& s1, const result_type& s2) {
@@ -83,9 +89,12 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type
     // the subsegment indices within the sweep, not used atm (but we should be able to retrieve this somehow!!)
     groups = apply_permutation_vector(updated_indices, p);
 
-    updated_scores.resize(nbr_query);
-    // how should we return the oversegment indices????
-    groups.resize(nbr_query);
+    if (results.size() > nbr_query) {
+        results.resize(nbr_query);
+        // how should we return the oversegment indices????
+        groups.resize(nbr_query);
+    }
+
     for (result_type& s : updated_scores) {
         s.index = get_id_for_group_subgroup(s.group_index, s.subgroup_index);
     }
@@ -202,6 +211,8 @@ void grouped_vocabulary_tree<Point, K>::load_cached_vocabulary_vectors_for_group
     ss << "group" << setfill('0') << setw(6) << i;
     boost::filesystem::path group_path = cache_path / ss.str();
 
+    cout << "Loading " << group_path << endl;
+
     boost::filesystem::path vectors_path = group_path / "vectors.cereal";
     ifstream inv(vectors_path.string());
     {
@@ -217,6 +228,8 @@ void grouped_vocabulary_tree<Point, K>::load_cached_vocabulary_vectors_for_group
         archive_i(adjacencies);
     }
     ina.close();
+
+    cout << "Finished loading " << group_path << endl;
 }
 
 // the first index is the segment, the second one is the oversegment
@@ -283,7 +296,7 @@ void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vec
 
     for (size_t i = 0; i < extra_cloud->size(); ++i) {
         p = eig(extra_cloud->at(i));
-        if (std::find_if(p.data(), p.data()+super::rows, [] (float f) {
+        if (std::find_if(p.data(), p.data()+super::rows, [](float f) {
             return std::isnan(f) || std::isinf(f);
         }) == p.data()+super::rows) {
             temp_cloud->push_back(extra_cloud->at(i));
@@ -468,7 +481,7 @@ void grouped_vocabulary_tree<Point, K>::top_combined_similarities(vector<result_
     std::sort(scores.begin(), scores.end(), [](const result_type& s1, const result_type& s2) {
         return s1.score < s2.score; // find min elements!
     });
-    if (nbr_results > 0) {
+    if (nbr_results > 0 && scores.size() > nbr_results) {
         scores.resize(nbr_results);
     }
     /*for (result_type& s : scores) {
@@ -482,6 +495,7 @@ void grouped_vocabulary_tree<Point, K>::load(Archive& archive)
 {
     super::load(archive);
     archive(nbr_points, nbr_subgroups, group_subgroup, save_state_path);
+    cout << "Finished loading grouped_vocabulary_tree" << endl;
 }
 
 template <typename Point, size_t K>

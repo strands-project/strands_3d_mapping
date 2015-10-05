@@ -77,12 +77,21 @@ get_retrieved_path_scores(const std::vector<IndexT>& scores, const std::vector<G
     // we need to get a subsegment_sweep__path_iterator and add all of the path corresponding to groups
     std::vector<std::pair<std::vector<boost::filesystem::path>, IndexT> > path_scores;
 
+    int temp = 0;
     for (auto tup : dynamic_object_retrieval::zip(scores, groups)) {
+        std::cout << "Iteration nbr: " << temp << std::endl;
+        std::cout << "Scores size: " << scores.size() << std::endl;
+        std::cout << "Groups size: " << groups.size() << std::endl;
+        std::cout << "Groups for iteration: " << get<1>(tup).size() << std::endl;
         path_scores.push_back(make_pair(vector<boost::filesystem::path>(), get<0>(tup)));
 
         int sweep_id = get<0>(tup).group_index;
+        std::cout << "Getting sweep xml for group: " << sweep_id << std::endl;
+        std::cout << "With subsegment: " << get<0>(tup).subgroup_index << std::endl;
         boost::filesystem::path sweep_path = dynamic_object_retrieval::get_sweep_xml(sweep_id, summary);
-        dynamic_object_retrieval::sweep_subsegment_map subsegments(sweep_path);
+        std::cout << "Getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
+        dynamic_object_retrieval::sweep_subsegment_keypoint_map subsegments(sweep_path);
+        std::cout << "Finished getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
         int counter = 0;
         for (const boost::filesystem::path& path : subsegments) {
             if (std::find(get<1>(tup).begin(), get<1>(tup).end(), counter) != get<1>(tup).end()) {
@@ -90,6 +99,9 @@ get_retrieved_path_scores(const std::vector<IndexT>& scores, const std::vector<G
             }
             ++counter;
         }
+        std::cout << "Finished getting sweep xml for group: " << sweep_id << std::endl;
+        std::cout << "Got " << path_scores.back().first.size() << " subsegments..." << std::endl;
+        ++temp;
     }
 
     return path_scores;
@@ -150,6 +162,7 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
     map<int, double> weighted_indices;
     double weight_sum = 0.0;
     for (auto s : path_scores) {
+        std::cout << "Loading sift for: " << s.second.index << std::endl;
 
         CloudT::Ptr match_sift_keypoints;
         SiftCloudT::Ptr match_sift_cloud;
@@ -221,17 +234,22 @@ query_reweight_vocabulary(CloudT::Ptr& query_cloud, const Eigen::Matrix3f& K, si
 {
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
+
+    std::cout << "Computing query features..." << std::endl;
     HistCloudT::Ptr features(new HistCloudT);
     CloudT::Ptr keypoints(new CloudT);
     pfhrgb_estimation::compute_features(features, keypoints, query_cloud);
 
+    std::cout << "Querying vocabulary..." << std::endl;
     VocabularyT vt;
     result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
 
+    std::cout << "Computing sift features for query..." << std::endl;
     SiftCloudT::Ptr sift_features;
     CloudT::Ptr sift_keypoints;
     tie(sift_features, sift_keypoints) = extract_sift::extract_sift_for_cloud(query_cloud, K);
 
+    std::cout << "Reweighting and querying..." << std::endl;
     result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
 
     return make_pair(retrieved_paths, reweighted_paths);
