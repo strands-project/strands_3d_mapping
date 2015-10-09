@@ -86,6 +86,7 @@ configure_file(scripts/querying_menu.py querying_menu.py COPYONLY)
 ##################### NEW DYNAMIC OBJECT RETRIEVAL VERSION ###########################
 
 add_library(dynamic_visualize src/visualize.cpp include/dynamic_object_retrieval/visualize.h)
+add_dependencies(dynamic_visualize k_means_tree_project)
 target_link_libraries(dynamic_visualize vocabulary_tree ${PCL_LIBRARIES})
 
 add_library(extract_sift src/extract_sift.cpp include/extract_sift/extract_sift.h)
@@ -93,6 +94,7 @@ target_link_libraries(extract_sift dynamic_visualize sift ${ROS_LIBRARIES} ${Ope
 
 add_library(dynamic_retrieval src/dynamic_retrieval.cpp include/dynamic_object_retrieval/dynamic_retrieval.h
             include/dynamic_object_retrieval/summary_types.h include/dynamic_object_retrieval/summary_iterators.h)
+add_dependencies(dynamic_retrieval k_means_tree_project)
 target_link_libraries(dynamic_retrieval vocabulary_tree extract_sift ${PCL_LIBRARIES})
 
 add_executable(dynamic_init_folders src/dynamic_init_folders.cpp)
