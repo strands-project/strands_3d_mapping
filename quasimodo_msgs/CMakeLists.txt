@@ -51,6 +51,9 @@ add_service_files(
   FILES
   index_frame.srv
   model_from_frame.srv
+  cloud_from_model.srv
+  fuse_models.srv
+  get_model.srv
 )
 
 ## Generate actions in the 'action' folder
