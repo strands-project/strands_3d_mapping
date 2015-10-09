@@ -308,7 +308,7 @@
 
         sort(matchingObservations.begin(), matchingObservations.end(),
              [](const std::string& a, const std::string& b )
-        {            
+        {
             std::string patrol_string = "patrol_run_";
             std::string room_string = "room_";
             std::string date_string = "YYYYMMDD";
@@ -516,4 +516,3 @@
 
         return toRet;
     }
-

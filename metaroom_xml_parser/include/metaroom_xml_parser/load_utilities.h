@@ -122,4 +122,3 @@ namespace semantic_map_registration_features
 }
 
 #endif
-
