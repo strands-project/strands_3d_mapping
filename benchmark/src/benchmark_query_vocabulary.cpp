@@ -22,28 +22,24 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
 // there is no way to associate the extracted segments directly with any particular object
 // how do we get the annotation of an object?
 
-int main(int argc, char** argv)
+using correct_ratio = pair<double, double>;
+
+correct_ratio get_score_for_sweep(const string& sweep_xml, const boost::filesystem::path& vocabulary_path,
+                                  const dynamic_object_retrieval::vocabulary_summary& summary)
 {
-    if (argc < 3) {
-        cout << "Please provide sweep xml to load and query for its objects..." << endl;
-        cout << "And the path to the vocabulary..." << endl;
-        return -1;
-    }
-
-    string sweep_xml(argv[1]);
-    boost::filesystem::path vocabulary_path(argv[2]);
-
-    dynamic_object_retrieval::vocabulary_summary summary;
-    summary.load(vocabulary_path);
-
     LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
 
     Eigen::Matrix3f K = benchmark_retrieval::get_camera_matrix(sweep_xml);
 
-    for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels)) {
+    correct_ratio sweep_ratio(0.0, 0.0);
+
+    for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages)) {
         CloudT::Ptr query_cloud;
         string query_label;
-        tie(query_cloud, query_label) = tup;
+        cv::Mat query_image;
+        tie(query_cloud, query_label, query_image) = tup;
+        cv::imshow("Query object", query_image);
+        cv::waitKey();
 
         vector<CloudT::Ptr> retrieved_clouds;
         if (summary.vocabulary_type == "standard") {
@@ -66,10 +62,40 @@ int main(int argc, char** argv)
             string retrieved_label;
             tie(retrieved_cloud, retrieved_label) = tup;
 
+            sweep_ratio.first += double(retrieved_label == query_label);
+            sweep_ratio.second += 1.0;
+
             cout << "Query label: " << query_label << endl;
             cout << "Retrieved label: " << retrieved_label << endl;
         }
     }
+
+    return sweep_ratio;
+}
+
+int main(int argc, char** argv)
+{
+    if (argc < 3) {
+        cout << "Please provide path to annotated sweep data..." << endl;
+        cout << "And the path to the vocabulary..." << endl;
+        return -1;
+    }
+
+    boost::filesystem::path data_path(argv[1]);
+    boost::filesystem::path vocabulary_path(argv[2]);
+
+    dynamic_object_retrieval::vocabulary_summary summary;
+    summary.load(vocabulary_path);
+
+    vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
+
+    correct_ratio total_ratio(0.0, 0.0);
+    for (const string& xml : folder_xmls) {
+        correct_ratio sweep_ratio = get_score_for_sweep(xml, vocabulary_path, summary);
+        total_ratio.first += sweep_ratio.first; total_ratio.second += sweep_ratio.second;
+    }
+
+    cout << "Got overall ratio: " << total_ratio.first / total_ratio.second << endl;
 
     return 0;
 }

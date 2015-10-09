@@ -24,8 +24,8 @@ add_definitions(${PCL_DEFINITIONS})
 
 # Use custom version of metaroom_xml_parser for labeled data
 set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../../catkin_ws)
-set(parser_include_dir ${parser_workspace}/src/metaroom_xml_parser/include)
-set(parser_library_dir ${parser_workspace}/devel/lib/metaroom_xml_parser)
+set(parser_include_dir ${parser_workspace}/src/strands_3d_mapping/metaroom_xml_parser/include)
+set(parser_library_dir ${parser_workspace}/devel/lib)
 
 include_directories(${parser_include_dir})
 link_directories(${parser_library_dir})
@@ -52,9 +52,14 @@ target_link_libraries(benchmark_retrieval ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_Q
 # DEMO: configure_file
 #configure_file(scripts/menu.py menu.py COPYONLY)
 
-############### TESTING PROGRAMS ##################
-
 add_executable(benchmark_query_vocabulary src/benchmark_query_vocabulary.cpp)
 target_link_libraries(benchmark_query_vocabulary benchmark_retrieval
+                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+############### TESTING PROGRAMS ##################
+
+add_executable(test_query_annotated_sweep test/test_query_annotated_sweep.cpp)
+target_link_libraries(test_query_annotated_sweep benchmark_retrieval
                       vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
