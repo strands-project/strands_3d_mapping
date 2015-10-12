@@ -479,6 +479,11 @@
 
         for (size_t k=0; k<xmlFiles.size(); k++)
         {
+            // get the frame number of the label
+            std::string label_name = xmlFiles[k].toStdString();
+            std::string number_string = label_name.substr(4, 4);
+            size_t scan_number = std::stoi(number_string);
+
             std::string label_file = base_path+xmlFiles[k].toStdString();
             label_file[label_file.size()-1] = 't';
             label_file[label_file.size()-2] = 'x';
@@ -506,6 +511,7 @@
             toRet.objectImages.push_back(image);
             toRet.objectMasks.push_back(mask);
             toRet.objectLabels.push_back(label);
+            toRet.objectScanIndices.push_back(scan_number);
         }
 
         return toRet;

@@ -92,6 +92,7 @@ namespace semantic_map_load_utilties
         std::vector<cv::Mat>                                        objectImages;
         std::vector<cv::Mat>                                        objectMasks;
         std::vector<std::string>                                    objectLabels;
+        std::vector<size_t>                                         objectScanIndices;
         boost::posix_time::ptime                                    sweepTime;
         std::string                                                 waypoint;
 
