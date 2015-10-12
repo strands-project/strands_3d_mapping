@@ -1,4 +1,5 @@
 #include "object_3d_benchmark/benchmark_retrieval.h"
+#include <tf_conversions/tf_eigen.h>
 
 using namespace std;
 
@@ -59,7 +60,7 @@ vector<pair<CloudT::Ptr, string> > find_labels(vector<CloudT::Ptr>& input_segmen
     return labelled_segmented_dynamics;
 }
 
-Eigen::Matrix3f get_camera_matrix(const string& sweep_xml)
+pair<Eigen::Matrix3f, vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > > get_camera_matrix_and_transforms(const string& sweep_xml)
 {
     semantic_map_load_utilties::IntermediateCloudCompleteData<PointT> data = semantic_map_load_utilties::loadIntermediateCloudsCompleteDataFromSingleSweep<PointT>(sweep_xml);
 
@@ -67,7 +68,17 @@ Eigen::Matrix3f get_camera_matrix(const string& sweep_xml)
     cv::Matx33d cvK = model.intrinsicMatrix();
     Eigen::Matrix3d dK = Eigen::Map<Eigen::Matrix3d>(cvK.val);
 
-    return dK.cast<float>().transpose();
+    vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
+    Eigen::Affine3d first;
+    tf::transformTFToEigen(data.vIntermediateRoomCloudTransforms[0], first);
+    //first = first.inverse();
+    for (tf::StampedTransform t : data.vIntermediateRoomCloudTransforms) {
+        Eigen::Affine3d e;
+        tf::transformTFToEigen(t, e);
+        camera_transforms.push_back((e.inverse()*first).matrix().cast<float>());
+    }
+
+    return make_pair(dK.cast<float>().transpose(), camera_transforms);
 }
 
 } // namespace benchmark_retrieval

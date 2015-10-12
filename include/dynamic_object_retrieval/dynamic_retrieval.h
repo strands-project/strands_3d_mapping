@@ -207,7 +207,7 @@ pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename Voc
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
 query_reweight_vocabulary(const boost::filesystem::path& cloud_path, size_t nbr_query,
                           const boost::filesystem::path& vocabulary_path,
-                          const vocabulary_summary& summary)
+                          const vocabulary_summary& summary, bool do_reweighting = true)
 {
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
@@ -216,6 +216,10 @@ query_reweight_vocabulary(const boost::filesystem::path& cloud_path, size_t nbr_
 
     VocabularyT vt;
     result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
+
+    if (!do_reweighting) {
+        return make_pair(retrieved_paths, result_type());
+    }
 
     SiftCloudT::Ptr sift_features;
     CloudT::Ptr sift_keypoints;
@@ -230,10 +234,38 @@ pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename Voc
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
 query_reweight_vocabulary(CloudT::Ptr& query_cloud, const Eigen::Matrix3f& K, size_t nbr_query,
                           const boost::filesystem::path& vocabulary_path,
-                          const vocabulary_summary& summary)
+                          const vocabulary_summary& summary, bool do_reweighting = true)
 {
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
+    HistCloudT::Ptr features(new HistCloudT);
+    CloudT::Ptr keypoints(new CloudT);
+    pfhrgb_estimation::compute_features(features, keypoints, query_cloud);
+
+    VocabularyT vt;
+    result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
+
+    if (!do_reweighting) {
+        return make_pair(retrieved_paths, result_type());
+    }
+
+    SiftCloudT::Ptr sift_features;
+    CloudT::Ptr sift_keypoints;
+    tie(sift_features, sift_keypoints) = extract_sift::extract_sift_for_cloud(query_cloud, K);
+
+    result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
+
+    return make_pair(retrieved_paths, reweighted_paths);
+}
+
+template <typename VocabularyT>
+pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
+std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
+query_reweight_vocabulary(CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth,
+                          const Eigen::Matrix3f& K, size_t nbr_query, const boost::filesystem::path& vocabulary_path,
+                          const vocabulary_summary& summary, bool do_reweighting = true)
+{
+    using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
     std::cout << "Computing query features..." << std::endl;
     HistCloudT::Ptr features(new HistCloudT);
@@ -244,10 +276,14 @@ query_reweight_vocabulary(CloudT::Ptr& query_cloud, const Eigen::Matrix3f& K, si
     VocabularyT vt;
     result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
 
+    if (!do_reweighting) {
+        return make_pair(retrieved_paths, result_type());
+    }
+
     std::cout << "Computing sift features for query..." << std::endl;
     SiftCloudT::Ptr sift_features;
     CloudT::Ptr sift_keypoints;
-    tie(sift_features, sift_keypoints) = extract_sift::extract_sift_for_cloud(query_cloud, K);
+    tie(sift_features, sift_keypoints) = extract_sift::extract_sift_for_image(query_image, query_depth, K);
 
     std::cout << "Reweighting and querying..." << std::endl;
     result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);

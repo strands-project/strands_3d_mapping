@@ -11,7 +11,7 @@ using CloudT = pcl::PointCloud<PointT>;
 double get_match_accuracy(CloudT::Ptr& object, CloudT::Ptr& cluster);
 std::vector<std::pair<CloudT::Ptr, std::string> > find_labels(std::vector<CloudT::Ptr>& input_segmented_dynamics,
                                                               semantic_map_load_utilties::LabelledData<PointT>& labelled_clusters);
-Eigen::Matrix3f get_camera_matrix(const std::string& sweep_xml);
+std::pair<Eigen::Matrix3f, std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > > get_camera_matrix_and_transforms(const std::string& sweep_xml);
 
 template <typename IndexT>
 std::vector<CloudT::Ptr> load_retrieved_clouds(std::vector<std::pair<boost::filesystem::path, IndexT> >& retrieved_paths)

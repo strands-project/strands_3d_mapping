@@ -6,6 +6,7 @@
 #include <metaroom_xml_parser/load_utilities.h>
 #include <pcl/point_types.h>
 #include <image_geometry/pinhole_camera_model.h>
+#include <pcl/common/transforms.h>
 
 using namespace std;
 
@@ -29,27 +30,34 @@ correct_ratio get_score_for_sweep(const string& sweep_xml, const boost::filesyst
 {
     LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
 
-    Eigen::Matrix3f K = benchmark_retrieval::get_camera_matrix(sweep_xml);
+
+    Eigen::Matrix3f K;
+    vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
+    tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
 
     correct_ratio sweep_ratio(0.0, 0.0);
 
-    for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages)) {
-        CloudT::Ptr query_cloud;
+    for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages, labels.objectScanIndices)) {
+        CloudT::Ptr object_cloud;
         string query_label;
         cv::Mat query_image;
-        tie(query_cloud, query_label, query_image) = tup;
-        cv::imshow("Query object", query_image);
-        cv::waitKey();
+        size_t scan_index;
+        tie(object_cloud, query_label, query_image, scan_index) = tup;
+        //cv::imshow("Query object", query_image);
+        //cv::waitKey();
+
+        CloudT::Ptr query_cloud(new CloudT);
+        pcl::transformPointCloud(*object_cloud, *query_cloud, camera_transforms[scan_index]);
 
         vector<CloudT::Ptr> retrieved_clouds;
         if (summary.vocabulary_type == "standard") {
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary);
-            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.second);
+            auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
+            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
         }
         else if (summary.vocabulary_type == "incremental") {
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary);
+            auto results = dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
             cout << "Loading clouds..." << endl;
-            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.second);
+            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
             cout << "Finished loading clouds..." << endl;
         }
 

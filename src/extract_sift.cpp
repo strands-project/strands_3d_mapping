@@ -254,6 +254,10 @@ tuple<cv::Mat, cv::Mat, int, int> compute_image_for_cloud(CloudT::Ptr& cloud, co
 
     int height = *maxy - *miny + 1;
     int width = *maxx - *minx + 1;
+
+    cout << "Height: " << height << endl;
+    cout << "Width: " << width << endl;
+
     cv::Mat image = cv::Mat::zeros(height, width, CV_8UC3);
     cv::Mat depth = cv::Mat::zeros(height, width, CV_32F);
 
@@ -317,11 +321,25 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_features(cv::Mat& image, cv::Mat
     return make_pair(features, keypoints);
 }
 
+// TODO: this is a stub
+pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_for_image(cv::Mat& image, cv::Mat& depth, const Eigen::Matrix3f& K)
+{
+    cv::Mat cropped_image;
+    cv::Mat cropped_depth;
+
+    // remove the black around the objects
+    int minx, miny;
+
+    return extract_sift_features(cropped_image, cropped_depth, minx, miny, K);
+}
+
 pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_for_cloud(CloudT::Ptr& cloud, const Eigen::Matrix3f& K)
 {
     int minx, miny;
     cv::Mat image, depth;
     tie(image, depth, minx, miny) = compute_image_for_cloud(cloud, K);
+    //cv::imshow("Generated image", image);
+    //cv::waitKey();
     SiftCloudT::Ptr features;
     CloudT::Ptr keypoints;
     tie(features, keypoints) = extract_sift_features(image, depth, minx, miny, K);
