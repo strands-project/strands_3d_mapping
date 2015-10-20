@@ -49,11 +49,14 @@ set(include_dir include/${PROJECT_NAME})
 add_library(benchmark_retrieval src/benchmark_retrieval.cpp include/${PROJECT_NAME}/benchmark_retrieval.h)
 target_link_libraries(benchmark_retrieval ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
+add_library(benchmark_result src/benchmark_result.cpp include/${PROJECT_NAME}/benchmark_result.h)
+target_link_libraries(benchmark_result ${PCL_LIBRARIES})
+
 # DEMO: configure_file
 #configure_file(scripts/menu.py menu.py COPYONLY)
 
 add_executable(benchmark_query_vocabulary src/benchmark_query_vocabulary.cpp)
-target_link_libraries(benchmark_query_vocabulary benchmark_retrieval
+target_link_libraries(benchmark_query_vocabulary benchmark_retrieval benchmark_result
                       vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 

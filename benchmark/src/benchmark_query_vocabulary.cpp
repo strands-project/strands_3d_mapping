@@ -3,6 +3,7 @@
 #include <dynamic_object_retrieval/summary_iterators.h>
 #include <dynamic_object_retrieval/dynamic_retrieval.h>
 #include <object_3d_benchmark/benchmark_retrieval.h>
+#include <object_3d_benchmark/benchmark_result.h>
 #include <metaroom_xml_parser/load_utilities.h>
 #include <pcl/point_types.h>
 #include <image_geometry/pinhole_camera_model.h>
@@ -25,17 +26,15 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
 
 using correct_ratio = pair<double, double>;
 
-correct_ratio get_score_for_sweep(const string& sweep_xml, const boost::filesystem::path& vocabulary_path,
-                                  const dynamic_object_retrieval::vocabulary_summary& summary)
+benchmark_retrieval::benchmark_result get_score_for_sweep(const string& sweep_xml, const boost::filesystem::path& vocabulary_path,
+                                                          const dynamic_object_retrieval::vocabulary_summary& summary,
+                                                          benchmark_retrieval::benchmark_result current_result)
 {
     LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
-
 
     Eigen::Matrix3f K;
     vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
     tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
-
-    correct_ratio sweep_ratio(0.0, 0.0);
 
     for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages, labels.objectScanIndices)) {
         CloudT::Ptr object_cloud;
@@ -70,15 +69,19 @@ correct_ratio get_score_for_sweep(const string& sweep_xml, const boost::filesyst
             string retrieved_label;
             tie(retrieved_cloud, retrieved_label) = tup;
 
-            sweep_ratio.first += double(retrieved_label == query_label);
-            sweep_ratio.second += 1.0;
+            current_result.ratio.first += double(retrieved_label == query_label);
+            current_result.ratio.second += 1.0;
+
+            correct_ratio& instance_ratio = current_result.instance_ratios[query_label];
+            instance_ratio.first += double(retrieved_label == query_label);
+            instance_ratio.second += 1.0;
 
             cout << "Query label: " << query_label << endl;
             cout << "Retrieved label: " << retrieved_label << endl;
         }
     }
 
-    return sweep_ratio;
+    return current_result;
 }
 
 int main(int argc, char** argv)
@@ -97,13 +100,19 @@ int main(int argc, char** argv)
 
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
-    correct_ratio total_ratio(0.0, 0.0);
+    benchmark_retrieval::benchmark_result benchmark(summary);
+
     for (const string& xml : folder_xmls) {
-        correct_ratio sweep_ratio = get_score_for_sweep(xml, vocabulary_path, summary);
-        total_ratio.first += sweep_ratio.first; total_ratio.second += sweep_ratio.second;
+        benchmark = get_score_for_sweep(xml, vocabulary_path, summary, benchmark);
     }
 
-    cout << "Got overall ratio: " << total_ratio.first / total_ratio.second << endl;
+    cout << "Got overall ratio: " << benchmark.ratio.first / benchmark.ratio.second << endl;
+
+    for (const pair<string, correct_ratio>& instance_ratio : benchmark.instance_ratios) {
+        cout << "Ratio for instance " << instance_ratio.first << ": " << instance_ratio.second.first/instance_ratio.second.second << endl;
+    }
+
+    benchmark_retrieval::save_benchmark(benchmark, boost::filesystem::path("benchmark.json"));
 
     return 0;
 }

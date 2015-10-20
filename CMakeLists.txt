@@ -131,3 +131,6 @@ target_link_libraries(test_added_count vocabulary_tree dynamic_visualize ${ROS_L
 
 add_executable(test_feature_keypoint_match test/test_feature_keypoint_match.cpp)
 target_link_libraries(test_feature_keypoint_match ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(test_segmentation test/test_segmentation.cpp)
+target_link_libraries(test_segmentation supervoxel_segmentation dynamic_visualize pfhrgb_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

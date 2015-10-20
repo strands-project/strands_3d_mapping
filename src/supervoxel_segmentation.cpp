@@ -136,7 +136,7 @@ float supervoxel_segmentation::boundary_convexness(VoxelT::Ptr& first_supervoxel
     Eigen::Vector3f n1 = first_supervoxel->normal_.getNormalVector3fMap();
     Eigen::Vector3f n2 = second_supervoxel->normal_.getNormalVector3fMap();
 
-    float flat_penalty = -0.3f;
+    float flat_penalty = -0.1f;
     if (acos(fabs(n1.dot(n2))) < M_PI / 8.0) {
         return flat_penalty;
     }
@@ -671,7 +671,7 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
         merged_indices[i].insert(i);
     }
 
-    float threshold = -0.1f; // up for tuning
+    float threshold = -0.1f; //-0.1f; // up for tuning
 
     cout << "Pre merge number of segments: " << merged_indices.size() << endl;
     cout << "Number of edges: " << boost::num_edges(graph) << endl;
@@ -687,7 +687,7 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
             vertex_name_property_dual new_source = boost::get(vertex_name_dual, u);
             vertex_name_property_dual old_target = boost::get(vertex_name_dual, v);
             cout << "Weight: " << merge_weight.first / merge_weight.second << endl;
-            if (merge_weight.first / merge_weight.second > threshold) {
+            if (merge_weight.second > 1.5 && merge_weight.first / merge_weight.second > threshold) {
                 typename boost::graph_traits<graph_dual>::adjacency_iterator ai, ai_end;
                 for (tie(ai, ai_end) = boost::adjacent_vertices(v, graph);  ai != ai_end; ++ai) {
                     if (*ai == u) {
