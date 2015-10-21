@@ -67,9 +67,10 @@ int main(int argc, char** argv)
 
         cout << "Cloud size: " << cloud->size() << endl;
 
+        // these parameters are working very nicely
         pcl::ApproximateVoxelGrid<PointT> vf;
         vf.setInputCloud(cloud);
-        vf.setLeafSize(0.01f, 0.01f, 0.01f);
+        vf.setLeafSize(0.005f, 0.005f, 0.005f);
 
         CloudT::Ptr filtered_cloud(new CloudT);
         vf.filter(*filtered_cloud);

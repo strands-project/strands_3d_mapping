@@ -136,7 +136,7 @@ float supervoxel_segmentation::boundary_convexness(VoxelT::Ptr& first_supervoxel
     Eigen::Vector3f n1 = first_supervoxel->normal_.getNormalVector3fMap();
     Eigen::Vector3f n2 = second_supervoxel->normal_.getNormalVector3fMap();
 
-    float flat_penalty = -0.1f;
+    float flat_penalty = planar_weight;
     if (acos(fabs(n1.dot(n2))) < M_PI / 8.0) {
         return flat_penalty;
     }
@@ -176,12 +176,12 @@ float supervoxel_segmentation::boundary_convexness(VoxelT::Ptr& first_supervoxel
             continue;
         }
         diff.normalize();
-        float concaveness = diff.dot(normalj - normali);
-        if (concaveness < 0) {
-            mean_prod += concaveness;
+        float convexness = -diff.dot(normalj - normali);
+        if (convexness < 0) {
+            mean_prod += convexness;
         }
         else {
-            mean_prod += concaveness;
+            mean_prod += convexness;
         }
     }
     mean_prod /= count;
@@ -189,7 +189,7 @@ float supervoxel_segmentation::boundary_convexness(VoxelT::Ptr& first_supervoxel
     return mean_prod;
 }
 
-void supervoxel_segmentation::graph_cut(vector<Graph*>& graphs_out, Graph& graph_in, float threshold)
+void supervoxel_segmentation::graph_cut(vector<Graph*>& graphs_out, Graph& graph_in)
 {
     using adjacency_iterator = boost::graph_traits<Graph>::adjacency_iterator;
     typename boost::property_map<Graph, boost::vertex_index_t>::type vertex_id = boost::get(boost::vertex_index, graph_in);
@@ -204,10 +204,35 @@ void supervoxel_segmentation::graph_cut(vector<Graph*>& graphs_out, Graph& graph
     float w = boost::stoer_wagner_min_cut(graph_in, boost::get(boost::edge_weight, graph_in), boost::parity_map(parities));
 
     cout << "1. The min-cut weight of G is " << w << ".\n" << endl;
-    cout << "The threshold is " << threshold << ".\n" << endl;
+    cout << "The threshold is " << cut_threshold << ".\n" << endl;
 
-    if (w > threshold) {
-        return;
+    // this will make it more likely to cut smaller parts
+    if (w > cut_threshold) {
+
+        // compute number of edges in cut
+        size_t num_edges = 0;
+        using edge_iterator = boost::graph_traits<Graph>::edge_iterator;
+        edge_iterator edge_it, edge_end;
+        for (tie(edge_it, edge_end) = boost::edges(graph_in); edge_it != edge_end; ++edge_it) {
+            //std::cout << *edge_it << std::endl;
+            Vertex u = source(*edge_it, graph_in);
+            Vertex v = target(*edge_it, graph_in);
+            VertexIndex uindex = boost::get(vertex_id, u);
+            VertexIndex vindex = boost::get(vertex_id, v);
+            int uclass = boost::get(parities, uindex);
+            int vclass = boost::get(parities, vindex);
+            if (uclass != vclass) {
+                ++num_edges;
+            }
+        }
+
+        cout << "And we cut in " << num_edges << " places " << endl;
+
+        if (w/float(num_edges) > cut_threshold) {
+            cout << "We will not perform this cut" << endl;
+
+            return;
+        }
     }
 
     cout << "2. The min-cut weight of G is " << w << ".\n" << endl;
@@ -303,6 +328,11 @@ void supervoxel_segmentation::connected_components(vector<Graph*>& graphs_out, G
                 }
             }
         }
+
+        if (graph_size(*graphs_out.back()) == 0) {
+            delete graphs_out.back();
+            graphs_out.pop_back();
+        }
     }
 
     // construct the segmented graphs and optionally visualize input and output
@@ -366,7 +396,7 @@ void supervoxel_segmentation::recursive_split(vector<Graph*>& graphs_out, Graph&
         cout << "Graph i size: " << graph_size(*graphs_out[i]) << endl;
         // split these segments using graph cuts
         vector<Graph*> second_graphs;
-        graph_cut(second_graphs, *graphs_out[i], -0.1); // 0.5 for querying segmentation
+        graph_cut(second_graphs, *graphs_out[i]); // 0.5 for querying segmentation
         if (!second_graphs.empty()) {
             graphs_out.insert(graphs_out.end(), second_graphs.begin(), second_graphs.end());
             delete_indices.push_back(i);
@@ -471,7 +501,7 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph
             VoxelT::Ptr first_supervoxel = supervoxel_clusters.at(label_itr->first);
             VoxelT::Ptr second_supervoxel = supervoxel_clusters.at(adjacent_itr->second);
             float weight = boundary_convexness(first_supervoxel, second_supervoxel);
-            edge_weight_property e = -weight;
+            edge_weight_property e = weight;
             tie(edge, flag) = boost::add_edge(voxel_inds[label_itr->first], voxel_inds[adjacent_itr->second], e, *graph);
             boost::get(vertex_name, voxel_inds[label_itr->first]) = voxel_inds[label_itr->first];
             boost::get(vertex_name, voxel_inds[adjacent_itr->second]) = voxel_inds[adjacent_itr->second];
@@ -671,7 +701,7 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
         merged_indices[i].insert(i);
     }
 
-    float threshold = -0.1f; //-0.1f; // up for tuning
+    float threshold = 0.4f; // quite conservative
 
     cout << "Pre merge number of segments: " << merged_indices.size() << endl;
     cout << "Number of edges: " << boost::num_edges(graph) << endl;

@@ -75,6 +75,8 @@ public:
     //using VertexId = boost::property_map<Graph, VertexIndex>::type; // not sure about this, same thing as VertexIndex?
 
     float voxel_resolution;
+    float cut_threshold;
+    float planar_weight;
 
     // returns a supervoxel clusters with corresponding adjacency graph
     Graph* compute_convex_oversegmentation(std::vector<CloudT::Ptr>& clouds_out, CloudT::Ptr& cloud_in, bool visualize = false);
@@ -85,7 +87,7 @@ public:
     float boundary_convexness(VoxelT::Ptr& first_supervoxel, VoxelT::Ptr& second_supervoxel);
     void connected_components(std::vector<Graph*>& graphs_out, Graph& graph_in);
     void recursive_split(std::vector<Graph*>& graphs_out, Graph& graph_in);
-    void graph_cut(std::vector<Graph *>& graphs_out, Graph& graph_in, float threshold);
+    void graph_cut(std::vector<Graph *>& graphs_out, Graph& graph_in);
     //void visualize_boost_graph(Graph& graph_in);
     float mean_graph_weight(Graph& graph_in);
     size_t graph_size(Graph& graph_in);
@@ -126,7 +128,7 @@ public:
         cv::waitKey(0);
     }
 
-    supervoxel_segmentation() : voxel_resolution(0.02f) {}
+    supervoxel_segmentation() : voxel_resolution(0.02f), cut_threshold(0.2f), planar_weight(0.3f) {}
 };
 
 #endif // SUPERVOXEL_SEGMENTATION_H
