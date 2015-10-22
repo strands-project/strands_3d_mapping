@@ -103,6 +103,9 @@ target_link_libraries(dynamic_init_folders ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_
 add_executable(dynamic_convex_segmentation src/dynamic_convex_segmentation.cpp)
 target_link_libraries(dynamic_convex_segmentation supervoxel_segmentation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(dynamic_supervoxel_convex_segmentation src/dynamic_supervoxel_convex_segmentation.cpp)
+target_link_libraries(dynamic_supervoxel_convex_segmentation supervoxel_segmentation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(dynamic_extract_convex_features src/dynamic_extract_convex_features.cpp)
 target_link_libraries(dynamic_extract_convex_features pfhrgb_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 

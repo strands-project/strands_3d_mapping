@@ -23,6 +23,7 @@ namespace dynamic_object_retrieval {
 struct vocabulary_summary {
 
     std::string vocabulary_type; // can be either "standard" or "incremental"
+    std::string subsegment_type; // can be either "subsegment" or "supervoxel", only needed if vocabulary_type = incremental
 
     std::string noise_data_path;
     std::string annotated_data_path;
@@ -30,8 +31,8 @@ struct vocabulary_summary {
     size_t nbr_noise_segments;
     size_t nbr_annotated_segments;
 
-    size_t nbr_noise_sweeps; // only for subsegments vt
-    size_t nbr_annotated_sweeps; // only for subsegments vt
+    size_t nbr_noise_sweeps; // only needed if vocabulary_type = incremental
+    size_t nbr_annotated_sweeps; // only needed if vocabulary_type = incremental
 
     size_t vocabulary_tree_size;
 
@@ -61,6 +62,7 @@ struct vocabulary_summary {
     void serialize(Archive& archive)
     {
         archive(cereal::make_nvp("vocabulary_type", vocabulary_type),
+                cereal::make_nvp("subsegment_type", subsegment_type),
                 cereal::make_nvp("noise_data_path", noise_data_path),
                 cereal::make_nvp("annotated_data_path", annotated_data_path),
                 cereal::make_nvp("nbr_noise_segments", nbr_noise_segments),
@@ -73,7 +75,7 @@ struct vocabulary_summary {
                 cereal::make_nvp("max_append_features", max_append_features));
     }
 
-    vocabulary_summary() : vocabulary_type("standard"), noise_data_path(""), annotated_data_path(""), nbr_noise_segments(0), nbr_annotated_segments(0),
+    vocabulary_summary() : vocabulary_type("standard"), subsegment_type(""), noise_data_path(""), annotated_data_path(""), nbr_noise_segments(0), nbr_annotated_segments(0),
         nbr_noise_sweeps(0), nbr_annotated_sweeps(0), vocabulary_tree_size(0), min_segment_features(20), max_training_features(10000), max_append_features(100000)
     {
 
