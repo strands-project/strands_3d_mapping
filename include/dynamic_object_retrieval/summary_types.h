@@ -90,6 +90,7 @@ struct data_summary {
     size_t nbr_sweeps; // nbr of sweeps in this data set
     size_t nbr_convex_segments; // = convex_segment_index_map.size() if all have been added to vt
     size_t nbr_subsegments; // = subsegment_index_map.size() if all have been added to vt
+    std::string subsegment_type; // can be either "subsegment" or "supervoxel"
 
     void load(const boost::filesystem::path& data_path)
     {
@@ -116,10 +117,11 @@ struct data_summary {
                 cereal::make_nvp("index_subsegment_paths", index_subsegment_paths),
                 cereal::make_nvp("nbr_sweeps", nbr_sweeps),
                 cereal::make_nvp("nbr_convex_segments", nbr_convex_segments),
-                cereal::make_nvp("nbr_subsegments", nbr_subsegments));
+                cereal::make_nvp("nbr_subsegments", nbr_subsegments),
+                cereal::make_nvp("subsegment_type", subsegment_type));
     }
 
-    data_summary() : index_convex_segment_paths(), index_subsegment_paths(), nbr_sweeps(0), nbr_convex_segments(0), nbr_subsegments(0) {}
+    data_summary() : index_convex_segment_paths(), index_subsegment_paths(), nbr_sweeps(0), nbr_convex_segments(0), nbr_subsegments(0), subsegment_type("") {}
 };
 
 // shared by convex segments and subsegments

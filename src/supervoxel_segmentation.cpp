@@ -894,20 +894,22 @@ void supervoxel_segmentation::save_graph(Graph& g, const string& filename) const
 {
     serialized_graph<Graph> sg;
     sg.from_graph(g);
+    ofstream out(filename, std::ios::binary);
     {
-        ofstream out(filename, std::ios::binary);
         cereal::BinaryOutputArchive archive_o(out);
         archive_o(sg);
     }
+    out.close();
 }
 
 void supervoxel_segmentation::load_graph(Graph& g, const string& filename) const
 {
     serialized_graph<Graph> sg;
+    ifstream in(filename, std::ios::binary);
     {
-        ifstream in(filename, std::ios::binary);
         cereal::BinaryInputArchive archive_i(in);
         archive_i(sg);
     }
+    in.close();
     sg.to_graph(g);
 }

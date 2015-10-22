@@ -161,6 +161,26 @@ struct segment_sweep_index_iterator : public segment_iterator_base, public std::
     segment_sweep_index_iterator() : segment_iterator_base() {}
 };
 
+struct segment_index_iterator : public segment_iterator_base, public std::iterator<std::forward_iterator_tag, size_t> {
+
+    mutable size_t current_value;
+
+    size_t& operator* () const
+    {
+        current_value = current_segment;
+        return current_value;
+    }
+
+    segment_index_iterator(const std::vector<std::string>& xmls,
+                           const std::string& folder_name,
+                           const std::string& segment_name) :
+        segment_iterator_base(xmls, folder_name, segment_name), current_value(0)
+    {
+
+    }
+    segment_index_iterator() : segment_iterator_base() {}
+};
+
 template <typename CloudT>
 struct segment_cloud_iterator : public segment_iterator_base, public std::iterator<std::forward_iterator_tag, typename CloudT::Ptr> {
 
@@ -204,6 +224,23 @@ struct convex_segment_sweep_path_map {
     }
 
     convex_segment_sweep_path_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
+};
+
+struct convex_segment_index_map {
+
+    boost::filesystem::path data_path;
+
+    segment_index_iterator begin()
+    {
+        return segment_index_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "segment");
+    }
+
+    segment_index_iterator end()
+    {
+        return segment_index_iterator();
+    }
+
+    convex_segment_index_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
 };
 
 struct convex_segment_map {
@@ -331,6 +368,40 @@ struct subsegment_sweep_index_map {
     }
 
     subsegment_sweep_index_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
+};
+
+struct subsegment_sweep_path_map {
+
+    boost::filesystem::path data_path;
+
+    segment_sweep_path_iterator begin()
+    {
+        return segment_sweep_path_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "segment");
+    }
+
+    segment_sweep_path_iterator end()
+    {
+        return segment_sweep_path_iterator();
+    }
+
+    subsegment_sweep_path_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
+};
+
+struct subsegment_index_map {
+
+    boost::filesystem::path data_path;
+
+    segment_index_iterator begin()
+    {
+        return segment_index_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "segment");
+    }
+
+    segment_index_iterator end()
+    {
+        return segment_index_iterator();
+    }
+
+    subsegment_index_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
 };
 
 struct subsegment_map {
@@ -515,6 +586,25 @@ struct sweep_subsegment_map {
     }
 
     sweep_subsegment_map(const boost::filesystem::path& sweep_path) : sweep_path(sweep_path / "room.xml") {}
+};
+
+struct sweep_subsegment_cloud_map {
+
+    using iterator = segment_cloud_iterator<pcl::PointCloud<PointT> >;
+
+    boost::filesystem::path sweep_path;
+
+    iterator begin()
+    {
+        return iterator(std::vector<std::string>({sweep_path.string()}), "subsegments", "segment");
+    }
+
+    iterator end()
+    {
+        return iterator();
+    }
+
+    sweep_subsegment_cloud_map(const boost::filesystem::path& sweep_path) : sweep_path(sweep_path / "room.xml") {}
 };
 
 struct sweep_subsegment_feature_map {

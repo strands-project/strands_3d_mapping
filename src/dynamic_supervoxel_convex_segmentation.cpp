@@ -5,6 +5,9 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/filters/approximate_voxel_grid.h>
 
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/map.hpp>
+
 #include <metaroom_xml_parser/load_utilities.h>
 
 using namespace std;
@@ -17,6 +20,7 @@ using HistCloudT = pcl::PointCloud<HistT>;
 
 using namespace dynamic_object_retrieval;
 
+// now we also need to add the number of sweep that we have traversed
 tuple<int, int, vector<string>, vector<string> > supervoxel_convex_segment_cloud(int convex_counter, int supervoxel_counter,
                                                                            const boost::filesystem::path& xml_path)
 {
@@ -58,8 +62,6 @@ tuple<int, int, vector<string>, vector<string> > supervoxel_convex_segment_cloud
     map<size_t, size_t> indices;
     std::tie(g, supervoxels, convex_segments, indices) = ss.compute_convex_oversegmentation(cloud, false);
 
-    delete g;
-
     convex_summary.nbr_segments = convex_segments.size();
     convex_summary.segment_indices.clear(); // could also just be an offset instead of all the indices
 
@@ -92,6 +94,17 @@ tuple<int, int, vector<string>, vector<string> > supervoxel_convex_segment_cloud
         ++supervoxel_counter;
     }
 
+    // finally, also save the graph and the indices in the subsegments folder
+    ss.save_graph(*g, (supervoxel_path / "graph.cereal").string());
+    ofstream out((supervoxel_path / "convex_segment_indices.cereal").string(), std::ios::binary);
+    {
+        cereal::BinaryOutputArchive archive_o(out);
+        archive_o(indices);
+    }
+    out.close();
+
+    delete g;
+
     return make_tuple(convex_counter, supervoxel_counter, segment_paths, supervoxel_paths);
 }
 
@@ -108,6 +121,7 @@ int main(int argc, char** argv)
 
     data_summary summary;
     summary.load(data_path);
+    summary.subsegment_type = "supervoxel";
 
     summary.index_convex_segment_paths.clear();
     int convex_counter = 0;
