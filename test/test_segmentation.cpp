@@ -67,23 +67,16 @@ int main(int argc, char** argv)
 
         cout << "Cloud size: " << cloud->size() << endl;
 
-        // these parameters are working very nicely
-        pcl::ApproximateVoxelGrid<PointT> vf;
-        vf.setInputCloud(cloud);
-        vf.setLeafSize(0.005f, 0.005f, 0.005f);
-
-        CloudT::Ptr filtered_cloud(new CloudT);
-        vf.filter(*filtered_cloud);
-
-        cout << "Filtered cloud size: " << filtered_cloud->size() << endl;
-
         supervoxel_segmentation ss;
+        Graph* g;
+        vector<CloudT::Ptr> supervoxels;
         vector<CloudT::Ptr> convex_segments;
-        Graph* g = ss.compute_convex_oversegmentation(convex_segments, filtered_cloud, true);
+        map<size_t, size_t> indices;
+        std::tie(g, supervoxels, convex_segments, indices) = ss.compute_convex_oversegmentation(cloud, true);
 
         CloudT::Ptr colored_segments(new CloudT);
-        *colored_segments += *filtered_cloud;
-        colored_segments->reserve(filtered_cloud->size());
+        *colored_segments += *cloud;
+        colored_segments->reserve(cloud->size());
         int counter = 0;
         for (CloudT::Ptr& c : convex_segments) {
             for (PointT p : c->points) {

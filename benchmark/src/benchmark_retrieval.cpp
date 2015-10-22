@@ -19,7 +19,7 @@ double get_match_accuracy(CloudT::Ptr& object, CloudT::Ptr& cluster)
     segment.setSearchMethod(tree);
     segment.segment(*difference);
 
-    if (difference->points.size() > 0.9*object->points.size()) {
+    if (difference->points.size() > 0.5*object->points.size()) { // 0.9
         return -1.0;
     }
     else {

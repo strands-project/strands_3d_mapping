@@ -37,16 +37,14 @@ pair<int, vector<string> > convex_segment_cloud(int counter, const boost::filesy
 
     CloudT::Ptr cloud = semantic_map_load_utilties::loadMergedCloudFromSingleSweep<PointT>(xml_path.string());
 
-    pcl::ApproximateVoxelGrid<PointT> vf;
-    vf.setInputCloud(cloud);
-    vf.setLeafSize(0.015f, 0.015f, 0.015f);
-
-    CloudT::Ptr filtered_cloud(new CloudT);
-    vf.filter(*filtered_cloud);
-
+    // the supervoxel segmentation also needs to return the supervoxels
+    // and the overal graph among the supervoxels + supervoxel-convex segments association
     supervoxel_segmentation ss;
+    Graph* g;
+    vector<CloudT::Ptr> supervoxels;
     vector<CloudT::Ptr> convex_segments;
-    Graph* g = ss.compute_convex_oversegmentation(convex_segments, filtered_cloud, false);
+    map<size_t, size_t> indices;
+    std::tie(g, supervoxels, convex_segments, indices) = ss.compute_convex_oversegmentation(cloud, false);
 
     delete g;
 

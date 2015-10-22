@@ -3,6 +3,7 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/approximate_voxel_grid.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
@@ -16,6 +17,7 @@
 #include <boost/graph/copy.hpp>
 
 #include <unordered_map>
+#include <chrono>
 
 #include <cereal/archives/binary.hpp>
 
@@ -100,18 +102,43 @@ void supervoxel_segmentation::visualize_segmentation(Graph* g, vector<CloudT::Pt
     }
 }*/
 
+void supervoxel_segmentation::subsample_cloud(CloudT::Ptr& cloud_out, CloudT::Ptr& cloud_in)
+{
+    // these parameters are working very nicely
+    pcl::ApproximateVoxelGrid<PointT> vf;
+    vf.setInputCloud(cloud_in);
+    vf.setLeafSize(0.005f, 0.005f, 0.005f);
+    vf.filter(*cloud_out);
+}
+
 void supervoxel_segmentation::preprocess_cloud(CloudT::Ptr& cloud_out, CloudT::Ptr& cloud_in)
 {
     float filter_dist = 0.02f;
 
-    CloudT::Ptr cloud_constrained(new CloudT);
+    /*CloudT::Ptr cloud_constrained(new CloudT);
     // Create the filtering object
     pcl::PassThrough<PointT> pass;
     pass.setInputCloud(cloud_in);
     pass.setFilterFieldName("z");
     pass.setFilterLimits(-3.0, 3.0); // 0.0, 0.0
     //pass.setFilterLimitsNegative (true);
-    pass.filter(*cloud_constrained);
+    pass.filter(*cloud_constrained);*/
+
+    chrono::time_point<std::chrono::system_clock> start, intermediate, end;
+    start = chrono::system_clock::now();
+
+    CloudT::Ptr cloud_constrained(new CloudT());
+    cloud_constrained->reserve(cloud_in->size());
+    for (const PointT& p : cloud_in->points) {
+        if (pcl::isFinite(p) && p.getVector3fMap().norm() < 3.0f) {
+            cloud_constrained->push_back(p);
+        }
+    }
+
+    intermediate = chrono::system_clock::now();
+    chrono::duration<double> elapsed_seconds = intermediate-start;
+
+    cout << "Distance filtering took " << elapsed_seconds.count() << " seconds" << endl;
 
     // outlier removal
     pcl::RadiusOutlierRemoval<PointT> outrem;
@@ -121,6 +148,22 @@ void supervoxel_segmentation::preprocess_cloud(CloudT::Ptr& cloud_out, CloudT::P
     outrem.setMinNeighborsInRadius(30);
     // apply filter
     outrem.filter(*cloud_out);
+
+    // This is even slower the radius outlier removal, maybe slightly better
+    /*
+    pcl::StatisticalOutlierRemoval<PointT> outrem;
+    outrem.setInputCloud(cloud_constrained);
+    outrem.setMeanK(50);
+    outrem.setStddevMulThresh(1.0);
+    outrem.filter(*cloud_out);
+    */
+
+    //*cloud_out += *cloud_constrained;
+
+    end = chrono::system_clock::now();
+    elapsed_seconds = end-start;
+
+    cout << "Cloud preprocessing took " << elapsed_seconds.count() << " seconds" << endl;
 }
 
 // this might be more useful if it takes as input two point clouds and two
@@ -141,7 +184,7 @@ float supervoxel_segmentation::boundary_convexness(VoxelT::Ptr& first_supervoxel
         return flat_penalty;
     }
 
-    float dist_threshold = 0.07;
+    float dist_threshold = 0.05;
 
     // TODO: seriously, use kd trees for this!!!
     pcl::KdTreeFLANN<PointT> kdtree;
@@ -470,6 +513,9 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph
     ////// This is how to use supervoxels //////////////////////
     ////////////////////////////////////////////////////////////
 
+    chrono::time_point<std::chrono::system_clock> start, end;
+    start = chrono::system_clock::now();
+
     pcl::SupervoxelClustering<PointT> super(voxel_resolution, seed_resolution, use_transform);
     super.setInputCloud(cloud);
     super.setColorImportance(color_importance);
@@ -480,6 +526,11 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph
     super.extract(supervoxel_clusters);
     pcl::console::print_info("Found %d supervoxels\n", supervoxel_clusters.size ());
     //super.refineSupervoxels(3, supervoxel_clusters);
+
+    end = chrono::system_clock::now();
+    chrono::duration<double> elapsed_seconds = end-start;
+
+    cout << "Supervoxel extraction took " << elapsed_seconds.count() << " seconds" << endl;
 
     // get the stuff we need from the representation
     super.getSupervoxelAdjacency(supervoxel_adjacency);
@@ -589,8 +640,9 @@ void supervoxel_segmentation::visualize_segments(vector<CloudT::Ptr>& clouds_out
     }
 }
 
-void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& full_segments, map<size_t, size_t>& indices,
-                                                         vector<CloudT::Ptr>& segments, CloudT::Ptr& cloud, vector<Graph*>& graphs)
+void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& full_segments, vector<CloudT::Ptr>& supervoxel_segments,
+                                                         map<size_t, size_t>& indices, vector<CloudT::Ptr>& segments,
+                                                         CloudT::Ptr& cloud, vector<Graph*>& graphs)
 {
     using vertex_iterator = boost::graph_traits<Graph>::vertex_iterator;
 
@@ -636,6 +688,31 @@ void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& fu
         }
 
         ++i;
+    }
+
+    for (CloudT::Ptr& c : segments) {
+        pcl::octree::OctreePointCloudSearch<PointT> octree_segment(3*voxel_resolution); // 2* for querying segmentation
+        octree_segment.defineBoundingBox(-10.0, 10.0, 0.0, 10.0, 10.0, 10.1);
+        octree_segment.setInputCloud(c);
+        octree_segment.addPointsFromInputCloud();
+
+        supervoxel_segments.push_back(CloudT::Ptr(new CloudT));
+
+        vector<PointT, Eigen::aligned_allocator<PointT> > voxel_centers;
+        octree_segment.getOccupiedVoxelCenters(voxel_centers);
+        for (PointT& p : voxel_centers) {
+            pcl::PointIndices::Ptr point_idx_data(new pcl::PointIndices());
+            if (!octree.voxelSearch(p, point_idx_data->indices)) {
+                continue;
+            }
+            CloudT cloud_p;
+            pcl::ExtractIndices<PointT> extract;
+            extract.setInputCloud(cloud);
+            extract.setIndices(point_idx_data);
+            extract.setNegative(false);
+            extract.filter(cloud_p);
+            *supervoxel_segments.back() += cloud_p;
+        }
     }
 }
 
@@ -769,10 +846,20 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
     }
 }
 
-supervoxel_segmentation::Graph* supervoxel_segmentation::compute_convex_oversegmentation(vector<CloudT::Ptr>& clouds_out, CloudT::Ptr& cloud_in, bool visualize)
+/**
+ * @brief supervoxel_segmentation::compute_convex_oversegmentation
+ * @param cloud_in - the point cloud to be segmented
+ * @param visualize - determines if resultung segmentation is visualized
+ * @return (supervoxel graph, supervoxel clouds, convex segment clouds, map supervoxel index -> convex segment index)
+ */
+tuple<supervoxel_segmentation::Graph*, vector<supervoxel_segmentation::CloudT::Ptr>, vector<supervoxel_segmentation::CloudT::Ptr>, map<size_t, size_t> >
+supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, bool visualize)
 {
+    CloudT::Ptr subsampled_cloud(new CloudT);
+    subsample_cloud(subsampled_cloud, cloud_in);
+
     vector<CloudT::Ptr> segments;
-    Graph* graph_in = create_supervoxel_graph(segments, cloud_in);
+    Graph* graph_in = create_supervoxel_graph(segments, subsampled_cloud);
     Graph graph_copy;
     boost::copy_graph(*graph_in, graph_copy);
     vector<Graph*> graphs_out;
@@ -780,10 +867,12 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::compute_convex_oversegm
 
     cout << "Graphs size: " << graphs_out.size() << endl;
 
-    map<size_t, size_t> indices;
     vector<CloudT::Ptr> full_segments;
-    create_full_segment_clouds(full_segments, indices, segments, cloud_in, graphs_out);
+    vector<CloudT::Ptr> supervoxel_segments;
+    map<size_t, size_t> indices;
+    create_full_segment_clouds(full_segments, supervoxel_segments, indices, segments, cloud_in, graphs_out);
 
+    vector<CloudT::Ptr> clouds_out;
     post_merge_convex_segments(clouds_out, indices, full_segments, graph_copy);
 
     for (Graph* g : graphs_out) {
@@ -797,7 +886,8 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::compute_convex_oversegm
         visualize_segments(clouds_out, true);
     }
 
-    return graph_in;
+    // segments need to be the full versions from e.g. create_full_segments_clouds
+    return make_tuple(graph_in, supervoxel_segments, clouds_out, indices);
 }
 
 void supervoxel_segmentation::save_graph(Graph& g, const string& filename) const
