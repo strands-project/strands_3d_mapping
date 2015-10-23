@@ -57,9 +57,40 @@ int main(int argc, char** argv)
         }
 
         // now we need to iterate through the supervoxels of one sweep and get the keypoint intersection
-        for (const pair<int, int>& p : convex_segment_indices) {
-            if (p.second == convex_index) {
+        for (const pair<int, int>& ind : convex_segment_indices) {
+            if (ind.second == convex_index) {
+                HistCloudT::Ptr supervoxel_features(new HistCloudT);
+                CloudT::Ptr supervoxel_keypoints(new CloudT);
 
+                // probably use a kd tree or an octree for this
+                pcl::KdTreeFLANN<PointT> kdtree;
+                kdtree.setInputCloud(supervoxels[ind.first]);
+                size_t feature_ind = 0;
+                for (const PointT& p : keypoints->points) {
+                    vector<int> indices(1);
+                    vector<float> distances(1);
+                    kdtree.nearestKSearchT(p, 1, indices, distances);
+                    if (distances.empty() || distances.empty()) {
+                        cout << "Distances empty, wtf??" << endl;
+                        exit(0);
+                    }
+                    if (sqrt(distances[0]) < 0.005) {
+                        supervoxel_features->push_back(features->at(feature_ind));
+                        supervoxel_keypoints->push_back(p);
+                    }
+                    ++feature_ind;
+                }
+
+                // save the resulting features and keypoints
+                std::stringstream ss;
+                ss << std::setw(4) << std::setfill('0') << ind.first;
+
+                boost::filesystem::path subsegment_path = sweep_path / "subsegments";
+                boost::filesystem::path feature_path = subsegment_path / (string("feature") + ss.str() + ".pcd");
+                boost::filesystem::path keypoint_path = subsegment_path / (string("keypoint") + ss.str() + ".pcd");
+
+                pcl::io::savePCDFileBinary(feature_path.string(), *supervoxel_features);
+                pcl::io::savePCDFileBinary(keypoint_path.string(), *supervoxel_keypoints);
             }
         }
     }

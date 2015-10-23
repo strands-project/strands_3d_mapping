@@ -119,7 +119,7 @@ add_executable(dynamic_init_vocabulary src/dynamic_init_vocabulary.cpp)
 target_link_libraries(dynamic_init_vocabulary ${PCL_LIBRARIES})
 
 add_executable(dynamic_train_vocabulary src/dynamic_train_vocabulary.cpp)
-target_link_libraries(dynamic_train_vocabulary vocabulary_tree dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(dynamic_train_vocabulary vocabulary_tree dynamic_visualize supervoxel_segmentation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_query_vocabulary src/dynamic_query_vocabulary.cpp)
 target_link_libraries(dynamic_query_vocabulary vocabulary_tree register_objects dynamic_visualize dynamic_retrieval extract_sift ${PCL_LIBRARIES})
