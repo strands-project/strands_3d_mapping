@@ -30,6 +30,11 @@ map<int, int> load_convex_segment_indices(const boost::filesystem::path& sweep_p
 
 int main(int argc, char** argv)
 {
+    if (argc < 2) {
+        cout << "Please supply the path containing the sweeps..." << endl;
+        return -1;
+    }
+
     boost::filesystem::path data_path(argv[1]);
 
     dynamic_object_retrieval::convex_feature_cloud_map convex_features(data_path);
