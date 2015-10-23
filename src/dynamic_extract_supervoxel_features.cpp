@@ -16,9 +16,9 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
                                    (float[250], histogram, histogram)
 )
 
-map<int, int> load_convex_segment_indices(const boost::filesystem::path& sweep_path)
+map<size_t, size_t> load_convex_segment_indices(const boost::filesystem::path& sweep_path)
 {
-    map<int, int> convex_segment_indices;
+    map<size_t, size_t> convex_segment_indices;
     std::ifstream in((sweep_path / "subsegments" / "convex_segment_indices.cereal").string(), ios::binary);
     {
         cereal::BinaryInputArchive archive_i(in);
@@ -42,7 +42,7 @@ int main(int argc, char** argv)
     dynamic_object_retrieval::convex_segment_sweep_path_map sweep_paths(data_path);
     dynamic_object_retrieval::convex_segment_index_map indices(data_path);
 
-    map<int, int> convex_segment_indices;
+    map<size_t, size_t> convex_segment_indices;
     vector<CloudT::Ptr> supervoxels;
     for (auto tup : dynamic_object_retrieval::zip(convex_features, convex_keypoints, sweep_paths, indices)) {
         HistCloudT::Ptr features;
@@ -62,7 +62,7 @@ int main(int argc, char** argv)
         }
 
         // now we need to iterate through the supervoxels of one sweep and get the keypoint intersection
-        for (const pair<int, int>& ind : convex_segment_indices) {
+        for (const pair<size_t, size_t>& ind : convex_segment_indices) {
             if (ind.second == convex_index) {
                 HistCloudT::Ptr supervoxel_features(new HistCloudT);
                 CloudT::Ptr supervoxel_keypoints(new CloudT);

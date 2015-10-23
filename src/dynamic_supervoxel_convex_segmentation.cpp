@@ -94,6 +94,8 @@ tuple<int, int, vector<string>, vector<string> > supervoxel_convex_segment_cloud
         ++supervoxel_counter;
     }
 
+    supervoxel_summary.save(supervoxel_path);
+
     // finally, also save the graph and the indices in the subsegments folder
     ss.save_graph(*g, (supervoxel_path / "graph.cereal").string());
     ofstream out((supervoxel_path / "convex_segment_indices.cereal").string(), std::ios::binary);

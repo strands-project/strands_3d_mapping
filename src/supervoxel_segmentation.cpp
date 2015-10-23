@@ -872,6 +872,14 @@ supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, 
     map<size_t, size_t> indices;
     create_full_segment_clouds(full_segments, supervoxel_segments, indices, segments, cloud_in, graphs_out);
 
+    /*
+    // DEBUG
+    for (const pair<size_t, size_t>& i : indices) {
+
+    }
+    // !DEBUG
+    */
+
     vector<CloudT::Ptr> clouds_out;
     post_merge_convex_segments(clouds_out, indices, full_segments, graph_copy);
 

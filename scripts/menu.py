@@ -58,7 +58,7 @@ class ExecutablePicker(object):
             elif option == "4":
                 print " Running dynamic_supervoxel_convex_segmentation...\n"
                 system("./dynamic_supervoxel_convex_segmentation " + self.data_path + "/")
-            elf option == "5":
+            elif option == "5":
                 print " Running dynamic_extract_convex_features...\n"
                 system("./dynamic_extract_convex_features " + self.data_path + "/")
             elif option == "6":
