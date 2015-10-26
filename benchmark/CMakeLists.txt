@@ -66,3 +66,8 @@ add_executable(test_query_annotated_sweep test/test_query_annotated_sweep.cpp)
 target_link_libraries(test_query_annotated_sweep benchmark_retrieval
                       vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(test_visualize_query test/test_visualize_query.cpp)
+target_link_libraries(test_visualize_query benchmark_retrieval benchmark_result
+                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

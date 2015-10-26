@@ -1,5 +1,6 @@
 #include <dynamic_object_retrieval/summary_types.h>
 #include <dynamic_object_retrieval/summary_iterators.h>
+#include <dynamic_object_retrieval/visualize.h>
 
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/map.hpp>
@@ -42,14 +43,19 @@ int main(int argc, char** argv)
     dynamic_object_retrieval::convex_segment_sweep_path_map sweep_paths(data_path);
     dynamic_object_retrieval::convex_segment_index_map indices(data_path);
 
+    // DEBUG
+    dynamic_object_retrieval::convex_segment_cloud_map convex_clouds(data_path);
+    // /DEBUG
+
     map<size_t, size_t> convex_segment_indices;
     vector<CloudT::Ptr> supervoxels;
-    for (auto tup : dynamic_object_retrieval::zip(convex_features, convex_keypoints, sweep_paths, indices)) {
+    for (auto tup : dynamic_object_retrieval::zip(convex_features, convex_keypoints, sweep_paths, indices, convex_clouds)) {
         HistCloudT::Ptr features;
         CloudT::Ptr keypoints;
         boost::filesystem::path sweep_path;
         size_t convex_index;
-        tie(features, keypoints, sweep_path, convex_index) = tup;
+        CloudT::Ptr cloud;
+        tie(features, keypoints, sweep_path, convex_index, cloud) = tup;
 
         if (convex_index == 0) {
             convex_segment_indices.clear();
@@ -57,15 +63,39 @@ int main(int argc, char** argv)
             convex_segment_indices = load_convex_segment_indices(sweep_path);
             dynamic_object_retrieval::sweep_subsegment_cloud_map sweep_supervoxels(sweep_path);
             for (CloudT::Ptr& s : sweep_supervoxels) {
-                supervoxels.push_back(s);
+                supervoxels.push_back(CloudT::Ptr(new CloudT(*s)));
+                //supervoxels.push_back(s);
+                //supervoxels.push_back(CloudT::Ptr(new CloudT));
+                //*supervoxels.back() += *s;
             }
+            cout << "New sweep!" << endl;
         }
+
+        cout << "New convex segment!" << endl;
+        cout << "Size of convex keypoints: " << keypoints->size() << endl;
 
         // now we need to iterate through the supervoxels of one sweep and get the keypoint intersection
         for (const pair<size_t, size_t>& ind : convex_segment_indices) {
+
+            // so the problem is that there is garbage attached to ind.second == 0
+            // i.e. to the 0:th supervoxel. It seems there are valid points also?
+            // Or are they attached to another convex segment (the same) as well?
+            /*if (ind.second == 0) {
+                continue;
+            }*/
+
+            cout << ind.first << " belongs to convex segment " << ind.second << endl;
+
             if (ind.second == convex_index) {
+
+                //dynamic_object_retrieval::visualize(supervoxels[ind.first]);
+
                 HistCloudT::Ptr supervoxel_features(new HistCloudT);
                 CloudT::Ptr supervoxel_keypoints(new CloudT);
+
+                cout << "Size of supervoxel cloud: " << supervoxels[ind.first]->size() << endl;
+                cout << "Size of convex keypoints: " << keypoints->size() << endl;
+                cout << "Sweep path: " << sweep_path.string() << endl;
 
                 // probably use a kd tree or an octree for this
                 pcl::KdTreeFLANN<PointT> kdtree;
@@ -75,11 +105,12 @@ int main(int argc, char** argv)
                     vector<int> indices(1);
                     vector<float> distances(1);
                     kdtree.nearestKSearchT(p, 1, indices, distances);
-                    if (distances.empty() || distances.empty()) {
+                    if (distances.empty()) {
                         cout << "Distances empty, wtf??" << endl;
                         exit(0);
                     }
-                    if (sqrt(distances[0]) < 0.005) {
+                    //cout << "Distance: " << distances[0] << endl;
+                    if (sqrt(distances[0]) < 0.05) {
                         supervoxel_features->push_back(features->at(feature_ind));
                         supervoxel_keypoints->push_back(p);
                     }
@@ -94,8 +125,24 @@ int main(int argc, char** argv)
                 boost::filesystem::path feature_path = subsegment_path / (string("feature") + ss.str() + ".pcd");
                 boost::filesystem::path keypoint_path = subsegment_path / (string("keypoint") + ss.str() + ".pcd");
 
-                pcl::io::savePCDFileBinary(feature_path.string(), *supervoxel_features);
-                pcl::io::savePCDFileBinary(keypoint_path.string(), *supervoxel_keypoints);
+                cout << "Size of keypoints: " << supervoxel_keypoints->size() << endl;
+                cout << "Size of features: " << supervoxel_features->size() << endl;
+                cout << "Keypoint path: " << keypoint_path.string() << endl;
+                cout << "Feature path: " << feature_path.string() << endl;
+
+                if (supervoxel_keypoints->empty()) {
+                    for (PointT p : supervoxels[ind.first]->points) {
+                        p.r = 255;
+                        p.g = 0;
+                        p.b = 0;
+                        cloud->push_back(p);
+                    }
+                    dynamic_object_retrieval::visualize(cloud);
+                }
+                else {
+                    pcl::io::savePCDFileBinary(feature_path.string(), *supervoxel_features);
+                    pcl::io::savePCDFileBinary(keypoint_path.string(), *supervoxel_keypoints);
+                }
             }
         }
     }

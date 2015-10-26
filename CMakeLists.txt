@@ -110,7 +110,7 @@ add_executable(dynamic_extract_convex_features src/dynamic_extract_convex_featur
 target_link_libraries(dynamic_extract_convex_features pfhrgb_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_extract_supervoxel_features src/dynamic_extract_supervoxel_features.cpp)
-target_link_libraries(dynamic_extract_supervoxel_features pfhrgb_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(dynamic_extract_supervoxel_features dynamic_visualize pfhrgb_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_create_subsegments src/dynamic_create_subsegments.cpp)
 target_link_libraries(dynamic_create_subsegments pfhrgb_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

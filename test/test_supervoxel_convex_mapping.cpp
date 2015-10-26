@@ -82,7 +82,12 @@ int main(int argc, char** argv)
             */
         }
 
+        if (convex_segment_indices.count(ind) == 0) {
+            cout << ind << " does not have any corresponding convex segment..." << endl;
+            continue;
+        }
         int convex_ind = convex_segment_indices[ind]; // this actually creates a new entry, initialized to 0
+
         //cout << "===" << endl;
         //cout << convex_ind << endl;
         //cout << convex_segment_indices.size() << endl;

@@ -84,13 +84,15 @@ struct vocabulary_summary {
 };
 
 struct data_summary {
-    // maps indices in vt to convex segment ids
-    std::vector<std::string> index_convex_segment_paths;
-    std::vector<std::string> index_subsegment_paths;
+
     size_t nbr_sweeps; // nbr of sweeps in this data set
     size_t nbr_convex_segments; // = convex_segment_index_map.size() if all have been added to vt
     size_t nbr_subsegments; // = subsegment_index_map.size() if all have been added to vt
     std::string subsegment_type; // can be either "subsegment" or "supervoxel"
+
+    // maps indices in vt to convex segment ids
+    std::vector<std::string> index_convex_segment_paths;
+    std::vector<std::string> index_subsegment_paths;
 
     void load(const boost::filesystem::path& data_path)
     {
@@ -113,22 +115,24 @@ struct data_summary {
     template <class Archive>
     void serialize(Archive& archive)
     {
-        archive(cereal::make_nvp("index_convex_segment_paths", index_convex_segment_paths),
-                cereal::make_nvp("index_subsegment_paths", index_subsegment_paths),
-                cereal::make_nvp("nbr_sweeps", nbr_sweeps),
+        archive(cereal::make_nvp("nbr_sweeps", nbr_sweeps),
                 cereal::make_nvp("nbr_convex_segments", nbr_convex_segments),
                 cereal::make_nvp("nbr_subsegments", nbr_subsegments),
-                cereal::make_nvp("subsegment_type", subsegment_type));
+                cereal::make_nvp("subsegment_type", subsegment_type),
+                cereal::make_nvp("index_convex_segment_paths", index_convex_segment_paths),
+                cereal::make_nvp("index_subsegment_paths", index_subsegment_paths));
     }
 
-    data_summary() : index_convex_segment_paths(), index_subsegment_paths(), nbr_sweeps(0), nbr_convex_segments(0), nbr_subsegments(0), subsegment_type("") {}
+    data_summary() : nbr_sweeps(0), nbr_convex_segments(0), nbr_subsegments(0), subsegment_type(""), index_convex_segment_paths(), index_subsegment_paths() {}
 };
 
 // shared by convex segments and subsegments
 struct sweep_summary {
+
+    size_t nbr_segments;
+
     std::vector<int> segment_indices;
     std::vector<std::string> segment_annotations; // might be empty
-    size_t nbr_segments;
 
     void load(const boost::filesystem::path& data_path)
     {
@@ -151,12 +155,12 @@ struct sweep_summary {
     template <class Archive>
     void serialize(Archive& archive)
     {
-        archive(cereal::make_nvp("segment_indices", segment_indices),
-                cereal::make_nvp("segment_annotations", segment_annotations),
-                cereal::make_nvp("nbr_segments", nbr_segments));
+        archive(cereal::make_nvp("nbr_segments", nbr_segments),
+                cereal::make_nvp("segment_indices", segment_indices),
+                cereal::make_nvp("segment_annotations", segment_annotations));
     }
 
-    sweep_summary() : segment_indices(), segment_annotations(), nbr_segments(0) {}
+    sweep_summary() : nbr_segments(0), segment_indices(), segment_annotations() {}
 };
 
 } // namespace dynamic_object_retrieval

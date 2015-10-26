@@ -134,6 +134,7 @@ int main(int argc, char** argv)
         tie(convex_counter, supervoxel_counter, segment_paths, supervoxel_paths) =
                 supervoxel_convex_segment_cloud(convex_counter, supervoxel_counter, boost::filesystem::path(xml));
         summary.index_convex_segment_paths.insert(summary.index_convex_segment_paths.end(), segment_paths.begin(), segment_paths.end());
+        summary.index_subsegment_paths.insert(summary.index_subsegment_paths.begin(), supervoxel_paths.begin(), supervoxel_paths.end());
         summary.nbr_convex_segments = convex_counter;
         summary.nbr_subsegments = supervoxel_counter;
     }

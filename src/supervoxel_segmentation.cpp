@@ -724,7 +724,6 @@ void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& fu
 void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& merged_segments, map<size_t, size_t>& indices,
                                                          vector<CloudT::Ptr>& full_segments, Graph& graph_in)
 {
-    typename boost::property_map<Graph, boost::vertex_index_t>::type vertex_id = boost::get(boost::vertex_index, graph_in); // size_t?
     typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name = boost::get(boost::vertex_name, graph_in);
     typename boost::property_map<Graph, boost::edge_weight_t>::type edge_id = boost::get(boost::edge_weight, graph_in);
 
@@ -738,7 +737,6 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
 
     graph_dual graph(indices.size());
 
-    typename boost::property_map<graph_dual, boost::vertex_index_t>::type vertex_id_dual = boost::get(boost::vertex_index, graph); // size_t?
     typename boost::property_map<graph_dual, boost::vertex_name_t>::type vertex_name_dual = boost::get(boost::vertex_name, graph); // float?
     typename boost::property_map<graph_dual, boost::edge_weight_t>::type edge_id_dual = boost::get(boost::edge_weight, graph);
 
@@ -753,7 +751,8 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
         Vertex v = target(*edge_it, graph_in);
         vertex_name_property from = boost::get(vertex_name, u);
         vertex_name_property to = boost::get(vertex_name, v);
-        if (indices[from.m_value] == indices[to.m_value]) {
+        if (indices.count(from.m_value) == 0 || indices.count(to.m_value) == 0 ||
+                indices[from.m_value] == indices[to.m_value]) {
             continue;
         }
         // either there is no edge or there is already one...
@@ -778,7 +777,7 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
         merged_indices[i].insert(i);
     }
 
-    float threshold = 0.4f; // quite conservative
+    float threshold = 0.1f; // quite conservative
 
     cout << "Pre merge number of segments: " << merged_indices.size() << endl;
     cout << "Number of edges: " << boost::num_edges(graph) << endl;
@@ -825,13 +824,24 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
     cout << "Post merge number of segments: " << merged_indices.size() << endl;
     cout << "Number of edges: " << boost::num_edges(graph) << endl;
 
+    auto change_index = [&indices](size_t i, size_t j) {
+        for (pair<const size_t, size_t>& ind : indices) {
+            if (ind.second == i) {
+                ind.second = j;
+            }
+        }
+    };
+
+    //indices.clear();
     for (const pair<size_t, set<size_t> >& s : merged_indices) {
         if (s.second.size() > 1) {
             CloudT::Ptr merged_cloud(new CloudT);
             cout << "Post process merging " << s.second.size() << " full segments " << endl;
             for (size_t i : s.second) {
                 *merged_cloud += *full_segments[i];
+                change_index(i, merged_segments.size());
                 cout << i << " ";
+                //indices[i] = merged_segments.size(); // this does not work, since i is the convex segment index
             }
             cout << endl;
             if (merged_cloud->size() > 0) {
@@ -840,6 +850,8 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
         }
         else {
             if (full_segments[s.first]->size() > 0) {
+                //indices[s.first] = merged_segments.size();
+                change_index(s.first, merged_segments.size());
                 merged_segments.push_back(full_segments[s.first]);
             }
         }
@@ -860,8 +872,8 @@ supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, 
 
     vector<CloudT::Ptr> segments;
     Graph* graph_in = create_supervoxel_graph(segments, subsampled_cloud);
-    Graph graph_copy;
-    boost::copy_graph(*graph_in, graph_copy);
+    Graph* graph_copy = new Graph;
+    boost::copy_graph(*graph_in, *graph_copy);
     vector<Graph*> graphs_out;
     recursive_split(graphs_out, *graph_in);
 
@@ -872,16 +884,8 @@ supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, 
     map<size_t, size_t> indices;
     create_full_segment_clouds(full_segments, supervoxel_segments, indices, segments, cloud_in, graphs_out);
 
-    /*
-    // DEBUG
-    for (const pair<size_t, size_t>& i : indices) {
-
-    }
-    // !DEBUG
-    */
-
     vector<CloudT::Ptr> clouds_out;
-    post_merge_convex_segments(clouds_out, indices, full_segments, graph_copy);
+    post_merge_convex_segments(clouds_out, indices, full_segments, *graph_copy);
 
     for (Graph* g : graphs_out) {
         delete g;
@@ -895,7 +899,7 @@ supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, 
     }
 
     // segments need to be the full versions from e.g. create_full_segments_clouds
-    return make_tuple(graph_in, supervoxel_segments, clouds_out, indices);
+    return make_tuple(graph_copy, supervoxel_segments, clouds_out, indices);
 }
 
 void supervoxel_segmentation::save_graph(Graph& g, const string& filename) const
