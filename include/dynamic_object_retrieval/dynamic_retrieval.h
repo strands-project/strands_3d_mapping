@@ -205,14 +205,14 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
 template <typename VocabularyT>
 pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
-query_reweight_vocabulary(const boost::filesystem::path& cloud_path, size_t nbr_query,
+query_reweight_vocabulary(const boost::filesystem::path& query_features, size_t nbr_query,
                           const boost::filesystem::path& vocabulary_path,
                           const vocabulary_summary& summary, bool do_reweighting = true)
 {
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
     HistCloudT::Ptr features(new HistCloudT);
-    pcl::io::loadPCDFile(cloud_path.string(), *features);
+    pcl::io::loadPCDFile(query_features.string(), *features);
 
     VocabularyT vt;
     result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
@@ -223,7 +223,7 @@ query_reweight_vocabulary(const boost::filesystem::path& cloud_path, size_t nbr_
 
     SiftCloudT::Ptr sift_features;
     CloudT::Ptr sift_keypoints;
-    tie(sift_features, sift_keypoints) = extract_sift::get_sift_for_cloud_path(cloud_path);
+    tie(sift_features, sift_keypoints) = extract_sift::get_sift_for_cloud_path(query_features);
     result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
 
     return make_pair(retrieved_paths, reweighted_paths);

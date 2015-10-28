@@ -52,6 +52,9 @@ target_link_libraries(benchmark_retrieval ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_Q
 add_library(benchmark_result src/benchmark_result.cpp include/${PROJECT_NAME}/benchmark_result.h)
 target_link_libraries(benchmark_result ${PCL_LIBRARIES})
 
+add_library(benchmark_visualization src/benchmark_visualization.cpp include/${PROJECT_NAME}/benchmark_visualization.h)
+target_link_libraries(benchmark_visualization ${OpenCV_LIBS} ${PCL_LIBRARIES})
+
 # DEMO: configure_file
 #configure_file(scripts/menu.py menu.py COPYONLY)
 
@@ -69,5 +72,10 @@ target_link_libraries(test_query_annotated_sweep benchmark_retrieval
 
 add_executable(test_visualize_query test/test_visualize_query.cpp)
 target_link_libraries(test_visualize_query benchmark_retrieval benchmark_result
+                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(test_results_image test/test_results_image.cpp)
+target_link_libraries(test_results_image benchmark_retrieval benchmark_result benchmark_visualization
                       vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

@@ -1,28 +1,16 @@
-#include <vocabulary_tree/vocabulary_tree.h>
-#include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
-#include <dynamic_object_retrieval/summary_iterators.h>
 #include <dynamic_object_retrieval/dynamic_retrieval.h>
+
 #include <object_3d_benchmark/benchmark_retrieval.h>
 #include <object_3d_benchmark/benchmark_result.h>
-#include <metaroom_xml_parser/load_utilities.h>
-#include <pcl/point_types.h>
-#include <image_geometry/pinhole_camera_model.h>
-#include <pcl/common/transforms.h>
+#include <object_3d_benchmark/benchmark_visualization.h>
+
+#include <tf_conversions/tf_eigen.h>
 
 using namespace std;
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
 using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
-using HistT = pcl::Histogram<250>;
-using HistCloudT = pcl::PointCloud<HistT>;
-
-POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
-                                   (float[250], histogram, histogram)
-)
-
-// there is no way to associate the extracted segments directly with any particular object
-// how do we get the annotation of an object?
 
 void visualize_query_sweep(const string& sweep_xml, const boost::filesystem::path& vocabulary_path,
                            const dynamic_object_retrieval::vocabulary_summary& summary)
@@ -33,36 +21,37 @@ void visualize_query_sweep(const string& sweep_xml, const boost::filesystem::pat
     vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
     tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
 
+    tf::StampedTransform tt = labels.transformToGlobal;
+    Eigen::Affine3d e;
+    tf::transformTFToEigen(tt, e);
+    Eigen::Matrix4f T = e.matrix().cast<float>();
+    T.col(3) << 0.0f, 0.0f, 0.0f, 1.0f;
+
     for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages, labels.objectScanIndices)) {
-        CloudT::Ptr object_cloud;
+        CloudT::Ptr query_cloud;
         string query_label;
         cv::Mat query_image;
         size_t scan_index;
-        tie(object_cloud, query_label, query_image, scan_index) = tup;
-        //cv::imshow("Query object", query_image);
-        //cv::waitKey();
+        tie(query_cloud, query_label, query_image, scan_index) = tup;
 
-        cout << "Querying object with label: " << query_label << endl;
-        dynamic_object_retrieval::visualize(object_cloud);
-
-        CloudT::Ptr query_cloud(new CloudT);
-        pcl::transformPointCloud(*object_cloud, *query_cloud, camera_transforms[scan_index]);
-
-        vector<CloudT::Ptr> retrieved_clouds;
+        //vector<CloudT::Ptr> retrieved_clouds;
+        cv::Mat visualization;
         if (summary.vocabulary_type == "standard") {
             auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
-            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
+            //retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
+            visualization = benchmark_retrieval::make_visualization_image(results.first, T);
         }
         else if (summary.vocabulary_type == "incremental") {
             auto results = dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
             cout << "Loading clouds..." << endl;
-            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
+            //retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
+            visualization = benchmark_retrieval::make_visualization_image(results.first, T);
             cout << "Finished loading clouds..." << endl;
         }
 
-        for (CloudT::Ptr& cloud : retrieved_clouds) {
-            dynamic_object_retrieval::visualize(cloud);
-        }
+        cv::imshow("Query object", query_image);
+        cv::imshow("Retrieved clouds", visualization);
+        cv::waitKey();
     }
 }
 
@@ -82,10 +71,20 @@ int main(int argc, char** argv)
 
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
+    /*
+    Eigen::Matrix3f K;
+    vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
+    tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(folder_xmls[0]);
+    Eigen::Matrix4f T = camera_transforms[0];
+    cout << T << endl;
+    int dummy;
+    cin >> dummy;
+    T.col(3) << 0.0f, 0.0f, 0.0f, 1.0f;
+    */
+
     for (const string& xml : folder_xmls) {
         visualize_query_sweep(xml, vocabulary_path, summary);
     }
 
     return 0;
 }
-

@@ -23,7 +23,7 @@ void visualize_retrieved_paths(vector<pair<PathT, IndexT> >& retrieved_paths)
         IndexT index;
         boost::filesystem::path path;
         tie(path, index) = s;
-        cout << "Path: " << path.string() << endl;
+        cout << "Path: " << path.string() << " with score " << s.second.score << endl;
         CloudT::Ptr cloud(new CloudT);
         pcl::io::loadPCDFile(path.string(), *cloud);
         dynamic_object_retrieval::visualize(cloud);
@@ -47,19 +47,20 @@ void visualize_retrieved_paths(vector<pair<vector<boost::filesystem::path>, Inde
             pcl::io::loadPCDFile(path.string(), *temp);
             *cloud += *temp;
         }
+        cout << " with score " << s.second.score << endl;
         dynamic_object_retrieval::visualize(cloud);
     }
 }
 
 template <typename VocabularyT>
 void query_and_visualize(const boost::filesystem::path& cloud_path, const boost::filesystem::path& vocabulary_path,
-                         const dynamic_object_retrieval::vocabulary_summary& summary)
+                         const dynamic_object_retrieval::vocabulary_summary& summary, bool do_reweighting)
 {
     using result_type = vector<pair<typename dynamic_object_retrieval::path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
     result_type retrieved_paths;
     result_type reweighted_paths;
-    tie(retrieved_paths, reweighted_paths) = dynamic_object_retrieval::query_reweight_vocabulary<VocabularyT>(cloud_path, 10, vocabulary_path, summary);
+    tie(retrieved_paths, reweighted_paths) = dynamic_object_retrieval::query_reweight_vocabulary<VocabularyT>(cloud_path, 10, vocabulary_path, summary, do_reweighting);
     visualize_retrieved_paths(retrieved_paths);
     visualize_retrieved_paths(reweighted_paths);
 }
@@ -73,15 +74,24 @@ int main(int argc, char** argv)
 
     boost::filesystem::path vocabulary_path(argv[1]);
     boost::filesystem::path cloud_path(argv[2]);
+    bool do_reweighting = false;
+
+    string stem = cloud_path.stem().string();
+    string num_str = stem.substr(stem.length() - 4);
+    boost::filesystem::path feature_path = cloud_path.parent_path() / (string("feature") + num_str + ".pcd");
 
     dynamic_object_retrieval::vocabulary_summary summary;
     summary.load(vocabulary_path);
 
+    CloudT::Ptr query_cloud(new CloudT);
+    pcl::io::loadPCDFile(cloud_path.string(), *query_cloud);
+    dynamic_object_retrieval::visualize(query_cloud);
+
     if (summary.vocabulary_type == "standard") {
-        query_and_visualize<vocabulary_tree<HistT, 8> >(cloud_path, vocabulary_path, summary);
+        query_and_visualize<vocabulary_tree<HistT, 8> >(feature_path, vocabulary_path, summary, do_reweighting);
     }
     else if (summary.vocabulary_type == "incremental") {
-        query_and_visualize<grouped_vocabulary_tree<HistT, 8> >(cloud_path, vocabulary_path, summary);
+        query_and_visualize<grouped_vocabulary_tree<HistT, 8> >(feature_path, vocabulary_path, summary, do_reweighting);
     }
 
     return 0;
