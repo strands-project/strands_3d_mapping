@@ -4,6 +4,9 @@
 #include <pcl/common/transforms.h>
 #include <pcl/common/common.h>
 
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/photo/photo.hpp>
+
 using namespace std;
 
 namespace benchmark_retrieval {
@@ -28,10 +31,30 @@ pair<int, int> get_similar_sizes(int i)
     return sizes;
 }
 
+pair<Eigen::Matrix4f, Eigen::Matrix3f> get_camera_parameters_for_cloud(CloudT::Ptr& cloud)
+{
+
+}
+
+void interpolate_projection(cv::Mat& image)
+{
+    // Convert image to grayscale
+    cv::Mat filled_in;
+    cv::cvtColor(image, filled_in, CV_BGR2GRAY);
+    filled_in = filled_in != 255;
+
+    // Dilate to fill holes
+    cv::Mat needs_filling;
+    cv::dilate(filled_in, needs_filling, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(13,13)));
+
+    needs_filling -= filled_in;
+
+    cv::inpaint(image, needs_filling, image, 5, cv::INPAINT_TELEA);
+}
+
 // the question is if we actually need the paths for this?
 cv::Mat make_image(std::vector<std::pair<CloudT::Ptr, boost::filesystem::path> >& results)
 {
-    cout << __FILE__ << ", " << __LINE__ << endl;
     pair<int, int> sizes = get_similar_sizes(results.size());
 
     int width = 200;
@@ -39,11 +62,8 @@ cv::Mat make_image(std::vector<std::pair<CloudT::Ptr, boost::filesystem::path> >
 
     cv::Mat visualization = cv::Mat::zeros(height*sizes.first, width*sizes.second, CV_8UC3);
 
-    cout << __FILE__ << ", " << __LINE__ << endl;
-
     int counter = 0;
     for (auto tup : results) {
-        cout << __FILE__ << ", " << __LINE__ << endl;
         CloudT::Ptr cloud;
         boost::filesystem::path path;
         tie(cloud, path) = tup;
@@ -60,32 +80,17 @@ cv::Mat make_image(std::vector<std::pair<CloudT::Ptr, boost::filesystem::path> >
         Eigen::Vector4f point;
         pcl::compute3DCentroid(*cloud, point);
 
-        cout << __FILE__ << ", " << __LINE__ << endl;
         Eigen::Vector3f x, y, z;
         z = point.head<3>();
         z.normalize();
         x = Eigen::Vector3f(0.0f, 0.0f, -1.0f).cross(z);
         y = z.cross(x);
-        /*if (x(2) < 0.0f) {
-            x = -x;
-            y = -y;
-        }*/
 
-        cout << __FILE__ << ", " << __LINE__ << endl;
         Eigen::Matrix4f T;
         T.setIdentity();
-
-        /*
-        T.block<3, 1>(0, 0) = x;
-        T.block<3, 1>(0, 1) = y;
-        T.block<3, 1>(0, 2) = z;
-        */
-
-
         T.block<1, 3>(0, 0) = x.transpose();
         T.block<1, 3>(1, 0) = y.transpose();
         T.block<1, 3>(2, 0) = z.transpose();
-
 
         CloudT::Ptr transformed_cloud(new CloudT);
         pcl::transformPointCloud(*cloud, *transformed_cloud, T);
@@ -108,14 +113,11 @@ cv::Mat make_image(std::vector<std::pair<CloudT::Ptr, boost::filesystem::path> >
         // this should be possible directly from the focal and the min max points
         // I guess just centralize in both directions
 
-        float offset_x = -focal*min_pt.x;
-        float offset_y = -focal*min_pt.y;
-
-        cout << __FILE__ << ", " << __LINE__ << endl;
+        float offset_x = -focal*min_pt.x+0.5f*(float(width)-focal*gap_x);
+        float offset_y = -focal*min_pt.y+0.5f*(float(height)-focal*gap_y);
 
         Eigen::Matrix3f K;
         K << focal, 0.0f, offset_x, 0.0f, focal, offset_y, 0.0f, 0.0f, 1.0f;
-        cout << __FILE__ << ", " << __LINE__ << endl;
         cv::Mat sub_image(height, width, CV_8UC3);
         sub_image = cv::Scalar(255, 255, 255);
         for (const PointT& p : transformed_cloud->points) {
@@ -131,24 +133,16 @@ cv::Mat make_image(std::vector<std::pair<CloudT::Ptr, boost::filesystem::path> >
             pixel[1] = p.g;
             pixel[2] = p.r;
         }
-        cout << __FILE__ << ", " << __LINE__ << endl;
+
         int offset_height = counter / sizes.second;
         int offset_width = counter % sizes.second;
-        cout << "offset height: " << offset_height << endl;
-        cout << "offset width: " << offset_width << endl;
-        cout << "size first: " << sizes.first << endl;
-        cout << "size second: " << sizes.second << endl;
-        cout << "pixel offset height: " << offset_height*height << endl;
-        cout << "pixel offset width: " << offset_width*width << endl;
-        cout << "actual height: " << visualization.rows << endl;
-        cout << "actual width: " << visualization.cols << endl;
+
+        interpolate_projection(sub_image);
         sub_image.copyTo(visualization(cv::Rect(offset_width*width, offset_height*height, width, height)));
-        //visualization(cv::Rect(offset_width*width, offset_height*height, width, height)) = sub_image;
 
-        cv::imshow("test", visualization);
-        cv::waitKey();
+        //cv::imshow("test", visualization);
+        //cv::waitKey();
 
-        cout << __FILE__ << ", " << __LINE__ << endl;
         ++counter;
     }
 
