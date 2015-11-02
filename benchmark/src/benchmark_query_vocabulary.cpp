@@ -1,13 +1,18 @@
 #include <vocabulary_tree/vocabulary_tree.h>
 #include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
+
 #include <dynamic_object_retrieval/summary_iterators.h>
 #include <dynamic_object_retrieval/dynamic_retrieval.h>
+
 #include <object_3d_benchmark/benchmark_retrieval.h>
 #include <object_3d_benchmark/benchmark_result.h>
+#include <object_3d_benchmark/benchmark_visualization.h>
+
 #include <metaroom_xml_parser/load_utilities.h>
 #include <pcl/point_types.h>
 #include <image_geometry/pinhole_camera_model.h>
 #include <pcl/common/transforms.h>
+#include <time.h>
 
 using namespace std;
 
@@ -26,16 +31,18 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
 
 using correct_ratio = pair<double, double>;
 
-benchmark_retrieval::benchmark_result get_score_for_sweep(const string& sweep_xml, const boost::filesystem::path& vocabulary_path,
-                                                          const dynamic_object_retrieval::vocabulary_summary& summary,
-                                                          benchmark_retrieval::benchmark_result current_result)
+pair<benchmark_retrieval::benchmark_result, vector<cv::Mat> > get_score_for_sweep(const string& sweep_xml, const boost::filesystem::path& vocabulary_path,
+                                                                                  const dynamic_object_retrieval::vocabulary_summary& summary,
+                                                                                  benchmark_retrieval::benchmark_result current_result)
 {
     LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
 
     Eigen::Matrix3f K;
     vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
     tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
+    Eigen::Matrix4f T = benchmark_retrieval::get_global_camera_rotation(labels);
 
+    vector<cv::Mat> visualizations;
     for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages, labels.objectScanIndices)) {
         CloudT::Ptr object_cloud;
         string query_label;
@@ -49,20 +56,29 @@ benchmark_retrieval::benchmark_result get_score_for_sweep(const string& sweep_xm
         pcl::transformPointCloud(*object_cloud, *query_cloud, camera_transforms[scan_index]);
 
         vector<CloudT::Ptr> retrieved_clouds;
+        vector<boost::filesystem::path> sweep_paths;
         if (summary.vocabulary_type == "standard") {
             auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
-            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
+            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
         }
         else if (summary.vocabulary_type == "incremental") {
             auto results = dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
             cout << "Loading clouds..." << endl;
-            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
+            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
             cout << "Finished loading clouds..." << endl;
         }
 
         cout << "Finding labels..." << endl;
-        vector<pair<CloudT::Ptr, string> > cloud_labels = benchmark_retrieval::find_labels(retrieved_clouds, labels);
+        vector<pair<CloudT::Ptr, string> > cloud_labels = benchmark_retrieval::find_labels(retrieved_clouds, sweep_paths);
         cout << "Finished finding labels..." << endl;
+
+        vector<string> only_labels;
+        for (const auto& tup : cloud_labels) only_labels.push_back(tup.second);
+        cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, only_labels, T);
+
+        cv::imshow("Image with labels", visualization);
+        cv::waitKey();
+        visualizations.push_back(visualization);
 
         for (auto tup : cloud_labels) {
             CloudT::Ptr retrieved_cloud;
@@ -81,7 +97,7 @@ benchmark_retrieval::benchmark_result get_score_for_sweep(const string& sweep_xm
         }
     }
 
-    return current_result;
+    return make_pair(current_result, visualizations);
 }
 
 int main(int argc, char** argv)
@@ -95,6 +111,18 @@ int main(int argc, char** argv)
     boost::filesystem::path data_path(argv[1]);
     boost::filesystem::path vocabulary_path(argv[2]);
 
+    // create a new folder to store the benchmark
+    time_t rawtime;
+    struct tm* timeinfo;
+    char buffer[80];
+
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", timeinfo);
+
+    boost::filesystem::path benchmark_path = vocabulary_path / (string("benchmark ") + buffer);
+    boost::filesystem::create_directory(benchmark_path);
+
     dynamic_object_retrieval::vocabulary_summary summary;
     summary.load(vocabulary_path);
 
@@ -102,8 +130,16 @@ int main(int argc, char** argv)
 
     benchmark_retrieval::benchmark_result benchmark(summary);
 
+    int counter = 0;
     for (const string& xml : folder_xmls) {
-        benchmark = get_score_for_sweep(xml, vocabulary_path, summary, benchmark);
+        vector<cv::Mat> visualizations;
+        tie(benchmark, visualizations) = get_score_for_sweep(xml, vocabulary_path, summary, benchmark);
+        for (cv::Mat& vis : visualizations) {
+            std::stringstream ss;
+            ss << "query_image" << std::setw(4) << std::setfill('0') << counter;
+            cv::imwrite((benchmark_path / (ss.str() + ".png")).string(), vis);
+            ++counter;
+        }
     }
 
     cout << "Got overall ratio: " << benchmark.ratio.first / benchmark.ratio.second << endl;
@@ -112,7 +148,7 @@ int main(int argc, char** argv)
         cout << "Ratio for instance " << instance_ratio.first << ": " << instance_ratio.second.first/instance_ratio.second.second << endl;
     }
 
-    benchmark_retrieval::save_benchmark(benchmark, boost::filesystem::path("benchmark.json"));
+    benchmark_retrieval::save_benchmark(benchmark, benchmark_path / "benchmark.json");
 
     return 0;
 }

@@ -20,12 +20,7 @@ void visualize_query_sweep(const string& sweep_xml, const boost::filesystem::pat
     Eigen::Matrix3f K;
     vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
     tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
-
-    tf::StampedTransform tt = labels.transformToGlobal;
-    Eigen::Affine3d e;
-    tf::transformTFToEigen(tt, e);
-    Eigen::Matrix4f T = e.matrix().cast<float>();
-    T.col(3) << 0.0f, 0.0f, 0.0f, 1.0f;
+    Eigen::Matrix4f T = benchmark_retrieval::get_global_camera_rotation(labels);
 
     for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages, labels.objectScanIndices)) {
         CloudT::Ptr query_cloud;
@@ -34,22 +29,25 @@ void visualize_query_sweep(const string& sweep_xml, const boost::filesystem::pat
         size_t scan_index;
         tie(query_cloud, query_label, query_image, scan_index) = tup;
 
-        //vector<CloudT::Ptr> retrieved_clouds;
-        cv::Mat visualization;
+        vector<CloudT::Ptr> retrieved_clouds;
+        vector<boost::filesystem::path> sweep_paths;
         if (summary.vocabulary_type == "standard") {
             auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
-            //retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
-            visualization = benchmark_retrieval::make_visualization_image(results.first, T);
+            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
         }
         else if (summary.vocabulary_type == "incremental") {
             auto results = dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
             cout << "Loading clouds..." << endl;
-            //retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
-            visualization = benchmark_retrieval::make_visualization_image(results.first, T);
+            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
             cout << "Finished loading clouds..." << endl;
         }
 
-        cv::imshow("Query object", query_image);
+        vector<string> dummy_labels;
+        for (int i = 0; i < retrieved_clouds.size(); ++i) {
+            dummy_labels.push_back(string("result") + to_string(i));
+        }
+        cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, dummy_labels, T);
+
         cv::imshow("Retrieved clouds", visualization);
         cv::waitKey();
     }

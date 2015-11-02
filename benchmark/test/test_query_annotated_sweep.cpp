@@ -48,19 +48,20 @@ int main(int argc, char** argv)
         tie(query_cloud, query_label) = tup;
 
         vector<CloudT::Ptr> retrieved_clouds;
+        vector<boost::filesystem::path> sweep_paths;
         if (summary.vocabulary_type == "standard") {
             auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary);
-            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.second);
+            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.second);
         }
         else if (summary.vocabulary_type == "incremental") {
             auto results = dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary);
             cout << "Loading clouds..." << endl;
-            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.second);
+            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.second);
             cout << "Finished loading clouds..." << endl;
         }
 
         cout << "Finding labels..." << endl;
-        vector<pair<CloudT::Ptr, string> > cloud_labels = benchmark_retrieval::find_labels(retrieved_clouds, labels);
+        vector<pair<CloudT::Ptr, string> > cloud_labels = benchmark_retrieval::find_labels(retrieved_clouds, sweep_paths);
         cout << "Finished finding labels..." << endl;
 
         for (auto tup : cloud_labels) {

@@ -11,6 +11,68 @@ using namespace std;
 
 namespace benchmark_retrieval {
 
+cv::Mat make_visualization_image(cv::Mat& query_image, const std::string& query_label, std::vector<CloudT::Ptr>& clouds,
+                                 const std::vector<std::string>& optional_text, const Eigen::Matrix4f& T)
+{
+    for (CloudT::Ptr& c : clouds) {
+        for (PointT& p : c->points) {
+            p.getVector4fMap() = T*p.getVector4fMap();
+        }
+    }
+    cv::Mat result_image = make_image(clouds, optional_text);
+    return add_query_image(result_image, query_image, query_label);
+}
+
+cv::Mat add_query_image(cv::Mat& results, cv::Mat& query_image, const std::string& query_label)
+{
+
+    cv::Mat gray_query;
+    cv::cvtColor(query_image, gray_query, CV_BGR2GRAY);
+    //gray_query = gray_query != 0;
+
+    cv::Mat row_sum, col_sum;
+    cv::reduce(gray_query, row_sum, 1, CV_REDUCE_SUM, CV_32S);
+    cv::reduce(gray_query, col_sum, 0, CV_REDUCE_SUM, CV_32S);
+
+    int minx = gray_query.cols;
+    int maxx = 0;
+    int miny = gray_query.rows;
+    int maxy = 0;
+
+    for (int i = 0; i < gray_query.rows; ++i) {
+        if (row_sum.at<int32_t>(i) > 0) {
+            miny = i < miny? i : miny;
+            maxy = i > maxy? i : maxy;
+        }
+    }
+
+    for (int i = 0; i < gray_query.cols; ++i) {
+        if (col_sum.at<int32_t>(i) > 0) {
+            minx = i < minx? i : minx;
+            maxx = i > maxx? i : maxx;
+        }
+    }
+
+    cv::Mat cropped_query;
+    cv::Rect cropped_region = cv::Rect(minx, miny, maxx-minx+1, maxy-miny+1);
+    query_image(cropped_region).copyTo(cropped_query);
+    cropped_query.setTo(cv::Scalar(255, 255, 255), gray_query(cropped_region) < 5);
+
+    int resized_width = int(double(results.rows)/double(cropped_query.rows)*double(cropped_query.cols));
+    cv::Mat resized_query;
+    cv::resize(cropped_query, resized_query, cv::Size(resized_width, results.rows), 0, 0, cv::INTER_CUBIC);
+
+    put_text(resized_query, query_label);
+
+    cv::Mat result_image(results.rows, results.cols + resized_query.cols, CV_8UC3);
+    cv::Mat left(result_image, cv::Rect(0, 0, resized_query.cols, resized_query.rows)); // Copy constructor
+    resized_query.copyTo(left);
+    cv::Mat right(result_image, cv::Rect(resized_query.cols, 0, results.cols, results.rows)); // Copy constructor
+    results.copyTo(right);
+
+    return result_image;
+}
+
 // actually, we should start in the middle and just take
 // the first even dividend, but this works too
 pair<int, int> get_similar_sizes(int i)
@@ -52,8 +114,13 @@ void interpolate_projection(cv::Mat& image)
     cv::inpaint(image, needs_filling, image, 5, cv::INPAINT_TELEA);
 }
 
+void put_text(cv::Mat& image, const string& text)
+{
+    cv::putText(image, text, cv::Point(5, 15), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cv::Scalar(0,0,255), 1, CV_AA);
+}
+
 // the question is if we actually need the paths for this?
-cv::Mat make_image(std::vector<std::pair<CloudT::Ptr, boost::filesystem::path> >& results)
+cv::Mat make_image(std::vector<CloudT::Ptr>& results, const std::vector<std::string>& optional_text)
 {
     pair<int, int> sizes = get_similar_sizes(results.size());
 
@@ -63,10 +130,7 @@ cv::Mat make_image(std::vector<std::pair<CloudT::Ptr, boost::filesystem::path> >
     cv::Mat visualization = cv::Mat::zeros(height*sizes.first, width*sizes.second, CV_8UC3);
 
     int counter = 0;
-    for (auto tup : results) {
-        CloudT::Ptr cloud;
-        boost::filesystem::path path;
-        tie(cloud, path) = tup;
+    for (CloudT::Ptr& cloud : results) {
 
         // OK, how do we render the object into the camera? maybe simply simulate a camera,
         // then resize all of the images to have similar sizes? SOUNDS GOOD!
@@ -138,6 +202,11 @@ cv::Mat make_image(std::vector<std::pair<CloudT::Ptr, boost::filesystem::path> >
         int offset_width = counter % sizes.second;
 
         interpolate_projection(sub_image);
+
+        if (!optional_text.empty()) {
+            put_text(sub_image, optional_text[counter]);
+        }
+
         sub_image.copyTo(visualization(cv::Rect(offset_width*width, offset_height*height, width, height)));
 
         //cv::imshow("test", visualization);

@@ -19,7 +19,7 @@ using HistT = pcl::Histogram<250>;
 
 namespace dynamic_object_retrieval {
 
-boost::filesystem::path get_sweep_xml(size_t sweep_id, const vocabulary_summary& summary)
+inline boost::filesystem::path get_sweep_xml(size_t sweep_id, const vocabulary_summary& summary)
 {
     std::vector<std::string> xmls;
     std::cout << "Looking a sweep_id: " << sweep_id << std::endl;

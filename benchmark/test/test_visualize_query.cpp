@@ -49,14 +49,15 @@ void visualize_query_sweep(const string& sweep_xml, const boost::filesystem::pat
         pcl::transformPointCloud(*object_cloud, *query_cloud, camera_transforms[scan_index]);
 
         vector<CloudT::Ptr> retrieved_clouds;
+        vector<boost::filesystem::path> sweep_paths;
         if (summary.vocabulary_type == "standard") {
             auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
-            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
+            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
         }
         else if (summary.vocabulary_type == "incremental") {
             auto results = dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
             cout << "Loading clouds..." << endl;
-            retrieved_clouds = benchmark_retrieval::load_retrieved_clouds(results.first);
+            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
             cout << "Finished loading clouds..." << endl;
         }
 
