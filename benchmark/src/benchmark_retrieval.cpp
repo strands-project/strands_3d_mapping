@@ -17,6 +17,10 @@ double get_match_accuracy(CloudT::Ptr& object, CloudT::Ptr& cluster)
     *visualization_cloud += *cluster;
     dynamic_object_retrieval::visualize(visualization_cloud);
     */
+    if ((object->points[0].getVector3fMap()-cluster->points[0].getVector3fMap()).norm() > 1.0f) {
+        cout << "This was not a match!" << endl;
+        return -1;
+    }
 
     // check if it's a match
     CloudT::Ptr difference(new CloudT());
