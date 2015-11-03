@@ -296,7 +296,11 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_features(cv::Mat& image, cv::Mat
         p3(1) = p2.y + float(miny);
         p3(2) = 1.0f;
         p3 = K.colPivHouseholderQr().solve(p3);
-        p3 *= depth.at<float>(int(p2.y), int(p2.x))/p3(2);
+        float depth_val = depth.at<float>(int(p2.y), int(p2.x));
+        if (depth_val == 0) {
+            continue;
+        }
+        p3 *= depth_val/p3(2);
         PointT p;
         p.getVector3fMap() = p3;
         keypoints->push_back(p);
@@ -321,14 +325,44 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_features(cv::Mat& image, cv::Mat
     return make_pair(features, keypoints);
 }
 
-// TODO: this is a stub
 pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_for_image(cv::Mat& image, cv::Mat& depth, const Eigen::Matrix3f& K)
 {
+    // remove the black around the objects
+    cv::Mat gray_query;
+    cv::cvtColor(image, gray_query, CV_BGR2GRAY);
+    //gray_query = gray_query != 0;
+
+    cv::Mat row_sum, col_sum;
+    cv::reduce(gray_query, row_sum, 1, CV_REDUCE_SUM, CV_32S);
+    cv::reduce(gray_query, col_sum, 0, CV_REDUCE_SUM, CV_32S);
+
+    int minx = gray_query.cols;
+    int maxx = 0;
+    int miny = gray_query.rows;
+    int maxy = 0;
+
+    for (int i = 0; i < gray_query.rows; ++i) {
+        if (row_sum.at<int32_t>(i) > 0) {
+            miny = i < miny? i : miny;
+            maxy = i > maxy? i : maxy;
+        }
+    }
+
+    for (int i = 0; i < gray_query.cols; ++i) {
+        if (col_sum.at<int32_t>(i) > 0) {
+            minx = i < minx? i : minx;
+            maxx = i > maxx? i : maxx;
+        }
+    }
+
     cv::Mat cropped_image;
     cv::Mat cropped_depth;
+    cv::Rect cropped_region = cv::Rect(minx, miny, maxx-minx+1, maxy-miny+1);
+    image(cropped_region).copyTo(cropped_image);
+    depth(cropped_region).copyTo(cropped_depth);
 
-    // remove the black around the objects
-    int minx, miny;
+    //cv::imshow("cropped_image", cropped_image);
+    //cv::imshow("cropped_depth", cropped_depth);
 
     return extract_sift_features(cropped_image, cropped_depth, minx, miny, K);
 }

@@ -112,4 +112,13 @@ Eigen::Matrix4f get_global_camera_rotation(semantic_map_load_utilties::LabelledD
     return T;
 }
 
+cv::Mat sweep_get_depth_at(const boost::filesystem::path& sweep_xml, size_t scan_index)
+{
+    stringstream ss;
+    ss << "depth_" << std::setw(4) << std::setfill('0') << scan_index;
+    boost::filesystem::path depth_path = sweep_xml.parent_path() / (ss.str() + ".png");
+    cv::Mat depth_image = cv::imread(depth_path.string());
+    return depth_image;
+}
+
 } // namespace benchmark_retrieval

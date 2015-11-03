@@ -225,6 +225,7 @@ query_reweight_vocabulary(const boost::filesystem::path& query_features, size_t 
 
     SiftCloudT::Ptr sift_features;
     CloudT::Ptr sift_keypoints;
+    // TODO: this is actually not correct, query_features is not the cloud
     tie(sift_features, sift_keypoints) = extract_sift::get_sift_for_cloud_path(query_features);
     result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
 
@@ -240,10 +241,12 @@ query_reweight_vocabulary(CloudT::Ptr& query_cloud, const Eigen::Matrix3f& K, si
 {
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
+    std::cout << "Computing query features..." << std::endl;
     HistCloudT::Ptr features(new HistCloudT);
     CloudT::Ptr keypoints(new CloudT);
-    pfhrgb_estimation::compute_features(features, keypoints, query_cloud);
+    pfhrgb_estimation::compute_query_features(features, keypoints, query_cloud);
 
+    std::cout << "Querying vocabulary..." << std::endl;
     VocabularyT vt;
     result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
 
@@ -251,10 +254,12 @@ query_reweight_vocabulary(CloudT::Ptr& query_cloud, const Eigen::Matrix3f& K, si
         return make_pair(retrieved_paths, result_type());
     }
 
+    std::cout << "Computing sift features for query..." << std::endl;
     SiftCloudT::Ptr sift_features;
     CloudT::Ptr sift_keypoints;
     tie(sift_features, sift_keypoints) = extract_sift::extract_sift_for_cloud(query_cloud, K);
 
+    std::cout << "Reweighting and querying..." << std::endl;
     result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
 
     return make_pair(retrieved_paths, reweighted_paths);
