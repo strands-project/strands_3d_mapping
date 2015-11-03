@@ -14,6 +14,11 @@ set(k_means_tree_library_dir ${k_means_tree_dir}/build)
 include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
 link_directories(${k_means_tree_library_dir})
 
+set(stopwatch_dir ${CMAKE_CURRENT_SOURCE_DIR}/stopwatch)
+set(stopwatch_include_dir ${stopwatch_dir}/src)
+set(stopwatch_library_dir ${stopwatch_dir}/build)
+include_directories(${stopwatch_include_dir})
+
 # Define the locations of cereal serialization header files
 set(cereal_include_dir ${k_means_tree_dir}/cereal/include)
 include_directories(${cereal_include_dir})
@@ -23,6 +28,15 @@ ExternalProject_Add(k_means_tree_project
   DOWNLOAD_COMMAND ""
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/k_means_tree"
   BINARY_DIR ${k_means_tree_library_dir}
+  BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
+  INSTALL_COMMAND ""
+)
+
+# Compile the stopwatch project, needed for this
+ExternalProject_Add(stopwatch_project
+  DOWNLOAD_COMMAND ""
+  SOURCE_DIR ${stopwatch_include_dir}
+  BINARY_DIR ${stopwatch_library_dir}
   BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
   INSTALL_COMMAND ""
 )
