@@ -7,6 +7,8 @@
 #include "extract_sift/extract_sift.h"
 #include "object_3d_retrieval/pfhrgb_estimation.h"
 
+#include <Stopwatch.h>
+
 #include <vocabulary_tree/vocabulary_tree.h>
 #include <object_3d_retrieval/register_objects.h>
 #include <boost/filesystem.hpp>
