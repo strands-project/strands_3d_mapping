@@ -108,9 +108,14 @@ void extract_nonoverlapping_sift(SiftCloudT::Ptr& sweep_features, CloudT::Ptr& s
         {255,237,111}
     };
 
+    Eigen::Affine3d first;
+    tf::transformTFToEigen(transforms[0], first);
+    first = first.inverse();
+
     for (int i = 0; i < 17; ++i) {
         Eigen::Affine3d e;
         tf::transformTFToEigen(transforms[i], e);
+        e = first*e;
 
         cv::Mat img(480, 640, CV_8UC3);
         for (int y = 0; y < 480; ++y) {
@@ -382,6 +387,7 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_for_cloud(CloudT::Ptr& cloud, co
 
 pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const boost::filesystem::path& cloud_path)
 {
+    cout << "With path " << cloud_path.string() << endl;
     CloudT::Ptr cloud(new CloudT);
     pcl::io::loadPCDFile(cloud_path.string(), *cloud);
     return get_sift_for_cloud_path(cloud_path, cloud);
@@ -406,6 +412,11 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const boost::filesyst
     CloudT::Ptr keypoints(new CloudT);
     pcl::io::loadPCDFile((sweep_path / "sift_features.pcd").string(), *features);
     pcl::io::loadPCDFile((sweep_path / "sift_keypoints.pcd").string(), *keypoints);
+
+    CloudT::Ptr vis_cloud(new CloudT);
+    *vis_cloud += *keypoints;
+    *vis_cloud += *cloud;
+    dynamic_object_retrieval::visualize(vis_cloud);
 
     // now we should check the intersection using e.g. an octree
     // pick all the sift keypoints close enough to a point in keypoints

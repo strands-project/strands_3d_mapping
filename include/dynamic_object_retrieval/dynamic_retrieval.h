@@ -161,6 +161,7 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
 {
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
+    TICK("registration_score");
     map<int, double> weighted_indices;
     double weight_sum = 0.0;
     for (auto s : path_scores) {
@@ -189,13 +190,17 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
     }
 
     for (pair<const int, double>& w : weighted_indices) {
+        cout << w.first << " score: " << w.second << endl;
         w.second *= double(weighted_indices.size())/weight_sum;
     }
+    TOCK("registration_score");
 
+    TICK("reweighting");
     // TODO: improve the weighting to be done in the querying instead, makes way more sense
     map<int, double> original_norm_constants;
     map<vocabulary_tree<HistT, 8>::node*, double> original_weights; // maybe change this to e.g. node_type
     vt.compute_new_weights(original_norm_constants, original_weights, weighted_indices, features);
+    TOCK("reweighting");
 
     result_type scores = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
     vt.restore_old_weights(original_norm_constants, original_weights);
@@ -275,25 +280,33 @@ query_reweight_vocabulary(CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Ma
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
     std::cout << "Computing query features..." << std::endl;
+    TICK("compute_query_features");
     HistCloudT::Ptr features(new HistCloudT);
     CloudT::Ptr keypoints(new CloudT);
     pfhrgb_estimation::compute_features(features, keypoints, query_cloud);
+    TOCK("compute_query_features");
 
     std::cout << "Querying vocabulary..." << std::endl;
+    TICK("query_vocabulary");
     VocabularyT vt;
     result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
+    TOCK("query_vocabulary");
 
     if (!do_reweighting) {
         return make_pair(retrieved_paths, result_type());
     }
 
     std::cout << "Computing sift features for query..." << std::endl;
+    TICK("extract_sift_features");
     SiftCloudT::Ptr sift_features;
     CloudT::Ptr sift_keypoints;
     tie(sift_features, sift_keypoints) = extract_sift::extract_sift_for_image(query_image, query_depth, K);
+    TOCK("extract_sift_features");
 
     std::cout << "Reweighting and querying..." << std::endl;
+    TICK("query_reweight_vocabulary");
     result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
+    TOCK("query_reweight_vocabulary");
 
     return make_pair(retrieved_paths, reweighted_paths);
 }

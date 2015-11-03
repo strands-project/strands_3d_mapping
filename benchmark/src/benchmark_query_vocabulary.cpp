@@ -50,17 +50,19 @@ pair<benchmark_retrieval::benchmark_result, vector<cv::Mat> > get_score_for_swee
         cv::Mat query_image;
         size_t scan_index;
         tie(object_cloud, query_label, query_image, scan_index) = tup;
+        cv::Mat query_depth = benchmark_retrieval::sweep_get_depth_at(sweep_xml, scan_index);
         //cv::imshow("Query object", query_image);
         //cv::waitKey();
 
         CloudT::Ptr query_cloud(new CloudT);
         pcl::transformPointCloud(*object_cloud, *query_cloud, camera_transforms[scan_index]);
 
-        TICK("query_vocabulary");
+        TICK("total_query_vocabulary");
         vector<CloudT::Ptr> retrieved_clouds;
         vector<boost::filesystem::path> sweep_paths;
         if (summary.vocabulary_type == "standard") {
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, true);
+            //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, true);
+            auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, query_image, query_depth, K, 50, vocabulary_path, summary, true);
             tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.second);
         }
         else if (summary.vocabulary_type == "incremental") {
@@ -69,7 +71,7 @@ pair<benchmark_retrieval::benchmark_result, vector<cv::Mat> > get_score_for_swee
             tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
             cout << "Finished loading clouds..." << endl;
         }
-        TOCK("query_vocabulary");
+        TOCK("total_query_vocabulary");
 
         TICK("find_labels");
         cout << "Finding labels..." << endl;
