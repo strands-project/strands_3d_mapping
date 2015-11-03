@@ -6,7 +6,7 @@ namespace benchmark_retrieval {
 
 void save_benchmark(const benchmark_result& benchmark, const boost::filesystem::path& benchmark_path)
 {
-    std::ofstream out((benchmark_path / "vocabulary.cereal").string());
+    std::ofstream out((benchmark_path / "benchmark.json").string());
     {
         cereal::JSONOutputArchive archive_o(out);
         archive_o(benchmark);
@@ -15,7 +15,7 @@ void save_benchmark(const benchmark_result& benchmark, const boost::filesystem::
 
 void load_benchmark(benchmark_result& benchmark, const boost::filesystem::path& benchmark_path)
 {
-    std::ifstream in((benchmark_path / "vocabulary.cereal").string());
+    std::ifstream in((benchmark_path / "benchmark.json").string());
     {
         cereal::JSONInputArchive archive_i(in);
         archive_i(benchmark);

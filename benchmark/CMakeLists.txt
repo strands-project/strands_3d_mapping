@@ -12,6 +12,10 @@ set(k_means_tree_library_dir ${k_means_tree_dir}/build)
 include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
 link_directories(${k_means_tree_library_dir})
 
+set(stopwatch_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../Stopwatch)
+set(stopwatch_include_dir ${stopwatch_dir}/src)
+include_directories(${stopwatch_include_dir})
+
 # Define the locations of cereal serialization header files
 set(cereal_include_dir ${k_means_tree_dir}/cereal/include)
 include_directories(${cereal_include_dir})
