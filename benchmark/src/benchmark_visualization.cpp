@@ -28,7 +28,7 @@ cv::Mat add_query_image(cv::Mat& results, cv::Mat& query_image, const std::strin
 
     cv::Mat gray_query;
     cv::cvtColor(query_image, gray_query, CV_BGR2GRAY);
-    //gray_query = gray_query != 0;
+    gray_query = gray_query != 255;
 
     cv::Mat row_sum, col_sum;
     cv::reduce(gray_query, row_sum, 1, CV_REDUCE_SUM, CV_32S);
@@ -56,7 +56,7 @@ cv::Mat add_query_image(cv::Mat& results, cv::Mat& query_image, const std::strin
     cv::Mat cropped_query;
     cv::Rect cropped_region = cv::Rect(minx, miny, maxx-minx+1, maxy-miny+1);
     query_image(cropped_region).copyTo(cropped_query);
-    cropped_query.setTo(cv::Scalar(255, 255, 255), gray_query(cropped_region) < 5);
+    //cropped_query.setTo(cv::Scalar(255, 255, 255), gray_query(cropped_region) < 5);
 
     int resized_width = int(double(results.rows)/double(cropped_query.rows)*double(cropped_query.cols));
     cv::Mat resized_query;

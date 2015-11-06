@@ -145,7 +145,7 @@ void supervoxel_segmentation::preprocess_cloud(CloudT::Ptr& cloud_out, CloudT::P
     // build the filter
     outrem.setInputCloud(cloud_constrained);
     outrem.setRadiusSearch(filter_dist); // 0.02 // Kinect 2
-    outrem.setMinNeighborsInRadius(30);
+    outrem.setMinNeighborsInRadius(30); // this might be a bit too much!
     // apply filter
     outrem.filter(*cloud_out);
 
