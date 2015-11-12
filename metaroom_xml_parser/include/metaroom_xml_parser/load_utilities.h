@@ -28,6 +28,8 @@ namespace semantic_map_load_utilties
         std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>  vIntermediateRoomClouds;
         std::vector<tf::StampedTransform>                           vIntermediateRoomCloudTransforms;
         std::vector<image_geometry::PinholeCameraModel>             vIntermediateRoomCloudCamParams;
+        std::vector<tf::StampedTransform>                           vIntermediateRoomCloudTransformsRegistered;
+        std::vector<image_geometry::PinholeCameraModel>             vIntermediateRoomCloudCamParamsCorrected;
         std::vector<cv::Mat>                                        vIntermediateRGBImages; // type CV_8UC3
         std::vector<cv::Mat>                                        vIntermediateDepthImages; // type CV_16UC1
     };

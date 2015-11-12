@@ -72,6 +72,8 @@
         toRet.vIntermediateRoomClouds = sweep.vIntermediateRoomClouds;
         toRet.vIntermediateRoomCloudTransforms = sweep.vIntermediateRoomCloudTransforms;
         toRet.vIntermediateRoomCloudCamParams = sweep.vIntermediateRoomCloudCamParams;
+        toRet.vIntermediateRoomCloudTransformsRegistered = sweep.vIntermediateRoomCloudTransformsRegistered;
+        toRet.vIntermediateRoomCloudCamParamsCorrected = sweep.vIntermediateRoomCloudCamParamsCorrected;
         toRet.vIntermediateRGBImages = sweep.vIntermediateRGBImages;
         toRet.vIntermediateDepthImages = sweep.vIntermediateDepthImages;
 
