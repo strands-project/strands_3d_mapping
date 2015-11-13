@@ -1,14 +1,53 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(quasimodo_msgs)
+project(quasimodo_retrieval)
+
+add_definitions(-std=c++11 -O4)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS std_msgs sensor_msgs geometry_msgs message_generation)
+find_package(catkin REQUIRED COMPONENTS roscpp tf sensor_msgs std_msgs metaroom_xml_parser quasimodo_msgs message_runtime message_generation tf_conversions pcl_ros image_geometry)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
+include_directories(${catkin_INCLUDE_DIRS})
+
+set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../../../object_3d_retrieval)
+
+set(retrieval_dir ${retrieval_project_dir})
+set(retrieval_libraries vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation)
+include_directories(${retrieval_dir}/include)
+link_directories(${retrieval_dir}/build)
+
+set(k_means_tree_dir ${retrieval_project_dir}/k_means_tree)
+set(k_means_tree_library_dir ${k_means_tree_dir}/build)
+include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
+link_directories(${k_means_tree_library_dir})
+
+set(stopwatch_dir ${retrieval_project_dir}/stopwatch)
+set(stopwatch_include_dir ${stopwatch_dir}/src)
+include_directories(${stopwatch_include_dir})
+
+set(benchmark_dir ${retrieval_project_dir}/benchmark)
+set(benchmark_libraries benchmark_retrieval)
+include_directories(${benchmark_dir}/include)
+link_directories(${benchmark_dir}/build)
+
+# Define the locations of cereal serialization header files
+set(cereal_include_dir ${k_means_tree_dir}/cereal/include)
+include_directories(${cereal_include_dir})
+
+# Find PCL
+find_package(PCL 1.6 REQUIRED COMPONENTS common io search visualization surface kdtree features surface segmentation octree filter keypoints)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
+# Find QT
+find_package(OpenCV REQUIRED)
+find_package(Qt4 REQUIRED)
+include(${QT_USE_FILE})
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -40,22 +79,18 @@ find_package(catkin REQUIRED COMPONENTS std_msgs sensor_msgs geometry_msgs messa
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  rgbd_frame.msg
-  model.msg
-)
+# add_message_files(
+#   FILES
+#   Message1.msg
+#   Message2.msg
+# )
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  index_frame.srv
-  model_from_frame.srv
-  cloud_from_model.srv
-  fuse_models.srv
-  get_model.srv
-  query_cloud.srv
-)
+# add_service_files(
+#   FILES
+#   Service1.srv
+#   Service2.srv
+# )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -65,12 +100,10 @@ add_service_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs  # Or other packages containing msgs
-  sensor_msgs
-  geometry_msgs
-)
+# generate_messages(
+#   DEPENDENCIES
+#   std_msgs  # Or other packages containing msgs
+# )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -103,8 +136,8 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES quasimodo_msgs
-  CATKIN_DEPENDS message_runtime
+#  LIBRARIES quasimodo_retrieval
+  CATKIN_DEPENDS metaroom_xml_parser
 #  DEPENDS system_lib
 )
 
@@ -117,26 +150,31 @@ catkin_package(
 # include_directories(include)
 
 ## Declare a C++ library
-# add_library(quasimodo_msgs
-#   src/${PROJECT_NAME}/quasimodo_msgs.cpp
+# add_library(quasimodo_retrieval
+#   src/${PROJECT_NAME}/quasimodo_retrieval.cpp
 # )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(quasimodo_msgs ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(quasimodo_retrieval ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-# add_executable(quasimodo_msgs_node src/quasimodo_msgs_node.cpp)
+add_executable(quasimodo_retrieval_server src/quasimodo_retrieval_server.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(quasimodo_msgs_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(quasimodo_retrieval_server ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(quasimodo_msgs_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(quasimodo_retrieval_server
+  ${retrieval_libraries}
+  ${benchmark_libraries}
+  ${OpenCV_LIBS}
+  ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##
@@ -153,7 +191,7 @@ catkin_package(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS quasimodo_msgs quasimodo_msgs_node
+# install(TARGETS quasimodo_retrieval quasimodo_retrieval_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -178,7 +216,7 @@ catkin_package(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_quasimodo_msgs.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_quasimodo_retrieval.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

@@ -1,0 +1,8 @@
+sensor_msgs/PointCloud2 cloud
+sensor_msgs/Image image
+sensor_msgs/CameraInfo camera
+---
+sensor_msgs/PointCloud2[] retrieved_clouds
+geometry_msgs/Pose[] retrieved_intial_poses
+sensor_msgs/Image[] retrieved_images
+string[] retrieved_sweep_paths
