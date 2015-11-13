@@ -80,7 +80,7 @@ void visualize_nonoverlapping(vector<CloudT::Ptr>& cropped_clouds, std::vector<t
 }
 
 void extract_nonoverlapping_sift(SiftCloudT::Ptr& sweep_features, CloudT::Ptr& sweep_keypoints,
-                                 vector<CloudT::Ptr>& cropped_clouds, std::vector<tf::StampedTransform>& transforms) //, std::vector<tf::StampedTransform>& transforms_2)
+                                 vector<CloudT::Ptr>& cropped_clouds, std::vector<tf::StampedTransform>& transforms)
 {
     int colormap[][3] = {
         {166,206,227},
@@ -109,18 +109,9 @@ void extract_nonoverlapping_sift(SiftCloudT::Ptr& sweep_features, CloudT::Ptr& s
         {255,237,111}
     };
 
-    //Eigen::Affine3d first_2;
-    //tf::transformTFToEigen(transforms_2[0], first_2);
-
-
-    Eigen::Affine3d first;
-    tf::transformTFToEigen(transforms[0], first);
-    first = first.inverse();
-
     for (int i = 0; i < 17; ++i) {
         Eigen::Affine3d e;
         tf::transformTFToEigen(transforms[i], e);
-        e = first*e;
 
         cv::Mat img(480, 640, CV_8UC3);
         for (int y = 0; y < 480; ++y) {
@@ -175,7 +166,7 @@ void extract_sift_for_sweep(const boost::filesystem::path& xml_path, bool visual
     using scan_data = semantic_map_load_utilties::IntermediateCloudCompleteData<PointT>;
     scan_data data = semantic_map_load_utilties::loadIntermediateCloudsCompleteDataFromSingleSweep<PointT>(xml_path.string());
 
-    //auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(xml_path.string(), std::vector<std::string>{"RoomIntermediateCloud"}, false);
+    auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(xml_path.string(), std::vector<std::string>{"RoomIntermediateCloud"}, false);
 
     vector<CloudT::Ptr> cropped_clouds;
 
@@ -220,7 +211,7 @@ void extract_sift_for_sweep(const boost::filesystem::path& xml_path, bool visual
 
     SiftCloudT::Ptr sweep_features(new SiftCloudT);
     CloudT::Ptr sweep_keypoints(new CloudT);
-    extract_nonoverlapping_sift(sweep_features, sweep_keypoints, cropped_clouds, data.vIntermediateRoomCloudTransforms);//, sweep_data.vIntermediateRoomCloudTransformsRegistered);
+    extract_nonoverlapping_sift(sweep_features, sweep_keypoints, cropped_clouds, sweep_data.vIntermediateRoomCloudTransformsRegistered);
 
     if (visualize) {
         dynamic_object_retrieval::visualize(sweep_keypoints);

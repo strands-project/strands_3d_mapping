@@ -22,6 +22,38 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
 // there is no way to associate the extracted segments directly with any particular object
 // how do we get the annotation of an object?
 
+template<typename VocabularyT>
+void query_annotated_sweep(LabelT& labels, dynamic_object_retrieval::vocabulary_summary& summary,
+                           const Eigen::Matrix3f& K, const boost::filesystem::path& vocabulary_path)
+{
+    VocabularyT vt;
+
+    for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels)) {
+        CloudT::Ptr query_cloud;
+        string query_label;
+        tie(query_cloud, query_label) = tup;
+
+        vector<CloudT::Ptr> retrieved_clouds;
+        vector<boost::filesystem::path> sweep_paths;
+
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(vt, query_cloud, K, 10, vocabulary_path, summary);
+        tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.second);
+
+        cout << "Finding labels..." << endl;
+        vector<pair<CloudT::Ptr, string> > cloud_labels = benchmark_retrieval::find_labels(retrieved_clouds, sweep_paths);
+        cout << "Finished finding labels..." << endl;
+
+        for (auto tup : cloud_labels) {
+            CloudT::Ptr retrieved_cloud;
+            string retrieved_label;
+            tie(retrieved_cloud, retrieved_label) = tup;
+
+            cout << "Query label: " << query_label << endl;
+            cout << "Retrieved label: " << retrieved_label << endl;
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 3) {
@@ -42,36 +74,11 @@ int main(int argc, char** argv)
     vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
     tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
 
-    for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels)) {
-        CloudT::Ptr query_cloud;
-        string query_label;
-        tie(query_cloud, query_label) = tup;
-
-        vector<CloudT::Ptr> retrieved_clouds;
-        vector<boost::filesystem::path> sweep_paths;
-        if (summary.vocabulary_type == "standard") {
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary);
-            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.second);
-        }
-        else if (summary.vocabulary_type == "incremental") {
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary);
-            cout << "Loading clouds..." << endl;
-            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.second);
-            cout << "Finished loading clouds..." << endl;
-        }
-
-        cout << "Finding labels..." << endl;
-        vector<pair<CloudT::Ptr, string> > cloud_labels = benchmark_retrieval::find_labels(retrieved_clouds, sweep_paths);
-        cout << "Finished finding labels..." << endl;
-
-        for (auto tup : cloud_labels) {
-            CloudT::Ptr retrieved_cloud;
-            string retrieved_label;
-            tie(retrieved_cloud, retrieved_label) = tup;
-
-            cout << "Query label: " << query_label << endl;
-            cout << "Retrieved label: " << retrieved_label << endl;
-        }
+    if (summary.vocabulary_type == "standard") {
+        query_annotated_sweep<vocabulary_tree<HistT, 8> >(labels, summary, K, vocabulary_path);
+    }
+    else if (summary.vocabulary_type == "incremental") {
+        query_annotated_sweep<grouped_vocabulary_tree<HistT, 8> >(labels, summary, K, vocabulary_path);
     }
 
     return 0;

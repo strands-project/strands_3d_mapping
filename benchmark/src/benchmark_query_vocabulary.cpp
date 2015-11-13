@@ -32,7 +32,9 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
 
 using correct_ratio = pair<double, double>;
 
-pair<benchmark_retrieval::benchmark_result, vector<cv::Mat> > get_score_for_sweep(const string& sweep_xml, const boost::filesystem::path& vocabulary_path,
+template<typename VocabularyT>
+pair<benchmark_retrieval::benchmark_result, vector<cv::Mat> > get_score_for_sweep(VocabularyT& vt, const string& sweep_xml,
+                                                                                  const boost::filesystem::path& vocabulary_path,
                                                                                   const dynamic_object_retrieval::vocabulary_summary& summary,
                                                                                   benchmark_retrieval::benchmark_result current_result)
 {
@@ -60,17 +62,11 @@ pair<benchmark_retrieval::benchmark_result, vector<cv::Mat> > get_score_for_swee
         TICK("total_query_vocabulary");
         vector<CloudT::Ptr> retrieved_clouds;
         vector<boost::filesystem::path> sweep_paths;
-        if (summary.vocabulary_type == "standard") {
-            //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, true);
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, query_image, query_depth, K, 50, vocabulary_path, summary, false);
-            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
-        }
-        else if (summary.vocabulary_type == "incremental") {
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
-            cout << "Loading clouds..." << endl;
-            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
-            cout << "Finished loading clouds..." << endl;
-        }
+
+        //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, true);
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth, K, 50, vocabulary_path, summary, false);
+        tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
+
         TOCK("total_query_vocabulary");
 
         TICK("find_labels");
@@ -111,6 +107,32 @@ pair<benchmark_retrieval::benchmark_result, vector<cv::Mat> > get_score_for_swee
     return make_pair(current_result, visualizations);
 }
 
+template<typename VocabularyT>
+benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder_xmls, const boost::filesystem::path& vocabulary_path,
+                                                    const dynamic_object_retrieval::vocabulary_summary& summary,
+                                                    const boost::filesystem::path& benchmark_path)
+{
+
+    benchmark_retrieval::benchmark_result benchmark(summary);
+    VocabularyT vt;
+
+    int counter = 0;
+    for (const string& xml : folder_xmls) {
+        TICK("get_score_for_sweep");
+        vector<cv::Mat> visualizations;
+        tie(benchmark, visualizations) = get_score_for_sweep(vt, xml, vocabulary_path, summary, benchmark);
+        for (cv::Mat& vis : visualizations) {
+            std::stringstream ss;
+            ss << "query_image" << std::setw(4) << std::setfill('0') << counter;
+            cv::imwrite((benchmark_path / (ss.str() + ".png")).string(), vis);
+            ++counter;
+        }
+        TOCK("get_score_for_sweep");
+    }
+
+    return benchmark;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 3) {
@@ -145,20 +167,12 @@ int main(int argc, char** argv)
 
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
-    benchmark_retrieval::benchmark_result benchmark(summary);
-
-    int counter = 0;
-    for (const string& xml : folder_xmls) {
-        TICK("get_score_for_sweep");
-        vector<cv::Mat> visualizations;
-        tie(benchmark, visualizations) = get_score_for_sweep(xml, vocabulary_path, summary, benchmark);
-        for (cv::Mat& vis : visualizations) {
-            std::stringstream ss;
-            ss << "query_image" << std::setw(4) << std::setfill('0') << counter;
-            cv::imwrite((benchmark_path / (ss.str() + ".png")).string(), vis);
-            ++counter;
-        }
-        TOCK("get_score_for_sweep");
+    benchmark_retrieval::benchmark_result benchmark;
+    if (summary.vocabulary_type == "standard") {
+        benchmark = run_benchmark<vocabulary_tree<HistT, 8> >(folder_xmls, vocabulary_path, summary, benchmark_path);
+    }
+    else if (summary.vocabulary_type == "incremental") {
+        benchmark = run_benchmark<grouped_vocabulary_tree<HistT, 8> >(folder_xmls, vocabulary_path, summary, benchmark_path);
     }
 
     TOCK("run");

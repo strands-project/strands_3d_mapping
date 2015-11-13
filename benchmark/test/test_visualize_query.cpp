@@ -24,7 +24,8 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
 // there is no way to associate the extracted segments directly with any particular object
 // how do we get the annotation of an object?
 
-void visualize_query_sweep(const string& sweep_xml, const boost::filesystem::path& vocabulary_path,
+template<typename VocabularyT>
+void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost::filesystem::path& vocabulary_path,
                            const dynamic_object_retrieval::vocabulary_summary& summary)
 {
     LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
@@ -50,16 +51,9 @@ void visualize_query_sweep(const string& sweep_xml, const boost::filesystem::pat
 
         vector<CloudT::Ptr> retrieved_clouds;
         vector<boost::filesystem::path> sweep_paths;
-        if (summary.vocabulary_type == "standard") {
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
-            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
-        }
-        else if (summary.vocabulary_type == "incremental") {
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
-            cout << "Loading clouds..." << endl;
-            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
-            cout << "Finished loading clouds..." << endl;
-        }
+
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, K, 10, vocabulary_path, summary, false);
+        tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
         for (CloudT::Ptr& cloud : retrieved_clouds) {
             dynamic_object_retrieval::visualize(cloud);
@@ -83,8 +77,17 @@ int main(int argc, char** argv)
 
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
-    for (const string& xml : folder_xmls) {
-        visualize_query_sweep(xml, vocabulary_path, summary);
+    if (summary.vocabulary_type == "standard") {
+        vocabulary_tree<HistT, 8> vt;
+        for (const string& xml : folder_xmls) {
+            visualize_query_sweep(vt, xml, vocabulary_path, summary);
+        }
+    }
+    else {
+        grouped_vocabulary_tree<HistT, 8> vt;
+        for (const string& xml : folder_xmls) {
+            visualize_query_sweep(vt, xml, vocabulary_path, summary);
+        }
     }
 
     return 0;

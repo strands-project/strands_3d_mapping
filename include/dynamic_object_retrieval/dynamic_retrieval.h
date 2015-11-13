@@ -212,16 +212,21 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
 template <typename VocabularyT>
 pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
-query_reweight_vocabulary(const boost::filesystem::path& query_features, size_t nbr_query,
+query_reweight_vocabulary(VocabularyT& vt, const boost::filesystem::path& query_features, size_t nbr_query,
                           const boost::filesystem::path& vocabulary_path,
                           const vocabulary_summary& summary, bool do_reweighting = true)
 {
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
+    if (vt.empty()) {
+        load_vocabulary(vt, vocabulary_path);
+        vt.set_min_match_depth(3);
+        vt.compute_normalizing_constants();
+    }
+
     HistCloudT::Ptr features(new HistCloudT);
     pcl::io::loadPCDFile(query_features.string(), *features);
 
-    VocabularyT vt;
     result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
 
     if (!do_reweighting) {
@@ -240,11 +245,17 @@ query_reweight_vocabulary(const boost::filesystem::path& query_features, size_t 
 template <typename VocabularyT>
 pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
-query_reweight_vocabulary(CloudT::Ptr& query_cloud, const Eigen::Matrix3f& K, size_t nbr_query,
+query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, const Eigen::Matrix3f& K, size_t nbr_query,
                           const boost::filesystem::path& vocabulary_path,
                           const vocabulary_summary& summary, bool do_reweighting = true)
 {
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
+
+    if (vt.empty()) {
+        load_vocabulary(vt, vocabulary_path);
+        vt.set_min_match_depth(3);
+        vt.compute_normalizing_constants();
+    }
 
     std::cout << "Computing query features..." << std::endl;
     HistCloudT::Ptr features(new HistCloudT);
@@ -252,7 +263,6 @@ query_reweight_vocabulary(CloudT::Ptr& query_cloud, const Eigen::Matrix3f& K, si
     pfhrgb_estimation::compute_query_features(features, keypoints, query_cloud);
 
     std::cout << "Querying vocabulary..." << std::endl;
-    VocabularyT vt;
     result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
 
     if (!do_reweighting) {
@@ -273,11 +283,17 @@ query_reweight_vocabulary(CloudT::Ptr& query_cloud, const Eigen::Matrix3f& K, si
 template <typename VocabularyT>
 pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
-query_reweight_vocabulary(CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth,
+query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth,
                           const Eigen::Matrix3f& K, size_t nbr_query, const boost::filesystem::path& vocabulary_path,
                           const vocabulary_summary& summary, bool do_reweighting = true)
 {
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
+
+    if (vt.empty()) {
+        load_vocabulary(vt, vocabulary_path);
+        vt.set_min_match_depth(3);
+        vt.compute_normalizing_constants();
+    }
 
     std::cout << "Computing query features..." << std::endl;
     TICK("compute_query_features");
@@ -288,7 +304,7 @@ query_reweight_vocabulary(CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Ma
 
     std::cout << "Querying vocabulary..." << std::endl;
     TICK("query_vocabulary");
-    VocabularyT vt;
+
     result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
     TOCK("query_vocabulary");
 

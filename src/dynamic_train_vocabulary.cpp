@@ -235,6 +235,10 @@ void train_vocabulary(const boost::filesystem::path& vocabulary_path)
     vocabulary_summary summary;
     summary.load(vocabulary_path);
 
+    summary.min_segment_features = 30;
+    summary.max_training_features = 300000;
+    summary.max_append_features = 1000000;
+
     boost::filesystem::path noise_data_path = summary.noise_data_path;
     boost::filesystem::path annotated_data_path = summary.annotated_data_path;
 

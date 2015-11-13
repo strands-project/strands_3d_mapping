@@ -39,6 +39,8 @@ struct benchmark_result {
         std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         timestamp = std::ctime(&now);
     }
+
+    benchmark_result() {}
 };
 
 void save_benchmark(const benchmark_result& benchmark, const boost::filesystem::path& benchmark_path);

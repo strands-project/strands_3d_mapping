@@ -60,7 +60,8 @@ void query_and_visualize(const boost::filesystem::path& cloud_path, const boost:
 
     result_type retrieved_paths;
     result_type reweighted_paths;
-    tie(retrieved_paths, reweighted_paths) = dynamic_object_retrieval::query_reweight_vocabulary<VocabularyT>(cloud_path, 10, vocabulary_path, summary, do_reweighting);
+    VocabularyT vt;
+    tie(retrieved_paths, reweighted_paths) = dynamic_object_retrieval::query_reweight_vocabulary(vt, cloud_path, 10, vocabulary_path, summary, do_reweighting);
     visualize_retrieved_paths(retrieved_paths);
     visualize_retrieved_paths(reweighted_paths);
 }

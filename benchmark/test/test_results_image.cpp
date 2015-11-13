@@ -12,9 +12,9 @@ using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
 using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
 
-void visualize_query_sweep(const string& sweep_xml, const boost::filesystem::path& vocabulary_path,
-                           const dynamic_object_retrieval::vocabulary_summary& summary,
-                           const vector<string>& objects_to_check)
+template<typename VocabularyT>
+void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost::filesystem::path& vocabulary_path,
+                           const dynamic_object_retrieval::vocabulary_summary& summary, const vector<string>& objects_to_check)
 {
     LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
 
@@ -45,17 +45,10 @@ void visualize_query_sweep(const string& sweep_xml, const boost::filesystem::pat
 
         vector<CloudT::Ptr> retrieved_clouds;
         vector<boost::filesystem::path> sweep_paths;
-        if (summary.vocabulary_type == "standard") {
-            //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 50, vocabulary_path, summary, true);
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, query_image, query_depth, K, 20, vocabulary_path, summary, false);
-            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
-        }
-        else if (summary.vocabulary_type == "incremental") {
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary<grouped_vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, false);
-            cout << "Loading clouds..." << endl;
-            tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
-            cout << "Finished loading clouds..." << endl;
-        }
+
+        //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 50, vocabulary_path, summary, true);
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth, K, 20, vocabulary_path, summary, false);
+        tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
         vector<string> dummy_labels;
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
@@ -89,8 +82,17 @@ int main(int argc, char** argv)
 
     vector<string> objects_to_check = {"backpack", "trash", "desktop", "helmet", "chair"};
 
-    for (const string& xml : folder_xmls) {
-        visualize_query_sweep(xml, vocabulary_path, summary, objects_to_check);
+    if (summary.vocabulary_type == "standard") {
+        vocabulary_tree<HistT, 8> vt;
+        for (const string& xml : folder_xmls) {
+            visualize_query_sweep(vt, xml, vocabulary_path, summary, objects_to_check);
+        }
+    }
+    else {
+        grouped_vocabulary_tree<HistT, 8> vt;
+        for (const string& xml : folder_xmls) {
+            visualize_query_sweep(vt, xml, vocabulary_path, summary, objects_to_check);
+        }
     }
 
     return 0;
