@@ -47,8 +47,10 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-# Use custom version of metaroom_xml_parser for labeled data
+# Be sure to set this to YOUR workspace, use custom version of metaroom_xml_parser for labeled data,
+# https://github.com/RaresAmbrus/strands_3d_mapping, branch hydro-devel
 set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../catkin_ws)
+
 set(parser_include_dir ${parser_workspace}/src/strands_3d_mapping/metaroom_xml_parser/include)
 set(parser_library_dir ${parser_workspace}/devel/lib)
 
