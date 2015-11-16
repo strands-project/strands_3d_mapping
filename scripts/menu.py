@@ -34,51 +34,51 @@ class ExecutablePicker(object):
                    " \n"
                    " Working on data path " + self.data_path + "\n"
                    " \n"
-                   " 1. Set data path (if you want to change)\n"
-                   " 2. Init sweep segment folders\n"
-                   " 3. Create convex segments\n"
-                   " 4. Create convex segments and supervoxels (alternative to 3 & 6)\n"
-                   " 5. Extract PFHRGB features\n"
-                   " 6. Segment keypoints into subsegments\n"
-                   " 7. Create PFHRGB feature for supervoxels (alternative to 6)\n"
-                   " 8. Extract SIFT from sweeps (for re-weighting)\n"
-                   " 9. Vocabulary training menu\n"
-                   " 10. Querying & benchmarking menu\n"
-                   " 11. Exit\n")
-            option = raw_input(" Please enter an option 1-9: ")
+                   " 1.  Set data path (if you want to change)\n"
+                   " 2.  Init sweep segment folders\n"
+                   " 3a. Create convex segments (alternative to 3b & 5b)\n"
+                   " 3b. Create convex segments and supervoxels (alternative to 3a & 5a)\n"
+                   " 4.  Extract PFHRGB features\n"
+                   " 5a. Segment keypoints into subsegments (alternative to 5b)\n"
+                   " 5b. Create PFHRGB feature for supervoxels (alternative to 5a)\n"
+                   " 6.  Extract SIFT from sweeps (for re-weighting)\n"
+                   " 7.  Vocabulary training menu\n"
+                   " 8.  Querying & benchmarking menu\n"
+                   " 9.  Exit\n")
+            option = raw_input(" Please enter an option 1-9(a/b): ")
 
             if option == "1":
                 self.set_data_path()
             elif option == "2":
                 print " Running dynamic_init_folders...\n"
                 system("./dynamic_init_folders " + self.data_path + "/")
-            elif option == "3":
+            elif option == "3a":
                 print " Running dynamic_convex_segmentation...\n"
                 system("./dynamic_convex_segmentation " + self.data_path + "/")
-            elif option == "4":
+            elif option == "3b":
                 print " Running dynamic_supervoxel_convex_segmentation...\n"
                 system("./dynamic_supervoxel_convex_segmentation " + self.data_path + "/")
-            elif option == "5":
+            elif option == "4":
                 print " Running dynamic_extract_convex_features...\n"
                 system("./dynamic_extract_convex_features " + self.data_path + "/")
-            elif option == "6":
+            elif option == "5a":
                 print " Running dynamic_create_subsegments...\n"
                 system("./dynamic_create_subsegments " + self.data_path + "/")
-            elif option == "7":
+            elif option == "5b":
                 print " Running dynamic_extract_supervoxel_features...\n"
                 system("./dynamic_extract_supervoxel_features " + self.data_path + "/")
-            elif option == "8":
+            elif option == "6":
                 print " Running dynamic_extract_sift...\n"
                 system("./dynamic_extract_sift " + self.data_path + "/")
-            elif option == "9":
+            elif option == "7":
                 print " Entering the vocabulary training menu..."
                 picker = TrainingPicker()
                 picker.run()
-            elif option == "10":
+            elif option == "8":
                 print " Entering the querying & benchmarking menu..."
                 picker = QueryingPicker()
                 picker.run()
-            elif option == "11":
+            elif option == "9":
                 return
             else:
                 print " Option " + option + " is not valid."
