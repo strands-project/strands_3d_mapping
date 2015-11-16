@@ -44,6 +44,7 @@ add_message_files(
   FILES
   rgbd_frame.msg
   model.msg
+  retrieval_result.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -55,6 +56,7 @@ add_service_files(
   fuse_models.srv
   get_model.srv
   query_cloud.srv
+  visualize_query.srv
 )
 
 ## Generate actions in the 'action' folder

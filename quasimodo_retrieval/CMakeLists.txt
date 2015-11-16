@@ -6,31 +6,37 @@ add_definitions(-std=c++11 -O4)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp tf sensor_msgs std_msgs metaroom_xml_parser quasimodo_msgs message_runtime message_generation tf_conversions pcl_ros image_geometry)
+find_package(catkin REQUIRED COMPONENTS roscpp tf sensor_msgs std_msgs image_geometry metaroom_xml_parser quasimodo_msgs message_runtime
+                                        message_generation tf_conversions pcl_ros image_geometry cv_bridge tf_conversions eigen_conversions)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
 include_directories(${catkin_INCLUDE_DIRS})
 
+# This is the root dir of https://github.com/nilsbore/dynamic_object_retrieval
 set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../../../object_3d_retrieval)
 
+# This is the main project, used for retrieval
 set(retrieval_dir ${retrieval_project_dir})
 set(retrieval_libraries vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation)
 include_directories(${retrieval_dir}/include)
 link_directories(${retrieval_dir}/build)
 
+# This is the base vocabulary tree representation
 set(k_means_tree_dir ${retrieval_project_dir}/k_means_tree)
 set(k_means_tree_library_dir ${k_means_tree_dir}/build)
 include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
 link_directories(${k_means_tree_library_dir})
 
+# This is the stopwatch by Whelan, also included in the base dir
 set(stopwatch_dir ${retrieval_project_dir}/stopwatch)
 set(stopwatch_include_dir ${stopwatch_dir}/src)
 include_directories(${stopwatch_include_dir})
 
+# The benchmark project is also in the base dir
 set(benchmark_dir ${retrieval_project_dir}/benchmark)
-set(benchmark_libraries benchmark_retrieval)
+set(benchmark_libraries benchmark_retrieval benchmark_visualization)
 include_directories(${benchmark_dir}/include)
 link_directories(${benchmark_dir}/build)
 
@@ -161,13 +167,24 @@ catkin_package(
 
 ## Declare a C++ executable
 add_executable(quasimodo_retrieval_server src/quasimodo_retrieval_server.cpp)
+add_executable(quasimodo_visualization_server src/quasimodo_visualization_server.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(quasimodo_retrieval_server ${catkin_EXPORTED_TARGETS})
+add_dependencies(quasimodo_visualization_server ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(quasimodo_retrieval_server
+  ${retrieval_libraries}
+  ${benchmark_libraries}
+  ${OpenCV_LIBS}
+  ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(quasimodo_visualization_server
   ${retrieval_libraries}
   ${benchmark_libraries}
   ${OpenCV_LIBS}

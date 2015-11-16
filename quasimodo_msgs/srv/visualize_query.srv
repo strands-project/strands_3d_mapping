@@ -1,5 +1,6 @@
-sensor_msgs/PointCloud2 cloud
 sensor_msgs/Image image
 sensor_msgs/CameraInfo camera
----
+geometry_msgs/Transform room_transform
 retrieval_result result
+---
+sensor_msgs/Image image

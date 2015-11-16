@@ -1,11 +1,14 @@
 #include "ros/ros.h"
 #include <dynamic_object_retrieval/dynamic_retrieval.h>
 #include <dynamic_object_retrieval/visualize.h>
+#include <object_3d_benchmark/benchmark_retrieval.h>
 #include "quasimodo_msgs/query_cloud.h"
 #include <pcl_ros/point_cloud.h>
 
 using namespace std;
 
+using PointT = pcl::PointXYZRGB;
+using CloudT = pcl::PointCloud<PointT>;
 using HistT = pcl::Histogram<250>;
 
 template<typename VocabularyT>
@@ -18,8 +21,6 @@ public:
 
     VocabularyT vt;
     dynamic_object_retrieval::vocabulary_summary summary;
-
-    Eigen::Matrix3f K;
 
     retrieval_server(const std::string& name)
     {
@@ -44,13 +45,35 @@ public:
     {
         using result_type = vector<pair<typename dynamic_object_retrieval::path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+        CloudT::Ptr cloud(new CloudT);
         pcl::fromROSMsg(req.cloud, *cloud);
+
+        image_geometry::PinholeCameraModel cam_model;
+        cam_model.fromCameraInfo(req.camera);
+        cv::Matx33d cvK = cam_model.intrinsicMatrix();
+        Eigen::Matrix3f K = Eigen::Map<Eigen::Matrix3d>(cvK.val).cast<float>();
 
         result_type retrieved_paths;
         result_type reweighted_paths;
         VocabularyT vt;
         tie(retrieved_paths, reweighted_paths) = dynamic_object_retrieval::query_reweight_vocabulary(vt, cloud, K, 10, vocabulary_path, summary, false);
+
+        vector<CloudT::Ptr> retrieved_clouds;
+        vector<boost::filesystem::path> sweep_paths;
+        tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(retrieved_paths);
+
+        res.result.retrieved_clouds.resize(retrieved_clouds.size());
+        res.result.retrieved_initial_poses.resize(retrieved_clouds.size());
+        //res.retrieved_images.resize(retrieved_clouds.size());
+        res.result.retrieved_sweep_paths.resize(retrieved_clouds.size());
+
+        for (int i = 0; i < retrieved_clouds.size(); ++i) {
+            pcl::toROSMsg(*retrieved_clouds[i], res.result.retrieved_clouds[i]);
+            //res.retrieved_initial_poses = geometry_msgs::Pose();
+            res.result.retrieved_sweep_paths[i] = sweep_paths[i].string();
+        }
+
+        return true;
     }
 };
 
