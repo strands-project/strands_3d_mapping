@@ -76,7 +76,8 @@ the convex segments extracted earlier while incremental is more flexible.
 Once this is done, simply enter `3` to train and build the representation.
 You are now ready to query the representation, see
 <https://github.com/nilsbore/quasimodo/tree/master/quasimodo_retrieval>
-for information on the ROS interface.
+for information on the ROS interface. Also check out example usage in
+<https://github.com/nilsbore/quasimodo/tree/master/quasimodo_test>.
 
 Happy querying!
 
