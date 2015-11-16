@@ -88,7 +88,10 @@ instead you should compile
 workspace, be sure to check out the `hydro-devel` branch. There is a commented
 section in the cmake file where you can set the variable `parser_workspace`,
 which should point to the catkin workspace where your `strands_3d_mapping`
-checkout lives.
+checkout lives. See the lines
+<https://github.com/nilsbore/dynamic_object_retrieval/blob/dynamic/CMakeLists.txt#L52>
+and
+<https://github.com/nilsbore/dynamic_object_retrieval/blob/dynamic/benchmark/CMakeLists.txt#L31>.
 
 In the future, you will instead use the packaged version of `strands_3d_mapping`
 from the STRANDS project <http://strands.acin.tuwien.ac.at/>. Follow the instructions on <https://github.com/strands-project-releases/strands-releases/wiki> to add the debian package repository. Then install the `metaroom_xml_parser` by typing `sudo apt-get install ros-indigo-metaroom-xml-parser`.
