@@ -66,11 +66,13 @@ public:
         res.result.retrieved_initial_poses.resize(retrieved_clouds.size());
         //res.retrieved_images.resize(retrieved_clouds.size());
         res.result.retrieved_sweep_paths.resize(retrieved_clouds.size());
+        res.result.retrieved_distance_scores.resize(retrieved_clouds.size());
 
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
             pcl::toROSMsg(*retrieved_clouds[i], res.result.retrieved_clouds[i]);
             //res.retrieved_initial_poses = geometry_msgs::Pose();
             res.result.retrieved_sweep_paths[i] = sweep_paths[i].string();
+            res.result.retrieved_distance_scores[i] = retrieved_paths[i].second.score;
         }
 
         return true;
