@@ -39,7 +39,7 @@ pair<int, vector<string> > convex_segment_cloud(int counter, const boost::filesy
 
     // the supervoxel segmentation also needs to return the supervoxels
     // and the overal graph among the supervoxels + supervoxel-convex segments association
-    supervoxel_segmentation ss;
+    supervoxel_segmentation ss(0.02f, 0.2f, 0.4f, false);
     Graph* g;
     vector<CloudT::Ptr> supervoxels;
     vector<CloudT::Ptr> convex_segments;

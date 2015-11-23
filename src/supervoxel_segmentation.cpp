@@ -810,6 +810,8 @@ vector<supervoxel_segmentation::Graph*> supervoxel_segmentation::color_model_spl
 {
     using vertex_iterator = boost::graph_traits<Graph>::vertex_iterator;
 
+    const float mutual_color_information_weight = 0.01;
+
     vector<pcl::PointCloud<pcl::PointXYZHSV>::Ptr> converted_voxels;
     for (CloudT::Ptr& c : voxel_clouds) {
         cout << "Converting voxel cloud..." << endl;
@@ -845,6 +847,7 @@ vector<supervoxel_segmentation::Graph*> supervoxel_segmentation::color_model_spl
 
     // iterate over all the different segments and form a color model for every segment
     vector<Graph*> new_graphs;
+    vector<Graph*> deleted_graphs;
     for (Graph* g : graphs) {
 
         typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name = boost::get(boost::vertex_name, *g);
@@ -914,7 +917,7 @@ vector<supervoxel_segmentation::Graph*> supervoxel_segmentation::color_model_spl
                 continue;
             }
             float& weight = boost::get(edge_id, *edge_it);
-            weight -= 0.01*dist;
+            weight -= mutual_color_information_weight*dist;
 
             cout << to.m_value << " out of " << covs.size() << endl;
             cout << "Dist: " << dist << endl;
@@ -925,6 +928,12 @@ vector<supervoxel_segmentation::Graph*> supervoxel_segmentation::color_model_spl
         vector<Graph*> split_graph;
         recursive_split(split_graph, *g); // 0.5 for querying segmentation
         new_graphs.insert(new_graphs.end(), split_graph.begin(), split_graph.end());
+        deleted_graphs.push_back(g);
+    }
+
+    for (int i = 0; i < deleted_graphs.size(); ++i) {
+        delete deleted_graphs[i];
+        deleted_graphs[i] = NULL;
     }
 
     return new_graphs;
@@ -1091,9 +1100,15 @@ supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, 
     vector<Graph*> graphs_convex;
     recursive_split(graphs_convex, *graph_in);
 
-    visualize_segments(graphs_convex, segments);
+    if (visualize) {
+        visualize_segments(graphs_convex, segments);
+    }
     vector<Graph*> graphs_out = color_model_split(graphs_convex, segments);
-    visualize_segments(graphs_out, segments);
+    if (visualize) {
+        visualize_segments(graphs_out, segments);
+    }
+
+    // we need to port post_merge convex_segments to work in the same way
 
     //color_model_split(graphs_out);
 

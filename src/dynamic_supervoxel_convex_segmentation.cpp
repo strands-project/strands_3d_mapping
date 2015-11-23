@@ -55,7 +55,7 @@ tuple<int, int, vector<string>, vector<string> > supervoxel_convex_segment_cloud
 
     // the supervoxel segmentation also needs to return the supervoxels
     // and the overal graph among the supervoxels + supervoxel-convex segments association
-    supervoxel_segmentation ss;
+    supervoxel_segmentation ss(0.02f, 0.2f, 0.4f, false);;
     Graph* g;
     vector<CloudT::Ptr> supervoxels;
     vector<CloudT::Ptr> convex_segments;
@@ -70,6 +70,7 @@ tuple<int, int, vector<string>, vector<string> > supervoxel_convex_segment_cloud
         std::stringstream ss;
         ss << "segment" << std::setw(4) << std::setfill('0') << i;
         boost::filesystem::path segment_path = convex_path / (ss.str() + ".pcd");
+        cout << "Writing file " << segment_path.string() << endl;
         pcl::io::savePCDFileBinary(segment_path.string(), *c);
         segment_paths.push_back(segment_path.string());
         convex_summary.segment_indices.push_back(convex_counter);
@@ -87,6 +88,12 @@ tuple<int, int, vector<string>, vector<string> > supervoxel_convex_segment_cloud
         std::stringstream ss;
         ss << "segment" << std::setw(4) << std::setfill('0') << i;
         boost::filesystem::path segment_path = supervoxel_path / (ss.str() + ".pcd");
+        cout << "Writing file " << segment_path.string() << endl;
+        if (c->empty()) {
+            PointT p;
+            p.x = p.y = p.z = std::numeric_limits<float>::infinity();
+            c->push_back(p);
+        }
         pcl::io::savePCDFileBinary(segment_path.string(), *c);
         supervoxel_paths.push_back(segment_path.string());
         supervoxel_summary.segment_indices.push_back(supervoxel_counter);
