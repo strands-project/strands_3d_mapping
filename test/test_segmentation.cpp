@@ -67,13 +67,14 @@ int main(int argc, char** argv)
 
         cout << "Cloud size: " << cloud->size() << endl;
 
-        supervoxel_segmentation ss;
+        supervoxel_segmentation ss(0.02f, 0.2f, 0.4f, false); // do not filter
         Graph* g;
         vector<CloudT::Ptr> supervoxels;
         vector<CloudT::Ptr> convex_segments;
         map<size_t, size_t> indices;
         std::tie(g, supervoxels, convex_segments, indices) = ss.compute_convex_oversegmentation(cloud, true);
 
+        /*
         CloudT::Ptr colored_segments(new CloudT);
         *colored_segments += *cloud;
         colored_segments->reserve(cloud->size());
@@ -89,6 +90,7 @@ int main(int argc, char** argv)
         }
 
         dynamic_object_retrieval::visualize(colored_segments);
+        */
 
         delete g;
     }

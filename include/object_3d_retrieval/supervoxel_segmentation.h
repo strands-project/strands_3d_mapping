@@ -77,6 +77,7 @@ public:
     float voxel_resolution;
     float cut_threshold;
     float planar_weight;
+    bool do_filter;
 
     // returns a supervoxel clusters with corresponding adjacency graph
     std::tuple<Graph*, std::vector<CloudT::Ptr>, std::vector<CloudT::Ptr>, std::map<size_t, size_t> >
@@ -89,12 +90,14 @@ public:
     float boundary_convexness(VoxelT::Ptr& first_supervoxel, VoxelT::Ptr& second_supervoxel);
     void connected_components(std::vector<Graph*>& graphs_out, Graph& graph_in);
     void recursive_split(std::vector<Graph*>& graphs_out, Graph& graph_in);
+    std::vector<Graph*> color_model_split(std::vector<Graph*>& graphs, std::vector<CloudT::Ptr>& voxel_clouds);
     void graph_cut(std::vector<Graph *>& graphs_out, Graph& graph_in);
     //void visualize_boost_graph(Graph& graph_in);
     float mean_graph_weight(Graph& graph_in);
     size_t graph_size(Graph& graph_in);
     size_t graph_edges_size(Graph& graph_in);
     void visualize_segments(std::vector<CloudT::Ptr>& clouds_out, bool subsample = false);
+    void visualize_segments(std::vector<Graph*> graphs, std::vector<CloudT::Ptr>& voxel_clouds);
     void post_merge_convex_segments(std::vector<CloudT::Ptr>& merged_segments, std::map<size_t, size_t>& indices,
                                     std::vector<CloudT::Ptr>& full_segments, Graph& graph_in);
     void create_full_segment_clouds(std::vector<CloudT::Ptr>& full_segments, std::vector<CloudT::Ptr>& supervoxel_segments,
@@ -131,7 +134,8 @@ public:
         cv::waitKey(0);
     }
 
-    supervoxel_segmentation() : voxel_resolution(0.02f), cut_threshold(0.2f), planar_weight(0.3f) {}
+    supervoxel_segmentation(float voxel_resolution = 0.02f, float cut_threshold = 0.2f, float planar_weight = 0.3f, bool do_filter = true) :
+        voxel_resolution(voxel_resolution), cut_threshold(cut_threshold), planar_weight(planar_weight), do_filter(do_filter) {}
 };
 
 #endif // SUPERVOXEL_SEGMENTATION_H

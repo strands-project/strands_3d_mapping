@@ -6,6 +6,7 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/approximate_voxel_grid.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/point_types_conversion.h>
 
 #include <boost/graph/graph_utility.hpp>
 #include <boost/graph/adjacency_list.hpp>
@@ -140,14 +141,19 @@ void supervoxel_segmentation::preprocess_cloud(CloudT::Ptr& cloud_out, CloudT::P
 
     cout << "Distance filtering took " << elapsed_seconds.count() << " seconds" << endl;
 
-    // outlier removal
-    pcl::RadiusOutlierRemoval<PointT> outrem;
-    // build the filter
-    outrem.setInputCloud(cloud_constrained);
-    outrem.setRadiusSearch(filter_dist); // 0.02 // Kinect 2
-    outrem.setMinNeighborsInRadius(30); // this might be a bit too much!
-    // apply filter
-    outrem.filter(*cloud_out);
+    if (do_filter) {
+        // outlier removal
+        pcl::RadiusOutlierRemoval<PointT> outrem;
+        // build the filter
+        outrem.setInputCloud(cloud_constrained);
+        outrem.setRadiusSearch(filter_dist); // 0.02 // Kinect 2
+        outrem.setMinNeighborsInRadius(30); // this might be a bit too much!
+        // apply filter
+        outrem.filter(*cloud_out);
+    }
+    else {
+        *cloud_out += *cloud_constrained;
+    }
 
     // This is even slower the radius outlier removal, maybe slightly better
     /*
@@ -157,8 +163,6 @@ void supervoxel_segmentation::preprocess_cloud(CloudT::Ptr& cloud_out, CloudT::P
     outrem.setStddevMulThresh(1.0);
     outrem.filter(*cloud_out);
     */
-
-    //*cloud_out += *cloud_constrained;
 
     end = chrono::system_clock::now();
     elapsed_seconds = end-start;
@@ -494,6 +498,18 @@ void supervoxel_segmentation::compute_voxel_clouds(vector<CloudT::Ptr>& segment_
     }
 }
 
+/*
+vector<supervoxel_segmentation::CloudT::Ptr> supervoxel_segmentation::compute_voxel_clouds(supervoxel_map& supervoxels)
+{
+    vector<CloudT::Ptr> voxel_clouds;
+    for (pair<const uint32_t, VoxelT::Ptr>& s : supervoxels) {
+        voxel_inds.insert(make_pair(s.first, segment_voxels.size()));
+        segment_voxels.push_back(CloudT::Ptr(new CloudT));
+        *segment_voxels.back()  += *s.second->voxels_;
+    }
+}
+*/
+
 supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph(vector<CloudT::Ptr>& segments, CloudT::Ptr& cloud_in)
 {
     // pre-process clouds
@@ -561,6 +577,80 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph
     }
 
     return graph;
+}
+
+// add option to subsample here
+void supervoxel_segmentation::visualize_segments(vector<Graph*> graphs, vector<CloudT::Ptr>& voxel_clouds)
+{
+    int colormap[][3] = {
+        {166,206,227},
+        {31,120,180},
+        {178,223,138},
+        {51,160,44},
+        {251,154,153},
+        {227,26,28},
+        {253,191,111},
+        {255,127,0},
+        {202,178,214},
+        {106,61,154},
+        {255,255,153},
+        {177,89,40},
+        {141,211,199},
+        {255,255,179},
+        {190,186,218},
+        {251,128,114},
+        {128,177,211},
+        {253,180,98},
+        {179,222,105},
+        {252,205,229},
+        {217,217,217},
+        {188,128,189},
+        {204,235,197},
+        {255,237,111}
+    };
+
+    CloudT::Ptr colored_cloud(new CloudT);
+
+    pair<double, double> ratio = {0.0, 0.0};
+
+    size_t counter = 0;
+    for (Graph* g : graphs) {
+        typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name = boost::get(boost::vertex_name, *g);
+        using vertex_iterator = boost::graph_traits<Graph>::vertex_iterator;
+
+        int rc = colormap[counter%24][0];
+        int gc = colormap[counter%24][1];
+        int bc = colormap[counter%24][2];
+
+        vertex_iterator vertex_iter, vertex_end;
+        for (tie(vertex_iter, vertex_end) = boost::vertices(*g); vertex_iter != vertex_end; ++vertex_iter) {
+            vertex_name_property name = boost::get(vertex_name, *vertex_iter);
+            ratio.second++;
+            if (name.m_value >= voxel_clouds.size()) {
+                ratio.first++;
+            }
+            for (PointT p : voxel_clouds[name.m_value]->points) {
+                p.r = rc;
+                p.g = gc;
+                p.b = bc;
+                colored_cloud->push_back(p);
+            }
+        }
+
+        ++counter;
+    }
+
+    cout << "Visualization wrong ratio: " << ratio.first / ratio.second << endl;
+
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    viewer->setBackgroundColor(1, 1, 1);
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(colored_cloud);
+    viewer->addPointCloud<PointT>(colored_cloud, rgb, "sample cloud");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
+    viewer->initCameraParameters();
+    while (!viewer->wasStopped()) {
+        viewer->spinOnce(100);
+    }
 }
 
 // add option to subsample here
@@ -716,6 +806,130 @@ void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& fu
     }
 }
 
+vector<supervoxel_segmentation::Graph*> supervoxel_segmentation::color_model_split(vector<Graph*>& graphs, vector<CloudT::Ptr>& voxel_clouds)
+{
+    using vertex_iterator = boost::graph_traits<Graph>::vertex_iterator;
+
+    vector<pcl::PointCloud<pcl::PointXYZHSV>::Ptr> converted_voxels;
+    for (CloudT::Ptr& c : voxel_clouds) {
+        cout << "Converting voxel cloud..." << endl;
+        converted_voxels.push_back(pcl::PointCloud<pcl::PointXYZHSV>::Ptr(new pcl::PointCloud<pcl::PointXYZHSV>));
+        pcl::PointCloudXYZRGBtoXYZHSV(*c, *converted_voxels.back());
+    }
+
+    //vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > means;
+    //vector<Eigen::Matrix3d, Eigen::aligned_allocator<Eigen::Matrix3d> > covs;
+    vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d> > means;
+    vector<Eigen::Matrix2d, Eigen::aligned_allocator<Eigen::Matrix2d> > covs;
+    for (pcl::PointCloud<pcl::PointXYZHSV>::Ptr& c : converted_voxels) {
+        //means.push_back(Eigen::Vector3d(0.0, 0.0, 0.0));
+        means.push_back(Eigen::Vector2d(0.0, 0.0));
+        for (const pcl::PointXYZHSV& p : c->points) {
+            //Eigen::Vector3d hsv(p.h, p.s, p.v);
+            Eigen::Vector2d hsv(p.h, p.s);
+            means.back() += hsv;
+        }
+        means.back() /= double(c->size());
+
+        //covs.push_back(Eigen::Matrix3d());
+        covs.push_back(Eigen::Matrix2d());
+        covs.back().setZero();
+        for (const pcl::PointXYZHSV& p : c->points) {
+            //Eigen::Vector3d hsvp(p.h, p.s, p.v);
+            Eigen::Vector2d hsvp(p.h, p.s);
+            hsvp -= means.back();
+            covs.back() += hsvp*hsvp.transpose();
+        }
+        covs.back() /= double(c->size());
+    }
+
+    // iterate over all the different segments and form a color model for every segment
+    vector<Graph*> new_graphs;
+    for (Graph* g : graphs) {
+
+        typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name = boost::get(boost::vertex_name, *g);
+        typename boost::property_map<Graph, boost::edge_weight_t>::type edge_id = boost::get(boost::edge_weight, *g);
+
+        if (graph_size(*g) < 10) {
+            new_graphs.push_back(g);
+            continue;
+        }
+
+        //Eigen::Vector3d m(0.0, 0.0, 0.0);
+        Eigen::Vector2d m(0.0, 0.0);
+        vertex_iterator vertex_iter, vertex_end;
+        double normalization = 0.0;
+        for (tie(vertex_iter, vertex_end) = boost::vertices(*g); vertex_iter != vertex_end; ++vertex_iter) {
+            vertex_name_property name = boost::get(vertex_name, *vertex_iter);
+            m += double(voxel_clouds[name.m_value]->size())*means[name.m_value];
+            normalization += voxel_clouds[name.m_value]->size();
+        }
+        m /= normalization;
+
+        //Eigen::Matrix3d E;
+        Eigen::Matrix2d E;
+        E.setZero();
+        for (tie(vertex_iter, vertex_end) = boost::vertices(*g); vertex_iter != vertex_end; ++vertex_iter) {
+            vertex_name_property name = boost::get(vertex_name, *vertex_iter);
+            for (const pcl::PointXYZHSV& p : converted_voxels[name.m_value]->points) {
+                //Eigen::Vector3d hsvp(p.h, p.s, p.v);
+                Eigen::Vector2d hsvp(p.h, p.s);
+                hsvp -= m;
+                E += hsvp*hsvp.transpose();
+            }
+        }
+        E /= normalization;
+
+        using edge_iterator = boost::graph_traits<Graph>::edge_iterator;
+        edge_iterator edge_it, edge_end;
+        for (tie(edge_it, edge_end) = boost::edges(*g); edge_it != edge_end; ++edge_it) {
+
+
+            Vertex u = source(*edge_it, *g);
+            Vertex v = target(*edge_it, *g);
+            vertex_name_property from = boost::get(vertex_name, u);
+            vertex_name_property to = boost::get(vertex_name, v);
+
+            /*auto KLD = [](const Eigen::Vector3d& m1, const Eigen::Matrix3d& E1,
+                          const Eigen::Vector3d& m2, const Eigen::Matrix3d& E2)
+            {
+                Eigen::Matrix3d E2I = E2.inverse();
+                return 0.5*(log(E2.determinant()) - log(E1.determinant()) - 3.0 +
+                            (E2I*E1).trace() + (m2-m1).transpose()*E2I*(m2-m1));
+            };*/
+            auto KLD = [](const Eigen::Vector2d& m1, const Eigen::Matrix2d& E1,
+                          const Eigen::Vector2d& m2, const Eigen::Matrix2d& E2)
+            {
+                Eigen::Matrix2d E2I = E2.inverse();
+                return 0.5*(log(E2.determinant()) - log(E1.determinant()) - 2.0 +
+                            (E2I*E1).trace() + (m2-m1).transpose()*E2I*(m2-m1));
+            };
+
+            double dist12 = KLD(means[from.m_value], covs[from.m_value], means[to.m_value], covs[to.m_value]);
+            double dist1 = KLD(m, E, means[to.m_value], covs[to.m_value]);
+            double dist2 = KLD(m, E, means[from.m_value], covs[from.m_value]);
+            // similar to normalized mutual information with KLD: https://en.wikipedia.org/wiki/Mutual_information
+            double dist = dist12 / std::min(dist1, dist2);
+            if (std::isnan(dist) || std::isinf(dist)) {
+                continue;
+            }
+            float& weight = boost::get(edge_id, *edge_it);
+            weight -= 0.01*dist;
+
+            cout << to.m_value << " out of " << covs.size() << endl;
+            cout << "Dist: " << dist << endl;
+        }
+
+        // now we try to split the graph using these new weights
+        // but we only split if the average weight is sufficiently low
+        vector<Graph*> split_graph;
+        recursive_split(split_graph, *g); // 0.5 for querying segmentation
+        new_graphs.insert(new_graphs.end(), split_graph.begin(), split_graph.end());
+    }
+
+    return new_graphs;
+}
+
 // we do not need to preserve the graph, only modify the segments
 // we need some way of getting at the underlying voxels here
 // indices denote which segment each supervoxel belongs to
@@ -777,7 +991,7 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
         merged_indices[i].insert(i);
     }
 
-    float threshold = 0.1f; // quite conservative
+    float threshold = 0.15f; // quite conservative
 
     cout << "Pre merge number of segments: " << merged_indices.size() << endl;
     cout << "Number of edges: " << boost::num_edges(graph) << endl;
@@ -874,29 +1088,36 @@ supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, 
     Graph* graph_in = create_supervoxel_graph(segments, subsampled_cloud);
     Graph* graph_copy = new Graph;
     boost::copy_graph(*graph_in, *graph_copy);
-    vector<Graph*> graphs_out;
-    recursive_split(graphs_out, *graph_in);
+    vector<Graph*> graphs_convex;
+    recursive_split(graphs_convex, *graph_in);
+
+    visualize_segments(graphs_convex, segments);
+    vector<Graph*> graphs_out = color_model_split(graphs_convex, segments);
+    visualize_segments(graphs_out, segments);
+
+    //color_model_split(graphs_out);
 
     cout << "Graphs size: " << graphs_out.size() << endl;
 
-    vector<CloudT::Ptr> full_segments;
+    //vector<CloudT::Ptr> full_segments;
+    vector<CloudT::Ptr> clouds_out;
     vector<CloudT::Ptr> supervoxel_segments;
     map<size_t, size_t> indices;
-    create_full_segment_clouds(full_segments, supervoxel_segments, indices, segments, cloud_in, graphs_out);
+    create_full_segment_clouds(clouds_out, supervoxel_segments, indices, segments, cloud_in, graphs_out);
 
-    vector<CloudT::Ptr> clouds_out;
-    post_merge_convex_segments(clouds_out, indices, full_segments, *graph_copy);
+    //vector<CloudT::Ptr> clouds_out;
+    //post_merge_convex_segments(clouds_out, indices, full_segments, *graph_copy);
 
     for (Graph* g : graphs_out) {
         delete g;
     }
 
-    if (visualize) {
+    /*if (visualize) {
         visualize_segments(full_segments, true);
     }
     if (visualize) {
         visualize_segments(clouds_out, true);
-    }
+    }*/
 
     // segments need to be the full versions from e.g. create_full_segments_clouds
     return make_tuple(graph_copy, supervoxel_segments, clouds_out, indices);

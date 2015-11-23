@@ -47,7 +47,7 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
         vector<boost::filesystem::path> sweep_paths;
 
         //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 50, vocabulary_path, summary, true);
-        auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth, K, 20, vocabulary_path, summary, false);
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth, K, 10, vocabulary_path, summary, false);
         tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
         vector<string> dummy_labels;
@@ -58,6 +58,8 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
         cv::bitwise_not(query_mask, inverted_mask);
         query_image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
         cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, dummy_labels, T);
+
+        cv::imwrite("results_image.png", visualization);
 
         cv::imshow("Retrieved clouds", visualization);
         cv::waitKey();
