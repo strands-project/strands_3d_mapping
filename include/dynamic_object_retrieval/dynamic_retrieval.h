@@ -291,7 +291,7 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& qu
 
     if (vt.empty()) {
         load_vocabulary(vt, vocabulary_path);
-        vt.set_min_match_depth(3);
+        vt.set_min_match_depth(1);
         vt.compute_normalizing_constants();
     }
 

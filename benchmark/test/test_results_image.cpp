@@ -82,7 +82,7 @@ int main(int argc, char** argv)
 
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
-    vector<string> objects_to_check = {"backpack", "trash", "desktop", "helmet", "chair"};
+    vector<string> objects_to_check = {"backpack", "trash", "desktop", "helmet", "chair", "pillow"};
 
     if (summary.vocabulary_type == "standard") {
         vocabulary_tree<HistT, 8> vt;

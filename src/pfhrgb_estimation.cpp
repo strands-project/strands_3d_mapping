@@ -154,7 +154,7 @@ void compute_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints, Cloud
     pcl::PointCloud<int>::Ptr keypoints_ind(new pcl::PointCloud<int>);
     pcl::IndicesPtr indices(new std::vector<int>);
 
-    if (cloud->size() < 0.1*480*640) {
+    if (cloud->size() < 0.3*480*640) { // TODO: this used to be 0.1 !!!!!!!!!!!!!!!
         // Fill in the model cloud
         double model_resolution = std::min(0.006, 0.003 + 0.003*float(cloud->size())/(0.1*480*640));
 

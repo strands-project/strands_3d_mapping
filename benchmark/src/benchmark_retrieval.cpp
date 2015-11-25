@@ -1,4 +1,5 @@
 #include "object_3d_benchmark/benchmark_retrieval.h"
+#include "object_3d_benchmark/benchmark_overlap.h"
 #include <dynamic_object_retrieval/visualize.h>
 #include <dynamic_object_retrieval/summary_iterators.h>
 #include <tf_conversions/tf_eigen.h>
@@ -8,48 +9,6 @@ using namespace std;
 using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
 
 namespace benchmark_retrieval {
-
-double get_match_accuracy(CloudT::Ptr& object, CloudT::Ptr& cluster)
-{
-    /*
-    CloudT::Ptr visualization_cloud(new CloudT);
-    *visualization_cloud += *object;
-    *visualization_cloud += *cluster;
-    dynamic_object_retrieval::visualize(visualization_cloud);
-    */
-    if ((object->points[0].getVector3fMap()-cluster->points[0].getVector3fMap()).norm() > 1.0f) {
-        cout << "This was not a match!" << endl;
-        return -1;
-    }
-
-    // check if it's a match
-    CloudT::Ptr difference(new CloudT());
-    pcl::SegmentDifferences<PointT> segment;
-    segment.setInputCloud(object);
-    segment.setTargetCloud(cluster);
-    segment.setDistanceThreshold(0.001);
-    pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
-    tree->setInputCloud (cluster);
-    segment.setSearchMethod(tree);
-    segment.segment(*difference);
-
-    if (difference->points.size() > 0.9*object->points.size()) { // 0.9
-        cout << "This was not a match!" << endl;
-        return -1.0;
-    }
-    else {
-        double percentage1 = double(object->points.size() - difference->points.size()) / double(object->points.size());
-        segment.setInputCloud(cluster);
-        segment.setTargetCloud(object);
-        pcl::search::KdTree<PointT>::Ptr tree2(new pcl::search::KdTree<PointT>);
-        tree->setInputCloud (object);
-        segment.setSearchMethod(tree2);
-        segment.segment(*difference);
-        double percentage2 = double(cluster->points.size() - difference->points.size()) / double(cluster->points.size());
-        cout << "This was a match with score" << (percentage1+percentage2)/2.0 << endl;
-        return (percentage1+percentage2)/2.0;
-    }
-}
 
 vector<pair<CloudT::Ptr, string> > find_labels(vector<CloudT::Ptr>& input_segmented_dynamics, const vector<boost::filesystem::path>& sweep_paths)
                                                //semantic_map_load_utilties::LabelledData<PointT>& labelled_clusters)
@@ -65,8 +24,8 @@ vector<pair<CloudT::Ptr, string> > find_labels(vector<CloudT::Ptr>& input_segmen
 
         bool found = false;
         for (size_t i = 0; i < labelled_clusters.objectClouds.size(); ++i) {
-            double accuracy = get_match_accuracy(segmented_dynamic, labelled_clusters.objectClouds[i]);
-            if (accuracy != -1) {
+            double overlap_ratio = compute_overlap(segmented_dynamic, labelled_clusters.objectClouds[i]);
+            if (overlap_ratio > 0.1) {
                 labelled_segmented_dynamics.push_back(make_pair(segmented_dynamic, labelled_clusters.objectLabels[i]));
                 found = true;
                 break;

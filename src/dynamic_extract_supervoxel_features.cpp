@@ -93,15 +93,38 @@ int main(int argc, char** argv)
                 HistCloudT::Ptr supervoxel_features(new HistCloudT);
                 CloudT::Ptr supervoxel_keypoints(new CloudT);
 
+                std::stringstream ss;
+                ss << std::setw(4) << std::setfill('0') << ind.first;
+
+                boost::filesystem::path subsegment_path = sweep_path / "subsegments";
+                boost::filesystem::path feature_path = subsegment_path / (string("feature") + ss.str() + ".pcd");
+                boost::filesystem::path keypoint_path = subsegment_path / (string("keypoint") + ss.str() + ".pcd");
+
                 cout << "Size of supervoxel cloud: " << supervoxels[ind.first]->size() << endl;
                 cout << "Size of convex keypoints: " << keypoints->size() << endl;
                 cout << "Sweep path: " << sweep_path.string() << endl;
 
                 // probably use a kd tree or an octree for this
                 pcl::KdTreeFLANN<PointT> kdtree;
+                if (supervoxels[ind.first]->size() == 1 && !pcl::isFinite(supervoxels[ind.first]->at(0))) {
+                    supervoxel_keypoints->push_back(supervoxels[ind.first]->at(0));
+                    HistT h;
+                    for (float& f : h.histogram) {
+                        f = std::numeric_limits<float>::infinity();
+                    }
+
+                    pcl::io::savePCDFileBinary(feature_path.string(), *supervoxel_features);
+                    pcl::io::savePCDFileBinary(keypoint_path.string(), *supervoxel_keypoints);
+
+                    continue;
+                }
                 kdtree.setInputCloud(supervoxels[ind.first]);
                 size_t feature_ind = 0;
                 for (const PointT& p : keypoints->points) {
+                    if (!pcl::isFinite(p)) {
+                        ++feature_ind;
+                        continue;
+                    }
                     vector<int> indices(1);
                     vector<float> distances(1);
                     kdtree.nearestKSearchT(p, 1, indices, distances);
@@ -118,13 +141,6 @@ int main(int argc, char** argv)
                 }
 
                 // save the resulting features and keypoints
-                std::stringstream ss;
-                ss << std::setw(4) << std::setfill('0') << ind.first;
-
-                boost::filesystem::path subsegment_path = sweep_path / "subsegments";
-                boost::filesystem::path feature_path = subsegment_path / (string("feature") + ss.str() + ".pcd");
-                boost::filesystem::path keypoint_path = subsegment_path / (string("keypoint") + ss.str() + ".pcd");
-
                 cout << "Size of keypoints: " << supervoxel_keypoints->size() << endl;
                 cout << "Size of features: " << supervoxel_features->size() << endl;
                 cout << "Keypoint path: " << keypoint_path.string() << endl;
@@ -136,13 +152,19 @@ int main(int argc, char** argv)
                         p.g = 0;
                         p.b = 0;
                         cloud->push_back(p);
+                        HistT h;
+                        for (float& f : h.histogram) {
+                            f = std::numeric_limits<float>::infinity();
+                        }
+                        supervoxel_features->push_back(h);
+                        p.x = p.y = p.z = std::numeric_limits<float>::infinity();
+                        supervoxel_keypoints->push_back(p);
                     }
                     dynamic_object_retrieval::visualize(cloud);
                 }
-                else {
-                    pcl::io::savePCDFileBinary(feature_path.string(), *supervoxel_features);
-                    pcl::io::savePCDFileBinary(keypoint_path.string(), *supervoxel_keypoints);
-                }
+
+                pcl::io::savePCDFileBinary(feature_path.string(), *supervoxel_features);
+                pcl::io::savePCDFileBinary(keypoint_path.string(), *supervoxel_keypoints);
             }
         }
     }

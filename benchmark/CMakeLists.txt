@@ -85,3 +85,8 @@ add_executable(test_results_image test/test_results_image.cpp)
 target_link_libraries(test_results_image benchmark_retrieval benchmark_result benchmark_visualization
                       vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(test_static_matching test/test_static_matching.cpp)
+target_link_libraries(test_static_matching benchmark_retrieval benchmark_result benchmark_visualization
+                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
