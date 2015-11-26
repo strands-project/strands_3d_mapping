@@ -13,7 +13,18 @@ using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
 using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
 
-vector<tuple<CloudT::Ptr, boost::filesystem::path, size_t> > get_static_instances(CloudT::Ptr query_cloud, const boost::filesystem::path& data_path)
+bool check_object(const string& query_label, const vector<string>& objects_to_check)
+{
+    for (const string& is_check : objects_to_check) {
+        if (query_label.compare(0, is_check.size(), is_check) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+vector<tuple<CloudT::Ptr, boost::filesystem::path, size_t> > get_static_instances(CloudT::Ptr query_cloud, const string& query_label,
+                                                                                  const boost::filesystem::path& data_path)
 {
     const double overlap_threshold = 0.2;
     const bool visualize = false;
@@ -22,6 +33,12 @@ vector<tuple<CloudT::Ptr, boost::filesystem::path, size_t> > get_static_instance
 
     vector<tuple<CloudT::Ptr, boost::filesystem::path, size_t> > matches;
     for (const string& xml : folder_xmls) {
+        LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(xml);
+
+        if (!check_object(query_label, labels.objectLabels)) {
+            continue;
+        }
+
         boost::filesystem::path xml_path = boost::filesystem::path(xml);
         // get all convex segments for this sweep
         dynamic_object_retrieval::sweep_convex_segment_cloud_map segments(xml_path.parent_path());
@@ -75,14 +92,7 @@ void visualize_static_instances(VocabularyT& vt, const string& sweep_xml, const 
         tie(query_cloud, query_label, query_image, query_mask, scan_index) = tup;
         cv::Mat query_depth = benchmark_retrieval::sweep_get_depth_at(sweep_xml, scan_index);
 
-        bool found = false;
-        for (const string& is_check : objects_to_check) {
-            if (query_label.compare(0, is_check.size(), is_check) == 0) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
+        if (!check_object(query_label, objects_to_check)) {
             continue;
         }
 
@@ -97,19 +107,12 @@ void visualize_static_instances(VocabularyT& vt, const string& sweep_xml, const 
         }
 
         // in addition to this I also need their number in the vocabulary
-        auto matches = get_static_instances(query_cloud, data_path);
+        auto matches = get_static_instances(query_cloud, query_label, data_path);
 
         vector<CloudT::Ptr> retrieved_clouds;
         vector<string> labels;
         for (auto tup : matches) {
             auto it = std::find(result_indices.begin(), result_indices.end(), std::get<2>(tup));
-            /*cout << "Index: " << std::get<2>(tup) << endl;
-            cout << "Retrieved index: " << *it << endl;
-            size_t dist1 = std::distance(result_indices.begin(), it);
-            cout << "Another way: " << result_indices[dist1] << endl;
-            cout << "With distance: " << dist1 << endl;
-            dynamic_object_retrieval::visualize(std::get<0>(tup));*/
-
             if (it != result_indices.end()) {
                 size_t dist = std::distance(result_indices.begin(), it);
                 retrieved_clouds.push_back(get<0>(tup));
