@@ -181,6 +181,32 @@ struct segment_index_iterator : public segment_iterator_base, public std::iterat
     segment_index_iterator() : segment_iterator_base() {}
 };
 
+struct sweep_segment_index_iterator : public segment_iterator_base, public std::iterator<std::forward_iterator_tag, size_t> {
+
+    mutable size_t current_value;
+    mutable std::vector<int> segment_indices;
+
+    size_t& operator* () const
+    {
+        if (current_segment == 0) {
+            sweep_summary summary;
+            summary.load(current_path);
+            segment_indices = summary.segment_indices;
+        }
+        current_value = segment_indices[current_segment];
+        return current_value;
+    }
+
+    sweep_segment_index_iterator(const std::vector<std::string>& xmls,
+                                 const std::string& folder_name,
+                                 const std::string& segment_name) :
+        segment_iterator_base(xmls, folder_name, segment_name), current_value(0)
+    {
+
+    }
+    sweep_segment_index_iterator() : segment_iterator_base() {}
+};
+
 template <typename CloudT>
 struct segment_cloud_iterator : public segment_iterator_base, public std::iterator<std::forward_iterator_tag, typename CloudT::Ptr> {
 
@@ -567,6 +593,23 @@ struct sweep_convex_feature_cloud_map {
     }
 
     sweep_convex_feature_cloud_map(const boost::filesystem::path& sweep_path) : sweep_path(sweep_path / "room.xml") {}
+};
+
+struct sweep_convex_segment_index_map {
+
+    boost::filesystem::path sweep_path;
+
+    sweep_segment_index_iterator begin()
+    {
+        return sweep_segment_index_iterator(std::vector<std::string>({sweep_path.string()}), "convex_segments", "segment");
+    }
+
+    sweep_segment_index_iterator end()
+    {
+        return sweep_segment_index_iterator();
+    }
+
+    sweep_convex_segment_index_map(const boost::filesystem::path& sweep_path) : sweep_path(sweep_path / "room.xml") {}
 };
 
 // iterators over subsegments of one sweep

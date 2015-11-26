@@ -43,12 +43,12 @@ public:
     {
 
         std::vector<pcl::octree::OctreeContainerPointIndices*> leaf_containers;
-        this->serializeNewLeafs(leaf_containers);
+        this->serializeNewLeafs(leaf_containers); // this method is actually public, so actually no need to subclass
         return leaf_containers.size();
     }
 };
 
-double compute_overlap(CloudT::Ptr& A, CloudT::Ptr& B)
+inline double compute_overlap(CloudT::Ptr& A, CloudT::Ptr& B)
 {
     // Octree resolution - side length of octree voxels
     const float resolution = 0.04f;
