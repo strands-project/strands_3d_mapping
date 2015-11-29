@@ -1,16 +1,17 @@
 #include "dynamic_object_retrieval/summary_types.h"
 #include "dynamic_object_retrieval/summary_iterators.h"
 #include "object_3d_retrieval/pfhrgb_estimation.h"
+#include "dynamic_object_retrieval/definitions.h"
 
 using namespace std;
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
-using HistT = pcl::Histogram<250>;
+using HistT = pcl::Histogram<N>;
 using HistCloudT = pcl::PointCloud<HistT>;
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
-                                   (float[250], histogram, histogram)
+                                   (float[N], histogram, histogram)
 )
 
 int main(int argc, char** argv)
@@ -41,7 +42,7 @@ int main(int argc, char** argv)
         if (desc_cloud->empty()) {
             // push back one inf point on descriptors and keypoints
             HistT sp;
-            for (int i = 0; i < 250; ++i) {
+            for (int i = 0; i < N; ++i) {
                 sp.histogram[i] = std::numeric_limits<float>::infinity();
             }
             desc_cloud->push_back(sp);

@@ -7,10 +7,11 @@
 #include <vocabulary_tree/vocabulary_tree.h>
 #include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
 #include <boost/filesystem.hpp>
+#include "dynamic_object_retrieval/definitions.h"
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
-using HistT = pcl::Histogram<250>;
+using HistT = pcl::Histogram<N>;
 using HistCloudT = pcl::PointCloud<HistT>;
 
 namespace dynamic_object_retrieval {

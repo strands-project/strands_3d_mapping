@@ -1,14 +1,15 @@
 #include <dynamic_object_retrieval/summary_iterators.h>
+#include <dynamic_object_retrieval/definitions.h>
 
 using namespace std;
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
-using HistT = pcl::Histogram<250>;
+using HistT = pcl::Histogram<N>;
 using HistCloudT = pcl::PointCloud<HistT>;
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
-                                   (float[250], histogram, histogram)
+                                   (float[N], histogram, histogram)
 )
 
 int main(int argc, char** argv)

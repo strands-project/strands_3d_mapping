@@ -8,6 +8,7 @@
 #include <metaroom_xml_parser/load_utilities.h>
 
 #include "dynamic_object_retrieval/summary_types.h"
+#include "dynamic_object_retrieval/definitions.h"
 
 /*
  * For iterating over the segmentations that are produced by the method
@@ -15,7 +16,7 @@
  */
 
 using PointT = pcl::PointXYZRGB;
-using HistT = pcl::Histogram<250>;
+using HistT = pcl::Histogram<N>;
 
 namespace dynamic_object_retrieval {
 

@@ -1,6 +1,7 @@
 #include <dynamic_object_retrieval/summary_types.h>
 #include <dynamic_object_retrieval/summary_iterators.h>
 #include <dynamic_object_retrieval/visualize.h>
+#include <dynamic_object_retrieval/definitions.h>
 
 using namespace std;
 
@@ -8,7 +9,7 @@ using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
-                                   (float[250], histogram, histogram)
+                                   (float[N], histogram, histogram)
 )
 
 map<size_t, size_t> load_convex_segment_indices(const boost::filesystem::path& sweep_path)

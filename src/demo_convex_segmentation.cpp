@@ -3,13 +3,14 @@
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <dynamic_object_retrieval/definitions.h>
 
 using namespace std;
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
 using Graph = supervoxel_segmentation::Graph;
-using HistT = pcl::Histogram<250>;
+using HistT = pcl::Histogram<N>;
 using HistCloudT = pcl::PointCloud<HistT>;
 
 class PointChooser {

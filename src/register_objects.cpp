@@ -585,17 +585,17 @@ void register_objects::register_using_features(PFHCloudT::Ptr& query_features, C
         return;
     }
 
-    cv::Mat descriptors1(query_features->size(), 250, CV_32F);
-    cv::Mat descriptors2(segment_features->size(), 250, CV_32F);
+    cv::Mat descriptors1(query_features->size(), N, CV_32F);
+    cv::Mat descriptors2(segment_features->size(), N, CV_32F);
 
     for (int i = 0; i < query_features->size(); ++i) {
-        for (int j = 0; j < 250; ++j) {
+        for (int j = 0; j < N; ++j) {
             descriptors1.at<float>(i, j) = query_features->at(i).histogram[j];
         }
     }
 
     for (int i = 0; i < segment_features->size(); ++i) {
-        for (int j = 0; j < 250; ++j) {
+        for (int j = 0; j < N; ++j) {
             descriptors2.at<float>(i, j) = segment_features->at(i).histogram[j];
         }
     }

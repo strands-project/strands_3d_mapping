@@ -13,10 +13,11 @@
 #include <object_3d_retrieval/register_objects.h>
 #include <boost/filesystem.hpp>
 #include <pcl/io/pcd_io.h>
+#include <dynamic_object_retrieval/definitions.h>
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
-using HistT = pcl::Histogram<250>;
+using HistT = pcl::Histogram<N>;
 using HistCloudT = pcl::PointCloud<HistT>;
 using SiftT = pcl::Histogram<128>;
 using SiftCloudT = pcl::PointCloud<SiftT>;

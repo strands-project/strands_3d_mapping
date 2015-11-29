@@ -5,6 +5,7 @@
 #include <pcl/point_types.h>
 #include <Eigen/Dense>
 #include <opencv2/opencv.hpp>
+#include <dynamic_object_retrieval/definitions.h>
 
 class register_objects
 {
@@ -16,7 +17,7 @@ protected:
     using NormalT = pcl::Normal;
     using NormalCloudT = pcl::PointCloud<NormalT>;
     using NormalCloudPtrT = NormalCloudT::Ptr;
-    using PFHPointT = pcl::Histogram<250>;
+    using PFHPointT = pcl::Histogram<N>;
     using PFHCloudT = pcl::PointCloud<PFHPointT>;
     using SiftT = pcl::Histogram<128>;
     using SiftCloudT = pcl::PointCloud<SiftT>;

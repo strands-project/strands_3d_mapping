@@ -8,8 +8,10 @@
 #include <cereal/archives/binary.hpp>
 #include <pcl/io/pcd_io.h>
 
+#include "dynamic_object_retrieval/definitions.h"
+
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
-                                   (float[250], histogram, histogram)
+                                   (float[N], histogram, histogram)
 )
 
 using namespace std;

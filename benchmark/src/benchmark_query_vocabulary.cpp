@@ -14,17 +14,18 @@
 #include <image_geometry/pinhole_camera_model.h>
 #include <pcl/common/transforms.h>
 #include <time.h>
+#include <dynamic_object_retrieval/definitions.h>
 
 using namespace std;
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
 using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
-using HistT = pcl::Histogram<250>;
+using HistT = pcl::Histogram<N>;
 using HistCloudT = pcl::PointCloud<HistT>;
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
-                                   (float[250], histogram, histogram)
+                                   (float[N], histogram, histogram)
 )
 
 // there is no way to associate the extracted segments directly with any particular object

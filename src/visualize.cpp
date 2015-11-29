@@ -5,7 +5,7 @@
 #include <cereal/archives/binary.hpp>
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
-                                   (float[250], histogram, histogram)
+                                   (float[N], histogram, histogram)
 )
 
 using namespace std;

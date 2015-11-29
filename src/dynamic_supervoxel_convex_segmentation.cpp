@@ -9,13 +9,14 @@
 #include <cereal/types/map.hpp>
 
 #include <metaroom_xml_parser/load_utilities.h>
+#include "dynamic_object_retrieval/definitions.h"
 
 using namespace std;
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
 using Graph = supervoxel_segmentation::Graph;
-using HistT = pcl::Histogram<250>;
+using HistT = pcl::Histogram<N>;
 using HistCloudT = pcl::PointCloud<HistT>;
 
 using namespace dynamic_object_retrieval;

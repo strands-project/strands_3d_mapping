@@ -212,11 +212,11 @@ void compute_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints, Cloud
     // PFHRGB
     pcl::PFHRGBEstimation<PointT, NormalT> se;
     se.setSearchMethod(tree);
-    se.setKSearch(100);
+    //se.setKSearch(100);
     se.setIndices(indices); //keypoints
     se.setInputCloud(cloud);
     se.setInputNormals(normals);
-    //se.setRadiusSearch(0.04); //support 0.06 orig, 0.04 still seems too big, takes time
+    se.setRadiusSearch(0.02); //support 0.06 orig, 0.04 still seems too big, takes time
 
     pcl::PointCloud<pcl::PFHRGBSignature250> pfhrgb_cloud;
     se.compute(pfhrgb_cloud); //descriptors
