@@ -72,6 +72,8 @@
         toRet.vIntermediateRoomClouds = sweep.vIntermediateRoomClouds;
         toRet.vIntermediateRoomCloudTransforms = sweep.vIntermediateRoomCloudTransforms;
         toRet.vIntermediateRoomCloudCamParams = sweep.vIntermediateRoomCloudCamParams;
+        toRet.vIntermediateRoomCloudTransformsRegistered = sweep.vIntermediateRoomCloudTransformsRegistered;
+        toRet.vIntermediateRoomCloudCamParamsCorrected = sweep.vIntermediateRoomCloudCamParamsCorrected;
         toRet.vIntermediateRGBImages = sweep.vIntermediateRGBImages;
         toRet.vIntermediateDepthImages = sweep.vIntermediateDepthImages;
 
@@ -306,7 +308,7 @@
 
         sort(matchingObservations.begin(), matchingObservations.end(),
              [](const std::string& a, const std::string& b )
-        {            
+        {
             std::string patrol_string = "patrol_run_";
             std::string room_string = "room_";
             std::string date_string = "YYYYMMDD";
@@ -467,9 +469,21 @@
         unsigned found = sweepXmlPath.find_last_of("/");
         std::string base_path = sweepXmlPath.substr(0,found+1);
         QStringList xmlFiles = QDir(base_path.c_str()).entryList(QStringList("*label*.pcd"));
+        QStringList imageFiles = QDir(base_path.c_str()).entryList(QStringList("*object*.jpg"));
+        QStringList maskFiles = QDir(base_path.c_str()).entryList(QStringList("*label*.jpg"));
+
+        if (xmlFiles.size() != imageFiles.size())
+        {
+            ROS_INFO_STREAM("In " << sweepXmlPath << " found different number of labels and object images.");
+        }
 
         for (size_t k=0; k<xmlFiles.size(); k++)
         {
+            // get the frame number of the label
+            std::string label_name = xmlFiles[k].toStdString();
+            std::string number_string = label_name.substr(4, 4);
+            size_t scan_number = std::stoi(number_string);
+
             std::string label_file = base_path+xmlFiles[k].toStdString();
             label_file[label_file.size()-1] = 't';
             label_file[label_file.size()-2] = 'x';
@@ -487,10 +501,18 @@
                 continue;
             }
 
+            cv::Mat image = cv::imread(base_path+imageFiles[k].toStdString());
+            cv::Mat mask_color = cv::imread(base_path+maskFiles[k].toStdString());
+            cv::Mat mask;
+            cv::cvtColor(mask_color, mask, CV_BGR2GRAY);
+            mask = mask > 200;
+
             toRet.objectClouds.push_back(cloud);
+            toRet.objectImages.push_back(image);
+            toRet.objectMasks.push_back(mask);
             toRet.objectLabels.push_back(label);
+            toRet.objectScanIndices.push_back(scan_number);
         }
 
         return toRet;
     }
-

@@ -77,7 +77,7 @@ add_executable(load_labelled_data src/load_labelled_data.cpp )
 
 ############################# INSTALL TARGETS
 
-install(TARGETS metaroom_xml_parser  load_single_file load_multiple_files
+install(TARGETS metaroom_xml_parser  load_single_file load_multiple_files load_labelled_data
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
