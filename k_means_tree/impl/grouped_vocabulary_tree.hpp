@@ -1,11 +1,5 @@
 #include "grouped_vocabulary_tree/grouped_vocabulary_tree.h"
 
-#include <cereal/types/unordered_map.hpp>
-#include <cereal/types/utility.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/vector.hpp>
-#include <cereal/types/string.hpp>
-#include <cereal/archives/binary.hpp>
 #include <fstream>
 
 #include <boost/filesystem.hpp>
@@ -74,7 +68,7 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& re
         // get<1>(scores[i])) is actually the index within the group!
         double score = super::compute_min_combined_dist(selected_indices, query_cloud, vectors, adjacencies,
                                                         mapping, inverse_mapping, scores[i].subgroup_index);
-        updated_scores.push_back(result_type{ score, scores[i].group_index, scores[i].subgroup_index });
+        updated_scores.push_back(result_type{ float(score), scores[i].group_index, scores[i].subgroup_index });
         updated_indices.push_back(selected_indices);
 
         cout << "Found " << selected_indices.size() << " number of subsegments..." << endl;
@@ -475,7 +469,7 @@ void grouped_vocabulary_tree<Point, K>::top_combined_similarities(vector<result_
     }
     scores.reserve(map_scores.size());
     for (const pair<int, pair<int, double> >& s : map_scores) {
-        scores.push_back(result_type{ s.second.second, s.first, s.second.first });
+        scores.push_back(result_type{ float(s.second.second), s.first, s.second.first });
     }
     //scores.insert(scores.end(), map_scores.begin(), map_scores.end());
     std::sort(scores.begin(), scores.end(), [](const result_type& s1, const result_type& s2) {
@@ -489,6 +483,7 @@ void grouped_vocabulary_tree<Point, K>::top_combined_similarities(vector<result_
     }*/
 }
 
+/*
 template <typename Point, size_t K>
 template <class Archive>
 void grouped_vocabulary_tree<Point, K>::load(Archive& archive)
@@ -505,3 +500,4 @@ void grouped_vocabulary_tree<Point, K>::save(Archive& archive) const
     super::save(archive);
     archive(nbr_points, nbr_subgroups, group_subgroup, save_state_path);
 }
+*/

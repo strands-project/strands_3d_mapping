@@ -45,7 +45,7 @@ void compute_query_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints,
     pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
     ne.setSearchMethod(tree);
     NormalCloudT::Ptr normals(new NormalCloudT);
-    ne.setRadiusSearch(0.03); // 0.02
+    ne.setRadiusSearch(0.02); // 0.02
     ne.compute(*normals);
 
     //float threshold = std::max(1.0-0.5*float(segment->size())/(0.3*480*640), 0.5);
@@ -61,43 +61,45 @@ void compute_query_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints,
     double iss_min_neighbors_ (5);
     int iss_threads_ (4);
 
+    //CloudT::Ptr model_keypoints(new CloudT);
     pcl::IndicesPtr indices(new std::vector<int>);
 
-    // Fill in the model cloud
-    //double model_resolution = 0.003;
-    double model_resolution = std::min(0.0056, 0.0028 + 0.0028*float(cloud->size()/2.0)/(0.1*480*640));
+    { // TODO: this used to be 0.1 !!!!!!!!!!!!!!!
+        // Fill in the model cloud
+        double model_resolution = std::min(0.006, 0.003 + 0.003*float(cloud->size())/(0.1*480*640));
 
-    // Compute model_resolution
-    iss_salient_radius_ = 6 * model_resolution;
-    iss_non_max_radius_ = 4 * model_resolution;
-    iss_normal_radius_ = 4 * model_resolution;
-    iss_border_radius_ = 2 * model_resolution; // 1
+        // Compute model_resolution
+        iss_salient_radius_ = 6 * model_resolution;
+        iss_non_max_radius_ = 4 * model_resolution;
+        iss_normal_radius_ = 4 * model_resolution;
+        iss_border_radius_ = 0.5 * model_resolution; // 1
 
-    //
-    // Compute keypoints
-    //
-    pcl::ISSKeypoint3D<PointT, PointT> iss_detector;
-    iss_detector.setSearchMethod(tree);
-    iss_detector.setSalientRadius(iss_salient_radius_);
-    iss_detector.setNonMaxRadius(iss_non_max_radius_);
+        //
+        // Compute keypoints
+        //
+        pcl::ISSKeypoint3D<PointT, PointT> iss_detector;
+        iss_detector.setSearchMethod(tree);
+        iss_detector.setSalientRadius(iss_salient_radius_);
+        iss_detector.setNonMaxRadius(iss_non_max_radius_);
 
-    iss_detector.setNormalRadius(iss_normal_radius_); // comment these two if not to use border removal
-    iss_detector.setBorderRadius(iss_border_radius_); // comment these two if not to use border removal
+        iss_detector.setNormalRadius(iss_normal_radius_); // comment these two if not to use border removal
+        iss_detector.setBorderRadius(iss_border_radius_); // comment these two if not to use border removal
 
-    iss_detector.setThreshold21(iss_gamma_21_);
-    iss_detector.setThreshold32(iss_gamma_32_);
-    iss_detector.setMinNeighbors(iss_min_neighbors_);
-    iss_detector.setNumberOfThreads(iss_threads_);
-    iss_detector.setInputCloud(cloud);
-    iss_detector.compute(*keypoints);
+        iss_detector.setThreshold21(iss_gamma_21_);
+        iss_detector.setThreshold32(iss_gamma_32_);
+        iss_detector.setMinNeighbors(iss_min_neighbors_);
+        iss_detector.setNumberOfThreads(iss_threads_);
+        iss_detector.setInputCloud(cloud);
+        iss_detector.compute(*keypoints);
 
-    pcl::KdTreeFLANN<PointT> kdtree; // might be possible to just use the other tree here
-    kdtree.setInputCloud(cloud);
-    for (const PointT& k : keypoints->points) {
-        std::vector<int> ind;
-        std::vector<float> dist;
-        kdtree.nearestKSearchT(k, 1, ind, dist);
-        indices->push_back(ind[0]);
+        pcl::KdTreeFLANN<PointT> kdtree; // might be possible to just use the other tree here
+        kdtree.setInputCloud(cloud);
+        for (const PointT& k : keypoints->points) {
+            std::vector<int> ind;
+            std::vector<float> dist;
+            kdtree.nearestKSearchT(k, 1, ind, dist);
+            indices->push_back(ind[0]);
+        }
     }
 
     if (visualize_features) {
@@ -112,7 +114,7 @@ void compute_query_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints,
     se.setIndices(indices); //keypoints
     se.setInputCloud(cloud);
     se.setInputNormals(normals);
-    se.setRadiusSearch(0.03); //support 0.06 orig, 0.04 still seems too big, takes time
+    se.setRadiusSearch(0.02); //support 0.06 orig, 0.04 still seems too big, takes time
 
     pcl::PointCloud<pcl::PFHRGBSignature250> pfhrgb_cloud;
     se.compute(pfhrgb_cloud); //descriptors

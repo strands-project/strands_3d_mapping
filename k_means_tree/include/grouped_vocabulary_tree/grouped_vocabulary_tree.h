@@ -4,6 +4,15 @@
 #include "vocabulary_tree/vocabulary_tree.h"
 
 #include <unordered_map>
+#include <vector>
+#include <map>
+
+#include <cereal/types/unordered_map.hpp>
+#include <cereal/types/utility.hpp>
+#include <cereal/types/set.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/string.hpp>
+#include <cereal/archives/binary.hpp>
 
 /*
  * grouped_vocabulary_tree
@@ -36,7 +45,7 @@ protected:
 public:
 
     using result_type = grouped_result; //std::tuple<int, int, double>;
-    using group_type = vector<int>;
+    using group_type = std::vector<int>;
 
 public: // protected:
 
@@ -49,7 +58,7 @@ protected:
 
     // TODO: check if any of these are necessary, clean up this mess of a class!
     std::string save_state_path;
-    map<node*, int> mapping; // for mapping to unique node IDs that can be used in the next run, might be empty
+    std::map<node*, int> mapping; // for mapping to unique node IDs that can be used in the next run, might be empty
 
 protected:
 
@@ -66,20 +75,38 @@ public:
     void get_subgroups_for_group(std::set<int>& subgroups, int group_id);
     int get_id_for_group_subgroup(int group_id, int subgroup_id);
 
-    void set_input_cloud(CloudPtrT& new_cloud, std::vector<pair<int, int> >& indices);
-    void append_cloud(CloudPtrT& extra_cloud, vector<pair<int, int> >& indices, bool store_points = true);
-    void append_cloud(CloudPtrT& extra_cloud, vector<pair<int, int> >& indices, std::vector<std::set<std::pair<int, int> > >& adjacencies, bool store_points = true);
+    void set_input_cloud(CloudPtrT& new_cloud, std::vector<std::pair<int, int> >& indices);
+    void append_cloud(CloudPtrT& extra_cloud, std::vector<std::pair<int, int> >& indices, bool store_points = true);
+    void append_cloud(CloudPtrT& extra_cloud, std::vector<std::pair<int, int> >& indices, std::vector<std::set<std::pair<int, int> > >& adjacencies, bool store_points = true);
     void add_points_from_input_cloud(bool save_cloud = true);
     void add_points_from_input_cloud(std::vector<std::set<std::pair<int, int> > >& adjacencies, bool save_cloud = true);
     void top_combined_similarities(std::vector<result_type>& scores, CloudPtrT& query_cloud, size_t nbr_results);
 
+    /*
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);
+    */
+    template <class Archive>
+    void load(Archive& archive)
+    {
+        super::load(archive);
+        archive(nbr_points, nbr_subgroups, group_subgroup, save_state_path);
+        std::cout << "Finished loading grouped_vocabulary_tree" << std::endl;
+    }
+
+    template <class Archive>
+    void save(Archive& archive) const
+    {
+        super::save(archive);
+        archive(nbr_points, nbr_subgroups, group_subgroup, save_state_path);
+    }
 
     grouped_vocabulary_tree() : super(), nbr_points(0), nbr_subgroups(0) {}
     grouped_vocabulary_tree(const std::string& save_state_path) : super(), nbr_points(0), nbr_subgroups(0), save_state_path(save_state_path) {}
 };
 
+#ifndef VT_PRECOMPILE
 #include "grouped_vocabulary_tree.hpp"
+#endif
 
 #endif // GROUPED_VOCABULARY_TREE_H

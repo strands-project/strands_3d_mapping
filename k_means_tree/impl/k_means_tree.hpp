@@ -7,36 +7,11 @@
 
 using namespace std;
 
-template <typename Point>
-typename map_proxy<Point>::map_type eig(Point& v)
-{
-    return typename map_proxy<Point>::map_type(v.histogram);
-}
-
-template <typename Point>
-typename map_proxy<Point>::const_map_type eig(const Point& v)
-{
-    return typename map_proxy<Point>::const_map_type(v.histogram);
-}
-
-// it would actually be possible to have the definition here if they were just inlined
-template <>
-typename map_proxy<pcl::PointXYZ>::map_type eig(pcl::PointXYZ& v);
-
-template <>
-typename map_proxy<pcl::PointXYZ>::const_map_type eig(const pcl::PointXYZ& v);
-
-template <>
-typename map_proxy<pcl::PointXYZRGB>::map_type eig(pcl::PointXYZRGB& v);
-
-template <>
-typename map_proxy<pcl::PointXYZRGB>::const_map_type eig(const pcl::PointXYZRGB& v);
-
 template <typename Point, size_t K, typename Data, int Lp>
 float k_means_tree<Point, K, Data, Lp>::norm_func(const PointT& p1, const PointT& p2) const
 {
-    //return (eig(p1)-eig(p2)).squaredNorm();//norm();
-    return (eig(p1)-eig(p2)).array().abs().sum();
+    return (eig(p1)-eig(p2)).squaredNorm();//norm();
+    //return (eig(p1)-eig(p2)).array().abs().sum();
     //return (eig(p1)-eig(p2)).template lpNorm<desc_norm>();
 }
 
@@ -83,8 +58,8 @@ void k_means_tree<Point, K, Data, Lp>::assign_extra(CloudPtrT& subcloud, node* n
         p = subcloud->at(ind);
         int closest;
         //distances = eig(p).transpose()*centroids;
-        distances = (centroids.colwise()-eig(p)).array().abs().colwise().sum();
-        //distances = (centroids.colwise()-eig(p)).colwise().squaredNorm();
+        //distances = (centroids.colwise()-eig(p)).array().abs().colwise().sum();
+        distances = (centroids.colwise()-eig(p)).colwise().squaredNorm();
         distances.minCoeff(&closest);
         clusters[closest].push_back(ind);
     }
@@ -146,7 +121,7 @@ vector<size_t> k_means_tree<Point, K, Data, Lp>::sample_with_replacement(size_t 
 
 template <typename Point, size_t K, typename Data, int Lp>
 bool k_means_tree<Point, K, Data, Lp>::compare_centroids(const Eigen::Matrix<float, rows, dim>& centroids,
-                                                     const Eigen::Matrix<float, rows, dim>& last_centroids) const
+                                                         const Eigen::Matrix<float, rows, dim>& last_centroids) const
 {
     return centroids.isApprox(last_centroids, 1e-30f);
 }
@@ -188,8 +163,8 @@ typename k_means_tree<Point, K, Data, Lp>::leaf_range k_means_tree<Point, K, Dat
             int closest;
             // Wrap these two calls with some nice inlining
             //distances = eig(p).transpose()*centroids;
-            distances = (centroids.colwise()-eig(p)).array().abs().colwise().sum();
-            //distances = (centroids.colwise()-eig(p)).colwise().squaredNorm();
+            //distances = (centroids.colwise()-eig(p)).array().abs().colwise().sum();
+            distances = (centroids.colwise()-eig(p)).colwise().squaredNorm();
             distances.minCoeff(&closest);
             clusters[closest].push_back(ind);
         }
@@ -382,6 +357,13 @@ void k_means_tree<Point, K, Data, Lp>::get_node_mapping(map<node*, int>& mapping
 }
 
 template <typename Point, size_t K, typename Data, int Lp>
+double k_means_tree<Point, K, Data, Lp>::get_mean_leaf_points()
+{
+    return double(inserted_points)/double(leaves.size());
+}
+
+/*
+template <typename Point, size_t K, typename Data, int Lp>
 template <class Archive>
 void k_means_tree<Point, K, Data, Lp>::save(Archive& archive) const
 {
@@ -405,3 +387,4 @@ void k_means_tree<Point, K, Data, Lp>::load(Archive& archive)
     append_leaves(&root);
     cout << "Finished loading k_means_tree" << endl;
 }
+*/

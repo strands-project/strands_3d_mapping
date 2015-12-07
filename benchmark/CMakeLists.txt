@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(object_3d_benchmark)
 
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
+
 add_definitions(-std=c++11 -O4)
 
 # Show where to find the find package scripts
@@ -52,8 +55,11 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../build)
 set(include_dir include/${PROJECT_NAME})
 
 # DEMO: add_library
+add_library(benchmark_overlap src/benchmark_overlap include/${PROJECT_NAME}/benchmark_overlap.h)
+target_link_libraries(benchmark_overlap ${PCL_LIBRARIES})
+
 add_library(benchmark_retrieval src/benchmark_retrieval.cpp include/${PROJECT_NAME}/benchmark_retrieval.h)
-target_link_libraries(benchmark_retrieval dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(benchmark_retrieval benchmark_overlap dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_library(benchmark_result src/benchmark_result.cpp include/${PROJECT_NAME}/benchmark_result.h)
 target_link_libraries(benchmark_result ${PCL_LIBRARIES})
@@ -65,28 +71,28 @@ target_link_libraries(benchmark_visualization ${OpenCV_LIBS} ${PCL_LIBRARIES})
 #configure_file(scripts/menu.py menu.py COPYONLY)
 
 add_executable(benchmark_query_vocabulary src/benchmark_query_vocabulary.cpp)
-target_link_libraries(benchmark_query_vocabulary benchmark_retrieval benchmark_result benchmark_visualization
-                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
+target_link_libraries(benchmark_query_vocabulary benchmark_retrieval benchmark_result benchmark_visualization benchmark_overlap
+                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation shot_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 ############### TESTING PROGRAMS ##################
 
 add_executable(test_query_annotated_sweep test/test_query_annotated_sweep.cpp)
 target_link_libraries(test_query_annotated_sweep benchmark_retrieval
-                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
+                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation shot_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_visualize_query test/test_visualize_query.cpp)
 target_link_libraries(test_visualize_query benchmark_retrieval benchmark_result
-                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
+                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation shot_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_results_image test/test_results_image.cpp)
 target_link_libraries(test_results_image benchmark_retrieval benchmark_result benchmark_visualization
-                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
+                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation shot_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_static_matching test/test_static_matching.cpp)
-target_link_libraries(test_static_matching benchmark_retrieval benchmark_result benchmark_visualization
-                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation
+target_link_libraries(test_static_matching benchmark_retrieval benchmark_result benchmark_visualization benchmark_overlap
+                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation shot_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

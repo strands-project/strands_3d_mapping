@@ -1,3 +1,5 @@
+#define VT_PRECOMPILE
+
 #include "k_means_tree/k_means_tree.h"
 #include "vocabulary_tree/vocabulary_tree.h"
 

@@ -1,6 +1,7 @@
 #include "dynamic_object_retrieval/summary_types.h"
 #include "dynamic_object_retrieval/summary_iterators.h"
 #include "object_3d_retrieval/pfhrgb_estimation.h"
+#include "object_3d_retrieval/shot_estimation.h"
 #include "dynamic_object_retrieval/definitions.h"
 
 using namespace std;
@@ -38,6 +39,7 @@ int main(int argc, char** argv)
         HistCloudT::Ptr desc_cloud(new HistCloudT);
         CloudT::Ptr kp_cloud(new CloudT);
         pfhrgb_estimation::compute_features(desc_cloud, kp_cloud, segment, false);
+        //shot_estimation::compute_features(desc_cloud, kp_cloud, segment, false);
 
         if (desc_cloud->empty()) {
             // push back one inf point on descriptors and keypoints

@@ -8,13 +8,6 @@
         (float, histogram, histogram)
 )*/
 
-//template class k_means_tree<pcl::PointXYZ, 8>;
-template class k_means_tree<pcl::PointXYZRGB, 8>;
-template class k_means_tree<pcl::Histogram<100>, 8>;
-template class k_means_tree<pcl::Histogram<33>, 8>;
-template class k_means_tree<pcl::Histogram<128>, 8>;
-template class k_means_tree<pcl::Histogram<1344>, 8>;
-
 template <>
 typename map_proxy<pcl::PointXYZ>::map_type eig(pcl::PointXYZ& v)
 {
@@ -38,3 +31,11 @@ typename map_proxy<pcl::PointXYZRGB>::const_map_type eig(const pcl::PointXYZRGB&
 {
     return v.getVector3fMap();
 }
+
+//template class k_means_tree<pcl::PointXYZ, 8>;
+template class k_means_tree<pcl::PointXYZRGB, 8>;
+template class k_means_tree<pcl::Histogram<100>, 8>;
+template class k_means_tree<pcl::Histogram<33>, 8>;
+template class k_means_tree<pcl::Histogram<128>, 8>;
+template class k_means_tree<pcl::Histogram<1344>, 8>;
+template class k_means_tree<pcl::Histogram<250>, 8>;

@@ -1,6 +1,7 @@
 #include "dynamic_object_retrieval/summary_types.h"
 #include "dynamic_object_retrieval/summary_iterators.h"
 #include "object_3d_retrieval/pfhrgb_estimation.h"
+#include "object_3d_retrieval/shot_estimation.h"
 #include <cassert>
 #include"dynamic_object_retrieval/definitions.h"
 
@@ -80,6 +81,7 @@ int main(int argc, char** argv)
         vector<HistCloudT::Ptr> split_features;
         vector<CloudT::Ptr> split_keypoints;
         pfhrgb_estimation::split_descriptor_points(split_features, split_keypoints, features, keypoints, 30);
+        //shot_estimation::split_descriptor_points(split_features, split_keypoints, features, keypoints, 30);
         cout << "Split features size: " << split_features.size() << endl;
         cout << "Split keypoint size: " << split_keypoints.size() << endl;
 

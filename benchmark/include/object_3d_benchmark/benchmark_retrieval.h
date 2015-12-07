@@ -29,6 +29,7 @@ std::pair<std::vector<CloudT::Ptr>, std::vector<boost::filesystem::path> > load_
         boost::filesystem::path path;
         tie(path, index) = s;
         std::cout << "Path: " << path.string() << std::endl;
+        std::cout << "Index: " << index.index << std::endl;
         clouds.push_back(CloudT::Ptr(new CloudT));
         pcl::io::loadPCDFile(path.string(), *clouds.back());
         sweep_paths.push_back(path.parent_path().parent_path() / "room.xml");

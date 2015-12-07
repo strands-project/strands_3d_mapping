@@ -32,6 +32,14 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
         tie(query_cloud, query_label, query_image, query_mask, scan_index) = tup;
         cv::Mat query_depth = benchmark_retrieval::sweep_get_depth_at(sweep_xml, scan_index);
 
+        /*
+        for (PointT& p : query_cloud->points) {
+            if (p.r < 50 && p.g < 50 && p.b < 50) {
+                p.r = 20; p.g = 20; p.b = 20;
+            }
+        }
+        */
+
         bool found = false;
         for (const string& is_check : objects_to_check) {
             if (query_label.compare(0, is_check.size(), is_check) == 0) {

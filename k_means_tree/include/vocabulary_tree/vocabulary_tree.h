@@ -5,6 +5,7 @@
 #include <cereal/types/map.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/unordered_map.hpp>
+#include <cereal/types/vector.hpp>
 
 /*
  * vocabulary_tree
@@ -104,18 +105,41 @@ public:
     void add_points_from_input_cloud(bool save_cloud = true);
 
     void top_combined_similarities(std::vector<result_type>& scores, CloudPtrT& query_cloud, size_t nbr_results);
+    void debug_similarities(std::vector<result_type>& scores, CloudPtrT& query_cloud, size_t nbr_results);
 
     double compute_query_index_vector(std::map<int, double>& query_index_freqs, CloudPtrT& query_cloud, std::map<node*, int>& mapping);
     void compute_query_index_vector(std::map<int, int>& query_index_freqs, CloudPtrT& query_cloud, std::map<node*, int>& mapping);
     vocabulary_vector compute_query_index_vector(CloudPtrT& query_cloud, std::map<node *, int> &mapping);
 
+    /*
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);
+    */
+    template <class Archive>
+    void save(Archive& archive) const
+    {
+        super::save(archive);
+        archive(indices);
+        archive(db_vector_normalizing_constants);
+        archive(N);
+    }
+
+    template <class Archive>
+    void load(Archive& archive)
+    {
+        super::load(archive);
+        archive(indices);
+        archive(db_vector_normalizing_constants);
+        archive(N);
+        std::cout << "Finished loading vocabulary_tree" << std::endl;
+    }
 
     vocabulary_tree() : super(5), matching_min_depth(1) {}
 
 };
 
+#ifndef VT_PRECOMPILE
 #include "vocabulary_tree.hpp"
+#endif
 
 #endif // VOCABULARY_TREE_H

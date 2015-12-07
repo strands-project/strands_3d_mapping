@@ -64,11 +64,30 @@ vector<tuple<CloudT::Ptr, boost::filesystem::path, size_t> > get_static_instance
 
             if (overlap_fraction > overlap_threshold) {
                 matches.push_back(make_tuple(CloudT::Ptr(new CloudT(*c)), path, index));
+                break;
             }
+        }
+
+        if (matches.size() >= 24) {
+            break;
         }
     }
 
     return matches;
+}
+
+CloudT::Ptr find_closest_segment(CloudT::Ptr& label_cloud, const string& sweep_xml)
+{
+    boost::filesystem::path xml_path = sweep_xml;
+    dynamic_object_retrieval::sweep_convex_segment_cloud_map segments(xml_path.parent_path());
+
+    for (CloudT::Ptr& c : segments) {
+        if (benchmark_retrieval::compute_overlap(label_cloud, c) > 0.1) {
+            return CloudT::Ptr(new CloudT(*c));
+        }
+    }
+
+    return CloudT::Ptr(new CloudT);
 }
 
 template<typename VocabularyT>
@@ -95,6 +114,15 @@ void visualize_static_instances(VocabularyT& vt, const string& sweep_xml, const 
         if (!check_object(query_label, objects_to_check)) {
             continue;
         }
+
+        // comment this if we should query for actual cloud
+        /*
+        query_cloud = find_closest_segment(query_cloud, sweep_xml);
+        if (query_cloud->empty()) {
+            continue;
+        }
+        dynamic_object_retrieval::visualize(query_cloud);
+        */
 
         auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth, K, 0, vocabulary_path, summary, false);
         //tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
@@ -148,7 +176,7 @@ int main(int argc, char** argv)
 
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
-    vector<string> objects_to_check = {"backpack"};
+    vector<string> objects_to_check = {"backpack2"};
 
     if (summary.vocabulary_type == "standard") {
         vocabulary_tree<HistT, 8> vt;

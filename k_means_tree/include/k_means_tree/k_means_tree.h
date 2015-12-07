@@ -50,6 +50,31 @@ struct map_proxy<const pcl::PointXYZRGB>
     using const_map_type = Eigen::Map<const Eigen::Matrix<float, rows, 1> >;
 };
 
+template <typename Point>
+typename map_proxy<Point>::map_type eig(Point& v)
+{
+    return typename map_proxy<Point>::map_type(v.histogram);
+}
+
+template <typename Point>
+typename map_proxy<Point>::const_map_type eig(const Point& v)
+{
+    return typename map_proxy<Point>::const_map_type(v.histogram);
+}
+
+// it would actually be possible to have the definition here if they were just inlined
+template <>
+typename map_proxy<pcl::PointXYZ>::map_type eig(pcl::PointXYZ& v);
+
+template <>
+typename map_proxy<pcl::PointXYZ>::const_map_type eig(const pcl::PointXYZ& v);
+
+template <>
+typename map_proxy<pcl::PointXYZRGB>::map_type eig(pcl::PointXYZRGB& v);
+
+template <>
+typename map_proxy<pcl::PointXYZRGB>::const_map_type eig(const pcl::PointXYZRGB& v);
+
 template <typename Point, size_t K, typename Data = void, int Lp=1>
 class k_means_tree {
 protected:
@@ -185,14 +210,41 @@ public:
     void get_cloud_for_point_at_level(CloudPtrT& nodecloud, const PointT& p, size_t level);
     size_t points_in_node(node* n);
     void get_node_mapping(std::map<node*, int>& mapping);
+    double get_mean_leaf_points();
+    /*
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);
+    */
+    template <class Archive>
+    void save(Archive& archive) const
+    {
+        archive(depth);
+        archive(inserted_points);
+        archive(root);
+    }
 
-    k_means_tree(size_t depth = 5) : depth(depth), inserted_points(0) {}
+    template <class Archive>
+    void load(Archive& archive)
+    {
+        std::cout << "Reading depth" << std::endl;
+        archive(depth);
+        std::cout << "Reading points" << std::endl;
+        archive(inserted_points); // this will not work for older file types
+        std::cout << "Reading tree from root" << std::endl;
+        archive(root.is_leaf);
+        archive(root);
+        std::cout << "Setting up the leaves vector" << std::endl;
+        append_leaves(&root);
+        std::cout << "Finished loading k_means_tree" << std::endl;
+    }
+
+    k_means_tree(size_t depth = 4) : depth(depth), inserted_points(0) {} // DEBUG: depth = 5 always used
     virtual ~k_means_tree() { leaves.clear(); }
 
 };
 
+#ifndef VT_PRECOMPILE
 #include "k_means_tree.hpp"
+#endif
 
 #endif // K_MEANS_TREE_H

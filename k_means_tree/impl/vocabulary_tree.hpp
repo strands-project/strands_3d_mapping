@@ -1,6 +1,4 @@
 #include "vocabulary_tree/vocabulary_tree.h"
-#include <cereal/types/vector.hpp>
-#include <cereal/types/map.hpp>
 
 #include <Eigen/Core>
 
@@ -9,7 +7,8 @@
 template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type>& results, CloudPtrT& query_cloud, size_t nbr_results)
 {
-    top_combined_similarities(results, query_cloud, nbr_results);
+    //top_combined_similarities(results, query_cloud, nbr_results);
+    debug_similarities(results, query_cloud, nbr_results);
 }
 
 template <typename Key, typename Value1, typename Value2>
@@ -126,13 +125,15 @@ void vocabulary_tree<Point, K>::set_min_match_depth(int depth)
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::pexp(const double v) const
 {
-    return fabs(v);
+    return v*v;
+    //return fabs(v);
 }
 
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::proot(const double v) const
 {
-    return fabs(v);
+    return sqrt(v);
+    //return fabs(v);
 }
 
 template <typename Point, size_t K>
@@ -393,6 +394,8 @@ void vocabulary_tree<Point, K>::normalizing_constants_for_node(std::map<int, int
         normalizing_constants = super::leaves[leaf_ind]->data->source_id_freqs;
     }
     else {
+        //Eigen::Matrix<float, super::rows, super::dim> child_centers;
+        //int counter = 0;
         for (node* c : n->children) {
             // here we need one set of normalizing constants for every child to not mess up scores between subtrees
             std::map<int, int> child_normalizing_constants;
@@ -400,10 +403,22 @@ void vocabulary_tree<Point, K>::normalizing_constants_for_node(std::map<int, int
             for (std::pair<const int, int>& v : child_normalizing_constants) {
                 normalizing_constants[v.first] += v.second;
             }
+
+            //child_centers.col(counter) = eig(c->centroid);
+            //++counter;
         }
+
+        /*Eigen::Matrix<float, super::rows, 1> m = child_centers.rowwise().mean();
+        child_centers.colwise() -= m;
+        Eigen::Matrix<float, 1, super::dim> distances = child_centers.colwise().norm();
+        float variance = 1.0/float(super::dim)*distances*distances.transpose();
+
+        for (node* c : n->children) {
+            c->weight += log(variance);
+        }*/
     }
 
-    n->weight = log(N / double(normalizing_constants.size()));
+    n->weight = log(N) - log(double(normalizing_constants.size()));
 
     // this could be further up if we do not want to e.g. calculate weights for upper nodes
     if (current_depth < matching_min_depth) {
@@ -457,7 +472,60 @@ void vocabulary_tree<Point, K>::top_combined_similarities(std::vector<result_typ
     //scores.insert(scores.end(), map_scores.begin(), map_scores.end());
     scores.reserve(map_scores.size());
     for (const pair<int, double>& s : map_scores) {
-        scores.push_back(result_type {s.first, s.second});
+        scores.push_back(result_type {s.first, float(s.second)});
+    }
+    std::sort(scores.begin(), scores.end(), [](const result_type& s1, const result_type& s2) {
+        return s1.score < s2.score; // find min elements!
+    });
+
+    if (nbr_results > 0 && scores.size() > nbr_results) {
+        scores.resize(nbr_results);
+    }
+}
+
+template <typename Point, size_t K>
+void vocabulary_tree<Point, K>::debug_similarities(std::vector<result_type>& scores, CloudPtrT& query_cloud, size_t nbr_results)
+{
+    std::map<node*, double> query_id_freqs;
+    double qnorm = compute_query_vector(query_id_freqs, query_cloud);
+    std::map<int, double> map_scores;
+
+    double qk = 1.0f;
+    double pk = 1.0f;
+    double qkr = 1.0f;
+    double pkr = 1.0f;
+
+    if (normalized) {
+        qk = qnorm;
+        qkr = proot(qk);
+    }
+
+    for (std::pair<node* const, double>& v : query_id_freqs) {
+        double qi = v.second/qkr;
+        std::map<int, int> source_id_freqs;
+        source_freqs_for_node(source_id_freqs, v.first);
+
+        for (std::pair<const int, int>& u : source_id_freqs) {
+            double dbnorm = db_vector_normalizing_constants[u.first];
+            if (normalized) {
+                pk = dbnorm; // 1.0f for not normalized
+                pkr = proot(pk);
+            }
+            double pi = v.first->weight*double(u.second)/pkr;
+            double residual = pexp(qi-pi)-pexp(pi)-pexp(qi); // = 2*(pexp(std::max(qi-pi, 0.0))-pexp(qi));
+            if (map_scores.count(u.first) == 1) {
+                map_scores.at(u.first) += residual;
+            }
+            else {
+                map_scores.insert(std::make_pair(u.first, dbnorm/pk+qnorm/qk+residual));
+            }
+        }
+    }
+
+    // this could probably be optimized a bit also, quite big copy operattion
+    scores.reserve(map_scores.size());
+    for (const pair<int, double>& s : map_scores) {
+        scores.push_back(result_type {s.first, float(s.second)});
     }
     std::sort(scores.begin(), scores.end(), [](const result_type& s1, const result_type& s2) {
         return s1.score < s2.score; // find min elements!
@@ -588,6 +656,7 @@ vocabulary_vector vocabulary_tree<Point, K>::compute_query_index_vector(CloudPtr
     return vec;
 }
 
+/*
 template <typename Point, size_t K>
 template <class Archive>
 void vocabulary_tree<Point, K>::save(Archive& archive) const
@@ -608,3 +677,4 @@ void vocabulary_tree<Point, K>::load(Archive& archive)
     archive(N);
     cout << "Finished loading vocabulary_tree" << endl;
 }
+*/

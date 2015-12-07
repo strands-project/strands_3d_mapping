@@ -6,6 +6,7 @@
 #include "dynamic_object_retrieval/summary_iterators.h"
 #include "extract_sift/extract_sift.h"
 #include "object_3d_retrieval/pfhrgb_estimation.h"
+#include "object_3d_retrieval/shot_estimation.h"
 
 #include <Stopwatch.h>
 
@@ -262,6 +263,7 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, const Eigen
     HistCloudT::Ptr features(new HistCloudT);
     CloudT::Ptr keypoints(new CloudT);
     pfhrgb_estimation::compute_query_features(features, keypoints, query_cloud);
+    //shot_estimation::compute_query_features(features, keypoints, query_cloud);
 
     std::cout << "Querying vocabulary..." << std::endl;
     result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
@@ -292,15 +294,18 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& qu
 
     if (vt.empty()) {
         load_vocabulary(vt, vocabulary_path);
-        vt.set_min_match_depth(1);
+        vt.set_min_match_depth(2);
         vt.compute_normalizing_constants();
+
+        cout << "Mean leaves: " << vt.get_mean_leaf_points() << endl;
     }
 
     std::cout << "Computing query features..." << std::endl;
     TICK("compute_query_features");
     HistCloudT::Ptr features(new HistCloudT);
     CloudT::Ptr keypoints(new CloudT);
-    pfhrgb_estimation::compute_features(features, keypoints, query_cloud);
+    pfhrgb_estimation::compute_query_features(features, keypoints, query_cloud);
+    //shot_estimation::compute_features(features, keypoints, query_cloud);
     TOCK("compute_query_features");
 
     std::cout << "Querying vocabulary..." << std::endl;

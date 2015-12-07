@@ -1,5 +1,6 @@
 #include "object_3d_retrieval/supervoxel_segmentation.h"
 #include "object_3d_retrieval/pfhrgb_estimation.h"
+#include "object_3d_retrieval/shot_estimation.h"
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/visualization/pcl_visualizer.h>
@@ -207,11 +208,13 @@ int main(int argc, char** argv)
         HistCloudT::Ptr features(new HistCloudT);
         CloudT::Ptr keypoints(new CloudT);
         pfhrgb_estimation::compute_features(features, keypoints, c, false);
+        //shot_estimation::compute_features(features, keypoints, c, false);
 
         // then, cluster them
         vector<HistCloudT::Ptr> split_features;
         vector<CloudT::Ptr> split_keypoints;
         pfhrgb_estimation::split_descriptor_points(split_features, split_keypoints, features, keypoints, 30);
+        //shot_estimation::split_descriptor_points(split_features, split_keypoints, features, keypoints, 30);
 
         // finally, visualize the keypoints
         for (CloudT::Ptr& k : split_keypoints) {
