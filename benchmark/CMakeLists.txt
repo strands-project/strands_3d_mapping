@@ -6,8 +6,10 @@ set(CMAKE_CXX_COMPILER clang++)
 
 add_definitions(-std=c++11 -O4)
 
+set(retrieval_dir ${CMAKE_CURRENT_SOURCE_DIR}/../dynamic_object_retrieval)
+
 # Show where to find the find package scripts
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake")
+list(APPEND CMAKE_MODULE_PATH "${retrieval_dir}/cmake")
 
 # Define the locations of the k_means_tree project
 set(k_means_tree_dir ${CMAKE_CURRENT_SOURCE_DIR}/../k_means_tree)
@@ -15,7 +17,11 @@ set(k_means_tree_library_dir ${k_means_tree_dir}/build)
 include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
 link_directories(${k_means_tree_library_dir})
 
-set(stopwatch_dir ${CMAKE_CURRENT_SOURCE_DIR}/../stopwatch)
+# The main header location
+include_directories(${retrieval_dir}/include)
+link_directories(${retrieval_dir}/build)
+
+set(stopwatch_dir ${retrieval_dir}/stopwatch)
 set(stopwatch_include_dir ${stopwatch_dir}/src)
 include_directories(${stopwatch_include_dir})
 
@@ -32,10 +38,8 @@ add_definitions(${PCL_DEFINITIONS})
 # Be sure to set this to YOUR workspace, use custom version of metaroom_xml_parser for labeled data,
 # https://github.com/RaresAmbrus/strands_3d_mapping, branch hydro-devel
 set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../../catkin_ws)
-
 set(parser_include_dir ${parser_workspace}/src/strands_3d_mapping/metaroom_xml_parser/include)
 set(parser_library_dir ${parser_workspace}/devel/lib)
-
 include_directories(${parser_include_dir})
 link_directories(${parser_library_dir})
 
@@ -50,9 +54,7 @@ find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
 
 # The main header location
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include include)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../build)
-set(include_dir include/${PROJECT_NAME})
+include_directories(include)
 
 # DEMO: add_library
 add_library(benchmark_overlap src/benchmark_overlap include/${PROJECT_NAME}/benchmark_overlap.h)

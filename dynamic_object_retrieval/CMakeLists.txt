@@ -9,7 +9,7 @@ add_definitions(-std=c++11 -O4)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 # Define the locations of the k_means_tree project
-set(k_means_tree_dir ${CMAKE_CURRENT_SOURCE_DIR}/k_means_tree)
+set(k_means_tree_dir ${CMAKE_CURRENT_SOURCE_DIR}/../k_means_tree)
 set(k_means_tree_library_dir ${k_means_tree_dir}/build)
 include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
 link_directories(${k_means_tree_library_dir})
@@ -26,7 +26,7 @@ include_directories(${cereal_include_dir})
 # Compile the k_means_tree project, needed for this
 ExternalProject_Add(k_means_tree_project
   DOWNLOAD_COMMAND ""
-  SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/k_means_tree"
+  SOURCE_DIR ${k_means_tree_dir}
   BINARY_DIR ${k_means_tree_library_dir}
   BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
   INSTALL_COMMAND ""
@@ -49,7 +49,7 @@ add_definitions(${PCL_DEFINITIONS})
 
 # Be sure to set this to YOUR workspace, use custom version of metaroom_xml_parser for labeled data,
 # https://github.com/RaresAmbrus/strands_3d_mapping, branch hydro-devel
-set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../catkin_ws)
+set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../../catkin_ws)
 
 set(parser_include_dir ${parser_workspace}/src/strands_3d_mapping/metaroom_xml_parser/include)
 set(parser_library_dir ${parser_workspace}/devel/lib)

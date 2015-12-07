@@ -33,24 +33,24 @@ set(vlfeat_objects ${vlfeat_library_dir}/kmeans.o
 include_directories(include ${vlfeat_include_dir})
 
 # Needed for the parsing of Meta Rooms
-set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../catkin_ws)
+set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../../catkin_ws)
 set(parser_include_dir ${parser_workspace}/src/strands_3d_mapping/metaroom_xml_parser/include)
 set(parser_library_dir ${parser_workspace}/devel/lib)
 include_directories(${parser_include_dir})
 link_directories(${parser_library_dir})
 
 # Configure the object_3d_retrieval project, needed for iterating features
-set(retrieval_dir ${CMAKE_CURRENT_SOURCE_DIR}/../object_3d_retrieval)
+set(retrieval_dir ${CMAKE_CURRENT_SOURCE_DIR}/../dynamic_object_retrieval)
 include_directories(${retrieval_dir}/include)
 link_directories(${retrieval_dir}/build)
 
 # Define the locations of the k_means_tree project
-set(k_means_tree_dir ${retrieval_dir}/k_means_tree)
+set(k_means_tree_dir ${CMAKE_CURRENT_SOURCE_DIR}/../k_means_tree)
 set(k_means_tree_library_dir ${k_means_tree_dir}/build)
 include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
 link_directories(${k_means_tree_library_dir})
 
-set(benchmark_dir ${retrieval_dir}/benchmark)
+set(benchmark_dir ${CMAKE_CURRENT_SOURCE_DIR}/../benchmark)
 set(benchmark_library_dir ${benchmark_dir}/build)
 include_directories(${benchmark_dir}/include)
 link_directories(${benchmark_library_dir})
@@ -64,7 +64,7 @@ include_directories(${ROS_INCLUDE_DIR})
 link_directories(${ROS_LIBRARY_DIR})
 
 # Define the locations of cereal serialization header files
-set(cereal_include_dir ${retrieval_dir}/k_means_tree/cereal/include)
+set(cereal_include_dir ${k_means_tree_dir}/cereal/include)
 include_directories(${cereal_include_dir})
 
 # Libraries
