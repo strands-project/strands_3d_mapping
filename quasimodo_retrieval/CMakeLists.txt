@@ -18,7 +18,7 @@ include_directories(${catkin_INCLUDE_DIRS})
 set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../../../object_3d_retrieval)
 
 # This is the main project, used for retrieval
-set(retrieval_dir ${retrieval_project_dir})
+set(retrieval_dir ${retrieval_project_dir}/dynamic_object_retrieval)
 set(retrieval_libraries vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation)
 include_directories(${retrieval_dir}/include)
 link_directories(${retrieval_dir}/build)
@@ -30,7 +30,7 @@ include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
 link_directories(${k_means_tree_library_dir})
 
 # This is the stopwatch by Whelan, also included in the base dir
-set(stopwatch_dir ${retrieval_project_dir}/stopwatch)
+set(stopwatch_dir ${retrieval_dir}/stopwatch)
 set(stopwatch_include_dir ${stopwatch_dir}/src)
 include_directories(${stopwatch_include_dir})
 
