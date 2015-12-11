@@ -22,8 +22,6 @@ extern "C" {
 
 const static int V = 250*nbr_centers;
 
-using PointT = pcl::PointXYZRGB;
-using CloudT = pcl::PointCloud<PointT>;
 using HistT = pcl::Histogram<250>;
 using HistCloudT = pcl::PointCloud<HistT>;
 using VladT = pcl::Histogram<V>;
@@ -60,7 +58,8 @@ void build_vlad_representation(const boost::filesystem::path& data_path,
 void encode_vlad_representation(const boost::filesystem::path& data_path,
                                 vlad_repr& repr);
 VladT encode_vlad_point(HistCloudT::Ptr& features);
-std::vector<std::pair<float, std::string> > query_vlad_representation(const dynamic_object_retrieval::data_summary& summary,
+std::vector<std::pair<float, std::string> > query_vlad_representation(VladCloudT::Ptr& vcloud, pcl::KdTreeFLANN<VladT>& kdtree,
+                                                                      const dynamic_object_retrieval::data_summary& summary,
                                                                       HistCloudT::Ptr& fcloud);
 void vlad_l2_normalization(VladT& v);
 void vlad_intranormalization(VladT& v);

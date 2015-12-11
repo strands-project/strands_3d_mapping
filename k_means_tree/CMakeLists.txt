@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(k_means_tree)
 
-add_definitions(-std=c++11 -O4)
+add_definitions(-std=c++11 -O3)
 
 find_package(PCL 1.7 REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})

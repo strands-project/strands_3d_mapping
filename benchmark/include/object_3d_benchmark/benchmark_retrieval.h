@@ -1,12 +1,19 @@
 #ifndef BENCHMARK_RETRIEVAL
 #define BENCHMARK_RETRIEVAL
 
+#include <pcl/common/transforms.h>
 #include <metaroom_xml_parser/load_utilities.h>
+#include <dynamic_object_retrieval/summary_iterators.h>
+#include <Stopwatch.h>
+#include "object_3d_benchmark/benchmark_result.h"
+#include "object_3d_benchmark/benchmark_visualization.h" // maybe move the get_score_for_sweep to another header?
 
 namespace benchmark_retrieval {
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
+using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
+using correct_ratio = std::pair<double, double>;
 
 double get_match_accuracy(CloudT::Ptr& object, CloudT::Ptr& cluster);
 std::vector<std::pair<CloudT::Ptr, std::string> > find_labels(std::vector<CloudT::Ptr>& input_segmented_dynamics, const std::vector<boost::filesystem::path>& sweep_paths);
@@ -64,6 +71,87 @@ std::pair<std::vector<CloudT::Ptr>, std::vector<boost::filesystem::path> > load_
 
     return make_pair(clouds, sweep_paths);
 }
+
+template<typename RetrievalFunctionT>
+std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_score_for_sweep(RetrievalFunctionT rfunc, const std::string& sweep_xml,
+                                                                                            benchmark_retrieval::benchmark_result current_result)
+{
+    LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
+
+    Eigen::Matrix3f K;
+    std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
+    std::tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
+    Eigen::Matrix4f T = benchmark_retrieval::get_global_camera_rotation(labels);
+
+    std::vector<cv::Mat> visualizations;
+    for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages, labels.objectMasks, labels.objectScanIndices)) {
+        CloudT::Ptr object_cloud;
+        std::string query_label;
+        cv::Mat query_image;
+        cv::Mat query_mask;
+        size_t scan_index;
+        tie(object_cloud, query_label, query_image, query_mask, scan_index) = tup;
+        cv::Mat query_depth = benchmark_retrieval::sweep_get_depth_at(sweep_xml, scan_index);
+        //cv::imshow("Query object", query_image);
+        //cv::waitKey();
+
+        CloudT::Ptr query_cloud(new CloudT);
+        pcl::transformPointCloud(*object_cloud, *query_cloud, camera_transforms[scan_index]);
+
+        TICK("total_query_vocabulary");
+        std::vector<CloudT::Ptr> retrieved_clouds;
+        std::vector<boost::filesystem::path> sweep_paths;
+
+        // // auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 10, vocabulary_path, summary, true);
+        //auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth, K, 50, vocabulary_path, summary, false);
+        // this is really the only thing we need, can put this in a wrapper, (e.g lambda function?)
+        //tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
+
+        std::tie(retrieved_clouds, sweep_paths) = rfunc(query_cloud, query_image, query_depth, K);
+
+        TOCK("total_query_vocabulary");
+
+        TICK("find_labels");
+        std::cout << "Finding labels..." << std::endl;
+        std::vector<std::pair<CloudT::Ptr, std::string> > cloud_labels = benchmark_retrieval::find_labels(retrieved_clouds, sweep_paths);
+        std::cout << "Finished finding labels..." << std::endl;
+        TOCK("find_labels");
+
+        std::vector<std::string> only_labels;
+        for (const auto& tup : cloud_labels) only_labels.push_back(tup.second);
+        cv::Mat inverted_mask;
+        cv::bitwise_not(query_mask, inverted_mask);
+        query_image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
+        cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, only_labels, T);
+
+        //cv::imshow("Image with labels", visualization);
+        //cv::waitKey();
+        visualizations.push_back(visualization);
+
+        TICK("update_ratios");
+        for (auto tup : cloud_labels) {
+            CloudT::Ptr retrieved_cloud;
+            std::string retrieved_label;
+            tie(retrieved_cloud, retrieved_label) = tup;
+
+            current_result.ratio.first += double(retrieved_label == query_label);
+            current_result.ratio.second += 1.0;
+
+            correct_ratio& instance_ratio = current_result.instance_ratios[query_label];
+            instance_ratio.first += double(retrieved_label == query_label);
+            instance_ratio.second += 1.0;
+
+            std::cout << "Query label: " << query_label << std::endl;
+            std::cout << "Retrieved label: " << retrieved_label << std::endl;
+        }
+        TOCK("update_ratios");
+
+        Stopwatch::getInstance().sendAll();
+    }
+
+    return std::make_pair(current_result, visualizations);
+}
+
 
 } // namespace benchmark_retrieval
 

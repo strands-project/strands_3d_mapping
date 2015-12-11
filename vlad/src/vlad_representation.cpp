@@ -229,58 +229,62 @@ VladT encode_vlad_point(HistCloudT::Ptr& features)
     return vlad_point;
 }
 
-vector<pair<float, string> > query_vlad_representation(const dynamic_object_retrieval::data_summary& summary,
+vector<pair<float, string> > query_vlad_representation(VladCloudT::Ptr& vcloud, pcl::KdTreeFLANN<VladT>& kdtree,
+                                                       const dynamic_object_retrieval::data_summary& summary,
                                                        HistCloudT::Ptr& fcloud)
 {
-    VladCloudT::Ptr vcloud(new VladCloudT);
-    pcl::io::loadPCDFile("vlad_features.pcd", *vcloud);
+    //VladCloudT::Ptr vcloud(new VladCloudT);
+    if (vcloud->empty()) {
+        pcl::io::loadPCDFile("vlad_features.pcd", *vcloud);
 
-    size_t inf_before_norm = 0;
-    size_t inf_after_norm = 0;
-    size_t are_zero[nbr_centers] = {0};
-    for (VladT& v : vcloud->points) {
-        //cout << Eigen::Map<Eigen::Matrix<float, V, 1> >(v.histogram).norm() << endl;
-        //Eigen::Map<Eigen::Matrix<float, V, 1> >(v.histogram).normalize();
-        Eigen::Map<Eigen::Matrix<float, 250, nbr_centers, Eigen::ColMajor> > vlad_map(v.histogram);
+        size_t inf_before_norm = 0;
+        size_t inf_after_norm = 0;
+        size_t are_zero[nbr_centers] = {0};
+        for (VladT& v : vcloud->points) {
+            //cout << Eigen::Map<Eigen::Matrix<float, V, 1> >(v.histogram).norm() << endl;
+            //Eigen::Map<Eigen::Matrix<float, V, 1> >(v.histogram).normalize();
+            Eigen::Map<Eigen::Matrix<float, 250, nbr_centers, Eigen::ColMajor> > vlad_map(v.histogram);
 
-        if (pcl_hist_inf(v)) {
-            cout << "Was inf before norm!" << endl;
-            vlad_map.setZero();
-            inf_before_norm++;
-            continue;
-            //exit(-1);
+            if (pcl_hist_inf(v)) {
+                cout << "Was inf before norm!" << endl;
+                vlad_map.setZero();
+                inf_before_norm++;
+                continue;
+                //exit(-1);
+            }
+
+            //vlad_sqrt_normalization(v);
+            //vlad_intranormalization(v);
+            vlad_l2_normalization(v);
+
+            Eigen::Map<Eigen::Matrix<float, V, 1> > point(v.histogram);
+            point.normalize();
+            //point *= 1.0f/point.lpNorm<2>();
+
+            if (pcl_hist_inf(v)) {
+                cout << "Was inf after norm!" << endl;
+                vlad_map.setZero();
+                inf_after_norm++;
+                continue;
+            }
         }
 
-        //vlad_sqrt_normalization(v);
-        //vlad_intranormalization(v);
-        vlad_l2_normalization(v);
-
-        Eigen::Map<Eigen::Matrix<float, V, 1> > point(v.histogram);
-        point.normalize();
-        //point *= 1.0f/point.lpNorm<2>();
-
-        if (pcl_hist_inf(v)) {
-            cout << "Was inf after norm!" << endl;
-            vlad_map.setZero();
-            inf_after_norm++;
-            continue;
+        cout << "number inf before: " << inf_before_norm << endl;
+        cout << "number inf after: " << inf_after_norm << endl;
+        for (int i = 0; i < nbr_centers; ++i) {
+            cout << are_zero[i] << " ";
         }
-    }
+        cout << endl;
 
-    cout << "number inf before: " << inf_before_norm << endl;
-    cout << "number inf after: " << inf_after_norm << endl;
-    for (int i = 0; i < nbr_centers; ++i) {
-        cout << are_zero[i] << " ";
+        kdtree.setInputCloud(vcloud);
     }
-    cout << endl;
 
     VladT vpoint = encode_vlad_point(fcloud);
     //vlad_sqrt_normalization(vpoint);
     //vlad_intranormalization(vpoint);
     vlad_l2_normalization(vpoint);
 
-    pcl::KdTreeFLANN<VladT> kdtree;
-    kdtree.setInputCloud(vcloud);
+    //pcl::KdTreeFLANN<VladT> kdtree;
 
     int K = 10;
 

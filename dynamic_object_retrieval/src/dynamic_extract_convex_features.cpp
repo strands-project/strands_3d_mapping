@@ -38,7 +38,8 @@ int main(int argc, char** argv)
 
         HistCloudT::Ptr desc_cloud(new HistCloudT);
         CloudT::Ptr kp_cloud(new CloudT);
-        pfhrgb_estimation::compute_features(desc_cloud, kp_cloud, segment, false);
+        pfhrgb_estimation::compute_surfel_features(desc_cloud, kp_cloud, segment, false);
+        //pfhrgb_estimation::compute_features(desc_cloud, kp_cloud, segment, false);
         //shot_estimation::compute_features(desc_cloud, kp_cloud, segment, false);
 
         if (desc_cloud->empty()) {

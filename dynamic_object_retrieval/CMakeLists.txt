@@ -3,7 +3,7 @@ project(object_3d_retrieval)
 
 include(ExternalProject)
 
-add_definitions(-std=c++11 -O4)
+add_definitions(-std=c++11 -O3)
 
 # Show where to find the find package scripts
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
@@ -165,3 +165,6 @@ target_link_libraries(test_supervoxel_keypoints dynamic_visualize ${ROS_LIBRARIE
 
 add_executable(test_supervoxel_convex_mapping test/test_supervoxel_convex_mapping.cpp)
 target_link_libraries(test_supervoxel_convex_mapping dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(test_visualize_keypoints test/test_visualize_keypoints.cpp)
+target_link_libraries(test_visualize_keypoints dynamic_visualize pfhrgb_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

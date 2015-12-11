@@ -32,11 +32,11 @@ struct path_result {
 
 template <>
 struct path_result<grouped_vocabulary_tree<HistT, 8> > {
-    using type = vector<boost::filesystem::path>;
+    using type = std::vector<boost::filesystem::path>;
 };
 
 template <typename IndexT>
-vector<boost::filesystem::path> get_retrieved_paths(const vector<IndexT>& scores, const vocabulary_summary& summary)
+std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<IndexT>& scores, const vocabulary_summary& summary)
 {
     // here we'll make use of the info saved in the data_summaries
     // maybe we should cache these as well as they might get big?
@@ -45,7 +45,7 @@ vector<boost::filesystem::path> get_retrieved_paths(const vector<IndexT>& scores
     data_summary annotated_summary;
     annotated_summary.load(boost::filesystem::path(summary.annotated_data_path));
 
-    vector<boost::filesystem::path> retrieved_paths;
+    std::vector<boost::filesystem::path> retrieved_paths;
     size_t offset = summary.nbr_noise_segments;
     for (IndexT s : scores) {
         // TODO: vt index is not correct for grouped_vocabulary
@@ -65,10 +65,10 @@ template <typename IndexT>
 std::vector<std::pair<boost::filesystem::path, IndexT> >
 get_retrieved_path_scores(const std::vector<IndexT>& scores, const vocabulary_summary& summary)
 {
-    vector<boost::filesystem::path> paths = get_retrieved_paths(scores, summary);
+    std::vector<boost::filesystem::path> paths = get_retrieved_paths(scores, summary);
     std::vector<std::pair<boost::filesystem::path, IndexT> > path_scores;
     for (auto tup : dynamic_object_retrieval::zip(paths, scores)) {
-        path_scores.push_back(make_pair(get<0>(tup), get<1>(tup)));
+        path_scores.push_back(std::make_pair(boost::get<0>(tup), boost::get<1>(tup)));
     }
     return path_scores;
 }
@@ -86,19 +86,19 @@ get_retrieved_path_scores(const std::vector<IndexT>& scores, const std::vector<G
         std::cout << "Iteration nbr: " << temp << std::endl;
         std::cout << "Scores size: " << scores.size() << std::endl;
         std::cout << "Groups size: " << groups.size() << std::endl;
-        std::cout << "Groups for iteration: " << get<1>(tup).size() << std::endl;
-        path_scores.push_back(make_pair(vector<boost::filesystem::path>(), get<0>(tup)));
+        std::cout << "Groups for iteration: " << boost::get<1>(tup).size() << std::endl;
+        path_scores.push_back(std::make_pair(std::vector<boost::filesystem::path>(), boost::get<0>(tup)));
 
-        int sweep_id = get<0>(tup).group_index;
+        int sweep_id = boost::get<0>(tup).group_index;
         std::cout << "Getting sweep xml for group: " << sweep_id << std::endl;
-        std::cout << "With subsegment: " << get<0>(tup).subgroup_index << std::endl;
+        std::cout << "With subsegment: " << boost::get<0>(tup).subgroup_index << std::endl;
         boost::filesystem::path sweep_path = dynamic_object_retrieval::get_sweep_xml(sweep_id, summary);
         std::cout << "Getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
         dynamic_object_retrieval::sweep_subsegment_keypoint_map subsegments(sweep_path);
         std::cout << "Finished getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
         int counter = 0;
         for (const boost::filesystem::path& path : subsegments) {
-            if (std::find(get<1>(tup).begin(), get<1>(tup).end(), counter) != get<1>(tup).end()) {
+            if (std::find(boost::get<1>(tup).begin(), boost::get<1>(tup).end(), counter) != boost::get<1>(tup).end()) {
                 path_scores.back().first.push_back(path);
             }
             ++counter;
@@ -164,7 +164,7 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
     TICK("registration_score");
-    map<int, double> weighted_indices;
+    std::map<int, double> weighted_indices;
     double weight_sum = 0.0;
     for (auto s : path_scores) {
         std::cout << "Loading sift for: " << s.second.index << std::endl;
@@ -182,25 +182,25 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
 
         // color score is not used atm
         double spatial_score, color_score;
-        tie(spatial_score, color_score) = ro.get_match_score();
+        std::tie(spatial_score, color_score) = ro.get_match_score();
         if (std::isinf(spatial_score)) {
             continue;
         }
         // TODO: vt index is not correct for grouped_vocabulary
-        weighted_indices.insert(make_pair(s.second.index, spatial_score));
+        weighted_indices.insert(std::make_pair(s.second.index, spatial_score));
         weight_sum += spatial_score;
     }
 
-    for (pair<const int, double>& w : weighted_indices) {
-        cout << w.first << " score: " << w.second << endl;
+    for (std::pair<const int, double>& w : weighted_indices) {
+        std::cout << w.first << " score: " << w.second << std::endl;
         w.second *= double(weighted_indices.size())/weight_sum;
     }
     TOCK("registration_score");
 
     TICK("reweighting");
     // TODO: improve the weighting to be done in the querying instead, makes way more sense
-    map<int, double> original_norm_constants;
-    map<vocabulary_tree<HistT, 8>::node*, double> original_weights; // maybe change this to e.g. node_type
+    std::map<int, double> original_norm_constants;
+    std::map<vocabulary_tree<HistT, 8>::node*, double> original_weights; // maybe change this to e.g. node_type
     vt.compute_new_weights(original_norm_constants, original_weights, weighted_indices, features);
     TOCK("reweighting");
 
@@ -212,7 +212,7 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
 // take a potentially cached vt as argument, to allow caching
 // potentially mark this as DEPRECATED, use the funcion below instead
 template <typename VocabularyT>
-pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
+std::pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
 query_reweight_vocabulary(VocabularyT& vt, const boost::filesystem::path& query_features, size_t nbr_query,
                           const boost::filesystem::path& vocabulary_path,
@@ -245,7 +245,7 @@ query_reweight_vocabulary(VocabularyT& vt, const boost::filesystem::path& query_
 }
 
 template <typename VocabularyT>
-pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
+std::pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
 query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, const Eigen::Matrix3f& K, size_t nbr_query,
                           const boost::filesystem::path& vocabulary_path,
@@ -284,7 +284,7 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, const Eigen
 }
 
 template <typename VocabularyT>
-pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
+std::pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
 query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth,
                           const Eigen::Matrix3f& K, size_t nbr_query, const boost::filesystem::path& vocabulary_path,
@@ -294,10 +294,10 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& qu
 
     if (vt.empty()) {
         load_vocabulary(vt, vocabulary_path);
-        vt.set_min_match_depth(2);
+        vt.set_min_match_depth(3);
         vt.compute_normalizing_constants();
 
-        cout << "Mean leaves: " << vt.get_mean_leaf_points() << endl;
+        std::cout << "Mean leaves: " << vt.get_mean_leaf_points() << std::endl;
     }
 
     std::cout << "Computing query features..." << std::endl;
@@ -330,7 +330,7 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& qu
     result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
     TOCK("query_reweight_vocabulary");
 
-    return make_pair(retrieved_paths, reweighted_paths);
+    return std::make_pair(retrieved_paths, reweighted_paths);
 }
 
 }

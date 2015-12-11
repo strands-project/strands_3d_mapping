@@ -82,7 +82,9 @@ public:
     // returns a supervoxel clusters with corresponding adjacency graph
     std::tuple<Graph*, std::vector<CloudT::Ptr>, std::vector<CloudT::Ptr>, std::map<size_t, size_t> >
     compute_convex_oversegmentation(CloudT::Ptr& cloud_in, bool visualize = false);
-    Graph* create_supervoxel_graph(std::vector<CloudT::Ptr>& segments, CloudT::Ptr& cloud_in);
+    std::vector<CloudT::Ptr> compute_rgb_clouds(pcl::PointCloud<pcl::PointXYZL>::Ptr& cloud_l,
+                                                CloudT::Ptr& cloud_in, supervoxel_map& supervoxel_clusters, int max_label);
+    Graph* create_supervoxel_graph(std::vector<CloudT::Ptr>& segments, std::vector<CloudT::Ptr>& rgb_segments, CloudT::Ptr& cloud_in);
     void compute_voxel_clouds(std::vector<CloudT::Ptr>& segment_voxels, std::map<uint32_t, size_t>& voxel_inds,
                               supervoxel_map& supervoxels, float voxel_resolution, CloudT::Ptr& original);
     void subsample_cloud(CloudT::Ptr& cloud_out, CloudT::Ptr& cloud_in);
@@ -100,9 +102,11 @@ public:
     void visualize_segments(std::vector<Graph*> graphs, std::vector<CloudT::Ptr>& voxel_clouds);
     void post_merge_convex_segments(std::vector<CloudT::Ptr>& merged_segments, std::map<size_t, size_t>& indices,
                                     std::vector<CloudT::Ptr>& full_segments, Graph& graph_in);
-    void create_full_segment_clouds(std::vector<CloudT::Ptr>& full_segments, std::vector<CloudT::Ptr>& supervoxel_segments,
-                                    std::map<size_t, size_t>& indices, std::vector<CloudT::Ptr>& segments,
-                                    CloudT::Ptr& cloud, std::vector<Graph*>& graphs);
+    //void create_full_segment_clouds(std::vector<CloudT::Ptr>& full_segments, std::vector<CloudT::Ptr>& supervoxel_segments,
+    //                                std::map<size_t, size_t>& indices, std::vector<CloudT::Ptr>& segments,
+    //                                CloudT::Ptr& cloud, std::vector<Graph*>& graphs);
+    std::pair<std::vector<CloudT::Ptr>, std::map<size_t, size_t> > merge_connected_clouds(std::vector<CloudT::Ptr>& rgb_segments,
+                                                                                          std::vector<Graph*> graphs);
     void save_graph(Graph& g, const std::string& filename) const;
     void load_graph(Graph& g, const std::string& filename) const;
 

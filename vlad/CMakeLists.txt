@@ -3,7 +3,7 @@ project(vlad)
 
 #set(CMAKE_C_COMPILER clang)
 #set(CMAKE_CXX_COMPILER clang++)
-add_definitions(-std=c++11 -O4)
+add_definitions(-std=c++11 -O3)
 
 find_package(PCL 1.7 REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
@@ -55,6 +55,10 @@ set(benchmark_library_dir ${benchmark_dir}/build)
 include_directories(${benchmark_dir}/include)
 link_directories(${benchmark_library_dir})
 
+set(stopwatch_dir ${retrieval_dir}/stopwatch)
+set(stopwatch_include_dir ${stopwatch_dir}/src)
+include_directories(${stopwatch_include_dir})
+
 # Show where to find the find package scripts
 list(APPEND CMAKE_MODULE_PATH "${retrieval_dir}/cmake")
 
@@ -69,21 +73,31 @@ include_directories(${cereal_include_dir})
 
 # Libraries
 
+add_library(vlad_common src/common.cpp include/vlad/common.h)
+target_link_libraries(vlad_common ${PCL_LIBRARIES})
+
 add_library(vlad_representation src/vlad_representation.cpp include/vlad/vlad_representation.h ${vlfeat_objects})
-target_link_libraries(vlad_representation ${ROS_LIBRARIES} ${OpenCV_LIBS}
+target_link_libraries(vlad_representation vlad_common ${ROS_LIBRARIES} ${OpenCV_LIBS}
                       ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES}
                       dynamic_visualize)
 
 add_library(bow_representation src/bow_representation.cpp include/vlad/bow_representation.h)
-target_link_libraries(bow_representation ${ROS_LIBRARIES} ${OpenCV_LIBS}
+target_link_libraries(bow_representation vlad_common ${ROS_LIBRARIES} ${OpenCV_LIBS}
                       ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES}
                       dynamic_visualize)
 
 # Executables
 add_executable(test_vlfeat src/test_vlfeat.cpp)
-target_link_libraries(test_vlfeat vlad_representation bow_representation dynamic_visualize)
+target_link_libraries(test_vlfeat vlad_common vlad_representation bow_representation dynamic_visualize)
 
 add_executable(test_query src/test_query.cpp)
-target_link_libraries(test_query vlad_representation bow_representation
+target_link_libraries(test_query vlad_common vlad_representation bow_representation
                       benchmark_retrieval benchmark_visualization
                       pfhrgb_estimation benchmark_overlap)
+
+add_executable(benchmark_query_vlad src/benchmark_query_vlad.cpp)
+target_link_libraries(benchmark_query_vlad vlad_common vlad_representation bow_representation
+                      pfhrgb_estimation
+                      benchmark_result benchmark_retrieval benchmark_visualization benchmark_overlap
+                      grouped_vocabulary_tree vocabulary_tree k_means_tree # The order here matters for some reason
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

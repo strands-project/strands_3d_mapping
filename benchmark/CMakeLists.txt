@@ -4,7 +4,7 @@ project(object_3d_benchmark)
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 
-add_definitions(-std=c++11 -O4)
+add_definitions(-std=c++11 -O3)
 
 set(retrieval_dir ${CMAKE_CURRENT_SOURCE_DIR}/../dynamic_object_retrieval)
 

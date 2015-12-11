@@ -1,5 +1,6 @@
 #include <vlad/vlad_representation.h>
 #include <vlad/bow_representation.h>
+#include <vlad/common.h>
 #include <tf_conversions/tf_eigen.h>
 
 #include <object_3d_retrieval/pfhrgb_estimation.h>
@@ -14,7 +15,8 @@ using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
 
 void visualize_query_sweep(const string& sweep_xml,
                            const dynamic_object_retrieval::data_summary& summary,
-                           const vector<string>& objects_to_check)
+                           const vector<string>& objects_to_check,
+                           VladCloudT::Ptr& vcloud, pcl::KdTreeFLANN<VladT>& kdtree)
 {
     LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
     Eigen::Matrix3f K;
@@ -29,7 +31,6 @@ void visualize_query_sweep(const string& sweep_xml,
         cv::Mat query_mask;
         size_t scan_index;
         tie(query_cloud, query_label, query_image, query_mask, scan_index) = tup;
-        cv::Mat query_depth = benchmark_retrieval::sweep_get_depth_at(sweep_xml, scan_index);
 
         bool found = false;
         for (const string& is_check : objects_to_check) {
@@ -44,11 +45,11 @@ void visualize_query_sweep(const string& sweep_xml,
 
         HistCloudT::Ptr query_features(new HistCloudT);
         CloudT::Ptr keypoints(new CloudT);
-        pfhrgb_estimation::compute_features(query_features, keypoints, query_cloud);
+        pfhrgb_estimation::compute_query_features(query_features, keypoints, query_cloud);
         //vector<pair<float, string> > matches =
         //    bow_representation::query_bow_representation(summary, query_features);
         vector<pair<float, string> > matches =
-            vlad_representation::query_vlad_representation(summary, query_features);
+            vlad_representation::query_vlad_representation(vcloud, kdtree, summary, query_features);
 
         vector<string> dummy_labels;
         vector<CloudT::Ptr> retrieved_clouds;
@@ -88,6 +89,7 @@ int main(int argc, char** argv)
     vlad_representation::encode_vlad_representation(data_path, repr);
 
     vl_kmeans_delete(repr.kmeans);
+    return 0;
     */
 
     dynamic_object_retrieval::data_summary summary;
@@ -96,6 +98,8 @@ int main(int argc, char** argv)
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
     vector<string> objects_to_check = {"backpack", "trash", "desktop", "helmet", "chair", "pillow"};
+    VladCloudT::Ptr vcloud(new VladCloudT);
+    pcl::KdTreeFLANN<VladT> kdtree;
 
     int counter = 0;
     for (const string& xml : folder_xmls) {
@@ -103,7 +107,7 @@ int main(int argc, char** argv)
             ++counter;
             continue;
         }
-        visualize_query_sweep(xml, summary, objects_to_check);
+        visualize_query_sweep(xml, summary, objects_to_check, vcloud, kdtree);
         ++counter;
     }
 

@@ -510,7 +510,49 @@ vector<supervoxel_segmentation::CloudT::Ptr> supervoxel_segmentation::compute_vo
 }
 */
 
-supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph(vector<CloudT::Ptr>& segments, CloudT::Ptr& cloud_in)
+vector<supervoxel_segmentation::CloudT::Ptr> supervoxel_segmentation::compute_rgb_clouds(pcl::PointCloud<pcl::PointXYZL>::Ptr& cloud_l,
+                                                                                         CloudT::Ptr& cloud_in,
+                                                                                         supervoxel_map& supervoxel_clusters,
+                                                                                         int max_label)
+{
+    pcl::KdTreeFLANN<PointT> kdtree;
+    kdtree.setInputCloud(cloud_in);
+
+    vector<CloudT::Ptr> rgb_clouds;
+    vector<size_t> indices(max_label);
+    size_t counter = 0;
+    for (const std::pair<uint32_t, VoxelT::Ptr>& i : supervoxel_clusters) {
+        rgb_clouds.push_back(CloudT::Ptr(new CloudT));
+        //cout << "Indices size: " << indices.size() << endl;
+        //cout << "Label: " << i.first-1 << endl;
+        indices[i.first-1] = counter;
+        ++counter;
+    }
+    for (const pcl::PointXYZL& l : cloud_l->points) {
+        if (l.label == 0) {
+            continue;
+        }
+        PointT p;
+        p.x = l.x; p.y = l.y; p.z = l.z;
+        std::vector<int> ind;
+        std::vector<float> distances;
+        kdtree.nearestKSearchT(p, 1, ind, distances);
+        if (distances.empty()) {
+            continue;
+        }
+        //cout << "Indices size: " << indices.size() << endl;
+        //cout << "Label: " << l.label-1 << endl;
+        //cout << "Clouds size: " << rgb_clouds.size() << endl;
+        //cout << "Iteration: " << indices[l.label-1] << endl;
+        rgb_clouds[indices[l.label-1]]->push_back(cloud_in->at(ind[0]));
+    }
+
+    return rgb_clouds;
+}
+
+supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph(vector<CloudT::Ptr>& segments,
+                                                                                 vector<CloudT::Ptr>& rgb_segments,
+                                                                                 CloudT::Ptr& cloud_in)
 {
     // pre-process clouds
     CloudT::Ptr cloud(new CloudT);
@@ -547,6 +589,26 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph
     chrono::duration<double> elapsed_seconds = end-start;
 
     cout << "Supervoxel extraction took " << elapsed_seconds.count() << " seconds" << endl;
+    cout << "Original cloud size: " << cloud_in->size() << endl;
+
+    pcl::PointCloud<pcl::PointXYZL>::Ptr label_cloud = super.getLabeledCloud();
+    cout << "Labelled cloud size: " << label_cloud->size() << endl;
+
+    rgb_segments = compute_rgb_clouds(label_cloud, cloud_in, supervoxel_clusters, super.getMaxLabel());
+
+    /*boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer ("3D Viewer"));
+    viewer->setBackgroundColor(1, 1, 1);
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(cloud_in);
+    viewer->addPointCloud<PointT>(cloud_in, rgb, "sample cloud");
+    viewer->addPointCloud<pcl::PointXYZL>(label_cloud, "labeled voxels");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, 0.5, "labeled voxels");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, "labeled voxels");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 0.8, "sample cloud");
+    //viewer->addCoordinateSystem(1.0);
+    viewer->initCameraParameters();
+    while (!viewer->wasStopped()) {
+        viewer->spinOnce(100);
+    }*/
 
     // get the stuff we need from the representation
     super.getSupervoxelAdjacency(supervoxel_adjacency);
@@ -562,6 +624,7 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph
     using map_iterator = multimap<uint32_t,uint32_t>::iterator;
     map_iterator label_itr = supervoxel_adjacency.begin ();
     for ( ; label_itr != supervoxel_adjacency.end (); ) {
+        //supervoxel_clusters.at(label_it->first)->centroid_
         map_iterator adjacent_itr = supervoxel_adjacency.equal_range (label_itr->first).first;
         for ( ; adjacent_itr != supervoxel_adjacency.equal_range(label_itr->first).second; ++adjacent_itr) {
             // maybe need to add a check if label_itr->first > adjacent_itr->second
@@ -730,6 +793,7 @@ void supervoxel_segmentation::visualize_segments(vector<CloudT::Ptr>& clouds_out
     }
 }
 
+/*
 void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& full_segments, vector<CloudT::Ptr>& supervoxel_segments,
                                                          map<size_t, size_t>& indices, vector<CloudT::Ptr>& segments,
                                                          CloudT::Ptr& cloud, vector<Graph*>& graphs)
@@ -805,12 +869,39 @@ void supervoxel_segmentation::create_full_segment_clouds(vector<CloudT::Ptr>& fu
         }
     }
 }
+*/
+
+pair<vector<supervoxel_segmentation::CloudT::Ptr>, map<size_t, size_t> > supervoxel_segmentation::merge_connected_clouds(vector<CloudT::Ptr>& rgb_segments,
+                                                                                                                         vector<Graph*> graphs)
+{
+    vector<CloudT::Ptr> connected_clouds;
+    map<size_t, size_t> indices;
+
+    size_t i = 0;
+    for (Graph* g : graphs) {
+        typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name = boost::get(boost::vertex_name, *g);
+        using vertex_iterator = boost::graph_traits<Graph>::vertex_iterator;
+
+        connected_clouds.push_back(CloudT::Ptr(new CloudT));
+
+        vertex_iterator vertex_iter, vertex_end;
+        for (tie(vertex_iter, vertex_end) = boost::vertices(*g); vertex_iter != vertex_end; ++vertex_iter) {
+            vertex_name_property name = boost::get(vertex_name, *vertex_iter);
+            *connected_clouds.back() += *rgb_segments[name.m_value];
+            indices.insert(make_pair(name.m_value, i));
+        }
+
+        ++i;
+    }
+
+    return make_pair(connected_clouds, indices);
+}
 
 vector<supervoxel_segmentation::Graph*> supervoxel_segmentation::color_model_split(vector<Graph*>& graphs, vector<CloudT::Ptr>& voxel_clouds)
 {
     using vertex_iterator = boost::graph_traits<Graph>::vertex_iterator;
 
-    const float mutual_color_information_weight = 0.01;
+    const float mutual_color_information_weight = 0.005;//0.01;
 
     vector<pcl::PointCloud<pcl::PointXYZHSV>::Ptr> converted_voxels;
     for (CloudT::Ptr& c : voxel_clouds) {
@@ -1093,19 +1184,24 @@ supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, 
     CloudT::Ptr subsampled_cloud(new CloudT);
     subsample_cloud(subsampled_cloud, cloud_in);
 
-    vector<CloudT::Ptr> segments;
-    Graph* graph_in = create_supervoxel_graph(segments, subsampled_cloud);
+    vector<CloudT::Ptr> voxel_segments;
+    vector<CloudT::Ptr> rgb_segments;
+    Graph* graph_in = create_supervoxel_graph(voxel_segments, rgb_segments, subsampled_cloud);
     Graph* graph_copy = new Graph;
     boost::copy_graph(*graph_in, *graph_copy);
     vector<Graph*> graphs_convex;
     recursive_split(graphs_convex, *graph_in);
 
+    cout << "Segment size:" << endl;
+    cout << voxel_segments.size() << endl;
+    cout << rgb_segments.size() << endl;
+
     if (visualize) {
-        visualize_segments(graphs_convex, segments);
+        visualize_segments(graphs_convex, rgb_segments);
     }
-    vector<Graph*> graphs_out = color_model_split(graphs_convex, segments);
+    vector<Graph*> graphs_out = color_model_split(graphs_convex, voxel_segments);
     if (visualize) {
-        visualize_segments(graphs_out, segments);
+        visualize_segments(graphs_out, rgb_segments);
     }
 
     // we need to port post_merge convex_segments to work in the same way
@@ -1115,13 +1211,18 @@ supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, 
     cout << "Graphs size: " << graphs_out.size() << endl;
 
     //vector<CloudT::Ptr> full_segments;
+    /*
     vector<CloudT::Ptr> clouds_out;
     vector<CloudT::Ptr> supervoxel_segments;
     map<size_t, size_t> indices;
-    create_full_segment_clouds(clouds_out, supervoxel_segments, indices, segments, cloud_in, graphs_out);
+    create_full_segment_clouds(clouds_out, supervoxel_segments, indices, voxel_segments, cloud_in, graphs_out);
+    */
+    vector<CloudT::Ptr> connected_clouds;
+    map<size_t, size_t> indices;
+    tie(connected_clouds, indices) = merge_connected_clouds(rgb_segments, graphs_out);
 
     //vector<CloudT::Ptr> clouds_out;
-    //post_merge_convex_segments(clouds_out, indices, full_segments, *graph_copy);
+    //post_merge_convex_segments(clouds_out, indices, full_segments, *graph_copy); // seriously, this should operate on the graph
 
     for (Graph* g : graphs_out) {
         delete g;
@@ -1135,7 +1236,7 @@ supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, 
     }*/
 
     // segments need to be the full versions from e.g. create_full_segments_clouds
-    return make_tuple(graph_copy, supervoxel_segments, clouds_out, indices);
+    return make_tuple(graph_copy, rgb_segments, connected_clouds, indices);
 }
 
 void supervoxel_segmentation::save_graph(Graph& g, const string& filename) const

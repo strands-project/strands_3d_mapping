@@ -12,8 +12,6 @@
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <vlad/common.h>
 
-using PointT = pcl::PointXYZRGB;
-using CloudT = pcl::PointCloud<PointT>;
 using HistT = pcl::Histogram<250>;
 using HistCloudT = pcl::PointCloud<HistT>;
 using BowT = pcl::Histogram<nbr_centers>;

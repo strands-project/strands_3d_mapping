@@ -65,6 +65,8 @@ int main(int argc, char** argv)
 
     for (const string& xml : folder_xmls) {
         CloudT::Ptr cloud = semantic_map_load_utilties::loadMergedCloudFromSingleSweep<PointT>(xml);
+        //CloudT::Ptr cloud(new CloudT);
+        //pcl::io::loadPCDFile((boost::filesystem::path(xml).parent_path() / "point_map.pcd").string(), *cloud);
 
         cout << "Cloud size: " << cloud->size() << endl;
 
@@ -75,7 +77,7 @@ int main(int argc, char** argv)
         map<size_t, size_t> indices;
         std::tie(g, supervoxels, convex_segments, indices) = ss.compute_convex_oversegmentation(cloud, true);
 
-        /*
+
         CloudT::Ptr colored_segments(new CloudT);
         *colored_segments += *cloud;
         colored_segments->reserve(cloud->size());
@@ -91,7 +93,7 @@ int main(int argc, char** argv)
         }
 
         dynamic_object_retrieval::visualize(colored_segments);
-        */
+
 
         delete g;
     }

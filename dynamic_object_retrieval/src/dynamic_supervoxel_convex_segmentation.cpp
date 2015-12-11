@@ -23,7 +23,7 @@ using namespace dynamic_object_retrieval;
 
 // now we also need to add the number of sweep that we have traversed
 tuple<int, int, vector<string>, vector<string> > supervoxel_convex_segment_cloud(int convex_counter, int supervoxel_counter,
-                                                                           const boost::filesystem::path& xml_path)
+                                                                                 const boost::filesystem::path& xml_path)
 {
     boost::filesystem::path convex_path = xml_path.parent_path() / "convex_segments";
 

@@ -1,20 +1,19 @@
-#include <vocabulary_tree/vocabulary_tree.h>
-#include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
-
 #include <dynamic_object_retrieval/summary_iterators.h>
 #include <dynamic_object_retrieval/dynamic_retrieval.h>
-#include <Stopwatch.h>
-
 #include <object_3d_benchmark/benchmark_retrieval.h>
-#include <object_3d_benchmark/benchmark_result.h>
-#include <object_3d_benchmark/benchmark_visualization.h>
 
+#include <Stopwatch.h>
 #include <metaroom_xml_parser/load_utilities.h>
-#include <pcl/point_types.h>
-#include <image_geometry/pinhole_camera_model.h>
-#include <pcl/common/transforms.h>
 #include <time.h>
 #include <dynamic_object_retrieval/definitions.h>
+#include <object_3d_retrieval/pfhrgb_estimation.h>
+
+#include <vlad/common.h>
+#include <vlad/vlad_representation.h>
+
+#include <k_means_tree/k_means_tree.h>
+#include <vocabulary_tree/vocabulary_tree.h>
+#include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
 
 using namespace std;
 
@@ -31,25 +30,32 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
 // there is no way to associate the extracted segments directly with any particular object
 // how do we get the annotation of an object?
 
-template<typename VocabularyT>
-benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder_xmls, const boost::filesystem::path& vocabulary_path,
-                                                    const dynamic_object_retrieval::vocabulary_summary& summary,
+benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder_xmls,
+                                                    const dynamic_object_retrieval::data_summary& summary,
                                                     const boost::filesystem::path& benchmark_path)
 {
 
-    benchmark_retrieval::benchmark_result benchmark(summary);
-    VocabularyT vt;
+    dynamic_object_retrieval::vocabulary_summary vocabulary_summary;
+    benchmark_retrieval::benchmark_result benchmark(vocabulary_summary);
+
+    VladCloudT::Ptr vcloud(new VladCloudT);
+    pcl::KdTreeFLANN<VladT> kdtree;
 
     int counter = 0;
     for (const string& xml : folder_xmls) {
         TICK("get_score_for_sweep");
         vector<cv::Mat> visualizations;
         auto rfunc = [&](CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth, const Eigen::Matrix3f& K) {
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth, K, 10, vocabulary_path, summary, false);
-            return benchmark_retrieval::load_retrieved_clouds(results.first);
+            HistCloudT::Ptr query_features(new HistCloudT);
+            CloudT::Ptr keypoints(new CloudT);
+            pfhrgb_estimation::compute_features(query_features, keypoints, query_cloud);
+            vector<pair<float, string> > matches =
+                vlad_representation::query_vlad_representation(vcloud, kdtree, summary, query_features);
+            return load_vlad_clouds(matches);
         };
 
         tie(benchmark, visualizations) = benchmark_retrieval::get_score_for_sweep(rfunc, xml, benchmark);
+        cout << "Performed vlad query" << endl;
         for (cv::Mat& vis : visualizations) {
             std::stringstream ss;
             ss << "query_image" << std::setw(4) << std::setfill('0') << counter;
@@ -64,9 +70,8 @@ benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder
 
 int main(int argc, char** argv)
 {
-    if (argc < 3) {
+    if (argc < 2) {
         cout << "Please provide path to annotated sweep data..." << endl;
-        cout << "And the path to the vocabulary..." << endl;
         return -1;
     }
 
@@ -75,7 +80,6 @@ int main(int argc, char** argv)
     TICK("run");
 
     boost::filesystem::path data_path(argv[1]);
-    boost::filesystem::path vocabulary_path(argv[2]);
 
     // create a new folder to store the benchmark
     time_t rawtime;
@@ -86,23 +90,17 @@ int main(int argc, char** argv)
     timeinfo = localtime(&rawtime);
     strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", timeinfo);
 
-    boost::filesystem::path benchmark_path = vocabulary_path / (string("benchmark ") + buffer);
+    boost::filesystem::path benchmark_path = string("benchmark ") + buffer;
     boost::filesystem::create_directory(benchmark_path);
 
     TICK("load_summary");
-    dynamic_object_retrieval::vocabulary_summary summary;
-    summary.load(vocabulary_path);
+    dynamic_object_retrieval::data_summary summary;
+    summary.load(data_path);
     TOCK("load_summary");
 
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
-    benchmark_retrieval::benchmark_result benchmark;
-    if (summary.vocabulary_type == "standard") {
-        benchmark = run_benchmark<vocabulary_tree<HistT, 8> >(folder_xmls, vocabulary_path, summary, benchmark_path);
-    }
-    else if (summary.vocabulary_type == "incremental") {
-        benchmark = run_benchmark<grouped_vocabulary_tree<HistT, 8> >(folder_xmls, vocabulary_path, summary, benchmark_path);
-    }
+    benchmark_retrieval::benchmark_result benchmark = run_benchmark(folder_xmls, summary, benchmark_path);
 
     TOCK("run");
 
