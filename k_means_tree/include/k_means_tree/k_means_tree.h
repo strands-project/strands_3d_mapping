@@ -238,7 +238,7 @@ public:
         std::cout << "Finished loading k_means_tree" << std::endl;
     }
 
-    k_means_tree(size_t depth = 4) : depth(depth), inserted_points(0) {} // DEBUG: depth = 5 always used
+    k_means_tree(size_t depth = 5) : depth(depth), inserted_points(0) {}
     virtual ~k_means_tree() { leaves.clear(); }
 
 };

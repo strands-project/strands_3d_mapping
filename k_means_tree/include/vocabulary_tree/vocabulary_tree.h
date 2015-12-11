@@ -134,7 +134,7 @@ public:
         std::cout << "Finished loading vocabulary_tree" << std::endl;
     }
 
-    vocabulary_tree() : super(5), matching_min_depth(1) {}
+    vocabulary_tree() : super(4), matching_min_depth(1) {} // DEBUG: depth = 5 always used
 
 };
 

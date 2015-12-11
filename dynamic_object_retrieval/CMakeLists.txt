@@ -168,3 +168,6 @@ target_link_libraries(test_supervoxel_convex_mapping dynamic_visualize ${ROS_LIB
 
 add_executable(test_visualize_keypoints test/test_visualize_keypoints.cpp)
 target_link_libraries(test_visualize_keypoints dynamic_visualize pfhrgb_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(test_query_keypoints test/test_query_keypoints.cpp)
+target_link_libraries(test_query_keypoints dynamic_visualize pfhrgb_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

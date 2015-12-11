@@ -6,6 +6,7 @@
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/features/shot_omp.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/surface/mls.h>
 
 namespace pfhrgb_estimation {
 
@@ -126,6 +127,28 @@ void compute_query_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints,
     }
 
     std::cout << "Number of features: " << pfhrgb_cloud.size() << std::endl;
+}
+
+void compute_regularized_query_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT::Ptr& cloud, bool visualize_features)
+{
+    CloudT::Ptr mls_points(new CloudT);
+    pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
+
+    // Init object (second point type is for the normals, even if unused)
+    pcl::MovingLeastSquares<PointT, PointT> mls;
+
+    mls.setComputeNormals(false);
+
+    // Set parameters
+    mls.setInputCloud(cloud);
+    mls.setPolynomialFit(true);
+    mls.setSearchMethod(tree);
+    mls.setSearchRadius(0.06);
+
+    // Reconstruct
+    mls.process(*mls_points);
+
+    compute_query_features(features, keypoints, mls_points, visualize_features);
 }
 
 void compute_surfel_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT::Ptr& cloud, bool visualize_features)
