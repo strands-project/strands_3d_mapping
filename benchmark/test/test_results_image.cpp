@@ -21,6 +21,7 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
     Eigen::Matrix3f K;
     vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
     tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
+    CloudT::Ptr sweep_cloud = semantic_map_load_utilties::loadMergedCloudFromSingleSweep<PointT>(sweep_xml);
     Eigen::Matrix4f T = benchmark_retrieval::get_global_camera_rotation(labels);
 
     for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages, labels.objectMasks, labels.objectScanIndices)) {
@@ -54,8 +55,9 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
         vector<CloudT::Ptr> retrieved_clouds;
         vector<boost::filesystem::path> sweep_paths;
 
+        CloudT::Ptr refined_query = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, camera_transforms[scan_index], K);
         //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 50, vocabulary_path, summary, true);
-        auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth, K, 10, vocabulary_path, summary, false);
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth, K, 10, vocabulary_path, summary, false);
         tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
         vector<string> dummy_labels;

@@ -7,8 +7,8 @@
 template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type>& results, CloudPtrT& query_cloud, size_t nbr_results)
 {
-    //top_combined_similarities(results, query_cloud, nbr_results);
-    debug_similarities(results, query_cloud, nbr_results);
+    top_combined_similarities(results, query_cloud, nbr_results);
+    //debug_similarities(results, query_cloud, nbr_results);
 }
 
 template <typename Key, typename Value1, typename Value2>

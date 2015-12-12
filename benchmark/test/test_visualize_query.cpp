@@ -9,6 +9,7 @@
 #include <image_geometry/pinhole_camera_model.h>
 #include <pcl/common/transforms.h>
 #include <dynamic_object_retrieval/definitions.h>
+#include <tf_conversions/tf_eigen.h>
 
 using namespace std;
 
@@ -34,18 +35,31 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
     Eigen::Matrix3f K;
     vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
     tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
+    CloudT::Ptr sweep_cloud = semantic_map_load_utilties::loadMergedCloudFromSingleSweep<PointT>(sweep_xml);
 
-    for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages, labels.objectScanIndices)) {
+    //auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_xml, vector<string>{"RoomIntermediateCloud"}, false);
+
+    for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages,
+                                                  labels.objectMasks, labels.objectScanIndices)) {
         CloudT::Ptr object_cloud;
         string query_label;
         cv::Mat query_image;
+        cv::Mat query_mask;
         size_t scan_index;
-        tie(object_cloud, query_label, query_image, scan_index) = tup;
+        tie(object_cloud, query_label, query_image, query_mask, scan_index) = tup;
+
+        //Eigen::Affine3d e;
+        //tf::transformTFToEigen(sweep_data.vIntermediateRoomCloudTransformsRegistered[scan_index], e);
+        //Eigen::Matrix4f T = e.inverse().matrix().cast<float>();
+        Eigen::Matrix4f T = camera_transforms[scan_index];
+
+        CloudT::Ptr refined_query = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, T, K);
         //cv::imshow("Query object", query_image);
         //cv::waitKey();
 
         cout << "Querying object with label: " << query_label << endl;
-        dynamic_object_retrieval::visualize(object_cloud);
+        //*refined_query += *object_cloud;
+        dynamic_object_retrieval::visualize(refined_query);
 
         CloudT::Ptr query_cloud(new CloudT);
         pcl::transformPointCloud(*object_cloud, *query_cloud, camera_transforms[scan_index]);

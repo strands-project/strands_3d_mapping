@@ -21,6 +21,8 @@ std::vector<std::pair<CloudT::Ptr, std::string> > find_labels(std::vector<CloudT
 std::pair<Eigen::Matrix3f, std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > > get_camera_matrix_and_transforms(const std::string& sweep_xml);
 Eigen::Matrix4f get_global_camera_rotation(semantic_map_load_utilties::LabelledData<PointT>& labels);
 cv::Mat sweep_get_depth_at(const boost::filesystem::path& sweep_xml, size_t scan_index);
+CloudT::Ptr get_cloud_from_sweep_mask(CloudT::Ptr& sweep, cv::Mat& mask,
+                                      Eigen::Matrix4f& mask_transform, Eigen::Matrix3f& K);
 
 template <typename IndexT>
 std::pair<std::vector<CloudT::Ptr>, std::vector<boost::filesystem::path> > load_retrieved_clouds(std::vector<std::pair<boost::filesystem::path, IndexT> >& retrieved_paths)

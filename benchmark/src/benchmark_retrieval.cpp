@@ -49,13 +49,15 @@ pair<Eigen::Matrix3f, vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Ma
     Eigen::Matrix3d dK = Eigen::Map<Eigen::Matrix3d>(cvK.val);
 
     vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
-    Eigen::Affine3d first;
-    tf::transformTFToEigen(data.vIntermediateRoomCloudTransforms[0], first);
+    //Eigen::Affine3d first;
+    //tf::transformTFToEigen(data.vIntermediateRoomCloudTransforms[0], first);
     //first = first.inverse();
-    for (tf::StampedTransform t : data.vIntermediateRoomCloudTransforms) {
+    //for (tf::StampedTransform t : data.vIntermediateRoomCloudTransforms) {
+    for (tf::StampedTransform t : data.vIntermediateRoomCloudTransformsRegistered) {
         Eigen::Affine3d e;
         tf::transformTFToEigen(t, e);
-        camera_transforms.push_back((e.inverse()*first).matrix().cast<float>());
+        camera_transforms.push_back(e.inverse().matrix().cast<float>());
+        //camera_transforms.push_back((e.inverse()*first).matrix().cast<float>());
     }
 
     return make_pair(dK.cast<float>().transpose(), camera_transforms);
@@ -78,6 +80,31 @@ cv::Mat sweep_get_depth_at(const boost::filesystem::path& sweep_xml, size_t scan
     boost::filesystem::path depth_path = sweep_xml.parent_path() / (ss.str() + ".png");
     cv::Mat depth_image = cv::imread(depth_path.string());
     return depth_image;
+}
+
+CloudT::Ptr get_cloud_from_sweep_mask(CloudT::Ptr& sweep, cv::Mat& mask,
+                                      Eigen::Matrix4f& mask_transform, Eigen::Matrix3f& K)
+{
+    int height = mask.rows;
+    int width = mask.cols;
+
+    //Eigen::Matrix4f inv = mask_transform.inverse();
+
+    CloudT::Ptr segment(new CloudT);
+    for (const PointT& p : sweep->points) {
+        Eigen::Vector4f q = mask_transform*p.getVector4fMap();
+        Eigen::Vector3f r = K*q.head<3>();
+        int x = int(r(0)/r(2));
+        int y = int(r(1)/r(2));
+        if (x >= width || x < 0 || y >= height || y < 0) {
+            continue;
+        }
+        if (mask.at<uint8_t>(y, x) != 0) {
+            segment->push_back(p);
+        }
+    }
+
+    return segment;
 }
 
 } // namespace benchmark_retrieval
