@@ -83,6 +83,7 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
     Eigen::Matrix3f K;
     std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
     std::tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
+    CloudT::Ptr sweep_cloud = semantic_map_load_utilties::loadMergedCloudFromSingleSweep<PointT>(sweep_xml);
     Eigen::Matrix4f T = benchmark_retrieval::get_global_camera_rotation(labels);
 
     std::vector<cv::Mat> visualizations;
@@ -97,8 +98,9 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
         //cv::imshow("Query object", query_image);
         //cv::waitKey();
 
-        CloudT::Ptr query_cloud(new CloudT);
-        pcl::transformPointCloud(*object_cloud, *query_cloud, camera_transforms[scan_index]);
+        //CloudT::Ptr query_cloud(new CloudT);
+        //pcl::transformPointCloud(*object_cloud, *query_cloud, camera_transforms[scan_index]);
+        CloudT::Ptr query_cloud = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, camera_transforms[scan_index], K);
 
         TICK("total_query_vocabulary");
         std::vector<CloudT::Ptr> retrieved_clouds;

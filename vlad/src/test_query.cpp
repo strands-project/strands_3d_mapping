@@ -22,6 +22,7 @@ void visualize_query_sweep(const string& sweep_xml,
     Eigen::Matrix3f K;
     vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
     tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
+    CloudT::Ptr sweep_cloud = semantic_map_load_utilties::loadMergedCloudFromSingleSweep<PointT>(sweep_xml);
     Eigen::Matrix4f T = benchmark_retrieval::get_global_camera_rotation(labels);
 
     for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages, labels.objectMasks, labels.objectScanIndices)) {
@@ -43,9 +44,11 @@ void visualize_query_sweep(const string& sweep_xml,
             continue;
         }
 
+        CloudT::Ptr refined_query = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, camera_transforms[scan_index], K);
+
         HistCloudT::Ptr query_features(new HistCloudT);
         CloudT::Ptr keypoints(new CloudT);
-        pfhrgb_estimation::compute_query_features(query_features, keypoints, query_cloud);
+        pfhrgb_estimation::compute_surfel_features(query_features, keypoints, refined_query);
         //vector<pair<float, string> > matches =
         //    bow_representation::query_bow_representation(summary, query_features);
         vector<pair<float, string> > matches =
