@@ -44,7 +44,11 @@ add_message_files(
   FILES
   rgbd_frame.msg
   model.msg
+  image_array.msg
+  string_array.msg
   retrieval_result.msg
+  retrieval_query.msg
+  retrieval_query_result.msg
 )
 
 ## Generate services in the 'srv' folder

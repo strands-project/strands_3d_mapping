@@ -1,5 +1,7 @@
 sensor_msgs/PointCloud2[] retrieved_clouds
-geometry_msgs/Pose[] retrieved_initial_poses
-sensor_msgs/Image[] retrieved_images
-string[] retrieved_sweep_paths
+geometry_msgs/PoseArray[] retrieved_initial_poses
+image_array[] retrieved_images
+image_array[] retrieved_depths
+image_array[] retrieved_masks
+string_array[] retrieved_image_paths
 float64[] retrieved_distance_scores

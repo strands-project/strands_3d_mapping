@@ -1,6 +1,4 @@
-sensor_msgs/Image image
-sensor_msgs/CameraInfo camera
-geometry_msgs/Transform room_transform
+retrieval_query query
 retrieval_result result
 ---
 sensor_msgs/Image image

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(quasimodo_retrieval)
 
-add_definitions(-std=c++11 -O4)
+add_definitions(-std=c++11 -O3)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -19,7 +19,9 @@ set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../../../object_3d_retr
 
 # This is the main project, used for retrieval
 set(retrieval_dir ${retrieval_project_dir}/dynamic_object_retrieval)
-set(retrieval_libraries vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation)
+set(retrieval_libraries grouped_vocabulary_tree vocabulary_tree k_means_tree
+    dynamic_retrieval
+    dynamic_visualize register_objects extract_sift sift pfhrgb_estimation)
 include_directories(${retrieval_dir}/include)
 link_directories(${retrieval_dir}/build)
 
@@ -36,7 +38,7 @@ include_directories(${stopwatch_include_dir})
 
 # The benchmark project is also in the base dir
 set(benchmark_dir ${retrieval_project_dir}/benchmark)
-set(benchmark_libraries benchmark_retrieval benchmark_visualization)
+set(benchmark_libraries benchmark_result benchmark_retrieval benchmark_visualization benchmark_overlap)
 include_directories(${benchmark_dir}/include)
 link_directories(${benchmark_dir}/build)
 
@@ -167,12 +169,14 @@ catkin_package(
 
 ## Declare a C++ executable
 add_executable(quasimodo_retrieval_server src/quasimodo_retrieval_server.cpp)
+add_executable(quasimodo_retrieval_publisher src/quasimodo_retrieval_publisher.cpp)
 add_executable(quasimodo_visualization_server src/quasimodo_visualization_server.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(quasimodo_retrieval_server ${catkin_EXPORTED_TARGETS})
-add_dependencies(quasimodo_visualization_server ${catkin_EXPORTED_TARGETS})
+#add_dependencies(quasimodo_retrieval_server ${catkin_EXPORTED_TARGETS})
+#add_dependencies(quasimodo_retrieval_publisher ${catkin_EXPORTED_TARGETS})
+#add_dependencies(quasimodo_visualization_server ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(quasimodo_retrieval_server
@@ -183,6 +187,24 @@ target_link_libraries(quasimodo_retrieval_server
   ${PCL_LIBRARIES}
   ${catkin_LIBRARIES}
 )
+
+target_link_libraries(quasimodo_retrieval_publisher
+  ${retrieval_libraries}
+  ${benchmark_libraries}
+  ${OpenCV_LIBS}
+  ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
+#target_link_libraries(quasimodo_retrieval_publisher
+#  pfhrgb_estimation extract_sift sift
+#  benchmark_result benchmark_retrieval benchmark_visualization benchmark_overlap
+#  dynamic_visualize register_objects
+#  ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES}
+#  ${catkin_LIBRARIES}
+#  grouped_vocabulary_tree vocabulary_tree k_means_tree # The order here matters for some reason
+#)
 
 target_link_libraries(quasimodo_visualization_server
   ${retrieval_libraries}
