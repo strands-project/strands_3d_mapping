@@ -19,6 +19,10 @@ double get_match_accuracy(CloudT::Ptr& object, CloudT::Ptr& cluster);
 std::vector<std::pair<CloudT::Ptr, std::string> > find_labels(std::vector<CloudT::Ptr>& input_segmented_dynamics, const std::vector<boost::filesystem::path>& sweep_paths);
                                                               //semantic_map_load_utilties::LabelledData<PointT>& labelled_clusters);
 std::pair<Eigen::Matrix3f, std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > > get_camera_matrix_and_transforms(const std::string& sweep_xml);
+std::tuple<Eigen::Matrix3f,
+           std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >,
+           sensor_msgs::CameraInfo>
+get_camera_info_and_transforms(const std::string& sweep_xml);
 Eigen::Matrix4f get_global_camera_rotation(semantic_map_load_utilties::LabelledData<PointT>& labels);
 cv::Mat sweep_get_depth_at(const boost::filesystem::path& sweep_xml, size_t scan_index);
 CloudT::Ptr get_cloud_from_sweep_mask(CloudT::Ptr& sweep, cv::Mat& mask,
@@ -36,7 +40,7 @@ std::pair<std::vector<CloudT::Ptr>, std::vector<boost::filesystem::path> > load_
     for (path_index_type s : retrieved_paths) {
         IndexT index;
         boost::filesystem::path path;
-        tie(path, index) = s;
+        std::tie(path, index) = s;
         std::cout << "Path: " << path.string() << std::endl;
         std::cout << "Index: " << index.index << std::endl;
         clouds.push_back(CloudT::Ptr(new CloudT));

@@ -45,6 +45,7 @@ pair<Eigen::Matrix3f, vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Ma
     semantic_map_load_utilties::IntermediateCloudCompleteData<PointT> data = semantic_map_load_utilties::loadIntermediateCloudsCompleteDataFromSingleSweep<PointT>(sweep_xml);
 
     image_geometry::PinholeCameraModel model = data.vIntermediateRoomCloudCamParams[0];
+
     cv::Matx33d cvK = model.intrinsicMatrix();
     Eigen::Matrix3d dK = Eigen::Map<Eigen::Matrix3d>(cvK.val);
 
@@ -61,6 +62,33 @@ pair<Eigen::Matrix3f, vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Ma
     }
 
     return make_pair(dK.cast<float>().transpose(), camera_transforms);
+}
+
+tuple<Eigen::Matrix3f,
+      vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >,
+      sensor_msgs::CameraInfo>
+get_camera_info_and_transforms(const string& sweep_xml)
+{
+    semantic_map_load_utilties::IntermediateCloudCompleteData<PointT> data = semantic_map_load_utilties::loadIntermediateCloudsCompleteDataFromSingleSweep<PointT>(sweep_xml);
+
+    image_geometry::PinholeCameraModel model = data.vIntermediateRoomCloudCamParams[0];
+
+    cv::Matx33d cvK = model.intrinsicMatrix();
+    Eigen::Matrix3d dK = Eigen::Map<Eigen::Matrix3d>(cvK.val);
+
+    vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
+    //Eigen::Affine3d first;
+    //tf::transformTFToEigen(data.vIntermediateRoomCloudTransforms[0], first);
+    //first = first.inverse();
+    //for (tf::StampedTransform t : data.vIntermediateRoomCloudTransforms) {
+    for (tf::StampedTransform t : data.vIntermediateRoomCloudTransformsRegistered) {
+        Eigen::Affine3d e;
+        tf::transformTFToEigen(t, e);
+        camera_transforms.push_back(e.inverse().matrix().cast<float>());
+        //camera_transforms.push_back((e.inverse()*first).matrix().cast<float>());
+    }
+
+    return make_tuple(dK.cast<float>().transpose(), camera_transforms, model.cameraInfo());
 }
 
 Eigen::Matrix4f get_global_camera_rotation(semantic_map_load_utilties::LabelledData<PointT>& labels)
