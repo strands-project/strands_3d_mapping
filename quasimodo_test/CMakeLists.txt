@@ -134,13 +134,22 @@ include_directories(${catkin_INCLUDE_DIRS})
 
 ## Declare a C++ executable
 add_executable(test_msgs src/test_msgs.cpp)
+add_executable(test_verify_images src/test_verify_images.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(test_msgs roscpp quasimodo_msgs_generate_messages_cpp)
+add_dependencies(test_verify_images roscpp quasimodo_msgs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(test_msgs
+  ${OpenCV_LIBS}
+  ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(test_verify_images
   ${OpenCV_LIBS}
   ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
   ${PCL_LIBRARIES}

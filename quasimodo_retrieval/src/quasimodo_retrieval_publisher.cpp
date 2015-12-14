@@ -74,12 +74,12 @@ public:
         }
     }
 
-    tuple<vector<cv::Mat>, vector<cv::Mat>, vector<cv::Mat> >
+    tuple<vector<cv::Mat>, vector<cv::Mat>, vector<cv::Mat>, vector<int> >
     generate_images_for_object(const CloudT::Ptr& cloud, const Eigen::Matrix3f& K,
         const boost::filesystem::path& sweep_xml,
         const vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >& transforms)
     {
-        tuple<vector<cv::Mat>, vector<cv::Mat>, vector<cv::Mat> > images;
+        tuple<vector<cv::Mat>, vector<cv::Mat>, vector<cv::Mat>, vector<int> > images;
 
         int height = 480;
         int width = 640;
@@ -116,6 +116,7 @@ public:
             get<0>(images).push_back(mask);
             get<1>(images).push_back(benchmark_retrieval::sweep_get_rgb_at(sweep_xml, i));
             get<2>(images).push_back(benchmark_retrieval::sweep_get_depth_at(sweep_xml, i));
+            get<3>(images).push_back(i);
 
             /*
             cv::imshow("Mask", get<0>(images).back());
@@ -166,14 +167,17 @@ public:
             vector<vector<cv::Mat> > masks(retrieved_clouds.size());
             vector<vector<cv::Mat> > images(retrieved_clouds.size());
             vector<vector<cv::Mat> > depths(retrieved_clouds.size());
-            vector<vector<boost::filesystem::path> > paths(retrieved_clouds.size());
+            vector<vector<string> > paths(retrieved_clouds.size());
             for (int i = 0; i < retrieved_clouds.size(); ++i) {
-                tie(masks[i], images[i], depths[i]) = generate_images_for_object(refined_query, K, sweep_xml, transforms);
-                for (int j = 0; j < masks[i].size(); ++j) {
-                    paths[i].push_back(sweep_paths[i]);
+                vector<int> inds;
+                tie(masks[i], images[i], depths[i], inds) = generate_images_for_object(retrieved_clouds[i], K, sweep_paths[i], transforms);
+                for (int j = 0; j < inds.size(); ++j) {
+                    paths[i].push_back(sweep_paths[i].string() + " " + to_string(inds[j]));
                 }
             }
-            quasimodo_msgs::retrieval_query_result result = construct_msgs(refined_query, query_image, query_depth, query_mask,
+
+            cv::Mat full_query_image = benchmark_retrieval::sweep_get_rgb_at(sweep_xml, scan_index);
+            quasimodo_msgs::retrieval_query_result result = construct_msgs(refined_query, full_query_image, query_depth, query_mask,
                                                                            camera_info, labels.transformToGlobal, retrieved_clouds, initial_poses,
                                                                            images, depths, masks, paths, scores);
             pub.publish(result);
@@ -217,7 +221,7 @@ public:
                                                           const vector<vector<cv::Mat> >& images,
                                                           const vector<vector<cv::Mat> >& depths,
                                                           const vector<vector<cv::Mat> >& masks,
-                                                          const vector<vector<boost::filesystem::path> >& paths,
+                                                          const vector<vector<string> >& paths,
                                                           const vector<float>& scores)
     {
         quasimodo_msgs::retrieval_query_result res;
@@ -278,7 +282,7 @@ public:
                 convert_to_img_msg(images[i][j], res.result.retrieved_images[i].images[j]);
                 convert_to_depth_msg(depths[i][j], res.result.retrieved_depths[i].images[j]);
                 convert_to_mask_msg(masks[i][j], res.result.retrieved_masks[i].images[j]);
-                res.result.retrieved_image_paths[i].strings[j] = paths[i][j].string();
+                res.result.retrieved_image_paths[i].strings[j] = paths[i][j];
             }
             res.result.retrieved_distance_scores[i] = scores[i];
         }
