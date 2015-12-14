@@ -1,3 +1,4 @@
-rgbd_frame frame
+uint64 frame_id
+sensor_msgs/Image mask
 ---
-model model
+uint64 model_id
