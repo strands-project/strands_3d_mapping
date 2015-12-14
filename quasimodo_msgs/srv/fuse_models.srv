@@ -1,4 +1,5 @@
-model model1
-model model2
+uint64 model1
+uint64 model2
+geometry_msgs/Pose pose
 ---
-model fused_model
+uint64 fused_model
