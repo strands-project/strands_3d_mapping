@@ -110,6 +110,15 @@ cv::Mat sweep_get_depth_at(const boost::filesystem::path& sweep_xml, size_t scan
     return depth_image;
 }
 
+cv::Mat sweep_get_rgb_at(const boost::filesystem::path& sweep_xml, size_t scan_index)
+{
+    stringstream ss;
+    ss << "rgb_" << std::setw(4) << std::setfill('0') << scan_index;
+    boost::filesystem::path rgb_path = sweep_xml.parent_path() / (ss.str() + ".jpg");
+    cv::Mat rgb_image = cv::imread(rgb_path.string());
+    return rgb_image;
+}
+
 CloudT::Ptr get_cloud_from_sweep_mask(CloudT::Ptr& sweep, cv::Mat& mask,
                                       Eigen::Matrix4f& mask_transform, Eigen::Matrix3f& K)
 {
