@@ -151,7 +151,7 @@ void compute_regularized_query_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr
     compute_query_features(features, keypoints, mls_points, visualize_features);
 }
 
-void compute_surfel_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT::Ptr& cloud, bool visualize_features)
+void compute_surfel_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT::Ptr& cloud, bool visualize_features, bool is_query)
 {
     // first, extract normals, if we don't use the lowres cloud
     pcl::NormalEstimationOMP<PointT, NormalT> ne;
@@ -179,7 +179,7 @@ void compute_surfel_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints
     pcl::PointCloud<int>::Ptr keypoints_ind(new pcl::PointCloud<int>);
     pcl::IndicesPtr indices(new std::vector<int>);
 
-    if (cloud->size() < 0.015*480*640) { // TODO: this used to be 0.1 !!!!!!!!!!!!!!!
+    if (is_query || cloud->size() < 0.015*480*640) { // TODO: this used to be 0.1 !!!!!!!!!!!!!!!
         // Fill in the model cloud
         double model_resolution = std::min(0.006, 0.003 + 0.003*float(cloud->size())/(0.015*480*640));
 

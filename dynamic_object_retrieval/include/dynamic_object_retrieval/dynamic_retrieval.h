@@ -304,7 +304,7 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& qu
     TICK("compute_query_features");
     HistCloudT::Ptr features(new HistCloudT);
     CloudT::Ptr keypoints(new CloudT);
-    pfhrgb_estimation::compute_surfel_features(features, keypoints, query_cloud);
+    pfhrgb_estimation::compute_surfel_features(features, keypoints, query_cloud, false, true);
     //shot_estimation::compute_features(features, keypoints, query_cloud);
     TOCK("compute_query_features");
 
