@@ -41,12 +41,14 @@ set<Key> key_intersection(const map<Key, Value1>& lhs, const map<Key, Value2>& r
 }
 
 template <typename Point, size_t K>
-double vocabulary_tree<Point, K>::compute_new_weights(map<int, double>& original_norm_constants,
-                                                      map<node*, double>& original_weights,
-                                                      map<int, double>& weighted_indices,
-                                                      CloudPtrT& query_cloud)
+void vocabulary_tree<Point, K>::compute_new_weights(map<int, double>& original_norm_constants,
+                                                    map<node*, double>& original_weights,
+                                                    map<int, double>& weighted_indices,
+                                                    CloudPtrT& query_cloud)
 {
     map<node*, pair<size_t, double> > new_weights;
+
+    cout << __FILE__ << ", " << __LINE__ << endl;
 
     for (PointT p : query_cloud->points) {
         std::vector<node*> path;
@@ -58,18 +60,28 @@ double vocabulary_tree<Point, K>::compute_new_weights(map<int, double>& original
                 ++current_depth;
                 continue;
             }
+
+            cout << __FILE__ << ", " << __LINE__ << endl;
+
             // if no intersection with weighted_indices, continue
             map<int, int> source_inds;
             source_freqs_for_node(source_inds, n);
+
+            cout << __FILE__ << ", " << __LINE__ << endl;
             set<int> intersection = key_intersection(source_inds, weighted_indices);
+            cout << __FILE__ << ", " << __LINE__ << endl;
             if (intersection.empty()) {
                 ++current_depth;
                 continue;
             }
 
+            cout << __FILE__ << ", " << __LINE__ << endl;
+
             if (new_weights.count(n) == 0) {
                 new_weights.insert(make_pair(n, make_pair(0, 0.0)));
             }
+
+            cout << __FILE__ << ", " << __LINE__ << endl;
             for (int i : intersection) {
                 pair<size_t, double>& ref = new_weights.at(n);
                 ref.first += 1;
@@ -80,6 +92,8 @@ double vocabulary_tree<Point, K>::compute_new_weights(map<int, double>& original
         }
     }
 
+    cout << __FILE__ << ", " << __LINE__ << endl;
+
     for (pair<node* const, pair<size_t, double> >& v : new_weights) {
         // compute and store the new weights
         double original_weight = v.first->weight;
@@ -87,9 +101,12 @@ double vocabulary_tree<Point, K>::compute_new_weights(map<int, double>& original
         original_weights.insert(make_pair(v.first, original_weight));
         v.first->weight = new_weight;
 
+        cout << __FILE__ << ", " << __LINE__ << endl;
+
         // update the normalization computations
         map<int, int> source_inds;
         source_freqs_for_node(source_inds, v.first);
+        cout << __FILE__ << ", " << __LINE__ << endl;
         for (pair<const int, int>& u : source_inds) {
             // first, save the original normalization if it isn't already
             if (original_norm_constants.count(u.first) == 0) {
@@ -98,12 +115,13 @@ double vocabulary_tree<Point, K>::compute_new_weights(map<int, double>& original
             db_vector_normalizing_constants.at(u.first) -=
                     pexp(original_weight*u.second) - pexp(new_weight*u.second);
         }
+        cout << __FILE__ << ", " << __LINE__ << endl;
     }
 }
 
 template <typename Point, size_t K>
-double vocabulary_tree<Point, K>::restore_old_weights(map<int, double>& original_norm_constants,
-                                                      map<node*, double>& original_weights)
+void vocabulary_tree<Point, K>::restore_old_weights(map<int, double>& original_norm_constants,
+                                                    map<node*, double>& original_weights)
 {
     for (pair<node* const, double> v : original_weights) {
         // restore the node weights

@@ -299,11 +299,11 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_features(cv::Mat& image, cv::Mat
         p3(1) = p2.y + float(miny);
         p3(2) = 1.0f;
         p3 = K.colPivHouseholderQr().solve(p3);
-        float depth_val = depth.at<float>(int(p2.y), int(p2.x));
+        uint16_t depth_val = depth.at<uint16_t>(int(p2.y), int(p2.x));
         if (depth_val == 0) {
             continue;
         }
-        p3 *= depth_val/p3(2);
+        p3 *= float(depth_val)/p3(2)/10000.0f;
         PointT p;
         p.getVector3fMap() = p3;
         keypoints->push_back(p);
@@ -366,6 +366,7 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_for_image(cv::Mat& image, cv::Ma
 
     //cv::imshow("cropped_image", cropped_image);
     //cv::imshow("cropped_depth", cropped_depth);
+    //cv::waitKey();
 
     return extract_sift_features(cropped_image, cropped_depth, minx, miny, K);
 }
@@ -414,7 +415,7 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const boost::filesyst
     CloudT::Ptr vis_cloud(new CloudT);
     *vis_cloud += *keypoints;
     *vis_cloud += *cloud;
-    dynamic_object_retrieval::visualize(vis_cloud);
+    //dynamic_object_retrieval::visualize(vis_cloud);
 
     // now we should check the intersection using e.g. an octree
     // pick all the sift keypoints close enough to a point in keypoints

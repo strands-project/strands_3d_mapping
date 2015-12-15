@@ -346,7 +346,7 @@ void register_objects::do_registration(SiftCloudT::Ptr& sift_cloud1, SiftCloudT:
         CloudT::Ptr new_cloud(new CloudT);
         pcl::transformPointCloud(*c1, *new_cloud, T);
         boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-        viewer->setBackgroundColor(0, 0, 0);
+        viewer->setBackgroundColor(1, 1, 1);
         pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb1(c2);
         viewer->addPointCloud<PointT>(c2, rgb1, "cloud1");
         viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "cloud1");
@@ -431,6 +431,25 @@ pair<double, double> register_objects::get_match_score()
         return make_pair(0.1, 100);
     }
 
+    int c1_finite = 0;
+    for (const PointT& p : c1->points) {
+        if (pcl::isFinite(p)) {
+            ++c1_finite;
+        }
+    }
+
+    int c2_finite = 0;
+    for (const PointT& p : c2->points) {
+        if (pcl::isFinite(p)) {
+            ++c2_finite;
+        }
+    }
+
+    cout << "C1 finite: " << double(c1_finite)/double(c1->size()) << endl;
+    cout << "C2 finite: " << double(c2_finite)/double(c2->size()) << endl;
+
+    cout << "Entering register objects" << endl;
+
     // transform one cloud into the coordinate frame of the other
     CloudT::Ptr new_cloud(new CloudT);
     pcl::transformPointCloud(*c1, *new_cloud, T);
@@ -443,6 +462,7 @@ pair<double, double> register_objects::get_match_score()
     pcl::KdTreeFLANN<PointT> kdtree1;
     kdtree1.setInputCloud(new_cloud);
     for (const PointT& p : c2->points) {
+        //cout << p.getVector3fMap().transpose() << endl;
         if (!pcl::isFinite(p)) {
             continue;
         }
@@ -457,7 +477,7 @@ pair<double, double> register_objects::get_match_score()
         /*if (dist > 0.1) {
             continue;
         }*/
-        PointT q = c1->at(indices[0]);
+        PointT q = new_cloud->at(indices[0]);
         // compare distance and color
         Eigen::Vector3d pc(p.r, p.g, p.b);
         Eigen::Vector3d qc(q.r, q.g, q.b);
@@ -466,14 +486,18 @@ pair<double, double> register_objects::get_match_score()
         ++counter;
     }
 
+    cout << "First part done" << endl;
+    cout << "Counter: " << counter << endl;
+
     pcl::KdTreeFLANN<PointT> kdtree2;
-    kdtree2.setInputCloud(c2);
+    CloudT::Ptr temp(new CloudT(*c2));
+    kdtree2.setInputCloud(temp);
     for (const PointT& p : new_cloud->points) {
         if (!pcl::isFinite(p)) {
             continue;
         }
-        vector<int> indices;
-        vector<float> distances;
+        vector<int> indices(1);
+        vector<float> distances(1);
         kdtree2.nearestKSearchT(p, 1, indices, distances);
         if (distances.empty()) {
             cout << "Distances empty, wtf??" << endl;
@@ -483,6 +507,9 @@ pair<double, double> register_objects::get_match_score()
         if (dist > 0.05) { // make this a parameter
             continue;
         }
+        //cout << indices.size() << endl;
+        //cout << c2->size() << endl;
+        //cout << indices[0] << endl;
         PointT q = c2->at(indices[0]);
         // compare distance and color
         Eigen::Vector3d pc(p.r, p.g, p.b);

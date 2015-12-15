@@ -175,6 +175,7 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
         // we could probably use the path for this??? would be nicer with something else
         // on the other hand the path makes it open if we cache or not
         tie(match_sift_cloud, match_sift_keypoints) = extract_sift::get_sift_for_cloud_path(s.first);
+        std::cout << "Number of sift features for match: " << match_sift_cloud->size() << std::endl;
 
         register_objects ro;
         ro.set_input_clouds(sift_keypoints, match_sift_keypoints);
@@ -197,6 +198,8 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
     }
     TOCK("registration_score");
 
+    std::cout << "Starting re-weighting" << std::endl;
+
     TICK("reweighting");
     // TODO: improve the weighting to be done in the querying instead, makes way more sense
     std::map<int, double> original_norm_constants;
@@ -204,8 +207,20 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
     vt.compute_new_weights(original_norm_constants, original_weights, weighted_indices, features);
     TOCK("reweighting");
 
+    std::cout << "Done re-weighting" << std::endl;
+
+    std::cout << "Starting querying" << std::endl;
+
     result_type scores = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
+
+    std::cout << "Done querying" << std::endl;
+
+    std::cout << "Restoring weights" << std::endl;
+
     vt.restore_old_weights(original_norm_constants, original_weights);
+
+    std::cout << "Done restoring weights" << std::endl;
+
     return scores;
 }
 
@@ -326,6 +341,7 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& qu
     TOCK("extract_sift_features");
 
     std::cout << "Reweighting and querying..." << std::endl;
+    std::cout << "Number of query sift features: " << sift_features->size() << std::endl;
     TICK("query_reweight_vocabulary");
     result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
     TOCK("query_reweight_vocabulary");
