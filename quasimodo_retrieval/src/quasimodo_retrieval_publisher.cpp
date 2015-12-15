@@ -15,6 +15,7 @@
 #include <pcl_ros/point_cloud.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
+#include <tf_conversions/tf_eigen.h>
 
 using namespace std;
 
@@ -170,7 +171,14 @@ public:
             vector<vector<string> > paths(retrieved_clouds.size());
             for (int i = 0; i < retrieved_clouds.size(); ++i) {
                 vector<int> inds;
-                tie(masks[i], images[i], depths[i], inds) = generate_images_for_object(retrieved_clouds[i], K, sweep_paths[i], transforms);
+                auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
+                vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > sweep_transforms;
+                for (tf::StampedTransform& t : sweep_data.vIntermediateRoomCloudTransformsRegistered) {
+                    Eigen::Affine3d e;
+                    tf::transformTFToEigen(t, e);
+                    sweep_transforms.push_back(e.inverse().matrix().cast<float>());
+                }
+                tie(masks[i], images[i], depths[i], inds) = generate_images_for_object(retrieved_clouds[i], K, sweep_paths[i], sweep_transforms);
                 for (int j = 0; j < inds.size(); ++j) {
                     paths[i].push_back(sweep_paths[i].string() + " " + to_string(inds[j]));
                 }
