@@ -80,7 +80,8 @@ public:
     bool do_filter;
 
     // returns a supervoxel clusters with corresponding adjacency graph
-    std::tuple<Graph*, std::vector<CloudT::Ptr>, std::vector<CloudT::Ptr>, std::map<size_t, size_t> >
+    std::tuple<Graph*, Graph*, std::vector<CloudT::Ptr>,
+               std::vector<CloudT::Ptr>, std::map<size_t, size_t> >
     compute_convex_oversegmentation(CloudT::Ptr& cloud_in, bool visualize = false);
     std::vector<CloudT::Ptr> compute_rgb_clouds(pcl::PointCloud<pcl::PointXYZL>::Ptr& cloud_l,
                                                 CloudT::Ptr& cloud_in, supervoxel_map& supervoxel_clusters, int max_label);
@@ -102,6 +103,7 @@ public:
     void visualize_segments(std::vector<Graph*> graphs, std::vector<CloudT::Ptr>& voxel_clouds);
     void post_merge_convex_segments(std::vector<CloudT::Ptr>& merged_segments, std::map<size_t, size_t>& indices,
                                     std::vector<CloudT::Ptr>& full_segments, Graph& graph_in);
+    Graph* create_merged_graph(Graph& graph, std::vector<Graph*>& graphs, std::map<size_t, size_t>& indices, std::vector<CloudT::Ptr>& connected_clouds);
     //void create_full_segment_clouds(std::vector<CloudT::Ptr>& full_segments, std::vector<CloudT::Ptr>& supervoxel_segments,
     //                                std::map<size_t, size_t>& indices, std::vector<CloudT::Ptr>& segments,
     //                                CloudT::Ptr& cloud, std::vector<Graph*>& graphs);

@@ -72,11 +72,11 @@ int main(int argc, char** argv)
 
         supervoxel_segmentation ss(0.02f, 0.2f, 0.4f, false); // do not filter
         Graph* g;
+        Graph* convex_g;
         vector<CloudT::Ptr> supervoxels;
         vector<CloudT::Ptr> convex_segments;
         map<size_t, size_t> indices;
-        std::tie(g, supervoxels, convex_segments, indices) = ss.compute_convex_oversegmentation(cloud, true);
-
+        std::tie(g, convex_g, supervoxels, convex_segments, indices) = ss.compute_convex_oversegmentation(cloud, true);
 
         CloudT::Ptr colored_segments(new CloudT);
         *colored_segments += *cloud;
@@ -94,8 +94,8 @@ int main(int argc, char** argv)
 
         dynamic_object_retrieval::visualize(colored_segments);
 
-
         delete g;
+        delete convex_g;
     }
 
     return 0;

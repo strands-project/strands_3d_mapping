@@ -40,11 +40,11 @@ set<pair<int, int> > compute_group_adjacencies_subsegments(CloudT::Ptr& centroid
     return adjacencies;
 }
 
-set<pair<int, int> > compute_group_adjacencies_supervoxels(const boost::filesystem::path& sweep_path)
+set<pair<int, int> > compute_group_adjacencies_supervoxels(const boost::filesystem::path& segment_path)
 {
     set<pair<int, int> > adjacencies;
 
-    boost::filesystem::path graph_path = sweep_path / "subsegments" / "graph.cereal";
+    boost::filesystem::path graph_path = segment_path / "graph.cereal";
     supervoxel_segmentation ss;
     supervoxel_segmentation::Graph g;
     ss.load_graph(g, graph_path.string());
@@ -127,9 +127,9 @@ size_t add_segments(SegmentMapT& segment_features, const boost::filesystem::path
 // add VocabularyT::index_type in the classes
 // also, add an iterator that returns segment and sweep index for segments
 // TODO: we really just need the sweep path map, could use that instead of sweep index map
-template <typename VocabularyT, typename SegmentMapT, typename KeypointMapT, typename SweepIndexMapT, typename SweepPathMapT>
+template <typename VocabularyT, typename SegmentMapT, typename KeypointMapT, typename SweepIndexMapT, typename SegmentPathMapT>
 pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, KeypointMapT& segment_keypoints,
-                                          SweepIndexMapT& sweep_indices, SweepPathMapT& sweep_paths,
+                                          SweepIndexMapT& sweep_indices, SegmentPathMapT& segment_paths,
                                           const boost::filesystem::path& vocabulary_path,
                                           const vocabulary_summary& summary, bool training, const size_t sweep_offset)
 {
@@ -151,20 +151,20 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, Keypoin
     size_t counter = 0;
     size_t sweep_i;
     size_t last_sweep = 0;
-    boost::filesystem::path sweep_path; // TODO: fill this in
+    boost::filesystem::path segment_path;
     // add an iterator with the segment nbr??? maybe not
     // but! add an iterator with the sweep nbr!
-    for (auto tup : zip(segment_features, segment_keypoints, sweep_indices, sweep_paths)) {
+    for (auto tup : zip(segment_features, segment_keypoints, sweep_indices, segment_paths)) {
 
         HistCloudT::Ptr features_i;
         CloudT::Ptr keypoints_i;
-        tie(features_i, keypoints_i, sweep_i, sweep_path) = tup;
+        tie(features_i, keypoints_i, sweep_i, segment_path) = tup;
 
         // train on a subset of the provided features
         if (sweep_i != last_sweep) {
 
             if (summary.subsegment_type == "supervoxel") {
-                adjacencies.push_back(compute_group_adjacencies_supervoxels(sweep_path));
+                adjacencies.push_back(compute_group_adjacencies_supervoxels(segment_path.parent_path()));
             }
             else {
                 adjacencies.push_back(compute_group_adjacencies_subsegments(centroids, 0.3f));
@@ -218,7 +218,7 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, Keypoin
 
     if (features->size() > 0) {
         if (summary.subsegment_type == "supervoxel") {
-            adjacencies.push_back(compute_group_adjacencies_supervoxels(sweep_path));
+            adjacencies.push_back(compute_group_adjacencies_supervoxels(segment_path.parent_path()));
         }
         else {
             adjacencies.push_back(compute_group_adjacencies_subsegments(centroids, 0.3f));
@@ -256,16 +256,16 @@ void train_vocabulary(const boost::filesystem::path& vocabulary_path)
         subsegment_keypoint_cloud_map annotated_segment_keypoints(annotated_data_path);
         subsegment_sweep_index_map noise_sweep_indices(noise_data_path);
         subsegment_sweep_index_map annotated_sweep_indices(annotated_data_path);
-        subsegment_sweep_path_map noise_sweep_paths(noise_data_path);
-        subsegment_sweep_path_map annotated_sweep_paths(annotated_data_path);
+        subsegment_map noise_segment_paths(noise_data_path);
+        subsegment_map annotated_segment_paths(annotated_data_path);
         tie(summary.nbr_noise_segments, summary.nbr_noise_sweeps) =
                 add_segments_grouped<grouped_vocabulary_tree<HistT, 8> >(
                     noise_segment_features, noise_segment_keypoints, noise_sweep_indices,
-                    noise_sweep_paths, vocabulary_path, summary, true, 0);
+                    noise_segment_paths, vocabulary_path, summary, true, 0);
         tie(summary.nbr_annotated_segments, summary.nbr_annotated_sweeps) =
                 add_segments_grouped<grouped_vocabulary_tree<HistT, 8> >(
                     annotated_segment_features, annotated_segment_keypoints, annotated_sweep_indices,
-                    annotated_sweep_paths, vocabulary_path, summary, false, summary.nbr_noise_sweeps);
+                    annotated_segment_paths, vocabulary_path, summary, false, summary.nbr_noise_sweeps);
     }
 
     summary.save(vocabulary_path);

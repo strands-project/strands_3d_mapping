@@ -360,7 +360,7 @@ void supervoxel_segmentation::connected_components(vector<Graph*>& graphs_out, G
                 VertexIndex neighbor_index = boost::get(vertex_id, *ai);
                 tie(edge, flag) = boost::edge(child_index, neighbor_index, graph_in);
                 edge_weight_property weight = boost::get(edge_id, edge);
-                if (neighbor_index < child_index) {
+                if (neighbor_index < child_index) { // NOTE: this used to be <, remove if something does not work
                     if (mappings.count(child_index) == 0) {
                         mappings[child_index] = counter++;
                     }
@@ -699,7 +699,6 @@ void supervoxel_segmentation::visualize_segments(vector<Graph*> graphs, vector<C
                 colored_cloud->push_back(p);
             }
         }
-
         ++counter;
     }
 
@@ -1172,13 +1171,53 @@ void supervoxel_segmentation::post_merge_convex_segments(vector<CloudT::Ptr>& me
     }
 }
 
-/**
- * @brief supervoxel_segmentation::compute_convex_oversegmentation
- * @param cloud_in - the point cloud to be segmented
- * @param visualize - determines if resultung segmentation is visualized
- * @return (supervoxel graph, supervoxel clouds, convex segment clouds, map supervoxel index -> convex segment index)
- */
-tuple<supervoxel_segmentation::Graph*, vector<supervoxel_segmentation::CloudT::Ptr>, vector<supervoxel_segmentation::CloudT::Ptr>, map<size_t, size_t> >
+supervoxel_segmentation::Graph* supervoxel_segmentation::create_merged_graph(Graph& graph, vector<Graph*>& graphs,
+                                                                             map<size_t, size_t>& indices,
+                                                                             vector<CloudT::Ptr>& connected_clouds)
+{
+    typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name = boost::get(boost::vertex_name, graph);
+
+    Graph* graph_merged = new Graph(graphs.size());
+    typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name_merged = boost::get(boost::vertex_name, *graph_merged);
+
+    bool flag;
+    Edge edge;
+    using edge_iterator = boost::graph_traits<Graph>::edge_iterator;
+    edge_iterator edge_it, edge_end;
+    for (tie(edge_it, edge_end) = boost::edges(graph); edge_it != edge_end; ++edge_it) {
+        Vertex u = source(*edge_it, graph);
+        Vertex v = target(*edge_it, graph);
+        vertex_name_property from = boost::get(vertex_name, u);
+        vertex_name_property to = boost::get(vertex_name, v);
+        if (indices.count(from.m_value) == 0 || indices.count(to.m_value) == 0) {
+            continue;
+        }
+        if (indices[from.m_value] == indices[to.m_value]) {
+            continue;
+        }
+        tie(edge, flag) = boost::edge(indices[from.m_value], indices[to.m_value], *graph_merged);
+        if (!flag) {
+            tie(edge, flag) = boost::add_edge(indices[from.m_value], indices[to.m_value], 0.0f, *graph_merged);
+            boost::get(vertex_name_merged, indices[from.m_value]) = indices[from.m_value];
+            boost::get(vertex_name_merged, indices[to.m_value]) = indices[to.m_value];
+        }
+    }
+
+    //vector<Graph*> graphs_out;
+    //connected_components(graphs_out, *graph_merged);
+    //visualize_segments(graphs_out, connected_clouds);
+
+    return graph_merged;
+}
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * @brief supervoxel_segmentation::compute_convex_oversegmentation                                                     *
+ * @param cloud_in - the point cloud to be segmented                                                                   *
+ * @param visualize - determines if resultung segmentation is visualized                                               *
+ * @return (supervoxel graph, supervoxel clouds, convex segment clouds, map supervoxel index -> convex segment index)  *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+tuple<supervoxel_segmentation::Graph*, supervoxel_segmentation::Graph*,
+      vector<supervoxel_segmentation::CloudT::Ptr>, vector<supervoxel_segmentation::CloudT::Ptr>, map<size_t, size_t> >
 supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, bool visualize)
 {
     CloudT::Ptr subsampled_cloud(new CloudT);
@@ -1221,6 +1260,8 @@ supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, 
     map<size_t, size_t> indices;
     tie(connected_clouds, indices) = merge_connected_clouds(rgb_segments, graphs_out);
 
+    Graph* connected_graph = create_merged_graph(*graph_copy, graphs_out, indices, connected_clouds);
+
     //vector<CloudT::Ptr> clouds_out;
     //post_merge_convex_segments(clouds_out, indices, full_segments, *graph_copy); // seriously, this should operate on the graph
 
@@ -1236,7 +1277,7 @@ supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, 
     }*/
 
     // segments need to be the full versions from e.g. create_full_segments_clouds
-    return make_tuple(graph_copy, rgb_segments, connected_clouds, indices);
+    return make_tuple(graph_copy, connected_graph, rgb_segments, connected_clouds, indices);
 }
 
 void supervoxel_segmentation::save_graph(Graph& g, const string& filename) const

@@ -58,10 +58,11 @@ tuple<int, int, vector<string>, vector<string> > supervoxel_convex_segment_cloud
     // and the overal graph among the supervoxels + supervoxel-convex segments association
     supervoxel_segmentation ss(0.02f, 0.2f, 0.4f, false);;
     Graph* g;
+    Graph* convex_g;
     vector<CloudT::Ptr> supervoxels;
     vector<CloudT::Ptr> convex_segments;
     map<size_t, size_t> indices;
-    std::tie(g, supervoxels, convex_segments, indices) = ss.compute_convex_oversegmentation(cloud, false);
+    std::tie(g, convex_g, supervoxels, convex_segments, indices) = ss.compute_convex_oversegmentation(cloud, false);
 
     convex_summary.nbr_segments = convex_segments.size();
     convex_summary.segment_indices.clear(); // could also just be an offset instead of all the indices
@@ -80,6 +81,7 @@ tuple<int, int, vector<string>, vector<string> > supervoxel_convex_segment_cloud
     }
 
     convex_summary.save(convex_path);
+    ss.save_graph(*convex_g, (convex_path / "graph.cereal").string());
 
     supervoxel_summary.nbr_segments = supervoxels.size();
     supervoxel_summary.segment_indices.clear();
@@ -114,6 +116,7 @@ tuple<int, int, vector<string>, vector<string> > supervoxel_convex_segment_cloud
     out.close();
 
     delete g;
+    delete convex_g;
 
     return make_tuple(convex_counter, supervoxel_counter, segment_paths, supervoxel_paths);
 }

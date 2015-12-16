@@ -42,12 +42,16 @@ pair<int, vector<string> > convex_segment_cloud(int counter, const boost::filesy
     // and the overal graph among the supervoxels + supervoxel-convex segments association
     supervoxel_segmentation ss(0.02f, 0.2f, 0.4f, false);
     Graph* g;
+    Graph* convex_g;
     vector<CloudT::Ptr> supervoxels;
     vector<CloudT::Ptr> convex_segments;
     map<size_t, size_t> indices;
-    std::tie(g, supervoxels, convex_segments, indices) = ss.compute_convex_oversegmentation(cloud, false);
+    std::tie(g, convex_g, supervoxels, convex_segments, indices) = ss.compute_convex_oversegmentation(cloud, false);
+
+    ss.save_graph(*convex_g, (convex_path / "graph.cereal").string());
 
     delete g;
+    delete convex_g;
 
     summary.nbr_segments = convex_segments.size();
     summary.segment_indices.clear(); // could also just be an offset instead of all the indices
