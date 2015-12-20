@@ -128,15 +128,15 @@ void vocabulary_tree<Point, K>::set_min_match_depth(int depth)
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::pexp(const double v) const
 {
-    return v*v;
-    //return fabs(v);
+    //return v*v;
+    return fabs(v);
 }
 
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::proot(const double v) const
 {
-    return sqrt(v);
-    //return fabs(v);
+    //return sqrt(v);
+    return fabs(v);
 }
 
 template <typename Point, size_t K>
@@ -195,6 +195,12 @@ template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& included_indices, CloudPtrT& cloud, vector<vocabulary_vector>& smaller_freqs,
                                                             set<pair<int, int> >& adjacencies, map<node*, int>& mapping, map<int, node*>& inverse_mapping, int hint) // TODO: const
 {
+    vector<int> subgroup_indices;
+    for (const vocabulary_vector& vec : smaller_freqs) {
+        //cout << vec.subgroup << endl;
+        subgroup_indices.push_back(vec.subgroup);
+    }
+
     // used to return which indices are picked
     vector<int> remaining_indices;
     for (int i = 0; i < smaller_freqs.size(); ++i) {
@@ -217,6 +223,7 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& include
 
     if (hint != -1) {
         cout << "We got hint: " << hint << endl; // REMOVE
+        hint = std::distance(subgroup_indices.begin(), std::find(subgroup_indices.begin(), subgroup_indices.end(), hint));
         if (hint >= smaller_freqs.size()) {
             cout << "Using hint = " << hint << endl;
             cout << "We have total voxels: " << smaller_freqs.size() << endl;
@@ -235,35 +242,49 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& include
             if (!included_indices.empty()) {
                 bool close_enough = false;
                 for (int j : included_indices) {
-                    if (adjacencies.count(make_pair(j, remaining_indices.at(i))) ||
-                        adjacencies.count(make_pair(remaining_indices.at(i), j))) {
+                    //cout << "<<<<<<" << endl;
+                    //cout << j << endl;
+                    //cout << remaining_indices.at(i) << endl;
+                    //cout << subgroup_indices.size() << endl;
+                    //cout << ">>>>>>" << endl;
+                    if (adjacencies.count(make_pair(subgroup_indices[j], subgroup_indices[remaining_indices.at(i)])) ||
+                        adjacencies.count(make_pair(subgroup_indices[remaining_indices.at(i)], subgroup_indices[j]))) {
                         close_enough = true;
                         break;
                     }
                 }
                 if (!close_enough) {
+                    //cout << "Did not find any adjacencies!" << endl;
                     continue;
+                }
+                else {
+                    //cout << "Found adjacencies!" << endl;
                 }
             }
             else if (hint != -1) {
                 i = hint;
             }
 
-            double normalization = 1.0/std::max(pnorms[i] + vnorm, qnorm);
-            double dist = 1.0;
+            //double normalization = 1.0/std::max(pnorms[i] + vnorm, qnorm);
+            double dist = 0.0;
+            double normdiff = 0.0;
             for (const pair<const int, double>& v : cloud_freqs) {
                 // compute the distance that we are interested in
-                double sum_val = 0.0;
+                double source_comp = 0.0;
+                double cand_comp = 0.0;
                 if (source_freqs.count(v.first) != 0) { // this could be maintained in a map as a pair with cloud_freqs
-                    sum_val += source_freqs[v.first];
+                    source_comp = source_freqs[v.first];
                 }
                 if (smaller_freqs[i].vec.count(v.first) != 0) {
-                    sum_val += inverse_mapping[v.first]->weight*double(smaller_freqs[i].vec[v.first].first);
+                    cand_comp = inverse_mapping[v.first]->weight*double(smaller_freqs[i].vec[v.first].first);
                 }
-                if (sum_val != 0) {
-                    dist -= normalization*std::min(v.second, sum_val);
+                normdiff += pexp(source_comp) + pexp(cand_comp) - pexp(source_comp+cand_comp);
+                if (source_comp != 0 || cand_comp != 0) {
+                    //dist -= normalization*std::min(v.second, sum_val);
+                    dist += std::min(v.second, source_comp + cand_comp);
                 }
             }
+            dist = 1.0 - dist/std::max(pnorms[i] + vnorm - normdiff, qnorm);
             if (dist < mindist) {
                 mindist = dist;
                 minind = i;
@@ -279,10 +300,17 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& include
         }
 
         last_dist = mindist;
-        vnorm += pnorms[minind];
+        //vnorm += pnorms[minind];
 
         for (pair<const int, pair<int, double> >& v : smaller_freqs[minind].vec) {
-            source_freqs[v.first] += inverse_mapping[v.first]->weight*double(v.second.first);
+            double val = inverse_mapping[v.first]->weight*double(v.second.first);
+            if (source_freqs.count(v.first) != 0) {
+                vnorm += pexp(source_freqs[v.first]+val) - pexp(source_freqs[v.first]);
+            }
+            else {
+                vnorm += pexp(val);
+            }
+            source_freqs[v.first] += val;
         }
 
         // remove the ind that we've used in the score now
@@ -290,6 +318,20 @@ double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& include
         pnorms.erase(pnorms.begin() + minind);
         included_indices.push_back(remaining_indices.at(minind));
         remaining_indices.erase(remaining_indices.begin() + minind);
+    }
+
+    /*
+    double recomputed_norm = 0.0;
+    for (const pair<int, double>& u : source_freqs) {
+        recomputed_norm += pexp(u.second);
+    }
+
+    cout << "vnorm: " << vnorm << endl;
+    cout << "recomputed: " << recomputed_norm << endl;
+    */
+
+    for (int& i : included_indices) {
+        i = subgroup_indices[i];
     }
 
     return last_dist;

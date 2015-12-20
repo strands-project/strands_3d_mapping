@@ -46,6 +46,7 @@ public:
 
     using result_type = grouped_result; //std::tuple<int, int, double>;
     using group_type = std::vector<int>;
+    using index_type = std::tuple<int, int, int>;
 
 public: // protected:
 
@@ -65,8 +66,8 @@ protected:
     // for caching the vocabulary vectors
     void cache_group_adjacencies(int start_ind, std::vector<std::set<std::pair<int, int> > >& adjacencies);
     void cache_vocabulary_vectors(int start_ind, CloudPtrT& cloud);
-    void save_cached_vocabulary_vectors_for_group(std::vector<vocabulary_vector> &vectors, int i);
-    void load_cached_vocabulary_vectors_for_group(std::vector<vocabulary_vector> &vectors, std::set<std::pair<int, int> > &adjacencies, int i);
+    void save_cached_vocabulary_vectors_for_group(std::vector<vocabulary_vector>& vectors, int i);
+    void load_cached_vocabulary_vectors_for_group(std::vector<vocabulary_vector>& vectors, std::set<std::pair<int, int> >& adjacencies, int i);
 
 public:
 
@@ -75,9 +76,12 @@ public:
     void get_subgroups_for_group(std::set<int>& subgroups, int group_id);
     int get_id_for_group_subgroup(int group_id, int subgroup_id);
 
-    void set_input_cloud(CloudPtrT& new_cloud, std::vector<std::pair<int, int> >& indices);
-    void append_cloud(CloudPtrT& extra_cloud, std::vector<std::pair<int, int> >& indices, bool store_points = true);
-    void append_cloud(CloudPtrT& extra_cloud, std::vector<std::pair<int, int> >& indices, std::vector<std::set<std::pair<int, int> > >& adjacencies, bool store_points = true);
+    //void set_input_cloud(CloudPtrT& new_cloud, std::vector<std::pair<int, int> >& indices);
+    void set_input_cloud(CloudPtrT& new_cloud, std::vector<index_type>& indices);
+    //void append_cloud(CloudPtrT& extra_cloud, std::vector<std::pair<int, int> >& indices, bool store_points = true);
+    void append_cloud(CloudPtrT& extra_cloud, std::vector<index_type>& indices, bool store_points = true);
+    //void append_cloud(CloudPtrT& extra_cloud, std::vector<std::pair<int, int> >& indices, std::vector<std::set<std::pair<int, int> > >& adjacencies, bool store_points = true);
+    void append_cloud(CloudPtrT& extra_cloud, std::vector<index_type>& indices, std::vector<std::set<std::pair<int, int> > >& adjacencies, bool store_points = true);
     void add_points_from_input_cloud(bool save_cloud = true);
     void add_points_from_input_cloud(std::vector<std::set<std::pair<int, int> > >& adjacencies, bool save_cloud = true);
     void top_combined_similarities(std::vector<result_type>& scores, CloudPtrT& query_cloud, size_t nbr_results);

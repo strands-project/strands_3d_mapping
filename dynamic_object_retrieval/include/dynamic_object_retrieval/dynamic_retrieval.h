@@ -86,7 +86,7 @@ get_retrieved_path_scores(const std::vector<IndexT>& scores, const std::vector<G
         std::cout << "Iteration nbr: " << temp << std::endl;
         std::cout << "Scores size: " << scores.size() << std::endl;
         std::cout << "Groups size: " << groups.size() << std::endl;
-        std::cout << "Groups for iteration: " << boost::get<1>(tup).size() << std::endl;
+        std::cout << "Subsegments in group: " << boost::get<1>(tup).size() << std::endl;
         path_scores.push_back(std::make_pair(std::vector<boost::filesystem::path>(), boost::get<0>(tup)));
 
         int sweep_id = boost::get<0>(tup).group_index;
@@ -94,15 +94,33 @@ get_retrieved_path_scores(const std::vector<IndexT>& scores, const std::vector<G
         std::cout << "With subsegment: " << boost::get<0>(tup).subgroup_index << std::endl;
         boost::filesystem::path sweep_path = dynamic_object_retrieval::get_sweep_xml(sweep_id, summary);
         std::cout << "Getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
-        dynamic_object_retrieval::sweep_subsegment_keypoint_map subsegments(sweep_path);
-        std::cout << "Finished getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
-        int counter = 0;
-        for (const boost::filesystem::path& path : subsegments) {
-            if (std::find(boost::get<1>(tup).begin(), boost::get<1>(tup).end(), counter) != boost::get<1>(tup).end()) {
-                path_scores.back().first.push_back(path);
+        if (summary.subsegment_type == "subsegment" || summary.subsegment_type == "supervoxel") {
+            dynamic_object_retrieval::sweep_subsegment_keypoint_map subsegments(sweep_path); // this is a problem
+            std::cout << "Finished getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
+            int counter = 0;
+            for (const boost::filesystem::path& path : subsegments) {
+                if (std::find(boost::get<1>(tup).begin(), boost::get<1>(tup).end(), counter) != boost::get<1>(tup).end()) {
+                    path_scores.back().first.push_back(path);
+                }
+                ++counter;
             }
-            ++counter;
         }
+        else if (summary.subsegment_type == "convex_segment") {
+            dynamic_object_retrieval::sweep_convex_segment_map subsegments(sweep_path); // this is a problem
+            std::cout << "Finished getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
+            int counter = 0;
+            for (const boost::filesystem::path& path : subsegments) {
+                if (std::find(boost::get<1>(tup).begin(), boost::get<1>(tup).end(), counter) != boost::get<1>(tup).end()) {
+                    path_scores.back().first.push_back(path);
+                }
+                ++counter;
+            }
+        }
+        else {
+            std::cout << summary.subsegment_type << " not a valid subsegment type..." << std::endl;
+            exit(-1);
+        }
+
         std::cout << "Finished getting sweep xml for group: " << sweep_id << std::endl;
         std::cout << "Got " << path_scores.back().first.size() << " subsegments..." << std::endl;
         ++temp;

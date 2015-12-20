@@ -119,8 +119,8 @@ cv::Mat sweep_get_rgb_at(const boost::filesystem::path& sweep_xml, size_t scan_i
     return rgb_image;
 }
 
-CloudT::Ptr get_cloud_from_sweep_mask(CloudT::Ptr& sweep, cv::Mat& mask,
-                                      Eigen::Matrix4f& mask_transform, Eigen::Matrix3f& K)
+CloudT::Ptr get_cloud_from_sweep_mask(CloudT::Ptr& sweep, cv::Mat& mask, const Eigen::Matrix4f& mask_transform,
+                                      const Eigen::Matrix3f& K)
 {
     int height = mask.rows;
     int width = mask.cols;

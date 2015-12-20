@@ -1176,6 +1176,7 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::create_merged_graph(Gra
                                                                              vector<CloudT::Ptr>& connected_clouds)
 {
     typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name = boost::get(boost::vertex_name, graph);
+    const bool add_further_edges = true;
 
     Graph* graph_merged = new Graph(graphs.size());
     typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name_merged = boost::get(boost::vertex_name, *graph_merged);
@@ -1200,6 +1201,34 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::create_merged_graph(Gra
             tie(edge, flag) = boost::add_edge(indices[from.m_value], indices[to.m_value], 0.0f, *graph_merged);
             boost::get(vertex_name_merged, indices[from.m_value]) = indices[from.m_value];
             boost::get(vertex_name_merged, indices[to.m_value]) = indices[to.m_value];
+        }
+    }
+
+    if (add_further_edges) {
+        for (size_t i = 0; i < connected_clouds.size(); ++i) {
+            for (size_t j = 0; j < i; ++j) {
+                tie(edge, flag) = boost::edge(i, j, *graph_merged);
+                if (flag) {
+                    continue;
+                }
+                bool done = false;
+                for (int ii = 0; ii < connected_clouds[i]->size(); ii += 20) {
+                    for (int jj = 0; jj < connected_clouds[j]->size(); jj += 20) {
+                        if ((connected_clouds[i]->points[ii].getVector3fMap() -
+                             connected_clouds[j]->points[jj].getVector3fMap()).norm() < 0.2f) {
+                            tie(edge, flag) = boost::add_edge(i, j, 0.0f, *graph_merged);
+                            boost::get(vertex_name_merged, i) = i;
+                            boost::get(vertex_name_merged, j) = j;
+                            done = true;
+                            break;
+                        }
+                    }
+                    if (done) {
+                        break;
+                    }
+                }
+            }
+
         }
     }
 

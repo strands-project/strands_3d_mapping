@@ -26,8 +26,7 @@ get_camera_info_and_transforms(const std::string& sweep_xml);
 Eigen::Matrix4f get_global_camera_rotation(semantic_map_load_utilties::LabelledData<PointT>& labels);
 cv::Mat sweep_get_depth_at(const boost::filesystem::path& sweep_xml, size_t scan_index);
 cv::Mat sweep_get_rgb_at(const boost::filesystem::path& sweep_xml, size_t scan_index);
-CloudT::Ptr get_cloud_from_sweep_mask(CloudT::Ptr& sweep, cv::Mat& mask,
-                                      Eigen::Matrix4f& mask_transform, Eigen::Matrix3f& K);
+CloudT::Ptr get_cloud_from_sweep_mask(CloudT::Ptr& sweep, cv::Mat& mask, const Eigen::Matrix4f& mask_transform, const Eigen::Matrix3f& K);
 
 template <typename IndexT>
 std::pair<std::vector<CloudT::Ptr>, std::vector<boost::filesystem::path> > load_retrieved_clouds(std::vector<std::pair<boost::filesystem::path, IndexT> >& retrieved_paths)
@@ -44,6 +43,7 @@ std::pair<std::vector<CloudT::Ptr>, std::vector<boost::filesystem::path> > load_
         std::tie(path, index) = s;
         std::cout << "Path: " << path.string() << std::endl;
         std::cout << "Index: " << index.index << std::endl;
+        std::cout << "Score: " << index.score << std::endl;
         clouds.push_back(CloudT::Ptr(new CloudT));
         pcl::io::loadPCDFile(path.string(), *clouds.back());
         sweep_paths.push_back(path.parent_path().parent_path() / "room.xml");

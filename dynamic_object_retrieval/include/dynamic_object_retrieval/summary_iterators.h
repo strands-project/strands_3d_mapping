@@ -22,19 +22,27 @@ namespace dynamic_object_retrieval {
 
 inline boost::filesystem::path get_sweep_xml(size_t sweep_id, const vocabulary_summary& summary)
 {
-    std::vector<std::string> xmls;
+    static std::vector<std::string> noise_xmls;
+    static std::vector<std::string> annotated_xmls;
+
     std::cout << "Looking a sweep_id: " << sweep_id << std::endl;
     std::cout << "And number of noise sweeps: " << summary.nbr_noise_sweeps << std::endl;
     if (sweep_id < summary.nbr_noise_sweeps) {
-        xmls = semantic_map_load_utilties::getSweepXmls<PointT>(summary.noise_data_path);
+        if (noise_xmls.empty()) {
+            noise_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(summary.noise_data_path);
+        }
+        return boost::filesystem::path(noise_xmls[sweep_id]).parent_path();
     }
     else {
-        xmls = semantic_map_load_utilties::getSweepXmls<PointT>(summary.annotated_data_path);
+        if (annotated_xmls.empty()) {
+            annotated_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(summary.annotated_data_path);
+        }
         sweep_id -= summary.nbr_noise_sweeps;
+        return boost::filesystem::path(annotated_xmls[sweep_id]).parent_path();
     }
-    std::cout << "Number of xmls: " << xmls.size() << std::endl;
-    std::cout << "Index: " << sweep_id << std::endl;
-    return boost::filesystem::path(xmls[sweep_id]).parent_path();
+    //std::cout << "Number of xmls: " << xmls.size() << std::endl;
+    //std::cout << "Index: " << sweep_id << std::endl;
+    //return boost::filesystem::path(xmls[sweep_id]).parent_path();
 }
 
 struct segment_iterator_base {
@@ -235,6 +243,23 @@ struct segment_cloud_iterator : public segment_iterator_base, public std::iterat
 };
 
 // iterators over all convex segments
+
+struct convex_sweep_index_map {
+
+    boost::filesystem::path data_path;
+
+    segment_sweep_index_iterator begin()
+    {
+        return segment_sweep_index_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "segment");
+    }
+
+    segment_sweep_index_iterator end()
+    {
+        return segment_sweep_index_iterator();
+    }
+
+    convex_sweep_index_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
+};
 
 struct convex_segment_sweep_path_map {
 
@@ -556,6 +581,23 @@ struct sweep_convex_feature_map {
     }
 
     sweep_convex_feature_map(const boost::filesystem::path& sweep_path) : sweep_path(sweep_path / "room.xml") {}
+};
+
+struct sweep_convex_keypoint_map {
+
+    boost::filesystem::path sweep_path;
+
+    segment_path_iterator begin()
+    {
+        return segment_path_iterator(std::vector<std::string>({sweep_path.string()}), "convex_segments", "keypoint");
+    }
+
+    segment_path_iterator end()
+    {
+        return segment_path_iterator();
+    }
+
+    sweep_convex_keypoint_map(const boost::filesystem::path& sweep_path) : sweep_path(sweep_path / "room.xml") {}
 };
 
 struct sweep_convex_segment_cloud_map {

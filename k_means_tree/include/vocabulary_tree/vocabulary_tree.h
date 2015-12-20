@@ -27,6 +27,8 @@ struct vocabulary_vector
 {
     // the norm of the vector
     double norm;
+    size_t subgroup;
+
     // the values of the vector, both unnormalized histogram and normalized
     // the normalized value is redundant as it can be computes from 1st+norm
     std::unordered_map<int, std::pair<int, double> > vec;
@@ -35,7 +37,7 @@ struct vocabulary_vector
     template <class Archive>
     void serialize(Archive& archive)
     {
-        archive(norm, vec);
+        archive(norm, subgroup, vec);
     }
 };
 

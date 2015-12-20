@@ -23,7 +23,7 @@ namespace dynamic_object_retrieval {
 struct vocabulary_summary {
 
     std::string vocabulary_type; // can be either "standard" or "incremental"
-    std::string subsegment_type; // can be either "subsegment" or "supervoxel", only needed if vocabulary_type = incremental
+    std::string subsegment_type; // can be either "subsegment", "convex_segment" or "supervoxel", only needed if vocabulary_type = incremental
 
     std::string noise_data_path;
     std::string annotated_data_path;

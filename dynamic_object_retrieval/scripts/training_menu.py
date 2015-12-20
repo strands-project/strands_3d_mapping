@@ -44,8 +44,11 @@ class TrainingPicker(object):
                 noise_path_string = raw_input(" Please supply the noise data path: ")
                 annotated_path_string = raw_input(" Please supply the annotated data path: ")
                 vocabulary_type = raw_input(" Enter vocabulary type (standard/incremental): ")
+                subsegment_type = ""
+                if vocabulary_type == "incremental":
+                    subsegment_type = raw_input(" Enter subsegment type (subsegment/convex_segment/supervoxel): ")
                 system("./dynamic_init_vocabulary " + self.vocabulary_path + " " + \
-                       noise_path_string + " " + annotated_path_string + " " + vocabulary_type)
+                       noise_path_string + " " + annotated_path_string + " " + vocabulary_type + " " + subsegment_type)
             elif option == "3":
                 print " Running dynamic_train_vocabulary...\n"
                 system("./dynamic_train_vocabulary " + self.vocabulary_path)

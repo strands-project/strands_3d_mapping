@@ -39,7 +39,7 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& re
 
     // the result types should probably be structs to make clear which part is which part is which
     std::vector<result_type> scores;
-    top_combined_similarities(scores, query_cloud, 50*nbr_query); // make initial number of subsegments configurable
+    top_combined_similarities(scores, query_cloud, 10*nbr_query); // make initial number of subsegments configurable
 
     if (mapping.empty()) {
         super::get_node_mapping(mapping);
@@ -68,7 +68,7 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& re
         // get<1>(scores[i])) is actually the index within the group!
         double score = super::compute_min_combined_dist(selected_indices, query_cloud, vectors, adjacencies,
                                                         mapping, inverse_mapping, scores[i].subgroup_index);
-        updated_scores.push_back(result_type{ float(score), scores[i].group_index, scores[i].subgroup_index });
+        updated_scores.push_back(result_type{ float(score), scores[i].group_index, selected_indices[0] });
         updated_indices.push_back(selected_indices);
 
         cout << "Found " << selected_indices.size() << " number of subsegments..." << endl;
@@ -150,6 +150,7 @@ void grouped_vocabulary_tree<Point, K>::cache_vocabulary_vectors(int start_ind, 
 
             if (!current_cloud->empty()) {
                 vocabulary_vector vec = super::compute_query_index_vector(current_cloud, mapping);
+                vec.subgroup = current_subgroup;
                 current_vectors.push_back(vec);
             }
             current_subgroup = group.second;
@@ -228,13 +229,15 @@ void grouped_vocabulary_tree<Point, K>::load_cached_vocabulary_vectors_for_group
 
 // the first index is the segment, the second one is the oversegment
 template <typename Point, size_t K>
-void grouped_vocabulary_tree<Point, K>::set_input_cloud(CloudPtrT& new_cloud, vector<pair<int, int> >& indices)
+//void grouped_vocabulary_tree<Point, K>::set_input_cloud(CloudPtrT& new_cloud, vector<pair<int, int> >& indices)
+void grouped_vocabulary_tree<Point, K>::set_input_cloud(CloudPtrT& new_cloud, vector<index_type>& indices)
 {
     // to begin with, we might have to remove nan points
     Eigen::Matrix<float, super::rows, 1> p;
     CloudPtrT temp_cloud(new CloudT);
     temp_cloud->reserve(new_cloud->size());
-    vector<pair<int, int> > temp_indices;
+    //vector<pair<int, int> > temp_indices;
+    vector<index_type> temp_indices;
     temp_indices.reserve(indices.size());
 
     for (size_t i = 0; i < new_cloud->size(); ++i) {
@@ -256,36 +259,52 @@ void grouped_vocabulary_tree<Point, K>::set_input_cloud(CloudPtrT& new_cloud, ve
 
     vector<int> new_indices(temp_indices.size());
 
-    pair<int, int> previous_p = make_pair(-1, -1);
-    int index_group_ind = -1;
+    //pair<int, int> previous_p = make_pair(-1, -1);
+    index_type previous_p = index_type(-1, -1, -1);
+    int subgroup_ind = -1;
+    int group_ind = -1;
     int counter = 0;
-    for (const pair<int, int>& p : temp_indices) {
+    nbr_subgroups = 0;
+    //for (const pair<int, int>& p : temp_indices) {
+    for (const index_type& p : temp_indices) {
         // everything with this index pair should have the same label, assume ordered
         if (p != previous_p) {
-            ++index_group_ind;
-            group_subgroup[index_group_ind] = p;
+            //if (group_ind != p.first) {
+             //   group_ind = p.first;
+            if (group_ind != get<0>(p)) {
+                group_ind = get<0>(p);
+                subgroup_ind = 0;
+            }
+            else {
+                ++subgroup_ind;
+            }
+            //group_subgroup[p.second] = make_pair(p.first, subgroup_ind);
+            group_subgroup[get<1>(p)] = make_pair(get<0>(p), get<2>(p));
+            ++nbr_subgroups;
             previous_p = p;
         }
-        new_indices[counter] = index_group_ind;
+        //new_indices[counter] = p.second;
+        new_indices[counter] = get<1>(p);
         ++counter;
     }
-
     nbr_points = counter;
-    nbr_subgroups = index_group_ind + 1;
 
     cout << "New indices size: " << temp_indices.size() << endl;
+    cout << "Found " << nbr_subgroups << " number of subgroups" << endl;
 
     super::set_input_cloud(temp_cloud, new_indices);
 }
 
 template <typename Point, size_t K>
-void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vector<pair<int, int> >& indices, bool store_points)
+//void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vector<pair<int, int> >& indices, bool store_points)
+void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vector<index_type>& indices, bool store_points)
 {
     // to begin with, we might have to remove nan points
     Eigen::Matrix<float, super::rows, 1> p;
     CloudPtrT temp_cloud(new CloudT);
     temp_cloud->reserve(extra_cloud->size());
-    vector<pair<int, int> > temp_indices;
+    //vector<pair<int, int> > temp_indices;
+    vector<index_type> temp_indices;
     temp_indices.reserve(indices.size());
 
     for (size_t i = 0; i < extra_cloud->size(); ++i) {
@@ -301,22 +320,36 @@ void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vec
     // assume these are all new groups
     vector<int> new_indices(temp_indices.size());
 
-    pair<int, int> previous_p = make_pair(-1, -1);
-    int index_group_ind = nbr_subgroups - 1;
+    //pair<int, int> previous_p = make_pair(-1, -1);
+    index_type previous_p = index_type(-1, -1, -1);
+    int subgroup_ind = -1;
+    int group_ind = -1;
     int counter = 0;
-    for (const pair<int, int>& p : temp_indices) {
+    //for (const pair<int, int>& p : temp_indices) {
+    for (const index_type& p : temp_indices) {
         // everything with this index pair should have the same label, assume ordered
         if (p != previous_p) {
-            ++index_group_ind;
-            group_subgroup[index_group_ind] = p;
+            //if (group_ind != p.first) {
+             //   group_ind = p.first;
+            if (group_ind != get<0>(p)) {
+                group_ind = get<0>(p);
+                subgroup_ind = 0;
+            }
+            else {
+                ++subgroup_ind;
+            }
+            //group_subgroup[p.second] = make_pair(p.first, subgroup_ind);
+            group_subgroup[get<1>(p)] = make_pair(get<0>(p), get<2>(p));
+            ++nbr_subgroups;
             previous_p = p;
         }
-        new_indices[counter] = index_group_ind;
+        //new_indices[counter] = p.second;
+        new_indices[counter] = get<1>(p);
         ++counter;
     }
 
     nbr_points += counter;
-    nbr_subgroups = index_group_ind + 1; // this is actually not the number of groups, but the number of subgroups!
+    cout << "Found " << nbr_subgroups << " number of subgroups" << endl;
 
     super::append_cloud(temp_cloud, new_indices, store_points);
     // here we save our vocabulary vectors in a folder structure
@@ -324,14 +357,16 @@ void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vec
 }
 
 template <typename Point, size_t K>
-void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vector<pair<int, int> >& indices, vector<set<pair<int, int> > >& adjacencies, bool store_points)
+//void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vector<pair<int, int> >& indices, vector<set<pair<int, int> > >& adjacencies, bool store_points)
+void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vector<index_type>& indices, vector<set<pair<int, int> > >& adjacencies, bool store_points)
 {
     if (save_state_path.empty()) {
         cout << "If adjacencies are used, need to initialize with the cache path..." << endl;
         exit(-1);
     }
 
-    cache_group_adjacencies(group_subgroup[nbr_subgroups-1].first+1, adjacencies); // super::indices.back() skulle också funka
+    // group_subgroup[nbr_subgroups-1].first is probably not in the group_subgroup vector
+    cache_group_adjacencies(group_subgroup[super::indices.back()].first+1, adjacencies); // super::indices.back() skulle också funka
     adjacencies.clear();
     append_cloud(extra_cloud, indices, store_points);
 }

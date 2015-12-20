@@ -13,6 +13,31 @@ using CloudT = pcl::PointCloud<PointT>;
 using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
 
 template<typename VocabularyT>
+cv::Mat query_make_image(VocabularyT& vt, CloudT::Ptr& sweep_cloud, cv::Mat& query_image, cv::Mat& query_mask, cv::Mat& query_depth,
+                         const string& query_label, const Eigen::Matrix4f& query_transform, const Eigen::Matrix4f& room_transform,
+                         const Eigen::Matrix3f& K, const boost::filesystem::path& vocabulary_path, const dynamic_object_retrieval::vocabulary_summary& summary)
+{
+    vector<CloudT::Ptr> retrieved_clouds;
+    vector<boost::filesystem::path> sweep_paths;
+
+    CloudT::Ptr refined_query = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, query_transform, K);
+    //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 50, vocabulary_path, summary, true);
+    auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth, K, 10, vocabulary_path, summary, false);
+    tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
+
+    vector<string> dummy_labels;
+    for (int i = 0; i < retrieved_clouds.size(); ++i) {
+        dummy_labels.push_back(to_string(results.first[i].second.score));
+    }
+    cv::Mat inverted_mask;
+    cv::bitwise_not(query_mask, inverted_mask);
+    query_image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
+    cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, dummy_labels, room_transform);
+
+    return visualization;
+}
+
+template<typename VocabularyT>
 void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost::filesystem::path& vocabulary_path,
                            const dynamic_object_retrieval::vocabulary_summary& summary, const vector<string>& objects_to_check)
 {
@@ -52,22 +77,15 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
             continue;
         }
 
-        vector<CloudT::Ptr> retrieved_clouds;
-        vector<boost::filesystem::path> sweep_paths;
+        cv::Mat visualization = query_make_image(vt, sweep_cloud, query_image, query_mask, query_depth,
+                                                 query_label, camera_transforms[scan_index], T, K,
+                                                 vocabulary_path, summary);
 
-        CloudT::Ptr refined_query = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, camera_transforms[scan_index], K);
-        //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 50, vocabulary_path, summary, true);
-        auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth, K, 50, vocabulary_path, summary, true);
-        tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.second);
-
-        vector<string> dummy_labels;
-        for (int i = 0; i < retrieved_clouds.size(); ++i) {
-            dummy_labels.push_back(string("result") + to_string(i));
+        if (summary.subsegment_type == "convex_segment") {
+            cv::Mat standard_visualization = query_make_image((vocabulary_tree<HistT, 8>&)vt, sweep_cloud, query_image, query_mask, query_depth,
+                                                              query_label, camera_transforms[scan_index], T, K, vocabulary_path, summary);
+            cv::vconcat(visualization, standard_visualization, visualization);
         }
-        cv::Mat inverted_mask;
-        cv::bitwise_not(query_mask, inverted_mask);
-        query_image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
-        cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, dummy_labels, T);
 
         cv::imwrite("results_image.png", visualization);
 
@@ -92,7 +110,7 @@ int main(int argc, char** argv)
 
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
-    vector<string> objects_to_check = {"backpack", "trash", "desktop", "helmet", "chair", "pillow"};
+    vector<string> objects_to_check = {"laptop"};//{"backpack", "trash", "desktop", "helmet", "chair", "pillow"};
 
     if (summary.vocabulary_type == "standard") {
         vocabulary_tree<HistT, 8> vt;
@@ -101,8 +119,12 @@ int main(int argc, char** argv)
         }
     }
     else {
-        grouped_vocabulary_tree<HistT, 8> vt;
+        grouped_vocabulary_tree<HistT, 8> vt(vocabulary_path.string());
+        dynamic_object_retrieval::load_vocabulary(vt, vocabulary_path);
+        vt.set_min_match_depth(3);
+        vt.compute_normalizing_constants();
         for (const string& xml : folder_xmls) {
+            //visualize_query_sweep((vocabulary_tree<HistT, 8>&)vt, xml, vocabulary_path, summary, objects_to_check);
             visualize_query_sweep(vt, xml, vocabulary_path, summary, objects_to_check);
         }
     }
