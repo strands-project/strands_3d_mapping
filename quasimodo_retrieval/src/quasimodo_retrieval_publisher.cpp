@@ -303,7 +303,7 @@ int main(int argc, char** argv)
 {
     ros::init(argc, argv, "quasimodo_retrieval_publisher");
 
-    retrieval_publisher<vocabulary_tree<HistT, 8> > rs(ros::this_node::getName());
+    retrieval_publisher<grouped_vocabulary_tree<HistT, 8> > rs(ros::this_node::getName());
 
     ros::spin();
 
