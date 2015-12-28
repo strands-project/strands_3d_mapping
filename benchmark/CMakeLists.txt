@@ -53,8 +53,16 @@ find_package(OpenCV REQUIRED)
 find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
 
+# Find packages for the surfel_renderer
+find_package(OpenGL)
+find_package(OpenEXR)
+find_package(PNG)
+#${AQSIS_OPENEXR_INCLUDE_DIR}
+include_directories(${QT_INCLUDES} ${OPENGL_INCLUDE_DIR})
+
 # The main header location
 include_directories(include)
+#link_directories(/usr/lib/x86_64-linux-gnu)
 
 # DEMO: add_library
 add_library(benchmark_overlap src/benchmark_overlap include/${PROJECT_NAME}/benchmark_overlap.h)
@@ -68,6 +76,12 @@ target_link_libraries(benchmark_result ${PCL_LIBRARIES})
 
 add_library(benchmark_visualization src/benchmark_visualization.cpp include/${PROJECT_NAME}/benchmark_visualization.h)
 target_link_libraries(benchmark_visualization ${OpenCV_LIBS} ${PCL_LIBRARIES})
+
+qt4_wrap_cpp(surfel_renderer_SRC include/${PROJECT_NAME}/surfel_renderer.h)
+add_library(surfel_renderer src/surfel_renderer.cpp include/${PROJECT_NAME}/surfel_renderer.h
+            ${surfel_renderer_SRC})
+target_link_libraries(surfel_renderer ${OPENGL_gl_LIBRARY} ${OpenCV_LIBS} ${QT_QTCORE_LIBRARY} ${QT_QTMAIN_LIBRARY}
+                      ${QT_LIBRARIES} ${QT_QTGUI_LIBRARY} ${QT_QTOPENGL_LIBRARY} ${PCL_LIBRARIES})
 
 # DEMO: configure_file
 #configure_file(scripts/menu.py menu.py COPYONLY)
@@ -97,4 +111,8 @@ target_link_libraries(test_results_image benchmark_retrieval benchmark_result be
 add_executable(test_static_matching test/test_static_matching.cpp)
 target_link_libraries(test_static_matching benchmark_retrieval benchmark_result benchmark_visualization benchmark_overlap
                       vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation shot_estimation
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(test_renderer test/test_renderer.cpp)
+target_link_libraries(test_renderer surfel_renderer benchmark_retrieval
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
