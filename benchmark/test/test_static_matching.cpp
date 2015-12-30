@@ -139,19 +139,21 @@ void visualize_static_instances(VocabularyT& vt, const string& sweep_xml, const 
 
         vector<CloudT::Ptr> retrieved_clouds;
         vector<string> labels;
+        vector<boost::filesystem::path> sweep_paths;
         for (auto tup : matches) {
             auto it = std::find(result_indices.begin(), result_indices.end(), std::get<2>(tup));
             if (it != result_indices.end()) {
                 size_t dist = std::distance(result_indices.begin(), it);
                 retrieved_clouds.push_back(get<0>(tup));
                 labels.push_back(to_string(dist) + "/" + to_string(result_indices.size()) + "\n" + to_string(results.first[dist].second.score));
+                sweep_paths.push_back(get<1>(tup).parent_path().parent_path());
             }
         }
 
         cv::Mat inverted_mask;
         cv::bitwise_not(query_mask, inverted_mask);
         query_image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
-        cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, labels, T);
+        cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, sweep_paths, labels, T);
 
         cv::imwrite("results_image.png", visualization);
 

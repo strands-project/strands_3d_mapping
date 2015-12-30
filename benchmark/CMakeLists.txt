@@ -74,14 +74,15 @@ target_link_libraries(benchmark_retrieval benchmark_overlap dynamic_visualize ${
 add_library(benchmark_result src/benchmark_result.cpp include/${PROJECT_NAME}/benchmark_result.h)
 target_link_libraries(benchmark_result ${PCL_LIBRARIES})
 
-add_library(benchmark_visualization src/benchmark_visualization.cpp include/${PROJECT_NAME}/benchmark_visualization.h)
-target_link_libraries(benchmark_visualization ${OpenCV_LIBS} ${PCL_LIBRARIES})
-
 qt4_wrap_cpp(surfel_renderer_SRC include/${PROJECT_NAME}/surfel_renderer.h)
 add_library(surfel_renderer src/surfel_renderer.cpp include/${PROJECT_NAME}/surfel_renderer.h
             ${surfel_renderer_SRC})
 target_link_libraries(surfel_renderer ${OPENGL_gl_LIBRARY} ${OpenCV_LIBS} ${QT_QTCORE_LIBRARY} ${QT_QTMAIN_LIBRARY}
                       ${QT_LIBRARIES} ${QT_QTGUI_LIBRARY} ${QT_QTOPENGL_LIBRARY} ${PCL_LIBRARIES})
+
+add_library(benchmark_visualization src/benchmark_visualization.cpp include/${PROJECT_NAME}/benchmark_visualization.h)
+target_link_libraries(benchmark_visualization surfel_renderer dynamic_visualize ${OpenCV_LIBS} ${PCL_LIBRARIES})
+
 
 # DEMO: configure_file
 #configure_file(scripts/menu.py menu.py COPYONLY)

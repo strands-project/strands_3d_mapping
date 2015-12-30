@@ -7,20 +7,30 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/photo/photo.hpp>
 
+#include "object_3d_benchmark/surfel_renderer.h"
+#include <pcl/kdtree/flann.h>
+#include <pcl/kdtree/impl/kdtree_flann.hpp>
+
+#include <dynamic_object_retrieval/visualize.h>
+
 using namespace std;
 
 namespace benchmark_retrieval {
 
-cv::Mat make_visualization_image(cv::Mat& query_image, const std::string& query_label, std::vector<CloudT::Ptr>& clouds,
-                                 const std::vector<std::string>& optional_text, const Eigen::Matrix4f& T)
+cv::Mat make_visualization_image(cv::Mat& query_image, const string& query_label, vector<CloudT::Ptr>& clouds,
+                                 vector<boost::filesystem::path>& sweep_paths, const vector<string>& optional_text,
+                                 const Eigen::Matrix4f& T)
 {
+    /*vector<CloudT::Ptr> original_clouds;
     for (CloudT::Ptr& c : clouds) {
+        original_clouds.push_back(CloudT::Ptr(new CloudT(*c)));
         for (PointT& p : c->points) {
             p.getVector4fMap() = T*p.getVector4fMap();
         }
-    }
-    cv::Mat result_image = make_image(clouds, optional_text);
-    return add_query_image(result_image, query_image, query_label);
+    }*/
+    cv::Mat result_image = make_image(clouds, T, sweep_paths, optional_text);
+    //return add_query_image(result_image, query_image, query_label);
+    return result_image;
 }
 
 cv::Mat add_query_image(cv::Mat& results, cv::Mat& query_image, const std::string& query_label)
@@ -119,13 +129,108 @@ void put_text(cv::Mat& image, const string& text)
     cv::putText(image, text, cv::Point(5, 15), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cv::Scalar(0,0,255), 1, CV_AA);
 }
 
+cv::Mat project_image(CloudT::Ptr& transformed_cloud, const Eigen::Matrix3f& K, size_t height, size_t width)
+{
+    cv::Mat sub_image(height, width, CV_8UC3);
+
+    sub_image = cv::Scalar(255, 255, 255);
+    for (const PointT& p : transformed_cloud->points) {
+        Eigen::Vector3f cp = K*p.getVector3fMap();
+        cp = 1.0f/cp[2]*cp;
+        int cx = int(cp[0]);
+        int cy = int(cp[1]);
+        if (cx < 0 || cx >= width || cy < 0 || cy >= height) {
+            continue;
+        }
+        cv::Vec3b& pixel = sub_image.at<cv::Vec3b>(cy, cx);
+        pixel[0] = p.b;
+        pixel[1] = p.g;
+        pixel[2] = p.r;
+    }
+
+    interpolate_projection(sub_image);
+
+    return sub_image;
+}
+
+cv::Mat render_image(CloudT::Ptr& cloud, const Eigen::Matrix4f& T, const Eigen::Matrix3f& K,
+                     size_t height, size_t width, const boost::filesystem::path& sweep_path)
+{
+    boost::filesystem::path surfels_path = sweep_path.parent_path() / "surfel_map.pcd";
+    SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
+
+    cout << "Loading surfel cloud: " << surfels_path.string() << endl;
+
+    pcl::io::loadPCDFile(surfels_path.string(), *surfel_cloud);
+
+    //pcl::io::savePCDFileBinary("/home/nbore/Data/surfel_cloud.pcd", *surfel_cloud);
+
+    pcl::KdTreeFLANN<SurfelT> kdtree;
+    kdtree.setInputCloud(surfel_cloud);
+
+    // now, associate each point in segment with a surfel in the surfel cloud!
+    SurfelCloudT::Ptr render_cloud(new SurfelCloudT);
+    /*CloudT::Ptr vis_cloud(new CloudT);
+
+    for (SurfelT s : surfel_cloud->points) {
+        PointT p;
+        p.x = s.x;
+        p.y = s.y;
+        p.z = s.z;
+        p.r = 0;
+        p.g = 255;
+        p.b = 0;
+        vis_cloud->push_back(p);
+    }*/
+
+    for (PointT p : cloud->points) {
+        if (!pcl::isFinite(p)) {
+            continue;
+        }
+        vector<int> indices;
+        vector<float> distances;
+        SurfelT s; s.x = p.x; s.y = p.y; s.z = p.z;
+        kdtree.nearestKSearchT(s, 1, indices, distances);
+        if (distances.empty()) {
+            cout << "Distances empty, wtf??" << endl;
+            exit(0);
+        }
+        render_cloud->push_back(surfel_cloud->at(indices[0]));
+        /*PointT q;
+        q.x = surfel_cloud->at(indices[0]).x;
+        q.y = surfel_cloud->at(indices[0]).y;
+        q.z = surfel_cloud->at(indices[0]).z;
+        q.r = 255;
+        q.g = 0;
+        q.b = 0;
+
+        p.r = 0;
+        p.g = 0;
+        p.b = 255;
+
+        vis_cloud->push_back(q);
+        vis_cloud->push_back(p);*/
+    }
+    //pcl::io::savePCDFileBinary("/home/nbore/Data/test_cloud.pcd", *render_cloud);
+
+    //dynamic_object_retrieval::visualize(vis_cloud);
+
+    cout << "Render cloud size: " << render_cloud->size() << endl;
+    cout << "Original cloud size: " << cloud->size() << endl;
+
+    cv::Mat sub_image = render_surfel_image(render_cloud, T, K, height, width);
+
+    return sub_image;
+}
+
 // the question is if we actually need the paths for this?
-cv::Mat make_image(std::vector<CloudT::Ptr>& results, const std::vector<std::string>& optional_text)
+cv::Mat make_image(std::vector<CloudT::Ptr>& results, const Eigen::Matrix4f& room_transform,
+                   vector<boost::filesystem::path>& sweep_paths, const std::vector<std::string>& optional_text)
 {
     pair<int, int> sizes = get_similar_sizes(results.size());
 
-    int width = 200;
-    int height = 200;
+    int width = 320;
+    int height = 240;
 
     cv::Mat visualization = cv::Mat::zeros(height*sizes.first, width*sizes.second, CV_8UC3);
 
@@ -141,8 +246,11 @@ cv::Mat make_image(std::vector<CloudT::Ptr>& results, const std::vector<std::str
         // so, with the camera matrix K and the estimated transform we just project the points
         // manually into an opencv mat? Sounds reasonable
 
+        CloudT::Ptr centered_cloud(new CloudT);
+        pcl::transformPointCloud(*cloud, *centered_cloud, room_transform);
+
         Eigen::Vector4f point;
-        pcl::compute3DCentroid(*cloud, point);
+        pcl::compute3DCentroid(*centered_cloud, point);
 
         Eigen::Vector3f x, y, z;
         z = point.head<3>();
@@ -157,7 +265,7 @@ cv::Mat make_image(std::vector<CloudT::Ptr>& results, const std::vector<std::str
         T.block<1, 3>(2, 0) = z.transpose();
 
         CloudT::Ptr transformed_cloud(new CloudT);
-        pcl::transformPointCloud(*cloud, *transformed_cloud, T);
+        pcl::transformPointCloud(*centered_cloud, *transformed_cloud, T);
         for (PointT& p : transformed_cloud->points) {
             p.getVector3fMap() /= p.z;
         }
@@ -182,31 +290,22 @@ cv::Mat make_image(std::vector<CloudT::Ptr>& results, const std::vector<std::str
 
         Eigen::Matrix3f K;
         K << focal, 0.0f, offset_x, 0.0f, focal, offset_y, 0.0f, 0.0f, 1.0f;
-        cv::Mat sub_image(height, width, CV_8UC3);
-        sub_image = cv::Scalar(255, 255, 255);
-        for (const PointT& p : transformed_cloud->points) {
-            Eigen::Vector3f cp = K*p.getVector3fMap();
-            cp = 1.0f/cp[2]*cp;
-            int cx = int(cp[0]);
-            int cy = int(cp[1]);
-            if (cx < 0 || cx >= width || cy < 0 || cy >= height) {
-                continue;
-            }
-            cv::Vec3b& pixel = sub_image.at<cv::Vec3b>(cy, cx);
-            pixel[0] = p.b;
-            pixel[1] = p.g;
-            pixel[2] = p.r;
+
+        cv::Mat sub_image;
+
+        if (counter % 2 == 0) {
+            sub_image = project_image(transformed_cloud, K, height, width);
         }
-
-        int offset_height = counter / sizes.second;
-        int offset_width = counter % sizes.second;
-
-        interpolate_projection(sub_image);
+        else {
+            sub_image = render_image(cloud, T*room_transform, K, height, width, sweep_paths[counter]);
+        }
 
         if (!optional_text.empty()) {
             put_text(sub_image, optional_text[counter]);
         }
 
+        int offset_height = counter / sizes.second;
+        int offset_width = counter % sizes.second;
         sub_image.copyTo(visualization(cv::Rect(offset_width*width, offset_height*height, width, height)));
 
         //cv::imshow("test", visualization);

@@ -18,6 +18,7 @@
 #include "object_3d_benchmark/surfel_renderer.h"
 
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 namespace benchmark_retrieval {
 
@@ -127,141 +128,6 @@ V3f PointArrayModel::centroid() const
     return (1.0f/m_npoints) * sum;
 }
 
-//----------------------------------------------------------------------
-/// Get max and min of depth buffer, ignoring any depth > FLT_MAX/2
-///
-/// \param z - depth array
-/// \param size - length of z array
-/// \param stride - stride between values in z array
-/// \param zMin - returned min z value
-/// \param zMax - returned max z value
-static void depthRange(const float* z, int size, int stride,
-                       float& zMin, float& zMax)
-{
-    zMin = FLT_MAX;
-    zMax = -FLT_MAX;
-    for(int i = 0; i < size; ++i)
-    {
-        float zi = z[i*stride];
-        if(zMin > zi)
-            zMin = zi;
-        if(zMax < zi && zi < FLT_MAX/2)
-            zMax = zi;
-    }
-}
-
-static void drawDisk(V3f p, V3f n, float r)
-{
-    // Radius 1 disk primitive, translated & scaled into position.
-    V3f p0(0);
-    V3f t1(1,0,0);
-    V3f t2(0,1,0);
-    V3f diskNormal(0,0,1);
-    glPushMatrix();
-    // Translate disk to point location and scale
-    glTranslate(p);
-    glScalef(r,r,r);
-    // Transform the disk normal (0,0,1) into the correct normal
-    // direction for the current point.  The appropriate transform
-    // is a rotation about a direction perpendicular to both
-    // normals:
-    V3f v = diskNormal % n;
-    // via the angle given by the dot product:
-    float angle = rad2deg(acosf(diskNormal^n));
-    glRotatef(angle, v.x, v.y, v.z);
-    glColor3f(1, 0, 0);
-    glBegin(GL_LINE_LOOP);
-        const int nSegs = 10;
-        // Scale so that _min_ radius of polygon approx is 1.
-        float scale = 1/cos(M_PI/nSegs);
-        for(int i = 0; i < nSegs; ++i)
-        {
-            float angle = 2*M_PI*float(i)/nSegs;
-            glVertex3f(scale*cos(angle), scale*sin(angle), 0);
-        }
-    glEnd();
-    glPopMatrix();
-}
-
-/// Convert depth buffer to grayscale color
-///
-/// \param z - depth buffer
-/// \param size - length of z array
-/// \param col - storage for output RGB tripls color data
-static void depthToColor(const float* z, int size, int stride, GLubyte* col,
-                         float zMin, float zMax)
-{
-    float zRangeInv = 1.0f/(zMax - zMin);
-    for(int i = 0; i < size; ++i)
-    {
-        GLubyte c = Imath::clamp(int(255*(1 - zRangeInv*(z[stride*i] - zMin))),
-                                 0, 255);
-        col[3*i] = c;
-        col[3*i+1] = c;
-        col[3*i+2] = c;
-    }
-}
-
-/// Convert coverage grayscale color
-static void coverageToColor(const float* face, int size, int stride, GLubyte* col)
-{
-    for(int i = 0; i < size; ++i)
-    {
-        GLubyte c = Imath::clamp(int(255*(face[stride*i])), 0, 255);
-        col[3*i] = c;
-        col[3*i+1] = c;
-        col[3*i+2] = c;
-    }
-}
-
-static void floatColToColor(const float* face, int size, int stride, GLubyte* col)
-{
-    for(int i = 0; i < size; ++i)
-    {
-        col[3*i]   = Imath::clamp(int(255*(face[stride*i])), 0, 255);
-        col[3*i+1] = Imath::clamp(int(255*(face[stride*i+1])), 0, 255);
-        col[3*i+2] = Imath::clamp(int(255*(face[stride*i+2])), 0, 255);
-    }
-}
-
-/// Draw face of a cube environment map.
-///
-/// \param p - origin of 1x1 quad
-/// \param cols - square texture of RGB triples of size width*width
-/// \param width - side length of cols texture
-static void drawCubeEnvFace(Imath::V2f p, GLubyte* cols, int colsWidth)
-{
-    // Set up texture
-    GLuint texName = 0;
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glGenTextures(1, &texName);
-    glBindTexture(GL_TEXTURE_2D, texName);
-    // Set texture wrap modes to clamp
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    // Set filtering to nearest neighbour
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    // Send texture
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, colsWidth, colsWidth, 0, GL_RGB,
-                 GL_UNSIGNED_BYTE, cols);
-    // Enable texturing
-    glEnable(GL_TEXTURE_2D);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-    glBindTexture(GL_TEXTURE_2D, texName);
-    // Draw quad
-    glPushMatrix();
-    glTranslatef(p.x, p.y, 0);
-    glBegin(GL_QUADS);
-        glTexCoord2f(0, 0); glVertex2f(0, 0);
-        glTexCoord2f(1, 0); glVertex2f(1, 0);
-        glTexCoord2f(1, 1); glVertex2f(1, 1);
-        glTexCoord2f(0, 1); glVertex2f(0, 1);
-    glEnd();
-    glPopMatrix();
-    glDeleteTextures(1, &texName);
-}
-
 //------------------------------------------------------------------------------
 PointView::PointView(QWidget *parent)
     : QGLWidget(parent),
@@ -270,7 +136,7 @@ PointView::PointView(QWidget *parent)
     m_zooming(false),
     m_probeRes(10),
     m_probeMaxSolidAngle(0),
-    m_backgroundColor(0, 0, 0),
+    m_backgroundColor(255, 255, 255),
     m_visMode(Vis_Disks),
     m_drawAxes(false),
     m_lighting(true),
@@ -377,7 +243,7 @@ QSize PointView::sizeHint() const
     // Size hint, mainly for getting the initial window size right.
     // setMinimumSize() also sort of works for this, but doesn't allow the
     // user to later make the window smaller.
-    return QSize(640,480);
+    return QSize(320,240);
 }
 
 
@@ -502,7 +368,14 @@ cv::Mat PointView::drawImage()
     //boost::filesystem::path cloud_path(fileName.toStdString());
     //boost::filesystem::path image_path = cloud_path.parent_path() / "surfel_image.png";
     //cv::imwrite(image_path.string(), image);
-    return image;
+
+    //cv::imshow("Buffer", image);
+    //cv::waitKey();
+
+    cv::Mat rgb_image;
+    cv::cvtColor(image, rgb_image, CV_RGBA2RGB);
+
+    return rgb_image;
 }
 
 /// Draw point cloud using OpenGL
@@ -655,23 +528,34 @@ cv::Mat render_surfel_image(SurfelCloudT::Ptr& cloud, const Eigen::Matrix4f& T,
 
     PointView pview;
     pview.loadConfigureCloud(cloud);
-    float maxSolidAngle = 0.02;
-    int probeRes = 10;
-    pview.setProbeParams(probeRes, maxSolidAngle);
+    //float maxSolidAngle = 0.02;
+    //int probeRes = 10;
+    //pview.setProbeParams(probeRes, maxSolidAngle);
     float f = 10.0f; // far plane distance
     float n = 0.1f; // near plane distance
-    QMatrix4x4 proj(K(0, 0)/K(0, 2), 0, 0, 0,
-                    0, -K(1, 1)/K(1, 2), 0, 0,
-                    0, 0, (f+n)/(f-n), -2.0f*f*n/(f-n),
-                    0, 0, 1, 0);
+    // if 480x640 0*width/height in first and second row, if 240x320 1*width/height
+    // if 480x640 -1 in fourth row, if 240x320 -2
+    QMatrix4x4 proj(2.0f*K(0, 0)/float(width), 0, (float(width) - 2.0f*K(0, 2) + 1*float(width))/float(width), 0,
+                    0, -2.0f*K(1, 1)/float(height), (-float(height) + 2.0f*K(1, 2) + 1*float(height))/float(height), 0,
+                    0, 0, -(f+n)/(f-n), -2.0f*f*n/(f-n),
+                    0, 0, -2.0f, 0);
+    //proj = proj.transposed();
+    //QMatrix4x4 proj;
     pview.setProjectionMatrix(proj);
     QMatrix4x4 view(T(0, 0), T(0, 1), T(0, 2), T(0, 3),
                     T(1, 0), T(1, 1), T(1, 2), T(1, 3),
-                    T(2, 0), T(2, 1), T(2, 2), T(2, 3),
+                    -T(2, 0), -T(2, 1), -T(2, 2), -T(2, 3),
                     T(3, 0), T(3, 1), T(3, 2), T(3, 3));
+    //view = view.inverted();
+    pview.setMinimumSize(100, 100);
+    pview.setGeometry(0, 0, width, height);
+    pview.setBaseSize(width, height);
+    pview.resize(width, height);
+    //pview.resizeGL(width, height);
     pview.setViewMatrix(view);
-    pview.setFixedHeight(height);
-    pview.setFixedWidth(width);
+    //pview.setFixedHeight(height);
+    //pview.setFixedWidth(width);
+    pview.updateGeometry();
     pview.updateGL();
     cv::Mat image = pview.drawImage();
 

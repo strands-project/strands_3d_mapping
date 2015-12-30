@@ -1,7 +1,6 @@
 #include <object_3d_benchmark/surfel_renderer.h>
 #include <object_3d_benchmark/benchmark_retrieval.h>
 #include <dynamic_object_retrieval/summary_iterators.h>
-//#include <object_3d_benchmark/surfel_type.h>
 
 using namespace std;
 
@@ -27,15 +26,9 @@ int main(int argc, char** argv)
 
         // here, I just want to set the file, position and camera
         // parameters (and image size) and render to a cv mat
-
-        //Eigen::Matrix3f K;
-        //K << 500.0f, 0.0f, 240.0f, 0.0f, 500.0f, 320.0f, 0.0f, 0.0f, 1.0f;
-        //Eigen::Matrix4f T;
-        //T.setIdentity();
         size_t height, width;
         height = 480;
         width = 640;
-
 
         for (const Eigen::Matrix4f& T : transforms) {
             cv::Mat image = benchmark_retrieval::render_surfel_image(surfel_cloud, T, K, height, width);

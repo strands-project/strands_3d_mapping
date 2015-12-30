@@ -32,7 +32,7 @@ cv::Mat query_make_image(VocabularyT& vt, CloudT::Ptr& sweep_cloud, cv::Mat& que
     cv::Mat inverted_mask;
     cv::bitwise_not(query_mask, inverted_mask);
     query_image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
-    cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, dummy_labels, room_transform);
+    cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, sweep_paths, dummy_labels, room_transform);
 
     return visualization;
 }
@@ -81,11 +81,11 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
                                                  query_label, camera_transforms[scan_index], T, K,
                                                  vocabulary_path, summary);
 
-        if (summary.subsegment_type == "convex_segment") {
+        /*if (summary.subsegment_type == "convex_segment") {
             cv::Mat standard_visualization = query_make_image((vocabulary_tree<HistT, 8>&)vt, sweep_cloud, query_image, query_mask, query_depth,
                                                               query_label, camera_transforms[scan_index], T, K, vocabulary_path, summary);
             cv::vconcat(visualization, standard_visualization, visualization);
-        }
+        }*/
 
         cv::imwrite("results_image.png", visualization);
 
@@ -110,7 +110,7 @@ int main(int argc, char** argv)
 
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
-    vector<string> objects_to_check = {"laptop"};//{"backpack", "trash", "desktop", "helmet", "chair", "pillow"};
+    vector<string> objects_to_check = {"backpack", "trash", "desktop", "helmet", "chair", "pillow"};
 
     if (summary.vocabulary_type == "standard") {
         vocabulary_tree<HistT, 8> vt;

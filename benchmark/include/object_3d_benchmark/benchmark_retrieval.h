@@ -131,7 +131,7 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
         cv::Mat inverted_mask;
         cv::bitwise_not(query_mask, inverted_mask);
         query_image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
-        cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, only_labels, T);
+        cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, sweep_paths, only_labels, T);
 
         //cv::imshow("Image with labels", visualization);
         //cv::waitKey();
