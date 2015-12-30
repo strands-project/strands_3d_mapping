@@ -87,12 +87,18 @@ public:
             pcl::fromROSMsg(cloud, *retrieved_clouds.back());
         }
 
+        vector<boost::filesystem::path> sweep_paths;
+        for (const auto& s : result.retrieved_image_paths) {
+            boost::filesystem::path image_path(s.strings[0]);
+            sweep_paths.push_back(image_path.parent_path() / "room.xml");
+        }
+
         string query_label = "Query Image";
         vector<string> dummy_labels;
         for (int i = 0; i < result.retrieved_clouds.size(); ++i) {
             dummy_labels.push_back(string("result") + to_string(i));
         }
-        cv::Mat visualization = benchmark_retrieval::make_visualization_image(cv_ptr->image, query_label, retrieved_clouds, dummy_labels, T);
+        cv::Mat visualization = benchmark_retrieval::make_visualization_image(cv_ptr->image, query_label, retrieved_clouds, sweep_paths, dummy_labels, T);
 
         cv_bridge::CvImagePtr cv_pub_ptr(new cv_bridge::CvImage);
         cv_pub_ptr->image = visualization;

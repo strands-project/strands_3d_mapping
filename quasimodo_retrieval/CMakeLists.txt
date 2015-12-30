@@ -36,9 +36,11 @@ set(stopwatch_dir ${retrieval_dir}/stopwatch)
 set(stopwatch_include_dir ${stopwatch_dir}/src)
 include_directories(${stopwatch_include_dir})
 
+find_package(OpenGL)
+
 # The benchmark project is also in the base dir
 set(benchmark_dir ${retrieval_project_dir}/benchmark)
-set(benchmark_libraries benchmark_result benchmark_retrieval benchmark_visualization benchmark_overlap)
+set(benchmark_libraries benchmark_result benchmark_retrieval benchmark_visualization benchmark_overlap surfel_renderer ${OPENGL_gl_LIBRARY} ${QT_QTOPENGL_LIBRARY})
 include_directories(${benchmark_dir}/include)
 link_directories(${benchmark_dir}/build)
 
