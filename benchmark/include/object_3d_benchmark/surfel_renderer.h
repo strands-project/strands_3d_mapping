@@ -131,10 +131,10 @@ protected:
     void paintGL();
 
     // Qt event callbacks
-    void mousePressEvent(QMouseEvent* event);
-    void mouseMoveEvent(QMouseEvent* event);
-    void wheelEvent(QWheelEvent* event);
-    void keyPressEvent(QKeyEvent* event);
+    //void mousePressEvent(QMouseEvent* event);
+    //void mouseMoveEvent(QMouseEvent* event);
+    //void wheelEvent(QWheelEvent* event);
+    //void keyPressEvent(QKeyEvent* event);
 
 private:
     static void drawAxes();
@@ -151,8 +151,8 @@ private:
     /// Position of 3D cursor
     //V3f m_cursorPos;
     /// Light probe resolution
-    int m_probeRes;
-    float m_probeMaxSolidAngle;
+    //int m_probeRes;
+    //float m_probeMaxSolidAngle;
     /// Background color for drawing
     QColor m_backgroundColor;
     /// Type of visualization

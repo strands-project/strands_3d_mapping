@@ -163,26 +163,11 @@ cv::Mat render_image(CloudT::Ptr& cloud, const Eigen::Matrix4f& T, const Eigen::
 
     pcl::io::loadPCDFile(surfels_path.string(), *surfel_cloud);
 
-    //pcl::io::savePCDFileBinary("/home/nbore/Data/surfel_cloud.pcd", *surfel_cloud);
-
     pcl::KdTreeFLANN<SurfelT> kdtree;
     kdtree.setInputCloud(surfel_cloud);
 
     // now, associate each point in segment with a surfel in the surfel cloud!
     SurfelCloudT::Ptr render_cloud(new SurfelCloudT);
-    /*CloudT::Ptr vis_cloud(new CloudT);
-
-    for (SurfelT s : surfel_cloud->points) {
-        PointT p;
-        p.x = s.x;
-        p.y = s.y;
-        p.z = s.z;
-        p.r = 0;
-        p.g = 255;
-        p.b = 0;
-        vis_cloud->push_back(p);
-    }*/
-
     for (PointT p : cloud->points) {
         if (!pcl::isFinite(p)) {
             continue;
@@ -196,24 +181,7 @@ cv::Mat render_image(CloudT::Ptr& cloud, const Eigen::Matrix4f& T, const Eigen::
             exit(0);
         }
         render_cloud->push_back(surfel_cloud->at(indices[0]));
-        /*PointT q;
-        q.x = surfel_cloud->at(indices[0]).x;
-        q.y = surfel_cloud->at(indices[0]).y;
-        q.z = surfel_cloud->at(indices[0]).z;
-        q.r = 255;
-        q.g = 0;
-        q.b = 0;
-
-        p.r = 0;
-        p.g = 0;
-        p.b = 255;
-
-        vis_cloud->push_back(q);
-        vis_cloud->push_back(p);*/
     }
-    //pcl::io::savePCDFileBinary("/home/nbore/Data/test_cloud.pcd", *render_cloud);
-
-    //dynamic_object_retrieval::visualize(vis_cloud);
 
     cout << "Render cloud size: " << render_cloud->size() << endl;
     cout << "Original cloud size: " << cloud->size() << endl;
@@ -229,8 +197,8 @@ cv::Mat make_image(std::vector<CloudT::Ptr>& results, const Eigen::Matrix4f& roo
 {
     pair<int, int> sizes = get_similar_sizes(results.size());
 
-    int width = 320;
-    int height = 240;
+    int width = 200;
+    int height = 200;
 
     cv::Mat visualization = cv::Mat::zeros(height*sizes.first, width*sizes.second, CV_8UC3);
 

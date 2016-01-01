@@ -134,8 +134,6 @@ PointView::PointView(QWidget *parent)
     //m_camera(true),
     m_lastPos(0,0),
     m_zooming(false),
-    m_probeRes(10),
-    m_probeMaxSolidAngle(0),
     m_backgroundColor(255, 255, 255),
     m_visMode(Vis_Disks),
     m_drawAxes(false),
@@ -190,13 +188,6 @@ void PointView::loadConfigureCloud(SurfelCloudT::Ptr& cloud)
     m_cloudCenter = m_points[0]->centroid();
     //m_camera.setCenter(exr2qt(m_cloudCenter));
     updateGL();
-}
-
-
-void PointView::setProbeParams(int cubeFaceRes, float maxSolidAngle)
-{
-    m_probeRes = cubeFaceRes;
-    m_probeMaxSolidAngle = maxSolidAngle;
 }
 
 
@@ -285,59 +276,6 @@ void PointView::paintGL()
     for(size_t i = 0; i < m_points.size(); ++i)
         drawPoints(*m_points[i], m_visMode, m_lighting);
 }
-
-
-void PointView::mousePressEvent(QMouseEvent* event)
-{
-    m_zooming = event->button() == Qt::RightButton;
-    m_lastPos = event->pos();
-}
-
-
-void PointView::mouseMoveEvent(QMouseEvent* event)
-{
-    if(event->modifiers() & Qt::ControlModifier)
-    {
-        //m_cursorPos = qt2exr(
-        //    m_camera.mouseMovePoint(exr2qt(m_cursorPos),
-        //                            event->pos() - m_lastPos,
-        //                            m_zooming) );
-        updateGL();
-    }
-    else
-    {
-        //m_camera.mouseDrag(m_lastPos, event->pos(), m_zooming);
-    }
-    m_lastPos = event->pos();
-}
-
-
-void PointView::wheelEvent(QWheelEvent* event)
-{
-    // Translate mouse wheel events into vertical dragging for simplicity.
-    //m_camera.mouseDrag(QPoint(0,0), QPoint(0, -event->delta()/2), true);
-}
-
-
-void PointView::keyPressEvent(QKeyEvent *event)
-{
-    if(event->key() == Qt::Key_L)
-    {
-        m_lighting = !m_lighting;
-        updateGL();
-    }
-    else if(event->key() == Qt::Key_C)
-    {
-        //m_camera.setCenter(exr2qt(m_cursorPos));
-    }
-    else if (event->key() == Qt::Key_F)
-    {
-        //drawImage(QString("/home/nbore/Data/test.dummy"));
-    }
-    else
-        event->ignore();
-}
-
 
 /// Draw a set of axes
 void PointView::drawAxes()
@@ -527,36 +465,24 @@ cv::Mat render_surfel_image(SurfelCloudT::Ptr& cloud, const Eigen::Matrix4f& T,
     QApplication app(argc, &argv);
 
     PointView pview;
-    pview.loadConfigureCloud(cloud);
-    //float maxSolidAngle = 0.02;
-    //int probeRes = 10;
-    //pview.setProbeParams(probeRes, maxSolidAngle);
+    //pview.loadConfigureCloud(cloud);
     float f = 10.0f; // far plane distance
-    float n = 0.1f; // near plane distance
-    // if 480x640 0*width/height in first and second row, if 240x320 1*width/height
-    // if 480x640 -1 in fourth row, if 240x320 -2
-    QMatrix4x4 proj(2.0f*K(0, 0)/float(width), 0, (float(width) - 2.0f*K(0, 2) + 1*float(width))/float(width), 0,
-                    0, -2.0f*K(1, 1)/float(height), (-float(height) + 2.0f*K(1, 2) + 1*float(height))/float(height), 0,
+    float n = 0.5f; // near plane distance
+    QMatrix4x4 proj(2.0f*K(0, 0)/float(width), 0, (float(width) - 2.0f*K(0, 2) + 0*float(width))/float(width), 0,
+                    0, -2.0f*K(1, 1)/float(height), (-float(height) + 2.0f*K(1, 2) + 0*float(height))/float(height), 0,
                     0, 0, -(f+n)/(f-n), -2.0f*f*n/(f-n),
-                    0, 0, -2.0f, 0);
-    //proj = proj.transposed();
-    //QMatrix4x4 proj;
+                    0, 0, -1.0f, 0);
+    glViewport(0, 0, width, height);
     pview.setProjectionMatrix(proj);
     QMatrix4x4 view(T(0, 0), T(0, 1), T(0, 2), T(0, 3),
                     T(1, 0), T(1, 1), T(1, 2), T(1, 3),
                     -T(2, 0), -T(2, 1), -T(2, 2), -T(2, 3),
                     T(3, 0), T(3, 1), T(3, 2), T(3, 3));
-    //view = view.inverted();
-    pview.setMinimumSize(100, 100);
     pview.setGeometry(0, 0, width, height);
-    pview.setBaseSize(width, height);
-    pview.resize(width, height);
-    //pview.resizeGL(width, height);
     pview.setViewMatrix(view);
-    //pview.setFixedHeight(height);
-    //pview.setFixedWidth(width);
     pview.updateGeometry();
-    pview.updateGL();
+    //pview.updateGL();
+    pview.loadConfigureCloud(cloud);
     cv::Mat image = pview.drawImage();
 
     return image;
