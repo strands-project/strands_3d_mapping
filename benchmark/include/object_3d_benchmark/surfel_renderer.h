@@ -105,6 +105,7 @@ public:
     void setProbeParams(int cubeFaceRes, float maxSolidAngle);
     void setProjectionMatrix(const QMatrix4x4& projectionMatrix);
     void setViewMatrix(const QMatrix4x4& viewMatrix);
+    void setLightingPos(const QVector3D& lightingPos);
 
     /// Get the visualization mode
     VisMode visMode() const;
@@ -160,6 +161,7 @@ private:
     bool m_drawAxes;
     /// Flag for whether to use OpenGL lighting or not
     bool m_lighting;
+    static GLfloat m_lightingPos[4];
     /// Point cloud data
     std::vector<boost::shared_ptr<PointArrayModel> > m_points;
     //boost::shared_ptr<const DiffusePointOctree> m_pointTree;

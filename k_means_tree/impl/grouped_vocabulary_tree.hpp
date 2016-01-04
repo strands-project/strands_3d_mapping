@@ -366,7 +366,12 @@ void grouped_vocabulary_tree<Point, K>::append_cloud(CloudPtrT& extra_cloud, vec
     }
 
     // group_subgroup[nbr_subgroups-1].first is probably not in the group_subgroup vector
-    cache_group_adjacencies(group_subgroup[super::indices.back()].first+1, adjacencies); // super::indices.back() skulle också funka
+    if (nbr_subgroups == 0) {
+        cache_group_adjacencies(0, adjacencies);
+    }
+    else {
+        cache_group_adjacencies(group_subgroup[super::indices.back()].first+1, adjacencies); // super::indices.back() skulle också funka
+    }
     adjacencies.clear();
     append_cloud(extra_cloud, indices, store_points);
 }

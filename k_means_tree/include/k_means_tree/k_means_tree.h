@@ -201,6 +201,15 @@ public:
     void append_cloud(CloudPtrT& extra_cloud, bool store_points = true);
 
     size_t size() const { return inserted_points; }
+
+    void clear()
+    {
+        for (leaf* l : leaves) {
+            l->inds.clear();
+        }
+        inserted_points = 0;
+    }
+
     CloudPtrT get_cloud() { return cloud; }
 
     void add_points_from_input_cloud();

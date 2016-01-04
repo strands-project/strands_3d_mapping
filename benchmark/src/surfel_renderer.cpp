@@ -129,6 +129,8 @@ V3f PointArrayModel::centroid() const
 }
 
 //------------------------------------------------------------------------------
+GLfloat PointView::m_lightingPos[4];
+
 PointView::PointView(QWidget *parent)
     : QGLWidget(parent),
     //m_camera(true),
@@ -200,6 +202,15 @@ void PointView::setProjectionMatrix(const QMatrix4x4& projectionMatrix)
 void PointView::setViewMatrix(const QMatrix4x4& viewMatrix)
 {
     m_viewMatrix = viewMatrix;
+}
+
+
+void PointView::setLightingPos(const QVector3D& lightingPos)
+{
+    m_lightingPos[0] = lightingPos.x();
+    m_lightingPos[1] = lightingPos.y();
+    m_lightingPos[2] = lightingPos.z();
+    m_lightingPos[3] = 1;
 }
 
 
@@ -362,9 +373,9 @@ void PointView::drawPoints(const PointArrayModel& points, VisMode visMode,
                 glEnable(GL_COLOR_MATERIAL);
                 // Lighting
                 // light0
-                GLfloat lightPos[] = {0, 0, 0, 1};
+                //GLfloat lightPos[] = {0, 0, 0, 1}; // lighting pos should be configurable, 5m right of viewing direction?
                 GLfloat whiteCol[] = {0.005, 0.005, 0.005, 1};
-                glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+                glLightfv(GL_LIGHT0, GL_POSITION, m_lightingPos);
                 glLightfv(GL_LIGHT0, GL_DIFFUSE, whiteCol);
                 glEnable(GL_LIGHT0);
                 // whole-scene ambient intensity scaling
@@ -478,6 +489,8 @@ cv::Mat render_surfel_image(SurfelCloudT::Ptr& cloud, const Eigen::Matrix4f& T,
                     T(1, 0), T(1, 1), T(1, 2), T(1, 3),
                     -T(2, 0), -T(2, 1), -T(2, 2), -T(2, 3),
                     T(3, 0), T(3, 1), T(3, 2), T(3, 3));
+    QVector3D lighting_pos(5.0f*T(0, 0), 5.0f*T(0, 1), 5.0f*T(0, 2));
+    pview.setLightingPos(lighting_pos);
     pview.setGeometry(0, 0, width, height);
     pview.setViewMatrix(view);
     pview.updateGeometry();

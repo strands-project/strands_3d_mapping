@@ -86,6 +86,21 @@ public:
     void add_points_from_input_cloud(std::vector<std::set<std::pair<int, int> > >& adjacencies, bool save_cloud = true);
     void top_combined_similarities(std::vector<result_type>& scores, CloudPtrT& query_cloud, size_t nbr_results);
 
+    void set_cache_path(const std::string& cache_path)
+    {
+        save_state_path = cache_path;
+    }
+
+    void clear()
+    {
+        // here we just need to remember that we also need to either remove the
+        // cached vocabulary vectors or save the cleared (go L Ron) vocabularies somewhere else
+        super::clear();
+        group_subgroup.clear();
+        nbr_points = 0;
+        nbr_subgroups = 0;
+    }
+
     /*
     template <class Archive> void save(Archive& archive) const;
     template <class Archive> void load(Archive& archive);

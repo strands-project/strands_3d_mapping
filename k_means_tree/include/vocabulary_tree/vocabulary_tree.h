@@ -101,6 +101,18 @@ public:
     void set_min_match_depth(int depth);
     void compute_normalizing_constants(); // this also computes the weights
     bool empty() const { return indices.empty(); }
+
+    void clear()
+    {
+        super::clear();
+        indices.clear();
+        db_vector_normalizing_constants.clear();
+        N = 0;
+        for (leaf* l : super::leaves) {
+            l->data->source_id_freqs.clear();
+        }
+    }
+
     int max_ind() const { return *(std::max_element(indices.begin(), indices.end())) + 1; }
     void set_input_cloud(CloudPtrT& new_cloud, std::vector<int>& new_indices);
     void append_cloud(CloudPtrT& extra_cloud, std::vector<int>& extra_indices, bool store_points = true);
