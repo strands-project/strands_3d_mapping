@@ -312,6 +312,8 @@ void PointView::drawAxes()
 
 cv::Mat PointView::drawImage()
 {
+    paintGL();
+    glFlush();
     QImage buffer = grabFrameBuffer(false);
     cv::Mat image(buffer.height(), buffer.width(), CV_8UC4, buffer.bits());
     //boost::filesystem::path cloud_path(fileName.toStdString());

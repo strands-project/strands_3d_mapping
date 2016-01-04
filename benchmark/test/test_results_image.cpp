@@ -15,7 +15,8 @@ using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
 template<typename VocabularyT>
 cv::Mat query_make_image(VocabularyT& vt, CloudT::Ptr& sweep_cloud, cv::Mat& query_image, cv::Mat& query_mask, cv::Mat& query_depth,
                          const string& query_label, const Eigen::Matrix4f& query_transform, const Eigen::Matrix4f& room_transform,
-                         const Eigen::Matrix3f& K, const boost::filesystem::path& vocabulary_path, const dynamic_object_retrieval::vocabulary_summary& summary)
+                         const Eigen::Matrix3f& K, const boost::filesystem::path& vocabulary_path,
+                         const dynamic_object_retrieval::vocabulary_summary& summary, const boost::filesystem::path& sweep_path)
 {
     vector<CloudT::Ptr> retrieved_clouds;
     vector<boost::filesystem::path> sweep_paths;
@@ -32,7 +33,9 @@ cv::Mat query_make_image(VocabularyT& vt, CloudT::Ptr& sweep_cloud, cv::Mat& que
     cv::Mat inverted_mask;
     cv::bitwise_not(query_mask, inverted_mask);
     query_image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
-    cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, sweep_paths, dummy_labels, room_transform);
+    //cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, sweep_paths, dummy_labels, room_transform);
+    cv::Mat visualization = benchmark_retrieval::make_visualization_image(refined_query, query_mask, sweep_path, K, query_transform,
+                                                                          query_label, retrieved_clouds, sweep_paths, dummy_labels, room_transform);
 
     return visualization;
 }
@@ -42,6 +45,8 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
                            const dynamic_object_retrieval::vocabulary_summary& summary, const vector<string>& objects_to_check)
 {
     LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
+
+    boost::filesystem::path sweep_path = boost::filesystem::path(sweep_xml);
 
     Eigen::Matrix3f K;
     vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
@@ -79,7 +84,7 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
 
         cv::Mat visualization = query_make_image(vt, sweep_cloud, query_image, query_mask, query_depth,
                                                  query_label, camera_transforms[scan_index], T, K,
-                                                 vocabulary_path, summary);
+                                                 vocabulary_path, summary, sweep_path);
 
         /*if (summary.subsegment_type == "convex_segment") {
             cv::Mat standard_visualization = query_make_image((vocabulary_tree<HistT, 8>&)vt, sweep_cloud, query_image, query_mask, query_depth,

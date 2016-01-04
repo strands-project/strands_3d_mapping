@@ -29,7 +29,49 @@ cv::Mat make_visualization_image(cv::Mat& query_image, const string& query_label
         }
     }*/
     cv::Mat result_image = make_image(clouds, T, sweep_paths, optional_text);
-    //return add_query_image(result_image, query_image, query_label);
+    return add_query_image(result_image, query_image, query_label);
+    return result_image;
+}
+
+cv::Mat make_visualization_image(CloudT::Ptr& query_cloud, cv::Mat& query_mask, const boost::filesystem::path& query_path,
+                                 const Eigen::Matrix3f& K, const Eigen::Matrix4f& query_transform,
+                                 const string& query_label, vector<CloudT::Ptr>& clouds,
+                                 vector<boost::filesystem::path>& sweep_paths, const vector<string>& optional_text,
+                                 const Eigen::Matrix4f& T)
+{
+    boost::filesystem::path surfels_path = query_path.parent_path() / "surfel_map.pcd";
+    SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
+
+    cout << "Loading surfel cloud: " << surfels_path.string() << endl;
+
+    pcl::io::loadPCDFile(surfels_path.string(), *surfel_cloud);
+
+    pcl::KdTreeFLANN<SurfelT> kdtree;
+    kdtree.setInputCloud(surfel_cloud);
+
+    // now, associate each point in segment with a surfel in the surfel cloud!
+    SurfelCloudT::Ptr render_cloud(new SurfelCloudT);
+    for (PointT p : query_cloud->points) {
+        if (!pcl::isFinite(p)) {
+            continue;
+        }
+        vector<int> indices;
+        vector<float> distances;
+        SurfelT s; s.x = p.x; s.y = p.y; s.z = p.z;
+        kdtree.nearestKSearchT(s, 1, indices, distances);
+        if (distances.empty()) {
+            cout << "Distances empty, wtf??" << endl;
+            exit(0);
+        }
+        render_cloud->push_back(surfel_cloud->at(indices[0]));
+    }
+
+    cv::Mat image = render_surfel_image(render_cloud, query_transform, K, 480, 640);
+    cv::Mat inverted_mask;
+    cv::bitwise_not(query_mask, inverted_mask);
+    image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
+    cv::Mat result_image = make_image(clouds, T, sweep_paths, optional_text);
+    return add_query_image(result_image, image, query_label);
     return result_image;
 }
 
@@ -261,7 +303,7 @@ cv::Mat make_image(std::vector<CloudT::Ptr>& results, const Eigen::Matrix4f& roo
 
         cv::Mat sub_image;
 
-        if (counter % 2 == 0) {
+        if (false) {//counter % 2 == 0) {
             sub_image = project_image(transformed_cloud, K, height, width);
         }
         else {

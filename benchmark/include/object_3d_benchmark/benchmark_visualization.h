@@ -25,6 +25,11 @@ cv::Mat add_query_image(cv::Mat& results, cv::Mat& query_image, const std::strin
 cv::Mat make_visualization_image(cv::Mat& query_image, const std::string& query_label, std::vector<CloudT::Ptr>& clouds,
                                  std::vector<boost::filesystem::path>& sweep_paths, const std::vector<std::string>& optional_text,
                                  const Eigen::Matrix4f& T);
+cv::Mat make_visualization_image(CloudT::Ptr& query_cloud, cv::Mat& query_mask, const boost::filesystem::path& query_path,
+                                 const Eigen::Matrix3f& K, const Eigen::Matrix4f& query_transform,
+                                 const std::string& query_label, std::vector<CloudT::Ptr>& clouds,
+                                 std::vector<boost::filesystem::path>& sweep_paths, const std::vector<std::string>& optional_text,
+                                 const Eigen::Matrix4f& T);
 
 } // namespace benchmark_retrieval
 
