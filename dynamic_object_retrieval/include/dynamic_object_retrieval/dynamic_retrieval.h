@@ -367,6 +367,32 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& qu
     return std::make_pair(retrieved_paths, reweighted_paths);
 }
 
+template <typename VocabularyT>
+std::pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
+std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
+query_reweight_vocabulary(VocabularyT& vt, HistCloudT::Ptr& query_features,
+                          size_t nbr_query, const boost::filesystem::path& vocabulary_path,
+                          const vocabulary_summary& summary)
+{
+    using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
+
+    if (vt.empty()) {
+        load_vocabulary(vt, vocabulary_path);
+        vt.set_min_match_depth(3);
+        vt.compute_normalizing_constants();
+
+        std::cout << "Mean leaves: " << vt.get_mean_leaf_points() << std::endl;
+    }
+
+    std::cout << "Querying vocabulary..." << std::endl;
+    TICK("query_vocabulary");
+
+    result_type retrieved_paths = query_vocabulary(query_features, nbr_query, vt, vocabulary_path, summary);
+    TOCK("query_vocabulary");
+
+    return make_pair(retrieved_paths, result_type());
+}
+
 }
 
 #endif // DYNAMIC_RETRIEVAL_H
