@@ -12,18 +12,36 @@ using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
 using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
 
+template <typename PathT>
+bool is_path(const PathT& r, const boost::filesystem::path& p)
+{
+    return r.parent_path().parent_path() == p;
+}
+
+template <typename PathT>
+bool is_path(const vector<PathT>& r, const boost::filesystem::path& p)
+{
+    return r.front().parent_path().parent_path() == p;
+}
+
 template<typename VocabularyT>
 cv::Mat query_make_image(VocabularyT& vt, CloudT::Ptr& sweep_cloud, cv::Mat& query_image, cv::Mat& query_mask, cv::Mat& query_depth,
                          const string& query_label, const Eigen::Matrix4f& query_transform, const Eigen::Matrix4f& room_transform,
                          const Eigen::Matrix3f& K, const boost::filesystem::path& vocabulary_path,
                          const dynamic_object_retrieval::vocabulary_summary& summary, const boost::filesystem::path& sweep_path)
 {
+    using result_type = pair<typename dynamic_object_retrieval::path_result<VocabularyT>::type, typename VocabularyT::result_type>;
+
     vector<CloudT::Ptr> retrieved_clouds;
     vector<boost::filesystem::path> sweep_paths;
 
     CloudT::Ptr refined_query = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, query_transform, K);
     //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 50, vocabulary_path, summary, true);
-    auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth, K, 10, vocabulary_path, summary, false);
+    auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth, K, 15, vocabulary_path, summary, false);
+    std::remove_if(results.first.begin(), results.first.end(), [&](const result_type& r) {
+        return is_path(r.first, sweep_path.parent_path());
+    });
+    results.first.resize(10);
     tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
     vector<string> dummy_labels;
@@ -88,7 +106,7 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
 
         /*if (summary.subsegment_type == "convex_segment") {
             cv::Mat standard_visualization = query_make_image((vocabulary_tree<HistT, 8>&)vt, sweep_cloud, query_image, query_mask, query_depth,
-                                                              query_label, camera_transforms[scan_index], T, K, vocabulary_path, summary);
+                                                              query_label, camera_transforms[scan_index], T, K, vocabulary_path, summary, sweep_path);
             cv::vconcat(visualization, standard_visualization, visualization);
         }*/
 
