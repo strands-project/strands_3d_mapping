@@ -38,7 +38,9 @@ map<string, string> compute_path_label_correspondence(const boost::filesystem::p
                 double overlap_fraction = benchmark_retrieval::compute_overlap(labels.objectClouds[i], c);
 
                 if (overlap_fraction > overlap_threshold) {
-                    path_labels[path.string()] = labels.objectLabels[i];
+                    string repaired = path.string();
+                    boost::replace_all(repaired, "//", "/");
+                    path_labels[repaired] = labels.objectLabels[i];
                     cout << "Found correspondence: " << path.string() << " -> " << labels.objectLabels[i] << endl;
                     break;
                 }

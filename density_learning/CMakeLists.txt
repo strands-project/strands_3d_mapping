@@ -58,6 +58,8 @@ find_package(OpenCV REQUIRED)
 find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
 
+find_package(OpenGL)
+
 # The main header location
 include_directories(include)
 
@@ -67,10 +69,18 @@ include_directories(include)
 #                      vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation shot_estimation
 #                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
+add_library(surfel_features src/surfel_features.cpp include/${PROJECT_NAME}/surfel_features.h)
+target_link_libraries(surfel_features ${OpenCV_LIBS} ${PCL_LIBRARIES})
+
 add_executable(compute_correct_matrix src/compute_correct_matrix.cpp)
 target_link_libraries(compute_correct_matrix grouped_vocabulary_tree vocabulary_tree k_means_tree dynamic_visualize
                       register_objects extract_sift sift pfhrgb_estimation shot_estimation supervoxel_segmentation
-                      benchmark_retrieval
+                      benchmark_retrieval benchmark_visualization surfel_renderer surfel_features
+                      ${OPENGL_gl_LIBRARY} ${QT_QTOPENGL_LIBRARY}
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(optimize_densities src/optimize_densities.cpp)
+target_link_libraries(optimize_densities dynamic_visualize
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(precompute_labels src/precompute_labels.cpp)
@@ -78,7 +88,7 @@ target_link_libraries(precompute_labels benchmark_overlap
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(compute_density_features src/compute_density_features.cpp)
-target_link_libraries(compute_density_features dynamic_visualize
+target_link_libraries(compute_density_features dynamic_visualize surfel_features
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 ############### TESTING PROGRAMS ##################
