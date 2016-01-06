@@ -30,7 +30,7 @@ cv::Mat make_visualization_image(cv::Mat& query_image, const string& query_label
     }*/
     cv::Mat result_image = make_image(clouds, T, sweep_paths, optional_text);
     return add_query_image(result_image, query_image, query_label);
-    return result_image;
+    //return result_image;
 }
 
 cv::Mat make_visualization_image(CloudT::Ptr& query_cloud, cv::Mat& query_mask, const boost::filesystem::path& query_path,
@@ -72,7 +72,7 @@ cv::Mat make_visualization_image(CloudT::Ptr& query_cloud, cv::Mat& query_mask, 
     image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
     cv::Mat result_image = make_image(clouds, T, sweep_paths, optional_text);
     return add_query_image(result_image, image, query_label);
-    return result_image;
+    //return result_image;
 }
 
 cv::Mat add_query_image(cv::Mat& results, cv::Mat& query_image, const std::string& query_label)
