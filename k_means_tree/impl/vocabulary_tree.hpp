@@ -463,7 +463,12 @@ void vocabulary_tree<Point, K>::normalizing_constants_for_node(std::map<int, int
         }*/
     }
 
-    n->weight = log(N) - log(double(normalizing_constants.size()));
+    if (normalizing_constants.empty()) {
+        n->weight = 0.0;
+    }
+    else {
+        n->weight = log(N) - log(double(normalizing_constants.size()));
+    }
 
     // this could be further up if we do not want to e.g. calculate weights for upper nodes
     if (current_depth < matching_min_depth) {
@@ -517,7 +522,9 @@ void vocabulary_tree<Point, K>::top_combined_similarities(std::vector<result_typ
     //scores.insert(scores.end(), map_scores.begin(), map_scores.end());
     scores.reserve(map_scores.size());
     for (const pair<int, double>& s : map_scores) {
-        scores.push_back(result_type {s.first, float(s.second)});
+        if (!std::isnan(s.second)) {
+            scores.push_back(result_type {s.first, float(s.second)});
+        }
     }
     std::sort(scores.begin(), scores.end(), [](const result_type& s1, const result_type& s2) {
         return s1.score < s2.score; // find min elements!
