@@ -39,13 +39,19 @@ benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder
 
     benchmark_retrieval::benchmark_result benchmark(summary);
     VocabularyT vt;
+    if (vt.empty()) {
+        dynamic_object_retrieval::load_vocabulary(vt, vocabulary_path);
+        vt.set_min_match_depth(3);
+        vt.compute_normalizing_constants();
+    }
 
     int counter = 0;
     for (const string& xml : folder_xmls) {
         TICK("get_score_for_sweep");
         vector<cv::Mat> visualizations;
         auto rfunc = [&](CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth, const Eigen::Matrix3f& K) {
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth, K, 10, vocabulary_path, summary, false);
+            //(vocabulary_tree<HistT, 8>&)
+            auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth, K, 15, vocabulary_path, summary, false);
             return benchmark_retrieval::load_retrieved_clouds(results.first);
         };
 

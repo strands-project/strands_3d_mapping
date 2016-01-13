@@ -286,7 +286,7 @@ vector<pair<float, string> > query_vlad_representation(VladCloudT::Ptr& vcloud, 
 
     //pcl::KdTreeFLANN<VladT> kdtree;
 
-    int K = 10;
+    int K = 15;
 
     cout << "Querying:" << endl;
     cout << Eigen::Map<Eigen::Matrix<float, V, 1> >(vpoint.histogram).transpose() << endl;

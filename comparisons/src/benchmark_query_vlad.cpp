@@ -90,7 +90,7 @@ int main(int argc, char** argv)
     timeinfo = localtime(&rawtime);
     strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", timeinfo);
 
-    boost::filesystem::path benchmark_path = string("benchmark ") + buffer;
+    boost::filesystem::path benchmark_path = string("benchmark ") + buffer + " VLAD";
     boost::filesystem::create_directory(benchmark_path);
 
     TICK("load_summary");

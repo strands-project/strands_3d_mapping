@@ -39,6 +39,7 @@ protected:
 
 public:
 
+    double compute_overlap(CloudT::Ptr& A, CloudT::Ptr& B);
     void visualize_cloud(CloudT::Ptr& cloud);
     void set_input_clouds(CloudPtrT& t1, CloudPtrT& t2);
     void set_input_clouds(CloudPtrT& t1, const Eigen::Matrix3f& tk1, CloudPtrT& t2, const Eigen::Matrix3f& tk2);

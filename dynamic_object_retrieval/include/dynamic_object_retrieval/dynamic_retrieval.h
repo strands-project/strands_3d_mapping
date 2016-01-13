@@ -61,37 +61,34 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
 }
 
 //std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<index_score>& scores, const vocabulary_summary& summary);
-template <typename IndexT>
-std::vector<std::pair<boost::filesystem::path, IndexT> >
-get_retrieved_path_scores(const std::vector<IndexT>& scores, const vocabulary_summary& summary)
+std::vector<std::pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type> >
+get_retrieved_path_scores(const std::vector<vocabulary_tree<HistT, 8>::result_type>& scores, const vocabulary_summary& summary)
 {
     std::vector<boost::filesystem::path> paths = get_retrieved_paths(scores, summary);
-    std::vector<std::pair<boost::filesystem::path, IndexT> > path_scores;
+    std::vector<std::pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type> > path_scores;
     for (auto tup : dynamic_object_retrieval::zip(paths, scores)) {
         path_scores.push_back(std::make_pair(boost::get<0>(tup), boost::get<1>(tup)));
     }
     return path_scores;
 }
 
-template <typename IndexT, typename GroupT>
-std::vector<std::pair<std::vector<boost::filesystem::path>, IndexT> >
-get_retrieved_path_scores(const std::vector<IndexT>& scores, const std::vector<GroupT>& groups, const vocabulary_summary& summary)
+std::vector<std::pair<std::vector<boost::filesystem::path>, grouped_vocabulary_tree<HistT, 8>::result_type> >
+get_retrieved_path_scores(const std::vector<grouped_vocabulary_tree<HistT, 8>::result_type>& scores, const vocabulary_summary& summary)
 {
     // OK, now we need to get the paths for all of the stuff within the scans instead, so basically
     // we need to get a subsegment_sweep__path_iterator and add all of the path corresponding to groups
-    std::vector<std::pair<std::vector<boost::filesystem::path>, IndexT> > path_scores;
+    std::vector<std::pair<std::vector<boost::filesystem::path>, grouped_vocabulary_tree<HistT, 8>::result_type> > path_scores;
 
     int temp = 0;
-    for (auto tup : dynamic_object_retrieval::zip(scores, groups)) {
+    for (const grouped_vocabulary_tree<HistT, 8>::result_type& score : scores) {
         std::cout << "Iteration nbr: " << temp << std::endl;
         std::cout << "Scores size: " << scores.size() << std::endl;
-        std::cout << "Groups size: " << groups.size() << std::endl;
-        std::cout << "Subsegments in group: " << boost::get<1>(tup).size() << std::endl;
-        path_scores.push_back(std::make_pair(std::vector<boost::filesystem::path>(), boost::get<0>(tup)));
+        std::cout << "Subsegments in group: " << score.subgroup_group_indices.size() << std::endl;
+        path_scores.push_back(std::make_pair(std::vector<boost::filesystem::path>(), score));
 
-        int sweep_id = boost::get<0>(tup).group_index;
+        int sweep_id = score.group_index;
         std::cout << "Getting sweep xml for group: " << sweep_id << std::endl;
-        std::cout << "With subsegment: " << boost::get<0>(tup).subgroup_index << std::endl;
+        std::cout << "With subsegment: " << score.subgroup_index << std::endl;
         boost::filesystem::path sweep_path = dynamic_object_retrieval::get_sweep_xml(sweep_id, summary);
         std::cout << "Getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
         if (summary.subsegment_type == "subsegment" || summary.subsegment_type == "supervoxel") {
@@ -99,7 +96,7 @@ get_retrieved_path_scores(const std::vector<IndexT>& scores, const std::vector<G
             std::cout << "Finished getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
             int counter = 0;
             for (const boost::filesystem::path& path : subsegments) {
-                if (std::find(boost::get<1>(tup).begin(), boost::get<1>(tup).end(), counter) != boost::get<1>(tup).end()) {
+                if (std::find(score.subgroup_group_indices.begin(), score.subgroup_group_indices.end(), counter) != score.subgroup_group_indices.end()) {
                     path_scores.back().first.push_back(path);
                 }
                 ++counter;
@@ -110,7 +107,7 @@ get_retrieved_path_scores(const std::vector<IndexT>& scores, const std::vector<G
             std::cout << "Finished getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
             int counter = 0;
             for (const boost::filesystem::path& path : subsegments) {
-                if (std::find(boost::get<1>(tup).begin(), boost::get<1>(tup).end(), counter) != boost::get<1>(tup).end()) {
+                if (std::find(score.subgroup_group_indices.begin(), score.subgroup_group_indices.end(), counter) != score.subgroup_group_indices.end()) {
                     path_scores.back().first.push_back(path);
                 }
                 ++counter;
@@ -165,11 +162,33 @@ query_vocabulary(HistCloudT::Ptr& features, size_t nbr_query, grouped_vocabulary
 
     // add some common methods in vt for querying, really only one!
     std::vector<typename grouped_vocabulary_tree<HistT, 8>::result_type> scores;
-    std::vector<typename grouped_vocabulary_tree<HistT, 8>::group_type> groups;
-    vt.query_vocabulary(scores, groups, features, nbr_query);
+    vt.query_vocabulary(scores, features, nbr_query);
 
-    return get_retrieved_path_scores(scores, groups, summary);
+    return get_retrieved_path_scores(scores, summary);
 }
+
+void insert_index_score(std::vector<std::pair<int, double> >& weighted_indices, const vocabulary_tree<HistT, 8>::result_type& index, float score)
+{
+    weighted_indices.push_back(std::make_pair(index.index, score));
+}
+
+void insert_index_score(std::vector<std::pair<set<int>, double> >& weighted_indices, const grouped_vocabulary_tree<HistT, 8>::result_type& index, float score)
+{
+    weighted_indices.push_back(std::make_pair(set<int>(), score));
+    for (int subgroup_index : index.subgroup_global_indices) {
+        weighted_indices.back().first.insert(subgroup_index);
+    }
+}
+
+template <typename VocabularyT>
+struct segment_index {
+    using type = int;
+};
+
+template <>
+struct segment_index<grouped_vocabulary_tree<HistT, 8> > {
+    using type = set<int>;
+};
 
 // this should definitely be generic to both!
 template <typename VocabularyT>
@@ -180,9 +199,11 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
                const boost::filesystem::path& vocabulary_path, const vocabulary_summary& summary)
 {
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
+    using reweight_type = std::pair<typename segment_index<VocabularyT>::type, double>;
 
     TICK("registration_score");
-    std::map<int, double> weighted_indices;
+    //std::map<int, double> weighted_indices; // it would make more sense to keep a vector of sorted indices here I guess?
+    std::vector<reweight_type> weighted_indices;
     double weight_sum = 0.0;
     for (auto s : path_scores) {
         std::cout << "Loading sift for: " << s.second.index << std::endl;
@@ -206,12 +227,14 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
             continue;
         }
         // TODO: vt index is not correct for grouped_vocabulary
-        weighted_indices.insert(std::make_pair(s.second.index, spatial_score));
+        //weighted_indices.insert(std::make_pair(s.second.index, spatial_score));
+        insert_index_score(weighted_indices, s.second, spatial_score);
+
         weight_sum += spatial_score;
     }
 
-    for (std::pair<const int, double>& w : weighted_indices) {
-        std::cout << w.first << " score: " << w.second << std::endl;
+    for (reweight_type& w : weighted_indices) {
+        //std::cout << w.first << " score: " << w.second << std::endl;
         w.second *= double(weighted_indices.size())/weight_sum;
     }
     TOCK("registration_score");
@@ -361,7 +384,7 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& qu
     std::cout << "Reweighting and querying..." << std::endl;
     std::cout << "Number of query sift features: " << sift_features->size() << std::endl;
     TICK("query_reweight_vocabulary");
-    result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
+    result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, nbr_query, vt, retrieved_paths, vocabulary_path, summary);
     TOCK("query_reweight_vocabulary");
 
     return std::make_pair(retrieved_paths, reweighted_paths);

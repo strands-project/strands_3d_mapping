@@ -4,6 +4,8 @@
 
 #include <boost/filesystem.hpp>
 
+#define ONCE_PER_MAP 1
+
 using namespace std;
 
 template <typename T>
@@ -29,7 +31,7 @@ vector<int> sort_permutation_vector(const vector<T>& vec, Compare compare)
 // this has the advantage that it is independent of what we are representing
 // we also need to store the adjacency of subsegments within the sweeps
 template <typename Point, size_t K>
-void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& results, vector<group_type>& groups, CloudPtrT& query_cloud, size_t nbr_query)
+void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& updated_scores, CloudPtrT& query_cloud, size_t nbr_query)
 {
     // need a way to get
     // 1. mapping - can get this directly but would need to cache
@@ -39,7 +41,12 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& re
 
     // the result types should probably be structs to make clear which part is which part is which
     std::vector<result_type> scores;
-    top_combined_similarities(scores, query_cloud, 10*nbr_query); // make initial number of subsegments configurable
+    if (nbr_query == 0) {
+        top_combined_similarities(scores, query_cloud, 500);
+    }
+    else {
+        top_combined_similarities(scores, query_cloud, 10*nbr_query); // make initial number of subsegments configurable
+    }
 
     if (mapping.empty()) {
         super::get_node_mapping(mapping);
@@ -52,8 +59,8 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& re
         inverse_mapping.insert(make_pair(u.second, u.first));
     }
 
-    std::vector<result_type> updated_scores;
-    std::vector<group_type> updated_indices;
+    //std::vector<result_type> updated_scores;
+    //std::vector<group_type> updated_indices;
     //vector<index_score> total_scores;
     for (size_t i = 0; i < scores.size(); ++i) {
         vector<vocabulary_vector> vectors;
@@ -68,12 +75,44 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& re
         // get<1>(scores[i])) is actually the index within the group!
         double score = super::compute_min_combined_dist(selected_indices, query_cloud, vectors, adjacencies,
                                                         mapping, inverse_mapping, scores[i].subgroup_index);
-        updated_scores.push_back(result_type{ float(score), scores[i].group_index, selected_indices[0] });
-        updated_indices.push_back(selected_indices);
+        //double score = scores[i].score;
+        //selected_indices.push_back(scores[i].subgroup_index);
+        updated_scores.push_back(result_type(float(score), scores[i].group_index, selected_indices[0]));
+        updated_scores.back().subgroup_group_indices = selected_indices;
+        //updated_indices.push_back(selected_indices);
 
         cout << "Found " << selected_indices.size() << " number of subsegments..." << endl;
     }
 
+    std::sort(updated_scores.begin(), updated_scores.end(), [](const result_type& s1, const result_type& s2)
+    {
+        return s1.group_index < s2.group_index;
+    });
+
+    auto new_end = std::unique(updated_scores.begin(), updated_scores.end(), [](const result_type& s1, const result_type& s2)
+    {
+        return s1.group_index == s2.group_index && (s1.subgroup_group_indices.begin(), s1.subgroup_group_indices.end(),
+                                                    s2.subgroup_group_indices.begin(), s2.subgroup_group_indices.end()) != s1.subgroup_group_indices.end();
+    });
+    updated_scores.erase(new_end, updated_scores.end());
+
+    std::sort(updated_scores.begin(), updated_scores.end(), [](const result_type& s1, const result_type& s2)
+    {
+        return s1.score < s2.score;
+    });
+
+    if (nbr_query > 0 && updated_scores.size() > nbr_query) {
+        updated_scores.resize(nbr_query);
+    }
+
+    for (size_t i = 0; i < updated_scores.size(); ++i) {
+        for (int subgroup_index : updated_scores[i].subgroup_group_indices) {
+            updated_scores[i].subgroup_global_indices.push_back(get_id_for_group_subgroup(updated_scores[i].group_index, subgroup_index));
+        }
+        updated_scores[i].index = updated_scores[i].subgroup_global_indices[0];
+    }
+
+    /*
     auto p = sort_permutation_vector(updated_scores, [](const result_type& s1, const result_type& s2) {
         return s1.score < s2.score; // find min elements!
     });
@@ -83,15 +122,21 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& re
     // the subsegment indices within the sweep, not used atm (but we should be able to retrieve this somehow!!)
     groups = apply_permutation_vector(updated_indices, p);
 
-    if (results.size() > nbr_query) {
+    if (nbr_query > 0 && results.size() > nbr_query) {
         results.resize(nbr_query);
         // how should we return the oversegment indices????
         groups.resize(nbr_query);
     }
 
-    for (result_type& s : updated_scores) {
+    for (result_type& s : results) {
         s.index = get_id_for_group_subgroup(s.group_index, s.subgroup_index);
     }
+
+    for (size_t i = 0; i < results.size(); ++i) {
+        for (int subgroup_index : results[i].subgroup_group_indices) {
+            results[i].subgroup_global_indices.push_back(get_id_for_group_subgroup(results[i].group_index, subgroup_index));
+        }
+    }*/
 }
 
 
@@ -490,6 +535,8 @@ void grouped_vocabulary_tree<Point, K>::top_combined_similarities(vector<result_
     vector<vocabulary_result> smaller_scores;
     super::top_combined_similarities(smaller_scores, query_cloud, 0);
     // this should just be the result_types directly instead
+
+#if ONCE_PER_MAP
     map<int, pair<int, double> > map_scores;
     for (const vocabulary_result& s : smaller_scores) {
         if (map_scores.size() >= nbr_results) {
@@ -511,7 +558,13 @@ void grouped_vocabulary_tree<Point, K>::top_combined_similarities(vector<result_
     for (const pair<int, pair<int, double> >& s : map_scores) {
         scores.push_back(result_type{ float(s.second.second), s.first, s.second.first });
     }
-    //scores.insert(scores.end(), map_scores.begin(), map_scores.end());
+#else
+    for (const vocabulary_result& s : smaller_scores) {
+        pair<int, int> groups = group_subgroup[s.index];
+        scores.push_back(result_type{ s.score, groups.first, groups.second });
+    }
+#endif
+
     std::sort(scores.begin(), scores.end(), [](const result_type& s1, const result_type& s2) {
         return s1.score < s2.score; // find min elements!
     });

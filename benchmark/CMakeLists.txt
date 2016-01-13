@@ -117,3 +117,6 @@ target_link_libraries(test_static_matching benchmark_retrieval benchmark_result 
 add_executable(test_renderer test/test_renderer.cpp)
 target_link_libraries(test_renderer surfel_renderer benchmark_retrieval
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(test_summarize_benchmark test/test_summarize_benchmark)
+target_link_libraries(test_summarize_benchmark benchmark_result ${PCL_LIBRARIES})

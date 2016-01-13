@@ -56,7 +56,7 @@ void compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT:
     pcl::IndicesPtr indices(new std::vector<int>);
 
     // Fill in the model cloud
-    double model_resolution = 0.005;
+    double model_resolution = 0.003;
 
     // Compute model_resolution
     iss_salient_radius_ = 6 * model_resolution;

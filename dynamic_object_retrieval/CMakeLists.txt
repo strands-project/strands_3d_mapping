@@ -174,3 +174,9 @@ target_link_libraries(test_query_keypoints dynamic_visualize pfhrgb_estimation $
 
 add_executable(test_adjacencies test/test_adjacencies.cpp)
 target_link_libraries(test_adjacencies dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(test_top_match_one_map test/test_top_match_one_map.cpp)
+target_link_libraries(test_top_match_one_map extract_sift register_objects pfhrgb_estimation
+                      k_means_tree vocabulary_tree grouped_vocabulary_tree dynamic_visualize
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+

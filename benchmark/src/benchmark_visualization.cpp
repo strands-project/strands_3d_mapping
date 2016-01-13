@@ -108,10 +108,20 @@ cv::Mat add_query_image(cv::Mat& results, cv::Mat& query_image, const std::strin
     cv::Mat cropped_query;
     cv::Rect cropped_region = cv::Rect(minx, miny, maxx-minx+1, maxy-miny+1);
     query_image(cropped_region).copyTo(cropped_query);
+    if (cropped_query.cols == 0 || cropped_query.rows == 0) {
+        query_image.copyTo(cropped_query);
+    }
     //cropped_query.setTo(cv::Scalar(255, 255, 255), gray_query(cropped_region) < 5);
 
     int resized_width = int(double(results.rows)/double(cropped_query.rows)*double(cropped_query.cols));
+    if (resized_width == 0) {
+        resized_width = 300;
+    }
     cv::Mat resized_query;
+
+
+    cout << cropped_query.cols << ", " << cropped_query.rows << endl;
+    cout << resized_width << ", " << results.rows << endl;
     cv::resize(cropped_query, resized_query, cv::Size(resized_width, results.rows), 0, 0, cv::INTER_CUBIC);
 
     put_text(resized_query, query_label);
@@ -322,6 +332,10 @@ cv::Mat make_image(std::vector<CloudT::Ptr>& results, const Eigen::Matrix4f& roo
         //cv::waitKey();
 
         ++counter;
+    }
+
+    if (visualization.rows == 0) {
+        visualization = cv::Mat::zeros(height*2, width*5, CV_8UC3);
     }
 
     return visualization;

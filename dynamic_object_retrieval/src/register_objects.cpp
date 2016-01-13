@@ -13,6 +13,7 @@
 #include <pcl/registration/correspondence_estimation.h> // backprojection could be interesting also
 #include <pcl/features/fpfh_omp.h>
 #include <pcl/features/normal_3d_omp.h>
+#include <pcl/octree/octree.h>
 
 #define VISUALIZE false
 
@@ -20,6 +21,78 @@ using namespace std;
 
 float register_objects::sRGB_LUT[256] = {- 1};
 float register_objects::sXYZ_LUT[4000] = {- 1};
+
+template<typename PointT,
+         typename LeafContainerT = pcl::octree::OctreeContainerPointIndices,
+         typename BranchContainerT = pcl::octree::OctreeContainerEmpty >
+class OctreePointCloudOverlap : public pcl::octree::OctreePointCloud<PointT,
+        LeafContainerT, BranchContainerT, pcl::octree::Octree2BufBase<LeafContainerT, BranchContainerT> >
+
+{
+
+public:
+
+    OctreePointCloudOverlap(const double resolution_arg) :
+        pcl::octree::OctreePointCloud<PointT, LeafContainerT, BranchContainerT,
+        pcl::octree::Octree2BufBase<LeafContainerT, BranchContainerT> >(resolution_arg)
+    {
+    }
+
+    virtual ~OctreePointCloudOverlap()
+    {
+    }
+
+    std::size_t getNewOccupiedVoxelCenters()
+    {
+
+        std::vector<pcl::octree::OctreeContainerPointIndices*> leaf_containers;
+        this->serializeNewLeafs(leaf_containers); // this method is actually public, so actually no need to subclass
+        return leaf_containers.size();
+    }
+};
+
+double register_objects::compute_overlap(CloudT::Ptr& A, CloudT::Ptr& B)
+{
+    // Octree resolution - side length of octree voxels
+    const float resolution = 0.02f;
+
+    // Instantiate octree-based point cloud change detection class
+    OctreePointCloudOverlap<PointT> octree(resolution);
+
+    // Add points from cloudA to octree
+    octree.setInputCloud(A);
+    octree.addPointsFromInputCloud();
+
+    std::vector<PointT, Eigen::aligned_allocator<PointT> > dummy;
+    double nbr_total_A = octree.getOccupiedVoxelCenters(dummy);
+
+    // Switch octree buffers: This resets octree but keeps previous tree structure in memory.
+    octree.switchBuffers();
+
+    // Add points from cloudB to octree
+    octree.setInputCloud(B);
+    octree.addPointsFromInputCloud();
+
+    double nbr_total_B = octree.getOccupiedVoxelCenters(dummy);
+
+    // Get vector of point indices from octree voxels which did not exist in previous buffer
+
+    double nbr_not_A = octree.getNewOccupiedVoxelCenters();
+    //std::vector<pcl::octree::OctreeContainerPointIndices*> leaf_containers;
+    //octree.serializeNewLeafs(leaf_containers); // this method is actually public, so actually no need to subclass
+    //double nbr_not_A = double(leaf_containers.size());
+
+    if (nbr_not_A == nbr_total_B) {
+        return 0.0;
+    }
+
+    double nbr_both = nbr_total_B - nbr_not_A;
+    double nbr_total = nbr_total_A + nbr_not_A;
+
+    double overlap_fraction = nbr_both / nbr_total;
+
+    return overlap_fraction;
+}
 
 register_objects::register_objects()
 {
@@ -425,6 +498,7 @@ void register_objects::RGB2CIELAB(unsigned char R, unsigned char G, unsigned cha
     }
 }
 
+/*
 pair<double, double> register_objects::get_match_score()
 {
     if (c1->empty() || c2->empty()) {
@@ -474,9 +548,9 @@ pair<double, double> register_objects::get_match_score()
             exit(0);
         }
         float dist = sqrt(distances[0]);
-        /*if (dist > 0.1) {
-            continue;
-        }*/
+        //if (dist > 0.1) {
+        //    continue;
+        //}
         PointT q = new_cloud->at(indices[0]);
         // compare distance and color
         Eigen::Vector3d pc(p.r, p.g, p.b);
@@ -527,14 +601,30 @@ pair<double, double> register_objects::get_match_score()
         mean_color = 100;
     }
 
-    /*if (mean_dist < 0.003 && mean_dist != 0) {
-        mean_dist = 0.003;
-    }*/
+    //if (mean_dist < 0.003 && mean_dist != 0) {
+    //    mean_dist = 0.003;
+    //}
 
     cout << "Weight: " << 1.0/mean_dist << endl;
 
     return make_pair(1.0/mean_dist, 1.0/mean_color);
 }
+*/
+
+pair<double, double> register_objects::get_match_score()
+{
+    if (c1->empty() || c2->empty()) {
+        return make_pair(0.1, 0.0);
+    }
+    CloudT::Ptr new_cloud(new CloudT);
+    pcl::transformPointCloud(*c1, *new_cloud, T);
+
+    double overlap = compute_overlap(c2, new_cloud);
+    overlap = std::min(overlap, 0.1);
+
+    return make_pair(overlap, 0.0);
+}
+
 
 void register_objects::get_transformation(Eigen::Matrix4f& trans)
 {

@@ -66,7 +66,7 @@ std::pair<std::vector<CloudT::Ptr>, std::vector<boost::filesystem::path> > load_
         std::vector<boost::filesystem::path> paths;
         tie(paths, index) = s;
         clouds.push_back(CloudT::Ptr(new CloudT));
-        std::cout << "Paths: " << std::endl;
+        std::cout << "Paths with size " << paths.size() << ":" << std::endl;
         for (const boost::filesystem::path& path : paths) {
             std::cout << path.string() << std::endl;
             CloudT::Ptr temp(new CloudT);
@@ -83,6 +83,8 @@ template<typename RetrievalFunctionT>
 std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_score_for_sweep(RetrievalFunctionT rfunc, const std::string& sweep_xml,
                                                                                             benchmark_retrieval::benchmark_result current_result)
 {
+    boost::filesystem::path sweep_path = boost::filesystem::path(sweep_xml);
+
     LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
 
     Eigen::Matrix3f K;
@@ -90,6 +92,8 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
     std::tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
     CloudT::Ptr sweep_cloud = semantic_map_load_utilties::loadMergedCloudFromSingleSweep<PointT>(sweep_xml);
     Eigen::Matrix4f T = benchmark_retrieval::get_global_camera_rotation(labels);
+
+    std::vector<std::string> objects_to_check = {"backpack", "trash_bin", "lamp", "chair", "desktop", "pillow", "hanger_jacket", "water_boiler"};
 
     std::vector<cv::Mat> visualizations;
     for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectImages, labels.objectMasks, labels.objectScanIndices)) {
@@ -99,6 +103,17 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
         cv::Mat query_mask;
         size_t scan_index;
         tie(object_cloud, query_label, query_image, query_mask, scan_index) = tup;
+        bool found = false;
+        for (const std::string& is_check : objects_to_check) {
+            if (query_label.compare(0, is_check.size(), is_check) == 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            continue;
+        }
+
         cv::Mat query_depth = benchmark_retrieval::sweep_get_depth_at(sweep_xml, scan_index);
         //cv::imshow("Query object", query_image);
         //cv::waitKey();
@@ -117,6 +132,15 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
         //tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
         std::tie(retrieved_clouds, sweep_paths) = rfunc(query_cloud, query_image, query_depth, K);
+        for (int i = 0; i < sweep_paths.size() && i < retrieved_clouds.size(); ++i) {
+            if (sweep_paths[i] == sweep_path) {
+                retrieved_clouds.erase(retrieved_clouds.begin() + i);
+                sweep_paths.erase(sweep_paths.begin() + i);
+                --i;
+            }
+        }
+        retrieved_clouds.resize(10);
+        sweep_paths.resize(10);
 
         TOCK("total_query_vocabulary");
 
@@ -131,7 +155,9 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
         cv::Mat inverted_mask;
         cv::bitwise_not(query_mask, inverted_mask);
         query_image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
-        cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, sweep_paths, only_labels, T);
+        //cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, sweep_paths, only_labels, T);
+        cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_cloud, query_mask, sweep_path, K, camera_transforms[scan_index],
+                                                                              query_label, retrieved_clouds, sweep_paths, only_labels, T);
 
         //cv::imshow("Image with labels", visualization);
         //cv::waitKey();

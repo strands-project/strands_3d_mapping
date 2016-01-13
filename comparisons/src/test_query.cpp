@@ -56,17 +56,20 @@ void visualize_query_sweep(const string& sweep_xml,
 
         vector<string> dummy_labels;
         vector<CloudT::Ptr> retrieved_clouds;
+        vector<boost::filesystem::path> sweep_paths;
         for (int i = 0; i < matches.size(); ++i) {
             dummy_labels.push_back(string("Score: ") + to_string(matches[i].first));
             retrieved_clouds.push_back(CloudT::Ptr(new CloudT));
             cout << matches[i].second << endl;
             pcl::io::loadPCDFile(matches[i].second, *retrieved_clouds.back());
+            boost::filesystem::path path = boost::filesystem::path(matches[i].second).parent_path().parent_path();
+            sweep_paths.push_back(path);
             //cout << retrieved_clouds.back()->size() << endl;
         }
         cv::Mat inverted_mask;
         cv::bitwise_not(query_mask, inverted_mask);
         query_image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
-        cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, dummy_labels, T);
+        cv::Mat visualization = benchmark_retrieval::make_visualization_image(query_image, query_label, retrieved_clouds, sweep_paths, dummy_labels, T);
         cv::imwrite("results_image.png", visualization);
         cv::imshow("Retrieved clouds", visualization);
         cv::waitKey();
@@ -83,7 +86,6 @@ int main(int argc, char** argv)
     boost::filesystem::path data_path(argv[1]);
 
     //bow_representation::encode_bow_representation(data_path);
-    /*
     vlad_representation::vlad_repr repr;
     repr.dimension = 250; // pfh feature dimension
     repr.numCenters = nbr_centers; // seems good defaults
@@ -93,7 +95,6 @@ int main(int argc, char** argv)
 
     vl_kmeans_delete(repr.kmeans);
     return 0;
-    */
 
     dynamic_object_retrieval::data_summary summary;
     summary.load(data_path);

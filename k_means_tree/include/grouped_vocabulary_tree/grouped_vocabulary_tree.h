@@ -24,9 +24,13 @@
 // we need these two initial indices to denote the indices
 // of the group and the index within the group
 struct grouped_result : public vocabulary_result {
-    int group_index;
-    int subgroup_index;
-    grouped_result(float score, int group_index, int subgroup_index) : vocabulary_result(0, score), group_index(group_index), subgroup_index(subgroup_index) {}
+    int group_index; // the index among all the other groups
+    int subgroup_index; // the index within this subgroup
+    std::vector<int> subgroup_global_indices; // the indices of the within all of the segments
+    std::vector<int> subgroup_group_indices; // the indices of the subsegments within this group
+    grouped_result(float score, int group_index, int subgroup_index) :
+        vocabulary_result(0, score), group_index(group_index), subgroup_index(subgroup_index),
+        subgroup_global_indices(0), subgroup_group_indices(0) {}
     grouped_result() : vocabulary_result() {}
 };
 
@@ -71,7 +75,7 @@ protected:
 
 public:
 
-    void query_vocabulary(std::vector<result_type>& results, std::vector<group_type>& groups, CloudPtrT& query_cloud, size_t nbr_query);
+    void query_vocabulary(std::vector<result_type>& results, CloudPtrT& query_cloud, size_t nbr_query);
 
     void get_subgroups_for_group(std::set<int>& subgroups, int group_id);
     int get_id_for_group_subgroup(int group_id, int subgroup_id);

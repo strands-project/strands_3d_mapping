@@ -11,6 +11,8 @@
 #include <pcl/common/centroid.h>
 #include "dynamic_object_retrieval/definitions.h"
 
+#define WITH_NOISE_SET 0
+
 using namespace std;
 using namespace dynamic_object_retrieval;
 
@@ -248,53 +250,61 @@ void train_vocabulary(const boost::filesystem::path& vocabulary_path)
     summary.load(vocabulary_path);
 
     summary.min_segment_features = 30;
-    summary.max_training_features = 150000; // 600000; // for pfgrgb
-    summary.max_append_features = 1000000; // 1000000; // for pfgrgb
+    summary.max_training_features = 400000; // 150000;
+    summary.max_append_features = 1000000; // 1000000;
 
     boost::filesystem::path noise_data_path = summary.noise_data_path;
+#if WITH_NOISE_SET
     boost::filesystem::path annotated_data_path = summary.annotated_data_path;
+#endif
 
     if (summary.vocabulary_type == "standard") {
         convex_feature_cloud_map noise_segment_features(noise_data_path);
-        convex_feature_cloud_map annotated_segment_features(annotated_data_path);
         summary.nbr_noise_segments = add_segments(noise_segment_features, vocabulary_path, summary, true, 0);
+#if WITH_NOISE_SET
+        convex_feature_cloud_map annotated_segment_features(annotated_data_path);
         summary.nbr_annotated_segments = add_segments(annotated_segment_features, vocabulary_path, summary, false, summary.nbr_noise_segments);
+#endif
     }
     else if (summary.vocabulary_type == "incremental" && summary.subsegment_type == "convex_segment") {
         convex_feature_cloud_map noise_segment_features(noise_data_path);
-        convex_feature_cloud_map annotated_segment_features(annotated_data_path);
         convex_keypoint_cloud_map noise_segment_keypoints(noise_data_path);
-        convex_keypoint_cloud_map annotated_segment_keypoints(annotated_data_path);
         convex_sweep_index_map noise_sweep_indices(noise_data_path);
-        convex_sweep_index_map annotated_sweep_indices(annotated_data_path);
         convex_segment_map noise_segment_paths(noise_data_path);
-        convex_segment_map annotated_segment_paths(annotated_data_path);
         tie(summary.nbr_noise_segments, summary.nbr_noise_sweeps) =
                 add_segments_grouped<grouped_vocabulary_tree<HistT, 8> >(
                     noise_segment_features, noise_segment_keypoints, noise_sweep_indices,
                     noise_segment_paths, vocabulary_path, summary, true, 0, 0);
+#if WITH_NOISE_SET
+        convex_feature_cloud_map annotated_segment_features(annotated_data_path);
+        convex_keypoint_cloud_map annotated_segment_keypoints(annotated_data_path);
+        convex_sweep_index_map annotated_sweep_indices(annotated_data_path);
+        convex_segment_map annotated_segment_paths(annotated_data_path);
         tie(summary.nbr_annotated_segments, summary.nbr_annotated_sweeps) =
                 add_segments_grouped<grouped_vocabulary_tree<HistT, 8> >(
                     annotated_segment_features, annotated_segment_keypoints, annotated_sweep_indices,
                     annotated_segment_paths, vocabulary_path, summary, false, summary.nbr_noise_sweeps, summary.nbr_noise_segments);
+#endif
     }
     else if (summary.vocabulary_type == "incremental") {
         subsegment_feature_cloud_map noise_segment_features(noise_data_path);
-        subsegment_feature_cloud_map annotated_segment_features(annotated_data_path);
         subsegment_keypoint_cloud_map noise_segment_keypoints(noise_data_path);
-        subsegment_keypoint_cloud_map annotated_segment_keypoints(annotated_data_path);
         subsegment_sweep_index_map noise_sweep_indices(noise_data_path);
-        subsegment_sweep_index_map annotated_sweep_indices(annotated_data_path);
         subsegment_map noise_segment_paths(noise_data_path);
-        subsegment_map annotated_segment_paths(annotated_data_path);
         tie(summary.nbr_noise_segments, summary.nbr_noise_sweeps) =
                 add_segments_grouped<grouped_vocabulary_tree<HistT, 8> >(
                     noise_segment_features, noise_segment_keypoints, noise_sweep_indices,
                     noise_segment_paths, vocabulary_path, summary, true, 0, 0);
+#if WITH_NOISE_SET
+        subsegment_feature_cloud_map annotated_segment_features(annotated_data_path);
+        subsegment_keypoint_cloud_map annotated_segment_keypoints(annotated_data_path);
+        subsegment_sweep_index_map annotated_sweep_indices(annotated_data_path);
+        subsegment_map annotated_segment_paths(annotated_data_path);
         tie(summary.nbr_annotated_segments, summary.nbr_annotated_sweeps) =
                 add_segments_grouped<grouped_vocabulary_tree<HistT, 8> >(
                     annotated_segment_features, annotated_segment_keypoints, annotated_sweep_indices,
                     annotated_segment_paths, vocabulary_path, summary, false, summary.nbr_noise_sweeps, summary.nbr_noise_segments);
+#endif
     }
 
     summary.save(vocabulary_path);

@@ -291,7 +291,9 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_features(cv::Mat& image, cv::Mat
     extractor.compute(image, cv_keypoints, cv_features);
 
     CloudT::Ptr keypoints(new CloudT);
+    vector<int> skip_position(cv_keypoints.size(), 0);
     // get back to 3d coordinates
+    int counter;
     for (cv::KeyPoint k : cv_keypoints) {
         cv::Point2f p2 = k.pt;
         Eigen::Vector3f p3;
@@ -301,12 +303,15 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_features(cv::Mat& image, cv::Mat
         p3 = K.colPivHouseholderQr().solve(p3);
         uint16_t depth_val = depth.at<uint16_t>(int(p2.y), int(p2.x));
         if (depth_val == 0) {
+            skip_position[counter] = 1;
+            ++counter;
             continue;
         }
         p3 *= float(depth_val)/p3(2)/10000.0f;
         PointT p;
         p.getVector3fMap() = p3;
         keypoints->push_back(p);
+        ++counter;
     }
 
     //cv::Mat img_keypoints;
@@ -318,6 +323,9 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_features(cv::Mat& image, cv::Mat
     features->reserve(cv_features.rows);
     for (int j = 0; j < cv_features.rows; ++j) {
         // we need to check if the points are finite
+        if (skip_position[j]) {
+            continue;
+        }
         SiftT sp;
         for (int k = 0; k < 128; ++k) {
             sp.histogram[k] = cv_features.at<float>(j, k);

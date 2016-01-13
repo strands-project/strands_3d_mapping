@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
-project(vlad)
+project(comparisons)
 
 #set(CMAKE_C_COMPILER clang)
 #set(CMAKE_CXX_COMPILER clang++)
@@ -13,6 +13,8 @@ add_definitions(${PCL_DEFINITIONS})
 find_package(OpenCV REQUIRED)
 find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
+
+find_package(OpenGL)
 
 # Find and configure OpenMP
 find_package(OpenMP REQUIRED)
@@ -67,6 +69,13 @@ find_package(ROS REQUIRED)
 include_directories(${ROS_INCLUDE_DIR})
 link_directories(${ROS_LIBRARY_DIR})
 
+find_package(HDF5)
+include_directories(${HDF5_INCLUDE_DIR})
+
+find_package(FLANN)
+include_directories(${FLANN_INCLUDE_DIRS})
+
+
 # Define the locations of cereal serialization header files
 set(cereal_include_dir ${k_means_tree_dir}/cereal/include)
 include_directories(${cereal_include_dir})
@@ -90,14 +99,41 @@ target_link_libraries(bow_representation vlad_common ${ROS_LIBRARIES} ${OpenCV_L
 add_executable(test_vlfeat src/test_vlfeat.cpp)
 target_link_libraries(test_vlfeat vlad_common vlad_representation bow_representation dynamic_visualize)
 
+add_executable(compute_esf_features src/compute_esf_features.cpp)
+target_link_libraries(compute_esf_features ${FLANN_LIBRARIES} ${HDF5_hdf5_LIBRARY}  ${ROS_LIBRARIES} ${OpenCV_LIBS}
+                      ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(test_query src/test_query.cpp)
 target_link_libraries(test_query vlad_common vlad_representation bow_representation
-                      benchmark_retrieval benchmark_visualization
-                      pfhrgb_estimation benchmark_overlap)
+                      benchmark_retrieval benchmark_visualization surfel_renderer
+                      pfhrgb_estimation benchmark_overlap
+                      ${OPENGL_gl_LIBRARY} ${QT_QTOPENGL_LIBRARY})
 
 add_executable(benchmark_query_vlad src/benchmark_query_vlad.cpp)
 target_link_libraries(benchmark_query_vlad vlad_common vlad_representation bow_representation
                       pfhrgb_estimation
-                      benchmark_result benchmark_retrieval benchmark_visualization benchmark_overlap
+                      benchmark_result benchmark_retrieval benchmark_visualization surfel_renderer benchmark_overlap
                       grouped_vocabulary_tree vocabulary_tree k_means_tree # The order here matters for some reason
+                      ${OPENGL_gl_LIBRARY} ${QT_QTOPENGL_LIBRARY}
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(benchmark_query_esf src/benchmark_query_esf.cpp)
+target_link_libraries(benchmark_query_esf
+                      ${FLANN_LIBRARIES} ${HDF5_hdf5_LIBRARY} pfhrgb_estimation
+                      benchmark_result benchmark_retrieval benchmark_visualization surfel_renderer benchmark_overlap
+                      grouped_vocabulary_tree vocabulary_tree k_means_tree # The order here matters for some reason
+                      ${OPENGL_gl_LIBRARY} ${QT_QTOPENGL_LIBRARY}
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(benchmark_query_discovery src/benchmark_query_discovery.cpp
+               include/detection/UnionFindSimple.hpp include/detection/segmenter.cpp)
+target_link_libraries(benchmark_query_discovery
+                      benchmark_result benchmark_retrieval benchmark_visualization surfel_renderer benchmark_overlap
+                      grouped_vocabulary_tree vocabulary_tree k_means_tree # The order here matters for some reason
+                      ${OPENGL_gl_LIBRARY} ${QT_QTOPENGL_LIBRARY}
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(compute_discovery_graphs src/compute_discovery_graphs.cpp
+               include/detection/UnionFindSimple.hpp include/detection/segmenter.cpp)
+target_link_libraries(compute_discovery_graphs dynamic_visualize
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

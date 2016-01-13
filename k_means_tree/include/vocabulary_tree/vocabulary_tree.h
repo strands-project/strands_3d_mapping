@@ -91,7 +91,11 @@ public:
 
     void query_vocabulary(std::vector<result_type>& results, CloudPtrT& query_cloud, size_t nbr_results);
     void compute_new_weights(std::map<int, double>& original_norm_constants, std::map<node*, double>& original_weights,
-                             std::map<int, double>& weighted_indices, CloudPtrT& query_cloud);
+                             std::vector<std::pair<int, double> >& weighted_indices, CloudPtrT& query_cloud);
+    void compute_new_weights(std::map<int, double>& original_norm_constants,
+                             std::map<node*, double>& original_weights,
+                             std::vector<std::pair<std::set<int>, double> >& weighted_indices,
+                             CloudPtrT& query_cloud);
     void restore_old_weights(std::map<int, double>& original_norm_constants, std::map<node*, double>& original_weights);
 
     double compute_vocabulary_norm(CloudPtrT& cloud);

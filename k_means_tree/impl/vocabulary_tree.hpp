@@ -12,19 +12,19 @@ void vocabulary_tree<Point, K>::query_vocabulary(std::vector<result_type>& resul
 }
 
 template <typename Key, typename Value1, typename Value2>
-set<Key> key_intersection(const map<Key, Value1>& lhs, const map<Key, Value2>& rhs)
+vector<Value2> key_intersection(const map<Key, Value1>& lhs, const vector<pair<Key, Value2> >& rhs)
 {
     typedef typename map<Key, Value1>::const_iterator input_iterator1;
-    typedef typename map<Key, Value2>::const_iterator input_iterator2;
+    typedef typename vector<pair<Key, Value2> >::const_iterator input_iterator2;
 
-    set<Key> result;
+    vector<Value2> result;
     input_iterator1 it1 = lhs.cbegin();
     input_iterator2 it2 = rhs.cbegin();
     input_iterator1 end1 = lhs.cend();
     input_iterator2 end2 = rhs.cend();
     while (it1 != end1 && it2 != end2) {
         if (it1->first == it2->first) {
-            result.insert(it1->first);
+            result.push_back(it2->second);
             ++it1;
             ++it2;
         }
@@ -40,13 +40,41 @@ set<Key> key_intersection(const map<Key, Value1>& lhs, const map<Key, Value2>& r
     return result;
 }
 
+template <typename Key, typename Value>
+bool has_key_intersection(const set<Key>& lhs, const map<Key, Value>& rhs)
+{
+    typedef typename set<Key>::const_iterator input_iterator1;
+    typedef typename map<Key, Value>::const_iterator input_iterator2;
+
+    input_iterator1 it1 = lhs.cbegin();
+    input_iterator2 it2 = rhs.cbegin();
+    input_iterator1 end1 = lhs.cend();
+    input_iterator2 end2 = rhs.cend();
+    while (it1 != end1 && it2 != end2) {
+        if (*it1 == it2->first) {
+            return true;
+        }
+        if (*it1 < it2->first) {
+            ++it1;
+        }
+        else {
+            ++it2;
+        }
+    }
+    return false;
+}
+
 template <typename Point, size_t K>
 void vocabulary_tree<Point, K>::compute_new_weights(map<int, double>& original_norm_constants,
                                                     map<node*, double>& original_weights,
-                                                    map<int, double>& weighted_indices,
+                                                    vector<pair<int, double> >& weighted_indices,
                                                     CloudPtrT& query_cloud)
 {
     map<node*, pair<size_t, double> > new_weights;
+
+    std::sort(weighted_indices.begin(), weighted_indices.end(), [](const pair<int, double>& p1, const pair<int, double>& p2) {
+        return p1.first < p2.first;
+    });
 
     for (PointT p : query_cloud->points) {
         std::vector<node*> path;
@@ -63,7 +91,7 @@ void vocabulary_tree<Point, K>::compute_new_weights(map<int, double>& original_n
             map<int, int> source_inds;
             source_freqs_for_node(source_inds, n);
 
-            set<int> intersection = key_intersection(source_inds, weighted_indices);
+            vector<double> intersection = key_intersection(source_inds, weighted_indices);
             if (intersection.empty()) {
                 ++current_depth;
                 continue;
@@ -73,10 +101,87 @@ void vocabulary_tree<Point, K>::compute_new_weights(map<int, double>& original_n
                 new_weights.insert(make_pair(n, make_pair(0, 0.0)));
             }
 
+            /*
             for (int i : intersection) {
                 pair<size_t, double>& ref = new_weights.at(n);
                 ref.first += 1;
                 ref.second += weighted_indices.at(i);
+            }
+            */
+            for (double w : intersection) {
+                pair<size_t, double>& ref = new_weights.at(n);
+                ref.first += 1;
+                ref.second += w;
+            }
+
+            ++current_depth;
+        }
+    }
+
+    for (pair<node* const, pair<size_t, double> >& v : new_weights) {
+        // compute and store the new weights
+        double original_weight = v.first->weight;
+        double new_weight = (v.second.second / double(v.second.first)) * original_weight;
+        original_weights.insert(make_pair(v.first, original_weight));
+        v.first->weight = new_weight;
+
+        // update the normalization computations
+        map<int, int> source_inds;
+        source_freqs_for_node(source_inds, v.first);
+        for (pair<const int, int>& u : source_inds) {
+            // first, save the original normalization if it isn't already
+            if (original_norm_constants.count(u.first) == 0) {
+                original_norm_constants.insert(make_pair(u.first, db_vector_normalizing_constants.at(u.first)));
+            }
+            db_vector_normalizing_constants.at(u.first) -=
+                    pexp(original_weight*u.second) - pexp(new_weight*u.second);
+        }
+    }
+}
+
+template <typename Point, size_t K>
+void vocabulary_tree<Point, K>::compute_new_weights(map<int, double>& original_norm_constants,
+                                                    map<node*, double>& original_weights,
+                                                    vector<pair<set<int>, double> >& weighted_indices,
+                                                    CloudPtrT& query_cloud)
+{
+    map<node*, pair<size_t, double> > new_weights;
+
+    set<node*> already_visited;
+
+    // this is not how it is supposed to work I think? shouldn't it just look at
+    // one node once, not multiple as it appears below?
+    // I think so, we should definitely changes it as it multiplies the
+    // significance of places where multiple features intersect
+    for (PointT p : query_cloud->points) {
+        std::vector<node*> path;
+        super::get_path_for_point(path, p);
+        int current_depth = 0;
+        for (node* n : path) {
+            // if root node, skip since it contributes the same to every
+            if (current_depth < matching_min_depth || already_visited.count(n) > 0) {
+                ++current_depth;
+                continue;
+            }
+            already_visited.insert(n);
+
+            // if no intersection with weighted_indices, continue
+            map<int, int> source_inds;
+            source_freqs_for_node(source_inds, n); // we're gonna do this for the children, wouldn't it be better to do recursive?
+
+            for (const pair<set<int>, double>& w : weighted_indices) {
+                bool has_intersection = has_key_intersection(w.first, source_inds);
+                if (!has_intersection) {
+                    continue;
+                }
+
+                if (new_weights.count(n) == 0) {
+                    new_weights.insert(make_pair(n, make_pair(0, 0.0)));
+                }
+
+                pair<size_t, double>& ref = new_weights.at(n);
+                ref.first += 1;
+                ref.second += w.second;
             }
 
             ++current_depth;
