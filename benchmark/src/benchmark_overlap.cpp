@@ -42,10 +42,9 @@ public:
     }
 };
 
-double compute_overlap(CloudT::Ptr& A, CloudT::Ptr& B)
+double compute_overlap(CloudT::Ptr& A, CloudT::Ptr& B, float resolution)
 {
     // Octree resolution - side length of octree voxels
-    const float resolution = 0.08f;
 
     // Instantiate octree-based point cloud change detection class
     OctreePointCloudOverlap<PointT> octree(resolution);

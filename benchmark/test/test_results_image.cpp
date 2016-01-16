@@ -36,6 +36,13 @@ cv::Mat query_make_image(VocabularyT& vt, CloudT::Ptr& sweep_cloud, cv::Mat& que
     vector<boost::filesystem::path> sweep_paths;
 
     CloudT::Ptr refined_query = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, query_transform, K);
+
+    cout << "Query cloud size: " << refined_query->size() << endl;
+
+    if (refined_query->size() < 500) { // this might happen if there are annotated objects in top layers of sweep
+        return query_image.clone();
+    }
+
     //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 50, vocabulary_path, summary, true);
     auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth, K, 15, vocabulary_path, summary, false);
     std::remove_if(results.first.begin(), results.first.end(), [&](const result_type& r) {
@@ -70,6 +77,15 @@ cv::Mat reweight_query_make_image(VocabularyT& vt, CloudT::Ptr& sweep_cloud, cv:
     vector<boost::filesystem::path> sweep_paths_initial;
 
     CloudT::Ptr refined_query = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, query_transform, K);
+
+    cout << "Query cloud size: " << refined_query->size() << endl;
+
+    if (refined_query->size() < 500) { // this might happen if there are annotated objects in top layers of sweep
+        return query_image.clone();
+    }
+
+    cout << "Query cloud size: " << refined_query->size() << endl;
+
     //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 50, vocabulary_path, summary, true);
     auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth, K, 20, vocabulary_path, summary, true);
 
@@ -176,11 +192,13 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
                                                           query_label, camera_transforms[scan_index], T, K,
                                                           vocabulary_path, summary, sweep_path);
 
-        /*if (summary.subsegment_type == "convex_segment") {
+        /*
+        if (summary.subsegment_type == "convex_segment") {
             cv::Mat standard_visualization = query_make_image((vocabulary_tree<HistT, 8>&)vt, sweep_cloud, query_image, query_mask, query_depth,
                                                               query_label, camera_transforms[scan_index], T, K, vocabulary_path, summary, sweep_path);
             cv::vconcat(visualization, standard_visualization, visualization);
-        }*/
+        }
+        */
 
         cv::imwrite("results_image.png", visualization);
 
@@ -205,7 +223,10 @@ int main(int argc, char** argv)
 
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
+    // KTH Data:
     vector<string> objects_to_check = {"backpack", "trash_bin", "lamp", "chair", "desktop", "pillow", "hanger_jacket", "water_boiler"};
+    // G4S Data:
+    //vector<string> objects_to_check = {"jacket", "chair", "plant", "printer", "bin"};
     //{"backpack", "trash", "desktop", "helmet", "chair", "pillow"};
 
     if (summary.vocabulary_type == "standard") {

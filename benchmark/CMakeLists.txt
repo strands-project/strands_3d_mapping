@@ -83,6 +83,10 @@ target_link_libraries(surfel_renderer ${OPENGL_gl_LIBRARY} ${OpenCV_LIBS} ${QT_Q
 add_library(benchmark_visualization src/benchmark_visualization.cpp include/${PROJECT_NAME}/benchmark_visualization.h)
 target_link_libraries(benchmark_visualization surfel_renderer dynamic_visualize ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
+add_library(benchmark_segmentation src/benchmark_segmentation.cpp include/${PROJECT_NAME}/benchmark_segmentation.h)
+target_link_libraries(benchmark_segmentation benchmark_overlap benchmark_retrieval supervoxel_segmentation
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
 
 # DEMO: configure_file
 #configure_file(scripts/menu.py menu.py COPYONLY)
@@ -90,6 +94,15 @@ target_link_libraries(benchmark_visualization surfel_renderer dynamic_visualize 
 add_executable(benchmark_query_vocabulary src/benchmark_query_vocabulary.cpp)
 target_link_libraries(benchmark_query_vocabulary benchmark_retrieval benchmark_result benchmark_visualization benchmark_overlap
                       vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation shot_estimation
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(benchmark_convex_segmentation src/benchmark_convex_segmentation.cpp)
+target_link_libraries(benchmark_convex_segmentation benchmark_segmentation supervoxel_segmentation
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(benchmark_incremental_segmentation src/benchmark_incremental_segmentation.cpp)
+target_link_libraries(benchmark_incremental_segmentation benchmark_segmentation benchmark_overlap supervoxel_segmentation
+                      grouped_vocabulary_tree vocabulary_tree k_means_tree dynamic_visualize pfhrgb_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 ############### TESTING PROGRAMS ##################

@@ -79,6 +79,7 @@ std::pair<std::vector<CloudT::Ptr>, std::vector<boost::filesystem::path> > load_
     return make_pair(clouds, sweep_paths);
 }
 
+// couldn't this just be a std::function, even if it's a closure?
 template<typename RetrievalFunctionT>
 std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_score_for_sweep(RetrievalFunctionT rfunc, const std::string& sweep_xml,
                                                                                             benchmark_retrieval::benchmark_result current_result)
@@ -111,6 +112,12 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
             }
         }
         if (!found) {
+            continue;
+        }
+
+        Eigen::Vector4f center;
+        pcl::compute3DCentroid(*object_cloud, center);
+        if (center.head<3>().norm() > 2.5f) {
             continue;
         }
 

@@ -72,6 +72,8 @@ void vocabulary_tree<Point, K>::compute_new_weights(map<int, double>& original_n
 {
     map<node*, pair<size_t, double> > new_weights;
 
+    set<node*> already_visited;
+
     std::sort(weighted_indices.begin(), weighted_indices.end(), [](const pair<int, double>& p1, const pair<int, double>& p2) {
         return p1.first < p2.first;
     });
@@ -82,10 +84,11 @@ void vocabulary_tree<Point, K>::compute_new_weights(map<int, double>& original_n
         int current_depth = 0;
         for (node* n : path) {
             // if root node, skip since it contributes the same to every
-            if (current_depth < matching_min_depth) {
+            if (current_depth < matching_min_depth || already_visited.count(n) > 0) {
                 ++current_depth;
                 continue;
             }
+            already_visited.insert(n);
 
             // if no intersection with weighted_indices, continue
             map<int, int> source_inds;

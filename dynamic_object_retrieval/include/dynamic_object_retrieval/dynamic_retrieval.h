@@ -172,9 +172,9 @@ void insert_index_score(std::vector<std::pair<int, double> >& weighted_indices, 
     weighted_indices.push_back(std::make_pair(index.index, score));
 }
 
-void insert_index_score(std::vector<std::pair<set<int>, double> >& weighted_indices, const grouped_vocabulary_tree<HistT, 8>::result_type& index, float score)
+void insert_index_score(std::vector<std::pair<std::set<int>, double> >& weighted_indices, const grouped_vocabulary_tree<HistT, 8>::result_type& index, float score)
 {
-    weighted_indices.push_back(std::make_pair(set<int>(), score));
+    weighted_indices.push_back(std::make_pair(std::set<int>(), score));
     for (int subgroup_index : index.subgroup_global_indices) {
         weighted_indices.back().first.insert(subgroup_index);
     }
@@ -187,13 +187,13 @@ struct segment_index {
 
 template <>
 struct segment_index<grouped_vocabulary_tree<HistT, 8> > {
-    using type = set<int>;
+    using type = std::set<int>;
 };
 
 // this should definitely be generic to both!
 template <typename VocabularyT>
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >
-reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
+reweight_query(CloudT::Ptr& query_cloud, HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
                CloudT::Ptr& sift_keypoints, size_t nbr_query, VocabularyT& vt,
                const std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >& path_scores,
                const boost::filesystem::path& vocabulary_path, const vocabulary_summary& summary)
@@ -210,14 +210,16 @@ reweight_query(HistCloudT::Ptr& features, SiftCloudT::Ptr& sift_features,
 
         CloudT::Ptr match_sift_keypoints;
         SiftCloudT::Ptr match_sift_cloud;
+        CloudT::Ptr match_cloud;
 
         // we could probably use the path for this??? would be nicer with something else
         // on the other hand the path makes it open if we cache or not
-        tie(match_sift_cloud, match_sift_keypoints) = extract_sift::get_sift_for_cloud_path(s.first);
+        std::tie(match_sift_cloud, match_sift_keypoints, match_cloud) = extract_sift::get_sift_for_cloud_path(s.first);
         std::cout << "Number of sift features for match: " << match_sift_cloud->size() << std::endl;
 
         register_objects ro;
         ro.set_input_clouds(sift_keypoints, match_sift_keypoints);
+        //ro.set_input_clouds(query_cloud, match_cloud); // here we should have the actual clouds instead
         ro.do_registration(sift_features, match_sift_cloud, sift_keypoints, match_sift_keypoints);
 
         // color score is not used atm
@@ -293,9 +295,10 @@ query_reweight_vocabulary(VocabularyT& vt, const boost::filesystem::path& query_
 
     SiftCloudT::Ptr sift_features;
     CloudT::Ptr sift_keypoints;
+    CloudT::Ptr query_cloud;
     // TODO: this is actually not correct, query_features is not the cloud
-    tie(sift_features, sift_keypoints) = extract_sift::get_sift_for_cloud_path(query_features);
-    result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
+    std::tie(sift_features, sift_keypoints, query_cloud) = extract_sift::get_sift_for_cloud_path(query_features);
+    result_type reweighted_paths = reweight_query(query_cloud, features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
 
     return make_pair(retrieved_paths, reweighted_paths);
 }
@@ -334,7 +337,7 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, const Eigen
     tie(sift_features, sift_keypoints) = extract_sift::extract_sift_for_cloud(query_cloud, K);
 
     std::cout << "Reweighting and querying..." << std::endl;
-    result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
+    result_type reweighted_paths = reweight_query(query_cloud, features, sift_features, sift_keypoints, 10, vt, retrieved_paths, vocabulary_path, summary);
 
     return make_pair(retrieved_paths, reweighted_paths);
 }
@@ -365,14 +368,17 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& qu
     TOCK("compute_query_features");
 
     std::cout << "Querying vocabulary..." << std::endl;
-    TICK("query_vocabulary");
-
-    result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
-    TOCK("query_vocabulary");
 
     if (!do_reweighting) {
+        result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
         return make_pair(retrieved_paths, result_type());
     }
+
+    TICK("query_vocabulary");
+
+    result_type retrieved_paths = query_vocabulary(features, 2*nbr_query, vt, vocabulary_path, summary);
+
+    TOCK("query_vocabulary");
 
     std::cout << "Computing sift features for query..." << std::endl;
     TICK("extract_sift_features");
@@ -384,7 +390,7 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& qu
     std::cout << "Reweighting and querying..." << std::endl;
     std::cout << "Number of query sift features: " << sift_features->size() << std::endl;
     TICK("query_reweight_vocabulary");
-    result_type reweighted_paths = reweight_query(features, sift_features, sift_keypoints, nbr_query, vt, retrieved_paths, vocabulary_path, summary);
+    result_type reweighted_paths = reweight_query(query_cloud, features, sift_features, sift_keypoints, nbr_query, vt, retrieved_paths, vocabulary_path, summary);
     TOCK("query_reweight_vocabulary");
 
     return std::make_pair(retrieved_paths, reweighted_paths);

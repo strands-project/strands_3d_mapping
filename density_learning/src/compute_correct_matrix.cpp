@@ -7,6 +7,7 @@
 #include <vocabulary_tree/vocabulary_tree.h>
 #include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
 
+#include <chrono>
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/types/vector.hpp>
@@ -188,25 +189,26 @@ add_segments(VocabularyT& vt,
 
         HistCloudT::Ptr features_i(new HistCloudT);
         CloudT::Ptr keypoints_i(new CloudT);
-        /*
+
         float threshold;
         if (size_ind == current_ind) {
-            threshold = density_threshold;
+            threshold = density;
         }
         else {
-            threshold = other_density_threshold;
+            threshold = other_density;
         }
         for (int i = 0; i < features_all->size(); ++i) {
             if (keypoints_all->at(i).rgb < threshold) {
                 features_i->push_back(features_all->at(i));
                 keypoints_i->push_back(keypoints_all->at(i));
             }
-        }*/
+        }
 
         //cout << "Density: " << density << ", " << other_density << endl;
         //cout << "Volume: " << volume << endl;
         //cout << "Desired keypoints: " << density*volume << ", " << other_density*volume << endl;
 
+        /*
         int number_keypoints;
         if (size_ind == current_ind) {
             number_keypoints = std::min(int(density * volume), int(keypoints_all->size()));
@@ -225,6 +227,7 @@ add_segments(VocabularyT& vt,
             features_i->push_back(features_all->at(i));
             keypoints_i->push_back(keypoints_all->at(i));
         }
+        */
 
         if (size_ind == current_ind) {
             current_nbr_features += features_i->size();
@@ -357,6 +360,7 @@ vector<float> draw_histogram(const vector<float>& vals, int groups)
             );
         }
     }
+    dividers.push_back(0.5f*(float(max_ind)*0.05f*0.05f*0.05f - dividers.back()));
 
     cv::imshow("Histogram", hist);
     cv::waitKey();
@@ -405,62 +409,9 @@ vector<float> discretize_sizes(const boost::filesystem::path& data_path)
         }
     }
 
-    vector<float> dividers = draw_histogram(volumes, 10);
+    vector<float> dividers = draw_histogram(volumes, 5);
     return dividers;
 }
-
-/*
-template <typename SegmentMapT, typename KeypointMapT>
-vector<float> learn_size_mappings(SegmentMapT& clouds, KeypointMapT& keypoint_paths,
-                                  const vector<float>& dividers, const vector<float>& densities)
-{
-    vector<vector<float> > size_density_threshold_mapping(dividers.size());
-    vector<vector<int> > normalizations(dividers.size());
-
-    for (int size_ind = 0; size_ind < dividers.size(); ++size_ind) {
-        size_density_threshold_mapping[size_ind].resize(densities.size(), 0.0f);
-        normalizations[size_ind].resize(densities.size(), 0);
-    }
-
-    // first, order the thresholds for one set of keypoints
-    for (auto tup : zip(clouds, keypoint_paths)) {
-        boost::filesystem::path keypoint_path;
-        CloudT::Ptr cloud;
-        boost::tie(cloud, keypoint_path) = tup;
-        keypoint_path = keypoint_path.parent_path() / (string("density_") + keypoint_path.filename().string());
-        CloudT::Ptr keypoints(new CloudT);
-        pcl::io::loadPCDFile(keypoint_path.string(), *keypoints);
-        std::sort(keypoints->points.begin(), keypoints->points.end(), [](const PointT& p, const PointT& q) {
-           return p.rgb < q.rgb;
-        });
-        float volume = compute_cloud_volume(cloud);
-        int size_ind;
-        for (size_ind = 0; size_ind < dividers.size() && volume > dividers[size_ind]; ++size_ind) {}
-        size_ind--;
-        for (int i = 0; i < keypoints->size(); ++i) {
-            float density = float(i+1)/volume;
-            int dens_ind;
-            for (dens_ind = 0; dens_ind < densities.size() && density > densities[dens_ind]; ++dens_ind) {}
-            dens_ind--;
-            size_density_threshold_mapping[size_ind][dens_ind] += keypoints->at(i).rgb;
-            normalizations[size_ind][dens_ind] += 1;
-        }
-    }
-
-    std::vector<float> density_threshold_mapping(densities.size(), 0.0f);
-    for (int dens_ind = 0; dens_ind < densities.size(); ++dens_ind) {
-        int normalization = 0;
-        for (int size_ind = 0; size_ind < dividers.size(); ++size_ind) {
-            density_threshold_mapping[dens_ind] += size_density_threshold_mapping[size_ind][dens_ind];
-            normalization += normalizations[size_ind][dens_ind];
-            //size_density_threshold_mapping[size_ind][dens_ind] /= float(normalizations[size_ind][dens_ind]);
-        }
-        density_threshold_mapping[dens_ind] /= float(normalization);
-    }
-
-    return density_threshold_mapping;
-}
-*/
 
 tuple<vocabulary_summary, int, int>
 train_vocabulary(grouped_vocabulary_tree<HistT, 8>& vt, const boost::filesystem::path& vocabulary_path,
@@ -549,7 +500,10 @@ train_vocabulary(grouped_vocabulary_tree<HistT, 8>& vt, const boost::filesystem:
 template <typename PathT>
 bool is_correct(const PathT& p, const map<string, string>& path_labels, const string& query_label)
 {
-    if (path_labels.count(p.string()) > 0 && path_labels.at(p.string()) == query_label) {
+    string repaired = p.string();
+    boost::replace_all(repaired, "//", "/");
+    cout << "Path: " << repaired << endl;
+    if (path_labels.count(repaired) > 0 && path_labels.at(repaired) == query_label) {
         return true;
     }
     return false;
@@ -568,10 +522,11 @@ bool is_correct(const vector<PathT>& p, const map<string, string>& path_labels, 
 }
 
 template <typename VocabularyT>
-float compute_vocabulary_error(VocabularyT& vt, int current_ind, const vector<float>& dividers,
-                               float density, const boost::filesystem::path& vocabulary_path,
-                               const boost::filesystem::path& train_vocabulary_path,
-                               const map<string, string>& path_labels, const vocabulary_summary& summary)
+pair<float, float>
+compute_vocabulary_error(VocabularyT& vt, int current_ind, const vector<float>& dividers,
+                         float density, const boost::filesystem::path& vocabulary_path,
+                         const boost::filesystem::path& train_vocabulary_path,
+                         const map<string, string>& path_labels, const vocabulary_summary& summary)
 {
     boost::filesystem::path data_path(summary.noise_data_path);
 
@@ -579,11 +534,13 @@ float compute_vocabulary_error(VocabularyT& vt, int current_ind, const vector<fl
 
     int correct = 0;
     int total = 0;
+    int queries = 0;
+    double total_time = 0.0;
 
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
     int counter = 0;
     for (const string& xml : folder_xmls) {
-        if (counter > 10) {
+        if (counter > 20) {
             break;
         }
 
@@ -616,6 +573,9 @@ float compute_vocabulary_error(VocabularyT& vt, int current_ind, const vector<fl
                 continue;
             }*/
 
+            // start measuring time here
+            auto start = std::chrono::steady_clock::now();
+
             CloudT::Ptr refined_query;
             NormalCloudT::Ptr normals;
             tie(refined_query, normals) = surfel_features::cloud_normals_from_surfel_mask(surfel_cloud, query_mask, camera_transforms[scan_index], K);
@@ -630,8 +590,9 @@ float compute_vocabulary_error(VocabularyT& vt, int current_ind, const vector<fl
 
             HistCloudT::Ptr features(new HistCloudT);
             CloudT::Ptr keypoints(new CloudT);
-            //surfel_features::compute_features(features, keypoints, refined_query, normals, threshold, false);
-            surfel_features::compute_features(features, keypoints, refined_query, normals, false);
+            surfel_features::compute_features(features, keypoints, refined_query, normals, density, false);
+            //surfel_features::compute_features(features, keypoints, refined_query, normals, false);
+            /*
             std::function<bool(const PointT& p1, const PointT& p2)> comp = [](const PointT& p, const PointT& q) {
                 return p.rgb < q.rgb;
             };
@@ -642,10 +603,17 @@ float compute_vocabulary_error(VocabularyT& vt, int current_ind, const vector<fl
             int number_keypoints = std::min(int(density * volume), int(keypoints->size()));
             features->resize(number_keypoints);
             keypoints->resize(number_keypoints);
+            */
 
             cout << "Features size: " << features->size() << endl;
             //auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth, K, 10, train_vocabulary_path, summary, false);
             auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, features, 10, train_vocabulary_path, summary);
+
+            // end measuring time here
+            // do something
+            auto finish = std::chrono::steady_clock::now();
+            double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double> >(finish - start).count();
+            total_time += elapsed_seconds;
 
 #if 0
             cout << "Results.size: " << results.first.size() << endl;
@@ -673,21 +641,28 @@ float compute_vocabulary_error(VocabularyT& vt, int current_ind, const vector<fl
                 }
                 ++total;
             }
+
+            ++queries;
         }
+
+        ++counter;
     }
 
-    return float(total - correct) / float(total);
+    return make_pair(float(total - correct) / float(total), float(total_time/double(queries)));
 }
 
-tuple<Eigen::MatrixXf, Eigen::MatrixXi, Eigen::MatrixXi>
+tuple<Eigen::MatrixXf, Eigen::MatrixXf, Eigen::MatrixXi, Eigen::MatrixXi>
 compute_size_density_errors(int size_ind, const vector<float>& densities, const vector<float>& dividers,
+                            const vector<float>& density_threshold_mapping,
                             const boost::filesystem::path& vocabulary_path,
                             const map<string, string>& path_labels)
 {
-    boost::filesystem::path train_vocabulary_path = vocabulary_path / "training1";
+    //boost::filesystem::path train_vocabulary_path = vocabulary_path / "training1";
+    boost::filesystem::path train_vocabulary_path = vocabulary_path / "training2";
     boost::filesystem::create_directory(train_vocabulary_path);
 
     Eigen::MatrixXf errors(densities.size(), densities.size());
+    Eigen::MatrixXf times(densities.size(), densities.size());
     Eigen::MatrixXi current_features(densities.size(), densities.size());
     Eigen::MatrixXi other_features(densities.size(), densities.size());
 
@@ -697,7 +672,7 @@ compute_size_density_errors(int size_ind, const vector<float>& densities, const 
             vocabulary_summary summary;
             int current_nbr_features; int other_nbr_features;
             tie(summary, current_nbr_features, other_nbr_features) = train_vocabulary(vt, vocabulary_path, train_vocabulary_path, dividers, size_ind,
-                                                                                      densities[dens_ind], densities[others_dens]);
+                                                                                      density_threshold_mapping[dens_ind], density_threshold_mapping[others_dens]);
             summary.save(train_vocabulary_path);
             int query_dens = dens_ind + 1;
             if (query_dens == densities.size()) query_dens = dens_ind;
@@ -705,14 +680,18 @@ compute_size_density_errors(int size_ind, const vector<float>& densities, const 
             vt.set_min_match_depth(3);
             vt.compute_normalizing_constants();
 
-            errors(dens_ind, others_dens) = compute_vocabulary_error((vocabulary_tree<HistT, 8>&)vt, size_ind, dividers, densities[query_dens],
-                                                                     vocabulary_path, train_vocabulary_path, path_labels, summary);
+            float mean_time;
+            float mean_error;
+            tie(mean_error, mean_time) = compute_vocabulary_error((vocabulary_tree<HistT, 8>&)vt, size_ind, dividers, density_threshold_mapping[query_dens],
+                                                                  vocabulary_path, train_vocabulary_path, path_labels, summary);
+            errors(dens_ind, others_dens) = mean_error;
+            times(dens_ind, others_dens) = mean_time;
             current_features(dens_ind, others_dens) = current_nbr_features;
             other_features(dens_ind, others_dens) = other_nbr_features;
         }
     }
 
-    return make_tuple(errors, current_features, other_features);
+    return make_tuple(errors, times, current_features, other_features);
 }
 
 void test_querying(const vector<float>& densities, const vector<float>& dividers,
@@ -740,8 +719,10 @@ void test_querying(const vector<float>& densities, const vector<float>& dividers
                                                                               densities[4], densities[3]);
     summary.save(train_vocabulary_path);
 
-    float error = compute_vocabulary_error(vt, test_size, dividers, densities[4],
-                                           vocabulary_path, train_vocabulary_path, path_labels, summary);
+    float error;
+    float time;
+    tie(error, time) = compute_vocabulary_error(vt, test_size, dividers, densities[4],
+                                                vocabulary_path, train_vocabulary_path, path_labels, summary);
     cout << "Error: " << error << endl;
 }
 
@@ -787,6 +768,57 @@ void load_binary_data(const boost::filesystem::path& path, DataT& data)
         archive_i(data);
     }
     in.close();
+}
+
+template <typename SegmentMapT, typename KeypointMapT>
+vector<float> learn_size_mappings(SegmentMapT& clouds, KeypointMapT& keypoint_paths,
+                                  const vector<float>& dividers, const vector<float>& densities)
+{
+    vector<vector<float> > size_density_threshold_mapping(dividers.size());
+    vector<vector<int> > normalizations(dividers.size());
+
+    for (int size_ind = 0; size_ind < dividers.size(); ++size_ind) {
+        size_density_threshold_mapping[size_ind].resize(densities.size(), 0.0f);
+        normalizations[size_ind].resize(densities.size(), 0);
+    }
+
+    // first, order the thresholds for one set of keypoints
+    for (auto tup : zip(clouds, keypoint_paths)) {
+        boost::filesystem::path keypoint_path;
+        CloudT::Ptr cloud;
+        boost::tie(cloud, keypoint_path) = tup;
+        keypoint_path = keypoint_path.parent_path() / (string("density_") + keypoint_path.filename().string());
+        CloudT::Ptr keypoints(new CloudT);
+        pcl::io::loadPCDFile(keypoint_path.string(), *keypoints);
+        std::sort(keypoints->points.begin(), keypoints->points.end(), [](const PointT& p, const PointT& q) {
+           return p.rgb < q.rgb;
+        });
+        float volume = compute_cloud_volume(cloud);
+        int size_ind;
+        for (size_ind = 0; size_ind < dividers.size() && volume > dividers[size_ind]; ++size_ind) {}
+        size_ind--;
+        for (int i = 0; i < keypoints->size(); ++i) {
+            float density = float(i+1)/volume;
+            int dens_ind;
+            for (dens_ind = 0; dens_ind < densities.size() && density > densities[dens_ind]; ++dens_ind) {}
+            dens_ind--;
+            size_density_threshold_mapping[size_ind][dens_ind] += keypoints->at(i).rgb;
+            normalizations[size_ind][dens_ind] += 1;
+        }
+    }
+
+    std::vector<float> density_threshold_mapping(densities.size(), 0.0f);
+    for (int dens_ind = 0; dens_ind < densities.size(); ++dens_ind) {
+        int normalization = 0;
+        for (int size_ind = 0; size_ind < dividers.size(); ++size_ind) {
+            density_threshold_mapping[dens_ind] += size_density_threshold_mapping[size_ind][dens_ind];
+            normalization += normalizations[size_ind][dens_ind];
+            //size_density_threshold_mapping[size_ind][dens_ind] /= float(normalizations[size_ind][dens_ind]);
+        }
+        density_threshold_mapping[dens_ind] /= float(normalization);
+    }
+
+    return density_threshold_mapping;
 }
 
 void compute_prior(const vector<float>& dividers, const boost::filesystem::path& training_path,
@@ -841,7 +873,7 @@ void compute_mean_sizes(const vector<float>& dividers, const boost::filesystem::
         for (size_ind = 0; size_ind < dividers.size() && volume > dividers[size_ind]; ++size_ind) {}
         size_ind--;
         size_numbers[size_ind]++;
-        mean_sizes[size_ind] += compute_cloud_volume(cloud);
+        mean_sizes[size_ind] += volume;
     }
 
     for (int i = 0; i < dividers.size(); ++i) {
@@ -852,6 +884,7 @@ void compute_mean_sizes(const vector<float>& dividers, const boost::filesystem::
 }
 
 void compute_mean_keypoints(const vector<float>& dividers, const vector<float>& densities,
+                            const vector<float>& density_threshold_mapping,
                             const boost::filesystem::path& training_path,
                             const boost::filesystem::path& data_path)
 {
@@ -880,8 +913,16 @@ void compute_mean_keypoints(const vector<float>& dividers, const vector<float>& 
         size_numbers[size_ind]++;
 
         for (int dens_ind = 0; dens_ind < densities.size(); ++dens_ind) {
+            /*
             int number_keypoints;
             number_keypoints = std::min(int(densities[dens_ind] * volume), int(keypoints->size()));
+            */
+            int number_keypoints = 0;
+            for (const PointT& k : keypoints->points) {
+                if (k.rgb < density_threshold_mapping[dens_ind]) {
+                    ++number_keypoints;
+                }
+            }
             mean_keypoints(size_ind, dens_ind) += float(number_keypoints);
         }
 
@@ -908,8 +949,8 @@ void setup_discretizations(const boost::filesystem::path& training_path, const b
     //vector<float> densities = {0.0f, 0.2f / (0.05f*0.05f*0.05f), 0.4f / (0.05f*0.05f*0.05f),
     //                           0.6f / (0.05f*0.05f*0.05f), 0.8f / (0.05f*0.05f*0.05f)};
 
-    vector<float> densities = {0.1f / (0.05f*0.05f*0.05f), 0.4f / (0.05f*0.05f*0.05f), 0.8f / (0.05f*0.05f*0.05f),
-                               1.2f / (0.05f*0.05f*0.05f), 1.6f / (0.05f*0.05f*0.05f)};
+    vector<float> densities = {0.0f / (0.05f*0.05f*0.05f), 0.5f / (0.05f*0.05f*0.05f), 1.5f / (0.05f*0.05f*0.05f),
+                               2.7f / (0.05f*0.05f*0.05f), 3.5f / (0.05f*0.05f*0.05f)};
 
     save_data(training_path / "densities.json", densities);
 
@@ -926,22 +967,18 @@ void setup_discretizations(const boost::filesystem::path& training_path, const b
 
     cout << "Computing density_threshold_mapping" << endl;
 
-    /*
-    vector<float> density_threshold_mapping;
-    {
-        convex_keypoint_map noise_segment_keypoints(data_path);
-        convex_segment_cloud_map noise_segments(data_path);
-        density_threshold_mapping = learn_size_mappings(noise_segments, noise_segment_keypoints,
-                                                        dividers, densities);
-    }
-    save_data(training_path / "density_threshold_mapping.json", density_threshold_mapping);
-
+    //vector<float> density_threshold_mapping;
+    convex_keypoint_map noise_segment_keypoints(data_path);
+    convex_segment_cloud_map noise_segments(data_path);
+    vector<float> density_threshold_mapping(densities.size());
+    density_threshold_mapping = learn_size_mappings(noise_segments, noise_segment_keypoints,
+                                                    dividers, densities);
     cout << "Densities to thresholds: " << endl;
     for (int dens_ind = 0; dens_ind < densities.size(); ++dens_ind) {
         cout << density_threshold_mapping[dens_ind] << " ";
     }
     cout << endl;
-    */
+    save_data(training_path / "density_threshold_mapping.json", density_threshold_mapping);
 
     cout << "Computing priors" << endl;
 
@@ -957,7 +994,7 @@ void setup_discretizations(const boost::filesystem::path& training_path, const b
 
     cout << "Computing mean_keypoints" << endl;
 
-    compute_mean_keypoints(dividers, densities, training_path, data_path);
+    compute_mean_keypoints(dividers, densities, density_threshold_mapping, training_path, data_path);
 }
 
 int main(int argc, char** argv)
@@ -983,8 +1020,8 @@ int main(int argc, char** argv)
     load_data(training_path / "densities.json", densities);
     vector<float> dividers;
     load_data(training_path / "dividers.json", dividers);
-    //vector<float> density_threshold_mapping;
-    //load_data(training_path / "density_threshold_mapping.json", density_threshold_mapping);
+    vector<float> density_threshold_mapping;
+    load_data(training_path / "density_threshold_mapping.json", density_threshold_mapping);
 
     map<string, string> path_labels;
     load_binary_data(data_path / "segment_path_labels.cereal", path_labels);
@@ -1000,16 +1037,20 @@ int main(int argc, char** argv)
     // 5 / 10
     //for (int size_ind = 0; size_ind < dividers.size(); ++size_ind) {
 
-    //for (int size_ind = 0; size_ind < 5; ++size_ind) {
-    for (int size_ind = 0; size_ind < 10; ++size_ind) {
+    //for (int size_ind = 0; size_ind < dividers.size(); ++size_ind) {
+    for (int size_ind = dividers.size()-1; size_ind >= 0; --size_ind) {
         Eigen::MatrixXf size_errors;
+        Eigen::MatrixXf size_times;
         Eigen::MatrixXi size_nbr_features;
         Eigen::MatrixXi size_nbr_other_features;
 
-        tie(size_errors, size_nbr_features, size_nbr_other_features) = compute_size_density_errors(size_ind, densities, dividers,
-                                                                                                   vocabulary_path,
-                                                                                                   path_labels);
+        tie(size_errors, size_times, size_nbr_features, size_nbr_other_features) = compute_size_density_errors(size_ind, densities,
+                                                                                                               dividers,
+                                                                                                               density_threshold_mapping,
+                                                                                                               vocabulary_path,
+                                                                                                               path_labels);
         save_binary_data(training_path / (string("errors") + to_string(size_ind) + ".cereal"), size_errors);
+        save_binary_data(training_path / (string("times") + to_string(size_ind) + ".cereal"), size_times);
         save_binary_data(training_path / (string("features") + to_string(size_ind) + ".cereal"), size_nbr_features);
         save_binary_data(training_path / (string("others") + to_string(size_ind) + ".cereal"), size_nbr_other_features);
         cout << "Size " << dividers[size_ind] << " densities error matrix: " << endl;

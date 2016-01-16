@@ -17,9 +17,9 @@ void extract_sift_for_sweep(const boost::filesystem::path& xml_path, bool visual
 std::pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_for_image(cv::Mat& image, cv::Mat& depth, const Eigen::Matrix3f& K);
 std::pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_for_cloud(CloudT::Ptr& cloud, const Eigen::Matrix3f& K);
 // optionally provide the cloud as well
-std::pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const boost::filesystem::path& cloud_path);
+std::tuple<SiftCloudT::Ptr, CloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const boost::filesystem::path& cloud_path);
 std::pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const boost::filesystem::path& cloud_path, CloudT::Ptr& cloud);
-std::pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const std::vector<boost::filesystem::path>& cloud_path);
+std::tuple<SiftCloudT::Ptr, CloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const std::vector<boost::filesystem::path>& cloud_path);
 
 } // namespace extract_sift
 

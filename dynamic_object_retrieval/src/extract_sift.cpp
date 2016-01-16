@@ -392,15 +392,16 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_for_cloud(CloudT::Ptr& cloud, co
     return make_pair(features, keypoints);
 }
 
-pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const boost::filesystem::path& cloud_path)
+tuple<SiftCloudT::Ptr, CloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const boost::filesystem::path& cloud_path)
 {
     cout << "With path " << cloud_path.string() << endl;
     CloudT::Ptr cloud(new CloudT);
     pcl::io::loadPCDFile(cloud_path.string(), *cloud);
-    return get_sift_for_cloud_path(cloud_path, cloud);
+    pair<SiftCloudT::Ptr, CloudT::Ptr> tup = get_sift_for_cloud_path(cloud_path, cloud);
+    return make_tuple(tup.first, tup.second, cloud);
 }
 
-pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const vector<boost::filesystem::path>& cloud_paths)
+tuple<SiftCloudT::Ptr, CloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const vector<boost::filesystem::path>& cloud_paths)
 {
     CloudT::Ptr cloud(new CloudT);
     for (boost::filesystem::path cloud_path : cloud_paths) {
@@ -409,7 +410,8 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const vector<boost::f
         pcl::io::loadPCDFile(cloud_path.string(), *keypoints);
         *cloud += *keypoints;
     }
-    return get_sift_for_cloud_path(cloud_paths[0], cloud);
+    pair<SiftCloudT::Ptr, CloudT::Ptr> tup = get_sift_for_cloud_path(cloud_paths[0], cloud);
+    return make_tuple(tup.first, tup.second, cloud);
 }
 
 pair<SiftCloudT::Ptr, CloudT::Ptr> get_sift_for_cloud_path(const boost::filesystem::path& cloud_path, CloudT::Ptr& cloud)

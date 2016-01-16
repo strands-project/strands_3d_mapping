@@ -9,7 +9,7 @@ using CloudT = pcl::PointCloud<PointT>;
 
 namespace benchmark_retrieval {
 
-double compute_overlap(CloudT::Ptr& A, CloudT::Ptr& B);
+double compute_overlap(CloudT::Ptr& A, CloudT::Ptr& B, float resolution = 0.08);
 
 } // namespace benchmark_retrieval
 

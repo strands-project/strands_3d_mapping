@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(density_learning)
 
-set(CMAKE_C_COMPILER clang)
-set(CMAKE_CXX_COMPILER clang++)
+#set(CMAKE_C_COMPILER clang)
+#set(CMAKE_CXX_COMPILER clang++)
 
-add_definitions(-std=c++11 -O3)
+add_definitions(-std=c++11 -O4)
 
 set(retrieval_dir ${CMAKE_CURRENT_SOURCE_DIR}/../dynamic_object_retrieval)
 

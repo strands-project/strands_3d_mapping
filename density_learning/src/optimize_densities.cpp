@@ -142,57 +142,81 @@ int main(int argc, char** argv)
     vector<int> size_numbers;
     load_data(training_path / "size_numbers.json", size_numbers);
 
+    map<string, string> path_labels;
+    load_binary_data(data_path / "segment_path_labels.cereal", path_labels);
+    for (const pair<string, string>& p : path_labels) {
+        cout << p.first << " -> " << p.second << endl;
+    }
+
+    Eigen::MatrixXf mean_keypoints;
+    load_binary_data(training_path / "mean_keypoints.cereal", mean_keypoints);
+
+    vector<float> mean_sizes;
+    load_data(training_path / "mean_sizes.json", mean_sizes);
+
     vector<Eigen::MatrixXf, Eigen::aligned_allocator<Eigen::MatrixXf> > size_errors(dividers.size());
+    vector<Eigen::MatrixXf, Eigen::aligned_allocator<Eigen::MatrixXf> > size_times(dividers.size());
     vector<Eigen::MatrixXi, Eigen::aligned_allocator<Eigen::MatrixXi> > size_nbr_features(dividers.size());
     vector<Eigen::MatrixXi, Eigen::aligned_allocator<Eigen::MatrixXi> > size_nbr_others(dividers.size());
     for (int size_ind = 0; size_ind < dividers.size(); ++size_ind) {
         load_binary_data(training_path / (string("errors") + to_string(size_ind) + ".cereal"), size_errors[size_ind]);
+        load_binary_data(training_path / (string("times") + to_string(size_ind) + ".cereal"), size_times[size_ind]);
         load_binary_data(training_path / (string("features") + to_string(size_ind) + ".cereal"), size_nbr_features[size_ind]);
         load_binary_data(training_path / (string("others") + to_string(size_ind) + ".cereal"), size_nbr_others[size_ind]);
         cout << "size_errors: " << endl;
         cout << size_errors[size_ind] << endl;
+        cout << "size_times: " << endl;
+        cout << size_times[size_ind] << endl;
         cout << "size_nbr_features: " << endl;
         cout << size_nbr_features[size_ind] << endl;
         cout << "size_nbr_other_features: " << endl;
         cout << size_nbr_others[size_ind] << endl;
     }
 
-    float alpha = 0.000004;
+    float alpha = 1e-2f;//0.00000001f;
+    float beta = 8e-8f;
 
-    float real_priors[10];
+    float real_priors[6];
     int prior_sum = std::accumulate(prior.begin(), prior.end(), 0, std::plus<int>());
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 6; ++i) {
         real_priors[i] = float(prior[i])/float(prior_sum);
     }
 
     const int ds[] = {0, 1, 2, 3, 4};
 
     float min_val = std::numeric_limits<float>::infinity();
-    int min_combo[10];
-    float tilde_err[10];
+    int min_combo[6];
+    float tilde_err[6];
+    float est_feature_diff[6];
     for (int i1 : ds) for (int i2 : ds) for (int i3 : ds) for (int i4 : ds) for (int i5 : ds)
-        for (int i6 : ds) for (int i7 : ds) for (int i8 : ds) for (int i9 : ds) for (int i10 : ds) {
+        for (int i6 : ds) { //for (int i7 : ds) for (int i8 : ds) for (int i9 : ds) for (int i10 : ds) {
             // for every size, need to go through the others' densitites,
             // the density of the own one for every index is already fixed
-            int inds[] = {i1, i2, i3, i4, i5, i6, i7, i8, i9, i10};
-            float err[10];
+            //int inds[] = {i1, i2, i3, i4, i5, i6, i7, i8, i9, i10};
+            int inds[] = {i1, i2, i3, i4, i5, i6};
+            float err[6];
+            float feat_diff[6];
             //Eigen::Matrix<float, 10, 5> local_scores;
             //local_scores.setZero();
             float est_features = 0.0f;
-            for (int size_ind = 0; size_ind < 10; ++size_ind) {
-                est_features += densities[inds[size_ind]]*dividers[size_ind]*size_numbers[size_ind];
+            for (int size_ind = 0; size_ind < 6; ++size_ind) {
+                //est_features += densities[inds[size_ind]]*dividers[size_ind]*size_numbers[size_ind];
+                est_features += float(size_numbers[size_ind])*mean_keypoints(size_ind, inds[size_ind]);
             }
             float val = 0.0f;
-            for (int size_ind = 0; size_ind < 10; ++size_ind) {
+            for (int size_ind = 0; size_ind < 6; ++size_ind) {
                 float local_min = std::numeric_limits<float>::infinity();
                 float local_err;
                 for (int dens_ind = 0; dens_ind < 5; ++dens_ind) {
                     // I need the numbers here for all the different sizes as well (the actual ones in the vocabulary)
                     float tilde_features = float(size_nbr_features[size_ind](inds[size_ind], dens_ind) + size_nbr_others[size_ind](inds[size_ind], dens_ind));
-                    float p = real_priors[size_ind]*(size_errors[size_ind](inds[size_ind], dens_ind) + alpha*std::abs(est_features - tilde_features));
+                    float error = size_errors[size_ind](inds[size_ind], dens_ind);
+                    //float time = size_times[size_ind](inds[size_ind], dens_ind);
+                    float p = real_priors[size_ind]*error + alpha*std::abs(est_features - tilde_features)/est_features;
                     if (p < local_min) {
                         local_min = p;
                         local_err = size_errors[size_ind](inds[size_ind], dens_ind);
+                        feat_diff[size_ind] = std::abs(est_features - tilde_features)/est_features;
                     }
                 }
 
@@ -200,17 +224,21 @@ int main(int argc, char** argv)
                 val += local_min;
             }
 
+            val += beta*est_features;
+            //val += 0.000000042f*est_features;
+
             if (val < min_val) {
                 min_val = val;
                 std::copy(std::begin(inds), std::end(inds), std::begin(min_combo));
                 std::copy(std::begin(err), std::end(err), std::begin(tilde_err));
+                std::copy(std::begin(feat_diff), std::end(feat_diff), std::begin(est_feature_diff));
             }
 
         }
 
     cout << "Best value: " << min_val;
     cout << "Min combo:" << endl;
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 6; ++i) {
         cout << min_combo[i] << " ";
     }
     cout << endl;
@@ -225,6 +253,7 @@ int main(int argc, char** argv)
     // alright, that should be it
 
     cout << "Alpha: " << alpha << endl;
+    cout << "Beta: " << beta << endl;
 
     cout << "Dividers: " << endl;
     for (int dens_ind = 0; dens_ind < dividers.size(); ++dens_ind) {
@@ -239,14 +268,28 @@ int main(int argc, char** argv)
     cout << endl;
 
     cout << "Number keypoints: " << endl;
-    for (int dens_ind = 0; dens_ind < dividers.size(); ++dens_ind) {
-        cout << dividers[dens_ind]*densities[min_combo[dens_ind]] << " ";
+    for (int size_ind = 0; size_ind < dividers.size(); ++size_ind) {
+        cout << mean_keypoints(size_ind, min_combo[size_ind]) << " ";
+        //cout << dividers[dens_ind]*densities[min_combo[dens_ind]] << " ";
+    }
+    cout << endl;
+
+    cout << "Mean sizes: " << endl;
+    for (int size_ind = 0; size_ind < dividers.size(); ++size_ind) {
+        cout << mean_sizes[size_ind] << " ";
+        //cout << dividers[dens_ind]*densities[min_combo[dens_ind]] << " ";
     }
     cout << endl;
 
     cout << "Tilde errors: " << endl;
     for (int dens_ind = 0; dens_ind < dividers.size(); ++dens_ind) {
         cout << tilde_err[dens_ind] << " ";
+    }
+    cout << endl;
+
+    cout << "Estimated feature difference: " << endl;
+    for (int dens_ind = 0; dens_ind < dividers.size(); ++dens_ind) {
+        cout << est_feature_diff[dens_ind] << " ";
     }
     cout << endl;
 

@@ -133,6 +133,13 @@ target_link_libraries(benchmark_query_discovery
                       ${OPENGL_gl_LIBRARY} ${QT_QTOPENGL_LIBRARY}
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(benchmark_discovery_segmentation src/benchmark_discovery_segmentation.cpp
+               include/detection/UnionFindSimple.hpp include/detection/segmenter.cpp)
+target_link_libraries(benchmark_discovery_segmentation benchmark_segmentation
+                      benchmark_result benchmark_retrieval benchmark_overlap
+                      grouped_vocabulary_tree vocabulary_tree k_means_tree # The order here matters for some reason
+                      ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(compute_discovery_graphs src/compute_discovery_graphs.cpp
                include/detection/UnionFindSimple.hpp include/detection/segmenter.cpp)
 target_link_libraries(compute_discovery_graphs dynamic_visualize
