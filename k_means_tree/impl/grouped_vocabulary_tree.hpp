@@ -539,7 +539,7 @@ void grouped_vocabulary_tree<Point, K>::top_combined_similarities(vector<result_
 #if ONCE_PER_MAP
     map<int, pair<int, double> > map_scores;
     for (const vocabulary_result& s : smaller_scores) {
-        if (map_scores.size() >= nbr_results) {
+        if (nbr_results > 0 && map_scores.size() >= nbr_results) {
             break;
         }
         pair<int, int> groups = group_subgroup[s.index];
@@ -561,7 +561,7 @@ void grouped_vocabulary_tree<Point, K>::top_combined_similarities(vector<result_
 #else
     for (const vocabulary_result& s : smaller_scores) {
         pair<int, int> groups = group_subgroup[s.index];
-        scores.push_back(result_type{ s.score, groups.first, groups.second });
+        scores.push_back(result_type(s.score, groups.first, groups.second));
     }
 #endif
 

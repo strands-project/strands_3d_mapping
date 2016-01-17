@@ -20,6 +20,7 @@ vector<CloudT::Ptr> perform_incremental_segmentation(CloudT::Ptr& training_map, 
                                                      CloudT::Ptr& query_map, CloudT::Ptr& query_object,
                                                      const boost::filesystem::path& query_map_path)
 {
+    cout << "Data path: " << query_map_path.parent_path().parent_path().parent_path().string() << endl;
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(query_map_path.parent_path().parent_path().parent_path().string(), true);
 
     int sweep_index;
@@ -49,32 +50,43 @@ vector<CloudT::Ptr> perform_incremental_segmentation(CloudT::Ptr& training_map, 
 
     vector<vocabulary_vector> vectors;
     set<pair<int, int> > adjacencies;
-
     vt.load_cached_vocabulary_vectors_for_group(vectors, adjacencies, sweep_index); // sweep index needed!
 
     std::vector<grouped_vocabulary_tree<HistT, 8>::result_type> scores;
     vt.top_combined_similarities(scores, query_cloud, 0);
+
+    cout << "Scores size: " << scores.size() << endl;
+
     found = false;
     int start_index;
-    float min_score = std::numeric_limits<float>::infinity();
+    float min_score = 1000.0f;//std::numeric_limits<float>::infinity();
     for (int i = 0; i < scores.size(); ++i) {
         if (scores[i].group_index == sweep_index) {
-            if (benchmark_retrieval::compute_overlap(segments[scores[i].subgroup_index], query_object) > 0.0 &&
-                scores[i].score < min_score) {
+            //cout << "Score: " << scores[i].score << endl;
+            //cout << "Subgroup index: " << scores[i].subgroup_index << endl;
+            if (scores[i].score < min_score && benchmark_retrieval::compute_overlap(query_object, segments[scores[i].subgroup_index]) > 0.0) {
                 found = true;
                 start_index = scores[i].subgroup_index;
+                min_score = scores[i].score;
             }
         }
     }
+    cout << "Chose: " << min_score << " with subgroup index " << start_index << endl;
     if (!found) {
         cout << "WTF? Did not find any matching min segment..." << endl;
-        exit(-1);
+        start_index = -1;
+        //exit(-1);
     }
 
     vector<int> selected_indices;
     // get<1>(scores[i])) is actually the index within the group!
+    // if I use -1 here, I get correct results. this means that sweep_index must be correct
+    // however, start index is never correct, so maybe group_subgroup map is not correct?
+    // e.g. when I get the segments back from selected_indices when using -1, this also returns
+    // correct results so it seems like that is the correct way to decide subgroup_index
     double score = vt.compute_min_combined_dist(selected_indices, query_cloud, vectors, adjacencies,
                                                 mapping, inverse_mapping, start_index); // segment index in sweep needed!
+    //vector<int> selected_indices = {start_index};
 
     vector<CloudT::Ptr> single_cloud;
     single_cloud.push_back(CloudT::Ptr(new CloudT));
@@ -82,6 +94,21 @@ vector<CloudT::Ptr> perform_incremental_segmentation(CloudT::Ptr& training_map, 
     for (int segment_index : selected_indices) {
         *single_cloud[0] += *segments[segment_index];
     }
+    //*single_cloud[0] += *segments[selected_indices[0]];
+
+    cout << "Scores size: " << scores.size() << endl;
+    cout << "Start index: " << start_index << endl;
+    cout << "Selected indices at 0: " << selected_indices[0] << endl;
+    /*CloudT::Ptr vis_cloud(new CloudT);
+    *vis_cloud += *query_object;
+    for (int i = 0; i < segments[selected_indices[0]]->size(); ++i) {
+        PointT p = segments[selected_indices[0]]->at(i);
+        p.x += 1.0f;
+        vis_cloud->push_back(p);
+    }*/
+    //*vis_cloud += *;
+    //dynamic_object_retrieval::visualize(query_object);
+    //dynamic_object_retrieval::visualize(single_cloud[0]);
 
     return single_cloud;
 }

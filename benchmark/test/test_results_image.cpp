@@ -184,13 +184,13 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
             continue;
         }
 
-        //cv::Mat visualization = query_make_image(vt, sweep_cloud, query_image, query_mask, query_depth,
-        //                                         query_label, camera_transforms[scan_index], T, K,
-        //                                         vocabulary_path, summary, sweep_path);
+        cv::Mat visualization = query_make_image(vt, sweep_cloud, query_image, query_mask, query_depth,
+                                                 query_label, camera_transforms[scan_index], T, K,
+                                                 vocabulary_path, summary, sweep_path);
 
-        cv::Mat visualization = reweight_query_make_image(vt, sweep_cloud, query_image, query_mask, query_depth,
-                                                          query_label, camera_transforms[scan_index], T, K,
-                                                          vocabulary_path, summary, sweep_path);
+        //cv::Mat visualization = reweight_query_make_image(vt, sweep_cloud, query_image, query_mask, query_depth,
+        //                                                  query_label, camera_transforms[scan_index], T, K,
+        //                                                  vocabulary_path, summary, sweep_path);
 
         /*
         if (summary.subsegment_type == "convex_segment") {
