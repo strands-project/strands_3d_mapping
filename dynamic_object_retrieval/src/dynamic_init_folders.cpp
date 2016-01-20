@@ -28,9 +28,13 @@ void init_folders(const boost::filesystem::path& data_path)
         boost::filesystem::create_directory(subsegment_path);
 
         sweep_summary convex_summary;
-        convex_summary.save(convex_path);
+        if (!boost::filesystem::exists(convex_path / "segments.json")) {
+            convex_summary.save(convex_path);
+        }
         sweep_summary subsegment_summary;
-        subsegment_summary.save(subsegment_path);
+        if (!boost::filesystem::exists(subsegment_path / "segments.json")) {
+            subsegment_summary.save(subsegment_path);
+        }
     }
 }
 

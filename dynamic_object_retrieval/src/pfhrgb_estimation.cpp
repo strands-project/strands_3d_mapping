@@ -159,7 +159,7 @@ void compute_surfel_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints
     pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
     ne.setSearchMethod(tree);
     NormalCloudT::Ptr normals(new NormalCloudT);
-    ne.setRadiusSearch(0.04); // 0.02
+    ne.setRadiusSearch(0.04); // 0.02, this is very large
     ne.compute(*normals);
 
     //float threshold = std::max(1.0-0.5*float(segment->size())/(0.3*480*640), 0.5);

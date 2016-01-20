@@ -11,7 +11,7 @@
 #include <pcl/common/centroid.h>
 #include "dynamic_object_retrieval/definitions.h"
 
-#define WITH_NOISE_SET 0
+#define WITH_NOISE_SET 1
 
 using namespace std;
 using namespace dynamic_object_retrieval;

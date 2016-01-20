@@ -20,6 +20,15 @@ vector<pair<CloudT::Ptr, string> > find_labels(vector<CloudT::Ptr>& input_segmen
         boost::filesystem::path sweep_xml;
         tie(segmented_dynamic, sweep_xml) = tup;
 
+        if (sweep_xml.empty() || !segmented_dynamic || segmented_dynamic->empty()) {
+            // TODO: this is a bug that might hurt results, check this
+            //labelled_segmented_dynamics.push_back(make_pair(segmented_dynamic, string("")));
+            CloudT::Ptr temp_cloud(new CloudT);
+            temp_cloud->push_back(PointT());
+            labelled_segmented_dynamics.push_back(make_pair(temp_cloud, string("")));
+            continue;
+        }
+
         LabelT labelled_clusters = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml.string());
 
         bool found = false;

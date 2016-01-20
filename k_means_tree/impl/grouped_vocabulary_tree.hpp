@@ -4,7 +4,7 @@
 
 #include <boost/filesystem.hpp>
 
-#define ONCE_PER_MAP 0
+#define ONCE_PER_MAP 1
 
 using namespace std;
 

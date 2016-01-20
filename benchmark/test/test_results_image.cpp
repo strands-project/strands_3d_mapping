@@ -37,6 +37,12 @@ cv::Mat query_make_image(VocabularyT& vt, CloudT::Ptr& sweep_cloud, cv::Mat& que
 
     CloudT::Ptr refined_query = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, query_transform, K);
 
+    Eigen::Vector4f center;
+    pcl::compute3DCentroid(*refined_query, center);
+    if (center.head<3>().norm() > 2.5f) {
+        return query_image.clone();;
+    }
+
     cout << "Query cloud size: " << refined_query->size() << endl;
 
     if (refined_query->size() < 500) { // this might happen if there are annotated objects in top layers of sweep
@@ -48,7 +54,7 @@ cv::Mat query_make_image(VocabularyT& vt, CloudT::Ptr& sweep_cloud, cv::Mat& que
     std::remove_if(results.first.begin(), results.first.end(), [&](const result_type& r) {
         return is_path(r.first, sweep_path.parent_path());
     });
-    results.first.resize(10);
+    results.first.resize(5);
     tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
     vector<string> dummy_labels;
@@ -192,13 +198,11 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
         //                                                  query_label, camera_transforms[scan_index], T, K,
         //                                                  vocabulary_path, summary, sweep_path);
 
-        /*
-        if (summary.subsegment_type == "convex_segment") {
+        /*if (summary.subsegment_type == "convex_segment") {
             cv::Mat standard_visualization = query_make_image((vocabulary_tree<HistT, 8>&)vt, sweep_cloud, query_image, query_mask, query_depth,
                                                               query_label, camera_transforms[scan_index], T, K, vocabulary_path, summary, sweep_path);
             cv::vconcat(visualization, standard_visualization, visualization);
-        }
-        */
+        }*/
 
         cv::imwrite("results_image.png", visualization);
 
@@ -226,7 +230,7 @@ int main(int argc, char** argv)
     // KTH Data:
     vector<string> objects_to_check = {"backpack", "trash_bin", "lamp", "chair", "desktop", "pillow", "hanger_jacket", "water_boiler"};
     // G4S Data:
-    //vector<string> objects_to_check = {"jacket", "chair", "plant", "printer", "bin"};
+    //vector<string> objects_to_check = {"chair"}; //{"jacket", "chair", "plant", "printer", "bin"};
     //{"backpack", "trash", "desktop", "helmet", "chair", "pillow"};
 
     if (summary.vocabulary_type == "standard") {
@@ -238,6 +242,7 @@ int main(int argc, char** argv)
     else {
         grouped_vocabulary_tree<HistT, 8> vt(vocabulary_path.string());
         dynamic_object_retrieval::load_vocabulary(vt, vocabulary_path);
+        vt.set_cache_path(vocabulary_path.string());
         vt.set_min_match_depth(3);
         vt.compute_normalizing_constants();
         for (const string& xml : folder_xmls) {

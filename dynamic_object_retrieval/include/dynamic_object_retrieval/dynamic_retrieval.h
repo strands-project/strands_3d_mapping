@@ -190,6 +190,17 @@ struct segment_index<grouped_vocabulary_tree<HistT, 8> > {
     using type = std::set<int>;
 };
 
+float compute_cloud_volume(CloudT::Ptr& cloud)
+{
+    float resolution = 0.05f;
+    pcl::octree::OctreePointCloud<PointT> octree(resolution);
+    octree.setInputCloud(cloud);
+    octree.addPointsFromInputCloud();
+    std::vector<PointT, Eigen::aligned_allocator<PointT> > dummy;
+    float centers = octree.getOccupiedVoxelCenters(dummy);
+    return centers*resolution*resolution*resolution;
+}
+
 // this should definitely be generic to both!
 template <typename VocabularyT>
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >
@@ -200,6 +211,8 @@ reweight_query(CloudT::Ptr& query_cloud, HistCloudT::Ptr& features, SiftCloudT::
 {
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
     using reweight_type = std::pair<typename segment_index<VocabularyT>::type, double>;
+
+    float query_volume = compute_cloud_volume(query_cloud);
 
     TICK("registration_score");
     //std::map<int, double> weighted_indices; // it would make more sense to keep a vector of sorted indices here I guess?
@@ -217,6 +230,7 @@ reweight_query(CloudT::Ptr& query_cloud, HistCloudT::Ptr& features, SiftCloudT::
         std::tie(match_sift_cloud, match_sift_keypoints, match_cloud) = extract_sift::get_sift_for_cloud_path(s.first);
         std::cout << "Number of sift features for match: " << match_sift_cloud->size() << std::endl;
 
+        /*
         register_objects ro;
         ro.set_input_clouds(sift_keypoints, match_sift_keypoints);
         //ro.set_input_clouds(query_cloud, match_cloud); // here we should have the actual clouds instead
@@ -233,6 +247,11 @@ reweight_query(CloudT::Ptr& query_cloud, HistCloudT::Ptr& features, SiftCloudT::
         insert_index_score(weighted_indices, s.second, spatial_score);
 
         weight_sum += spatial_score;
+        */
+        float match_volume = compute_cloud_volume(match_cloud);
+        float score = std::min(query_volume/match_volume, match_volume/query_volume);
+        insert_index_score(weighted_indices, s.second, score);
+        weight_sum += score;
     }
 
     for (reweight_type& w : weighted_indices) {

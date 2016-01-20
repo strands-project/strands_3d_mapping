@@ -7,14 +7,53 @@
 #include <dynamic_object_retrieval/summary_iterators.h>
 #include <dynamic_object_retrieval/visualize.h>
 
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/common/centroid.h>
+
 using namespace std;
 
+using PointT = pcl::PointXYZRGB;
 using HistT = pcl::Histogram<250>;
 using HistCloudT = pcl::PointCloud<HistT>;
 
 grouped_vocabulary_tree<HistT, 8> vt;
 map<grouped_vocabulary_tree<HistT, 8>::node*, int> mapping;
 map<int, grouped_vocabulary_tree<HistT, 8>::node*> inverse_mapping;
+
+void visualize_adjacencies(vector<CloudT::Ptr>& segments, const set<pair<int, int> >& adjacencies)
+{
+    CloudT::Ptr visualization_cloud(new CloudT);
+
+    CloudT::Ptr centroids(new CloudT);
+    for (CloudT::Ptr& c : segments) {
+        *visualization_cloud += *c;
+        Eigen::Vector4f point;
+        pcl::compute3DCentroid(*c, point);
+        centroids->push_back(PointT());
+        centroids->back().getVector4fMap() = point;
+    }
+
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer ("3D Viewer"));
+    viewer->setBackgroundColor(1, 1, 1);
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb(visualization_cloud);
+    viewer->addPointCloud<PointT>(visualization_cloud, rgb, "sample cloud");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
+
+    int i = 0;
+    for (const pair<int, int>& a : adjacencies) {
+        string line_id = string("line") + to_string(i);
+        cout << "Centroids size: " << centroids->size() << endl;
+        cout << "Adjacency: (" << a.first << ", " << a.second << ")" << endl;
+        viewer->addLine<PointT>(centroids->at(a.first), centroids->at(a.second), 1.0, 0.0, 0.0, line_id);
+        ++i;
+    }
+
+    //viewer->addCoordinateSystem(1.0);
+    viewer->initCameraParameters();
+    while (!viewer->wasStopped()) {
+        viewer->spinOnce(100);
+    }
+}
 
 vector<CloudT::Ptr> perform_incremental_segmentation(CloudT::Ptr& training_map, CloudT::Ptr& training_object,
                                                      CloudT::Ptr& query_map, CloudT::Ptr& query_object,
@@ -23,6 +62,9 @@ vector<CloudT::Ptr> perform_incremental_segmentation(CloudT::Ptr& training_map, 
     cout << "Data path: " << query_map_path.parent_path().parent_path().parent_path().string() << endl;
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(query_map_path.parent_path().parent_path().parent_path().string(), true);
 
+    // DEBUG: only for chair comparison
+    //int sweep_index = 88;
+    //bool found;
     int sweep_index;
     bool found = false;
     for (sweep_index = 0; sweep_index < folder_xmls.size(); ++sweep_index) {
@@ -52,6 +94,8 @@ vector<CloudT::Ptr> perform_incremental_segmentation(CloudT::Ptr& training_map, 
     set<pair<int, int> > adjacencies;
     vt.load_cached_vocabulary_vectors_for_group(vectors, adjacencies, sweep_index); // sweep index needed!
 
+    //visualize_adjacencies(segments, adjacencies);
+
     std::vector<grouped_vocabulary_tree<HistT, 8>::result_type> scores;
     vt.top_combined_similarities(scores, query_cloud, 0);
 
@@ -64,7 +108,7 @@ vector<CloudT::Ptr> perform_incremental_segmentation(CloudT::Ptr& training_map, 
         if (scores[i].group_index == sweep_index) {
             //cout << "Score: " << scores[i].score << endl;
             //cout << "Subgroup index: " << scores[i].subgroup_index << endl;
-            if (scores[i].score < min_score && benchmark_retrieval::compute_overlap(query_object, segments[scores[i].subgroup_index]) > 0.0) {
+            if (scores[i].score < min_score && benchmark_retrieval::compute_overlap(query_object, segments[scores[i].subgroup_index]) > 0.1) {
                 found = true;
                 start_index = scores[i].subgroup_index;
                 min_score = scores[i].score;
@@ -113,10 +157,64 @@ vector<CloudT::Ptr> perform_incremental_segmentation(CloudT::Ptr& training_map, 
     return single_cloud;
 }
 
+// ./benchmark_incremental_segmentation ~/Data/chair_comparison/20160107/patrol_run_17 ~/Data/KTH_longterm_surfels/vocabulary_chair2/
+// ~/Data/chair_comparison/20160108/patrol_run_20/query_chair/chair.pcd ~/Data/chair_comparison/20160107/patrol_run_17/query_chair/chair.pcd
+// ~/Data/chair_comparison/20160107/patrol_run_17/room_5/
+
+// ./benchmark_incremental_segmentation ~/Data/chair_comparison/20160107/patrol_run_17 ~/Data/KTH_longterm_surfels/vocabulary_chair2/
+// ~/Data/chair_comparison/20160107/patrol_run_15/dest_chair/chair.pcd ~/Data/chair_comparison/20160107/patrol_run_17/query_chair/chair.pcd
+// ~/Data/chair_comparison/20160107/patrol_run_17/room_5/
+
+// ./benchmark_incremental_segmentation ~/Data/chair_comparison/20160107/patrol_run_15/ ~/Data/KTH_longterm_surfels/vocabulary_chair/
+// ~/Data/chair_comparison/20160107/patrol_run_17/query_chair/chair.pcd ~/Data/chair_comparison/20160107/patrol_run_15/dest_chair/chair.pcd
+// ~/Data/chair_comparison/20160107/patrol_run_15/room_4/
+/*
+int main(int argc, char** argv)
+{
+    if (argc < 6) {
+        cout << "Please provide the path to the annotated data and the vocabulary path..." << endl;
+        cout << "And the path to the training object cloud and the query object cloud..." << endl;
+        cout << "And the sweep path for the query object.." << endl;
+        return 0;
+    }
+
+    boost::filesystem::path data_path(argv[1]);
+    boost::filesystem::path vocabulary_path(argv[2]);
+    boost::filesystem::path training_object_path(argv[3]);
+    boost::filesystem::path query_object_path(argv[4]);
+    boost::filesystem::path query_map_path(argv[5]);
+
+    CloudT::Ptr training_object(new CloudT);
+    pcl::io::loadPCDFile(training_object_path.string(), *training_object);
+    CloudT::Ptr query_object(new CloudT);
+    pcl::io::loadPCDFile(query_object_path.string(), *query_object);
+
+    // we're not using these here so set them to 0 for now
+    CloudT::Ptr training_map(new CloudT);
+    CloudT::Ptr query_map(new CloudT);
+
+    vt.set_cache_path(vocabulary_path.string());
+    dynamic_object_retrieval::load_vocabulary(vt, vocabulary_path);
+    vt.set_min_match_depth(3);
+    vt.compute_normalizing_constants();
+    vt.get_node_mapping(mapping);
+    for (const pair<grouped_vocabulary_tree<HistT, 8>::node*, int>& u : mapping) {
+        inverse_mapping.insert(make_pair(u.second, u.first));
+    }
+
+    vector<CloudT::Ptr> top_segment = perform_incremental_segmentation(training_map, training_object, query_map, query_object, query_map_path);
+
+    boost::filesystem::path segmented_path = query_object_path.parent_path() / (query_object_path.stem().string() + "_segmented.pcd");
+    pcl::io::savePCDFileBinary(segmented_path.string(), *top_segment[0]);
+
+    return 0;
+}
+*/
+
 int main(int argc, char** argv)
 {
     if (argc < 3) {
-        cout << "Please provide the path to the annotated data and the vocabulary path...";
+        cout << "Please provide the path to the annotated data and the vocabulary path..." << endl;
         return 0;
     }
 
@@ -134,7 +232,7 @@ int main(int argc, char** argv)
 
     map<string, pair<float, int> > overlap_ratios = benchmark_retrieval::get_segmentation_scores_for_data(&perform_incremental_segmentation, data_path);
 
-    std::vector<std::string> objects_to_check = {"backpack", "trash_bin", "lamp", "chair", "desktop", "pillow", "hanger_jacket", "water_boiler"};
+    std::vector<std::string> objects_to_check = {"water_boiler"};//{"backpack", "trash_bin", "lamp", "chair", "desktop", "pillow", "hanger_jacket", "water_boiler"};
 
     pair<float, int> total_ratio;
     map<string, pair<float, int> > category_ratios;

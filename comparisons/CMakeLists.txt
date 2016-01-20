@@ -136,7 +136,7 @@ target_link_libraries(benchmark_query_discovery
 add_executable(benchmark_discovery_segmentation src/benchmark_discovery_segmentation.cpp
                include/detection/UnionFindSimple.hpp include/detection/segmenter.cpp)
 target_link_libraries(benchmark_discovery_segmentation benchmark_segmentation
-                      benchmark_result benchmark_retrieval benchmark_overlap
+                      benchmark_result benchmark_retrieval benchmark_overlap dynamic_visualize
                       grouped_vocabulary_tree vocabulary_tree k_means_tree # The order here matters for some reason
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 

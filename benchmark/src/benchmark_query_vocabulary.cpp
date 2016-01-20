@@ -16,6 +16,8 @@
 #include <time.h>
 #include <dynamic_object_retrieval/definitions.h>
 
+#define CONVEX_SEGMENTS_ONLY 1
+
 using namespace std;
 
 using PointT = pcl::PointXYZRGB;
@@ -50,8 +52,11 @@ benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder
         TICK("get_score_for_sweep");
         vector<cv::Mat> visualizations;
         auto rfunc = [&](CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth, const Eigen::Matrix3f& K) {
-            //(vocabulary_tree<HistT, 8>&)
+#if CONVEX_SEGMENTS_ONLY
+            auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, query_cloud, query_image, query_depth, K, 15, vocabulary_path, summary, false);
+#else
             auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth, K, 15, vocabulary_path, summary, false);
+#endif
             return benchmark_retrieval::load_retrieved_clouds(results.first);
         };
 
@@ -71,8 +76,7 @@ benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder
 int main(int argc, char** argv)
 {
     if (argc < 3) {
-        cout << "Please provide path to annotated sweep data..." << endl;
-        cout << "And the path to the vocabulary..." << endl;
+        cout << "Please provide path to the vocabulary and the annotated data path(s) to query..." << endl;
         return -1;
     }
 
@@ -80,8 +84,20 @@ int main(int argc, char** argv)
 
     TICK("run");
 
-    boost::filesystem::path data_path(argv[1]);
-    boost::filesystem::path vocabulary_path(argv[2]);
+    boost::filesystem::path vocabulary_path(argv[1]);
+    vector<string> folder_xmls;
+    for (int i = 2; i < argc; ++i) {
+        boost::filesystem::path data_path(argv[i]);
+        vector<string> data_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
+        folder_xmls.insert(folder_xmls.end(), data_xmls.begin(), data_xmls.end());
+    }
+
+    /*
+    for (const string& xml : folder_xmls) {
+        cout << xml << endl;
+    }
+    return 0;
+    */
 
     // create a new folder to store the benchmark
     time_t rawtime;
@@ -92,15 +108,17 @@ int main(int argc, char** argv)
     timeinfo = localtime(&rawtime);
     strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", timeinfo);
 
-    boost::filesystem::path benchmark_path = vocabulary_path / (string("benchmark ") + buffer);
+#if CONVEX_SEGMENTS_ONLY
+    boost::filesystem::path benchmark_path = vocabulary_path / (string("benchmark ") + buffer + " CONVEX");
+#else
+    boost::filesystem::path benchmark_path = vocabulary_path / (string("benchmark ") + buffer + " INCREMENTAL");
+#endif
     boost::filesystem::create_directory(benchmark_path);
 
     TICK("load_summary");
     dynamic_object_retrieval::vocabulary_summary summary;
     summary.load(vocabulary_path);
     TOCK("load_summary");
-
-    vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
     benchmark_retrieval::benchmark_result benchmark;
     if (summary.vocabulary_type == "standard") {

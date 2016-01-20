@@ -114,6 +114,9 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
         if (!found) {
             continue;
         }
+        if (query_label == "chair3") {
+            query_label = "chair2"; // these two objects are identical, will be counted as the same instance
+        }
 
         Eigen::Vector4f center;
         pcl::compute3DCentroid(*object_cloud, center);
@@ -128,6 +131,10 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
         //CloudT::Ptr query_cloud(new CloudT);
         //pcl::transformPointCloud(*object_cloud, *query_cloud, camera_transforms[scan_index]);
         CloudT::Ptr query_cloud = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, camera_transforms[scan_index], K);
+
+        if (query_cloud->size() < 500) {
+            continue;
+        }
 
         TICK("total_query_vocabulary");
         std::vector<CloudT::Ptr> retrieved_clouds;
@@ -146,8 +153,8 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
                 --i;
             }
         }
-        retrieved_clouds.resize(10);
-        sweep_paths.resize(10);
+        retrieved_clouds.resize(std::min(10, int(retrieved_clouds.size())));
+        sweep_paths.resize(std::min(10, int(retrieved_clouds.size())));
 
         TOCK("total_query_vocabulary");
 
@@ -175,6 +182,9 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
             CloudT::Ptr retrieved_cloud;
             std::string retrieved_label;
             tie(retrieved_cloud, retrieved_label) = tup;
+            if (retrieved_label == "chair3") {
+                retrieved_label = "chair2"; // these two objects are identical, will be counted as the same instance
+            }
 
             current_result.ratio.first += double(retrieved_label == query_label);
             current_result.ratio.second += 1.0;
