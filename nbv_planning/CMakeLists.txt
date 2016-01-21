@@ -52,14 +52,13 @@ include_directories(
   include/octomap_server
   ${catkin_INCLUDE_DIRS}
 )
-add_library(${PROJECT_NAME} src/SensorModel.cpp include/nbv_planning/SensorModel.h src/TargetVolume.cpp include/nbv_planning/TargetVolume.h src/NBVFinderROS.cpp include/nbv_planning/NBVFinderROS.h include/nbv_planning/conversions.h src/Ray.cpp include/nbv_planning/Ray.h)
+add_library(${PROJECT_NAME} src/SensorModel.cpp include/nbv_planning/SensorModel.h src/TargetVolume.cpp include/nbv_planning/TargetVolume.h src/NBVFinder.cpp include/nbv_planning/NBVFinder.h src/NBVFinderROS.cpp include/nbv_planning/NBVFinderROS.h include/nbv_planning/conversions.h src/Ray.cpp include/nbv_planning/Ray.h)
 target_link_libraries(${PROJECT_NAME} ${LINK_LIBS})
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencpp)
 
-add_executable(nbv_server src/nbv_planner_server.cpp src/NBVFinder.cpp include/nbv_planning/NBVFinder.h src/SensorModel.cpp include/nbv_planning/SensorModel.h src/TargetVolume.cpp include/nbv_planning/TargetVolume.h src/NBVFinderROS.cpp include/nbv_planning/NBVFinderROS.h include/nbv_planning/conversions.h src/Ray.cpp include/nbv_planning/Ray.h)
+add_executable(nbv_server src/nbv_planner_server.cpp )
 target_link_libraries(nbv_server ${PROJECT_NAME} ${LINK_LIBS})
 
-add_executable(nbv_pcds src/nbv_planner_pcds.cpp src/NBVFinder.cpp include/nbv_planning/NBVFinder.h src/SensorModel.cpp include/nbv_planning/SensorModel.h src/TargetVolume.cpp include/nbv_planning/TargetVolume.h src/NBVFinderROS.cpp include/nbv_planning/NBVFinderROS.h include/nbv_planning/conversions.h src/Ray.cpp include/nbv_planning/Ray.h)
+add_executable(nbv_pcds src/nbv_planner_pcds.cpp )
 target_link_libraries(nbv_pcds ${PROJECT_NAME} ${LINK_LIBS} yaml-cpp )
 
 # install targets:
