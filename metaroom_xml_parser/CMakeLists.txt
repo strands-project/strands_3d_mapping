@@ -30,12 +30,14 @@ set(HDRS
     include/metaroom_xml_parser/simple_summary_parser.h
     include/metaroom_xml_parser/load_utilities.h
     include/metaroom_xml_parser/load_utilities.hpp
+    include/metaroom_xml_parser/simple_dynamic_object_parser.h
     )
 
 set(SRCS
     src/simple_xml_parser.cpp
     src/simple_summary_parser.cpp
     src/load_utilities.cpp
+    src/simple_dynamic_object_parser.cpp
     )
 
 add_library(metaroom_xml_parser ${HDRS}  ${SRCS})
@@ -45,6 +47,8 @@ add_executable(load_single_file src/load_single_file_main.cpp )
 add_executable(load_multiple_files src/load_multiple_files_main.cpp)
 
 add_executable(load_labelled_data src/load_labelled_data.cpp )
+
+add_executable(test_dynamic_object_parser src/test_dynamic_object_parser.cpp )
 
  target_link_libraries(metaroom_xml_parser
    ${catkin_LIBRARIES}
@@ -67,6 +71,13 @@ add_executable(load_labelled_data src/load_labelled_data.cpp )
  )
 
  target_link_libraries(load_labelled_data
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+   metaroom_xml_parser
+ )
+
+ target_link_libraries(test_dynamic_object_parser
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}
