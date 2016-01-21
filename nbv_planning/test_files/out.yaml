@@ -1,0 +1,20 @@
+sensor_model:
+  width: 640
+  height: 480
+  max_range: 4.0
+  min_range: 0.3
+  sub_sample: 20
+  projection_matrix: [525.0, 0.0, 319.5, 0.0, 0.0, 525.0, 239.5, 0.0, 0.0, 0.0, 1.0, 0.0]
+
+target_volume:
+  scale: 0.05
+  origin: [-2.8, -3.75, 1.0]
+  extents: [0.5,0.5,0.3]
+
+views:
+  - out0.pcd
+  - out1.pcd
+  - out2.pcd
+  - out3.pcd
+  - out4.pcd
+  - out5.pcd
