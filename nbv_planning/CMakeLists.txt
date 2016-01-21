@@ -11,6 +11,7 @@ set(PACKAGE_DEPENDENCIES
   octomap_msgs
   tf_conversions
   eigen_conversions
+  visualization_msgs
 )
 
 find_package(catkin REQUIRED COMPONENTS message_generation cmake_modules ${PACKAGE_DEPENDENCIES})
