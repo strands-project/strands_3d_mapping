@@ -1,6 +1,7 @@
 #include <dynamic_object_retrieval/summary_iterators.h>
 #include <dynamic_object_retrieval/dynamic_retrieval.h>
 #include <dynamic_object_retrieval/surfel_type.h>
+#include <dynamic_object_retrieval/extract_surfel_features.h>
 #include <object_3d_benchmark/benchmark_retrieval.h>
 
 #include <Stopwatch.h>
@@ -51,7 +52,8 @@ benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder
         auto rfunc = [&](CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth, SurfelCloudT::Ptr& surfel_map, const Eigen::Matrix3f& K) {
             HistCloudT::Ptr query_features(new HistCloudT);
             CloudT::Ptr keypoints(new CloudT);
-            pfhrgb_estimation::compute_features(query_features, keypoints, query_cloud);
+            //pfhrgb_estimation::compute_features(query_features, keypoints, query_cloud);
+            dynamic_object_retrieval::compute_query_features(query_features, keypoints, query_cloud, surfel_map, false);
             vector<pair<float, string> > matches =
                 vlad_representation::query_vlad_representation(vcloud, kdtree, summary, query_features);
             return load_vlad_clouds(matches);

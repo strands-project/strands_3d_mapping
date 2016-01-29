@@ -111,7 +111,7 @@ target_link_libraries(test_query vlad_common vlad_representation bow_representat
 
 add_executable(benchmark_query_vlad src/benchmark_query_vlad.cpp)
 target_link_libraries(benchmark_query_vlad vlad_common vlad_representation bow_representation
-                      pfhrgb_estimation
+                      pfhrgb_estimation extract_surfel_features
                       benchmark_result benchmark_retrieval benchmark_visualization surfel_renderer benchmark_overlap
                       grouped_vocabulary_tree vocabulary_tree k_means_tree # The order here matters for some reason
                       ${OPENGL_gl_LIBRARY} ${QT_QTOPENGL_LIBRARY}
