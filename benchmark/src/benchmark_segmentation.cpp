@@ -5,6 +5,7 @@
 #include "object_3d_benchmark/benchmark_overlap.h"
 
 #include <dynamic_object_retrieval/summary_iterators.h>
+#include <dynamic_object_retrieval/extract_surfel_features.h>
 
 using namespace std;
 
@@ -22,6 +23,7 @@ float compute_cloud_volume(CloudT::Ptr& cloud)
 }
 
 vector<CloudT::Ptr> perform_convex_segmentation(CloudT::Ptr& training_map, CloudT::Ptr& training_object,
+                                                NormalCloudT::Ptr& training_object_normals,
                                                 CloudT::Ptr& query_map, CloudT::Ptr& query_object,
                                                 const boost::filesystem::path& query_map_path)
 {
@@ -49,6 +51,7 @@ vector<CloudT::Ptr> perform_convex_segmentation(CloudT::Ptr& training_map, Cloud
 }
 
 map<string, pair<float, int> > get_segmentation_scores_for_data(const std::function<vector<CloudT::Ptr>(CloudT::Ptr&, CloudT::Ptr&,
+                                                                                                        NormalCloudT::Ptr&,
                                                                                                         CloudT::Ptr&, CloudT::Ptr&,
                                                                                                         const boost::filesystem::path&)>& sfunc,
                                                                 const boost::filesystem::path& data_path)
@@ -56,9 +59,10 @@ map<string, pair<float, int> > get_segmentation_scores_for_data(const std::funct
     // actually we need something more here, we can't do it just for a sweep as we need the previous sweep cloud and object
     // for the training of an objects, will we keep that in memory in a map structure?
 
-    std::vector<std::string> objects_to_check = {"water_boiler"};//{"backpack", "trash_bin", "lamp", "chair", "desktop", "pillow", "hanger_jacket", "water_boiler"};
+    std::vector<std::string> objects_to_check = {"backpack", "trash_bin", "lamp", "chair", "desktop", "pillow", "hanger_jacket", "water_boiler"};
 
     map<string, pair<CloudT::Ptr, CloudT::Ptr> > map_object_for_instance;
+    map<string, NormalCloudT::Ptr> map_normal_for_instance;
 
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
@@ -73,6 +77,8 @@ map<string, pair<float, int> > get_segmentation_scores_for_data(const std::funct
         CloudT::Ptr sweep_cloud = semantic_map_load_utilties::loadMergedCloudFromSingleSweep<PointT>(sweep_xml);
         std::tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
         boost::filesystem::path sweep_path = boost::filesystem::path(sweep_xml).parent_path();
+        SurfelCloudT::Ptr surfel_map(new SurfelCloudT);
+        pcl::io::loadPCDFile((sweep_path / "surfel_map.pcd").string(), *surfel_map);
 
         for (auto tup : dynamic_object_retrieval::zip(labels.objectClouds, labels.objectLabels, labels.objectMasks, labels.objectScanIndices)) {
             CloudT::Ptr cloud;
@@ -103,11 +109,12 @@ map<string, pair<float, int> > get_segmentation_scores_for_data(const std::funct
                 CloudT::Ptr train_cloud;
                 CloudT::Ptr train_map;
                 tie(train_cloud, train_map) = map_object_for_instance[label];
+                NormalCloudT::Ptr train_normals = map_normal_for_instance[label];
 
-                vector<CloudT::Ptr> segments = sfunc(train_map, train_cloud, sweep_cloud, query_cloud, sweep_path);
+                vector<CloudT::Ptr> segments = sfunc(train_map, train_cloud, train_normals, sweep_cloud, query_cloud, sweep_path);
                 double max_overlap = 0.0;
                 for (CloudT::Ptr& c : segments) {
-                    double overlap = compute_overlap(cloud, c, 0.02);
+                    double overlap = compute_overlap(query_cloud, c, 0.02);
                     if (overlap > max_overlap) {
                         max_overlap = overlap;
                     }
@@ -118,7 +125,9 @@ map<string, pair<float, int> > get_segmentation_scores_for_data(const std::funct
                 ratio.second += 1;
             }
 
+            NormalCloudT::Ptr query_normals = dynamic_object_retrieval::compute_surfel_normals(surfel_map, query_cloud);
             map_object_for_instance[label] = make_pair(query_cloud, sweep_cloud);
+            map_normal_for_instance[label] = query_normals;
         }
     }
 

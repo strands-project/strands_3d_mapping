@@ -32,16 +32,21 @@ vector<pair<CloudT::Ptr, string> > find_labels(vector<CloudT::Ptr>& input_segmen
         LabelT labelled_clusters = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml.string());
 
         bool found = false;
+        double max_overlap = 0.0;
+        size_t max_index;
         for (size_t i = 0; i < labelled_clusters.objectClouds.size(); ++i) {
             double overlap_ratio = compute_overlap(segmented_dynamic, labelled_clusters.objectClouds[i]);
-            if (overlap_ratio > 0.1) {
-                labelled_segmented_dynamics.push_back(make_pair(segmented_dynamic, labelled_clusters.objectLabels[i]));
+            if (overlap_ratio > 0.25 && overlap_ratio > max_overlap) {
+                max_overlap = overlap_ratio;
+                max_index = i;
                 found = true;
-                break;
             }
         }
 
-        if (!found) {
+        if (found) {
+            labelled_segmented_dynamics.push_back(make_pair(segmented_dynamic, labelled_clusters.objectLabels[max_index]));
+        }
+        else {
             labelled_segmented_dynamics.push_back(make_pair(segmented_dynamic, string("")));
         }
     }

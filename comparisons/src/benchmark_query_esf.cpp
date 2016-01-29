@@ -1,6 +1,7 @@
 #include <dynamic_object_retrieval/summary_types.h>
 #include <dynamic_object_retrieval/summary_iterators.h>
 #include <dynamic_object_retrieval/visualize.h>
+#include <dynamic_object_retrieval/surfel_type.h>
 #include <object_3d_benchmark/benchmark_retrieval.h>
 
 #include <pcl/features/cvfh.h>
@@ -23,6 +24,8 @@ using namespace std;
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
 using NormalCloudT = pcl::PointCloud<pcl::Normal>;
+using SurfelT = SurfelType;
+using SurfelCloudT = pcl::PointCloud<SurfelT>;
 using EFSs = pcl::PointCloud<pcl::ESFSignature640>;
 using esf_model = pair<string, vector<float> > ;
 
@@ -190,7 +193,7 @@ benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder
     for (const string& xml : folder_xmls) {
         TICK("get_score_for_sweep");
         vector<cv::Mat> visualizations;
-        auto rfunc = [&](CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth, const Eigen::Matrix3f& K) {
+        auto rfunc = [&](CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth, SurfelCloudT::Ptr& surfel_map, const Eigen::Matrix3f& K) {
             esf_model histogram;
             compute_esf_model(histogram, query_cloud);
             vector<pair<float, string> > matches =

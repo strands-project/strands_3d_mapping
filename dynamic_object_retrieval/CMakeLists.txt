@@ -116,6 +116,9 @@ add_library(dynamic_retrieval src/dynamic_retrieval.cpp include/dynamic_object_r
 add_dependencies(dynamic_retrieval k_means_tree_project)
 target_link_libraries(dynamic_retrieval k_means_tree vocabulary_tree grouped_vocabulary_tree extract_sift ${PCL_LIBRARIES})
 
+add_library(extract_surfel_features src/extract_surfel_features.cpp include/dynamic_object_retrieval/extract_surfel_features.h)
+target_link_libraries(extract_surfel_features ${OpenCV_LIBS} ${PCL_LIBRARIES})
+
 add_executable(dynamic_init_folders src/dynamic_init_folders.cpp)
 target_link_libraries(dynamic_init_folders ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
@@ -126,7 +129,7 @@ add_executable(dynamic_supervoxel_convex_segmentation src/dynamic_supervoxel_con
 target_link_libraries(dynamic_supervoxel_convex_segmentation supervoxel_segmentation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_extract_convex_features src/dynamic_extract_convex_features.cpp)
-target_link_libraries(dynamic_extract_convex_features pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(dynamic_extract_convex_features extract_surfel_features pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_extract_supervoxel_features src/dynamic_extract_supervoxel_features.cpp)
 target_link_libraries(dynamic_extract_supervoxel_features dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

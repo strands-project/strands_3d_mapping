@@ -1,8 +1,11 @@
 #include "dynamic_object_retrieval/summary_types.h"
 #include "dynamic_object_retrieval/summary_iterators.h"
+#include "dynamic_object_retrieval/extract_surfel_features.h"
 #include "object_3d_retrieval/pfhrgb_estimation.h"
 #include "object_3d_retrieval/shot_estimation.h"
 #include "dynamic_object_retrieval/definitions.h"
+
+#define WITH_SURFEL_NORMALS 1
 
 using namespace std;
 
@@ -27,20 +30,35 @@ int main(int argc, char** argv)
     dynamic_object_retrieval::convex_segment_cloud_map segment_clouds(data_path);
     dynamic_object_retrieval::convex_feature_map segment_features(data_path);
     dynamic_object_retrieval::convex_keypoint_map segment_keypoints(data_path);
+    dynamic_object_retrieval::convex_segment_sweep_path_map sweep_paths(data_path);
 
-    for (auto tup : dynamic_object_retrieval::zip(segment_clouds, segment_features, segment_keypoints)) {
+    string last_sweep;
+    SurfelCloudT::Ptr surfel_map(new SurfelCloudT);
+    for (auto tup : dynamic_object_retrieval::zip(segment_clouds, segment_features, segment_keypoints, sweep_paths)) {
         CloudT::Ptr segment;
         boost::filesystem::path feature_path;
         boost::filesystem::path keypoint_path;
-        tie(segment, feature_path, keypoint_path) = tup;
+        boost::filesystem::path sweep_path;
+        tie(segment, feature_path, keypoint_path, sweep_path) = tup;
         cout << "Found cloud of size: " << segment->size() << endl;
         cout << "Found feature path: " << feature_path.string() << endl;
+        cout << "Sweep path: " << sweep_path.string() << endl;
 
         HistCloudT::Ptr desc_cloud(new HistCloudT);
         CloudT::Ptr kp_cloud(new CloudT);
+
+#if WITH_SURFEL_NORMALS
+        if (sweep_path.string() != last_sweep) {
+            surfel_map->clear();
+            pcl::io::loadPCDFile((sweep_path / "surfel_map.pcd").string(), *surfel_map);
+            last_sweep = sweep_path.string();
+        }
+        dynamic_object_retrieval::compute_features(desc_cloud, kp_cloud, segment, surfel_map);
+#else
         pfhrgb_estimation::compute_surfel_features(desc_cloud, kp_cloud, segment, false);
         //pfhrgb_estimation::compute_features(desc_cloud, kp_cloud, segment, false);
         //shot_estimation::compute_features(desc_cloud, kp_cloud, segment, false);
+#endif
 
         if (desc_cloud->empty()) {
             // push back one inf point on descriptors and keypoints

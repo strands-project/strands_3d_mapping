@@ -144,15 +144,20 @@ int main(int argc, char** argv)
 
     map<string, string> path_labels;
     load_binary_data(data_path / "segment_path_labels.cereal", path_labels);
+    /*
     for (const pair<string, string>& p : path_labels) {
         cout << p.first << " -> " << p.second << endl;
     }
+    */
 
     Eigen::MatrixXf mean_keypoints;
     load_binary_data(training_path / "mean_keypoints.cereal", mean_keypoints);
 
     vector<float> mean_sizes;
     load_data(training_path / "mean_sizes.json", mean_sizes);
+    for (int dens_ind = 0; dens_ind < mean_sizes.size(); ++dens_ind) {
+        cout << mean_sizes[dens_ind] << " ";
+    }
 
     vector<Eigen::MatrixXf, Eigen::aligned_allocator<Eigen::MatrixXf> > size_errors(dividers.size());
     vector<Eigen::MatrixXf, Eigen::aligned_allocator<Eigen::MatrixXf> > size_times(dividers.size());
@@ -172,6 +177,8 @@ int main(int argc, char** argv)
         cout << "size_nbr_other_features: " << endl;
         cout << size_nbr_others[size_ind] << endl;
     }
+
+    return 0;
 
     float alpha = 1e-2f;//0.00000001f;
     float beta = 8e-8f;

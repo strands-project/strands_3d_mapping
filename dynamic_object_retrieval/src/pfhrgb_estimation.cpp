@@ -173,7 +173,7 @@ void compute_surfel_features(PfhRgbCloudT::Ptr& features, CloudT::Ptr& keypoints
     double iss_gamma_21_ (0.975); // 0.975 orig
     double iss_gamma_32_ (0.975); // 0.975 orig
     double iss_min_neighbors_ (5);
-    int iss_threads_ (4);
+    int iss_threads_ (3);
 
     //CloudT::Ptr model_keypoints(new CloudT);
     pcl::PointCloud<int>::Ptr keypoints_ind(new pcl::PointCloud<int>);

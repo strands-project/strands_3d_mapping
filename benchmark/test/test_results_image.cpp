@@ -36,6 +36,8 @@ cv::Mat query_make_image(VocabularyT& vt, CloudT::Ptr& sweep_cloud, cv::Mat& que
     vector<boost::filesystem::path> sweep_paths;
 
     CloudT::Ptr refined_query = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, query_transform, K);
+    SurfelCloudT::Ptr surfel_map(new SurfelCloudT);
+    pcl::io::loadPCDFile((sweep_path.parent_path() / "surfel_map.pcd").string(), *surfel_map);
 
     Eigen::Vector4f center;
     pcl::compute3DCentroid(*refined_query, center);
@@ -50,11 +52,12 @@ cv::Mat query_make_image(VocabularyT& vt, CloudT::Ptr& sweep_cloud, cv::Mat& que
     }
 
     //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 50, vocabulary_path, summary, true);
-    auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth, K, 15, vocabulary_path, summary, false);
+    auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth, K, 15,
+                                                                       vocabulary_path, summary, surfel_map, false);
     std::remove_if(results.first.begin(), results.first.end(), [&](const result_type& r) {
         return is_path(r.first, sweep_path.parent_path());
     });
-    results.first.resize(5);
+    results.first.resize(10);
     tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
     vector<string> dummy_labels;

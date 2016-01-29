@@ -84,7 +84,7 @@ add_library(benchmark_visualization src/benchmark_visualization.cpp include/${PR
 target_link_libraries(benchmark_visualization surfel_renderer dynamic_visualize ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 add_library(benchmark_segmentation src/benchmark_segmentation.cpp include/${PROJECT_NAME}/benchmark_segmentation.h)
-target_link_libraries(benchmark_segmentation benchmark_overlap benchmark_retrieval supervoxel_segmentation
+target_link_libraries(benchmark_segmentation benchmark_overlap benchmark_retrieval supervoxel_segmentation extract_surfel_features
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 
@@ -92,7 +92,7 @@ target_link_libraries(benchmark_segmentation benchmark_overlap benchmark_retriev
 #configure_file(scripts/menu.py menu.py COPYONLY)
 
 add_executable(benchmark_query_vocabulary src/benchmark_query_vocabulary.cpp)
-target_link_libraries(benchmark_query_vocabulary benchmark_retrieval benchmark_result benchmark_visualization benchmark_overlap
+target_link_libraries(benchmark_query_vocabulary benchmark_retrieval benchmark_result benchmark_visualization benchmark_overlap extract_surfel_features
                       vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation shot_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
@@ -101,7 +101,7 @@ target_link_libraries(benchmark_convex_segmentation benchmark_segmentation super
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(benchmark_incremental_segmentation src/benchmark_incremental_segmentation.cpp)
-target_link_libraries(benchmark_incremental_segmentation benchmark_segmentation benchmark_overlap supervoxel_segmentation
+target_link_libraries(benchmark_incremental_segmentation benchmark_segmentation benchmark_overlap supervoxel_segmentation extract_surfel_features
                       grouped_vocabulary_tree vocabulary_tree k_means_tree dynamic_visualize pfhrgb_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
@@ -118,7 +118,7 @@ target_link_libraries(test_visualize_query benchmark_retrieval benchmark_result
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_results_image test/test_results_image.cpp)
-target_link_libraries(test_results_image benchmark_retrieval benchmark_result benchmark_visualization
+target_link_libraries(test_results_image benchmark_retrieval benchmark_result benchmark_visualization extract_surfel_features
                       vocabulary_tree dynamic_visualize register_objects extract_sift sift pfhrgb_estimation shot_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 

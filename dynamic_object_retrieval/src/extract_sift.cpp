@@ -347,9 +347,9 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_for_image(cv::Mat& image, cv::Ma
     cv::reduce(gray_query, row_sum, 1, CV_REDUCE_SUM, CV_32S);
     cv::reduce(gray_query, col_sum, 0, CV_REDUCE_SUM, CV_32S);
 
-    int minx = gray_query.cols;
+    int minx = gray_query.cols-1;
     int maxx = 0;
-    int miny = gray_query.rows;
+    int miny = gray_query.rows-1;
     int maxy = 0;
 
     for (int i = 0; i < gray_query.rows; ++i) {
@@ -364,6 +364,11 @@ pair<SiftCloudT::Ptr, CloudT::Ptr> extract_sift_for_image(cv::Mat& image, cv::Ma
             minx = i < minx? i : minx;
             maxx = i > maxx? i : maxx;
         }
+    }
+
+    // there are some images which are mostly black it seems
+    if (minx + 5 >= maxx || miny + 5 >= maxy) {
+        return extract_sift_features(image, depth, 0, 0, K);
     }
 
     cv::Mat cropped_image;

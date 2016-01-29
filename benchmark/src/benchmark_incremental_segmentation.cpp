@@ -6,9 +6,12 @@
 #include <object_3d_retrieval/pfhrgb_estimation.h>
 #include <dynamic_object_retrieval/summary_iterators.h>
 #include <dynamic_object_retrieval/visualize.h>
+#include <dynamic_object_retrieval/extract_surfel_features.h>
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/common/centroid.h>
+
+#define WITH_SURFEL_NORMALS 1
 
 using namespace std;
 
@@ -56,11 +59,14 @@ void visualize_adjacencies(vector<CloudT::Ptr>& segments, const set<pair<int, in
 }
 
 vector<CloudT::Ptr> perform_incremental_segmentation(CloudT::Ptr& training_map, CloudT::Ptr& training_object,
+                                                     NormalCloudT::Ptr& training_object_normals,
                                                      CloudT::Ptr& query_map, CloudT::Ptr& query_object,
                                                      const boost::filesystem::path& query_map_path)
 {
     cout << "Data path: " << query_map_path.parent_path().parent_path().parent_path().string() << endl;
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(query_map_path.parent_path().parent_path().parent_path().string(), true);
+
+    cout << query_map_path.string() << endl;
 
     // DEBUG: only for chair comparison
     //int sweep_index = 88;
@@ -88,7 +94,11 @@ vector<CloudT::Ptr> perform_incremental_segmentation(CloudT::Ptr& training_map, 
     // first, we need to extract some features for the query cloud
     HistCloudT::Ptr query_cloud(new HistCloudT);
     CloudT::Ptr keypoints(new CloudT);
+#if WITH_SURFEL_NORMALS
+    dynamic_object_retrieval::compute_features(query_cloud, keypoints, training_object, training_object_normals, false, true);
+#else
     pfhrgb_estimation::compute_surfel_features(query_cloud, keypoints, training_object, false, true);
+#endif
 
     vector<vocabulary_vector> vectors;
     set<pair<int, int> > adjacencies;
@@ -118,8 +128,9 @@ vector<CloudT::Ptr> perform_incremental_segmentation(CloudT::Ptr& training_map, 
     cout << "Chose: " << min_score << " with subgroup index " << start_index << endl;
     if (!found) {
         cout << "WTF? Did not find any matching min segment..." << endl;
-        start_index = -1;
+        //start_index = -1;
         //exit(-1);
+        return segments;
     }
 
     vector<int> selected_indices;
@@ -156,6 +167,10 @@ vector<CloudT::Ptr> perform_incremental_segmentation(CloudT::Ptr& training_map, 
 
     return single_cloud;
 }
+
+// ./benchmark_incremental_segmentation ~/Data/G4S_Working/Waypoint26/20150507/patrol_run_20/ ~/Data/G4S_Working/vocabulary_inc/
+// ~/Workspace/dynamic_objects/object_3d_retrieval/comparisons/notes/training_cloud.pcd ~/Data/G4S_Working/Waypoint26/20150507/patrol_run_20/room_2/rgb_0002_label_4.pcd
+// ~/Data/G4S_Working/Waypoint26/20150507/patrol_run_20/room_2
 
 // ./benchmark_incremental_segmentation ~/Data/chair_comparison/20160107/patrol_run_17 ~/Data/KTH_longterm_surfels/vocabulary_chair2/
 // ~/Data/chair_comparison/20160108/patrol_run_20/query_chair/chair.pcd ~/Data/chair_comparison/20160107/patrol_run_17/query_chair/chair.pcd
@@ -204,7 +219,8 @@ int main(int argc, char** argv)
 
     vector<CloudT::Ptr> top_segment = perform_incremental_segmentation(training_map, training_object, query_map, query_object, query_map_path);
 
-    boost::filesystem::path segmented_path = query_object_path.parent_path() / (query_object_path.stem().string() + "_segmented.pcd");
+    //boost::filesystem::path segmented_path = query_object_path.parent_path() / (query_object_path.stem().string() + "_segmented.pcd");
+    boost::filesystem::path segmented_path("incremental_top_match.pcd");
     pcl::io::savePCDFileBinary(segmented_path.string(), *top_segment[0]);
 
     return 0;
@@ -223,6 +239,7 @@ int main(int argc, char** argv)
 
     vt.set_cache_path(vocabulary_path.string());
     dynamic_object_retrieval::load_vocabulary(vt, vocabulary_path);
+    vt.set_cache_path(vocabulary_path.string());
     vt.set_min_match_depth(3);
     vt.compute_normalizing_constants();
     vt.get_node_mapping(mapping);
@@ -232,7 +249,7 @@ int main(int argc, char** argv)
 
     map<string, pair<float, int> > overlap_ratios = benchmark_retrieval::get_segmentation_scores_for_data(&perform_incremental_segmentation, data_path);
 
-    std::vector<std::string> objects_to_check = {"water_boiler"};//{"backpack", "trash_bin", "lamp", "chair", "desktop", "pillow", "hanger_jacket", "water_boiler"};
+    std::vector<std::string> objects_to_check = {"backpack", "trash_bin", "lamp", "chair", "desktop", "pillow", "hanger_jacket", "water_boiler"};
 
     pair<float, int> total_ratio;
     map<string, pair<float, int> > category_ratios;

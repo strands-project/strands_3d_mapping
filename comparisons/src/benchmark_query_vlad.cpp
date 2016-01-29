@@ -1,5 +1,6 @@
 #include <dynamic_object_retrieval/summary_iterators.h>
 #include <dynamic_object_retrieval/dynamic_retrieval.h>
+#include <dynamic_object_retrieval/surfel_type.h>
 #include <object_3d_benchmark/benchmark_retrieval.h>
 
 #include <Stopwatch.h>
@@ -22,6 +23,8 @@ using CloudT = pcl::PointCloud<PointT>;
 using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
 using HistT = pcl::Histogram<N>;
 using HistCloudT = pcl::PointCloud<HistT>;
+using SurfelT = SurfelType;
+using SurfelCloudT = pcl::PointCloud<SurfelT>;
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
                                    (float[N], histogram, histogram)
@@ -45,7 +48,7 @@ benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder
     for (const string& xml : folder_xmls) {
         TICK("get_score_for_sweep");
         vector<cv::Mat> visualizations;
-        auto rfunc = [&](CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth, const Eigen::Matrix3f& K) {
+        auto rfunc = [&](CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth, SurfelCloudT::Ptr& surfel_map, const Eigen::Matrix3f& K) {
             HistCloudT::Ptr query_features(new HistCloudT);
             CloudT::Ptr keypoints(new CloudT);
             pfhrgb_estimation::compute_features(query_features, keypoints, query_cloud);

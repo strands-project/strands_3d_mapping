@@ -4,6 +4,7 @@
 #include <pcl/common/transforms.h>
 #include <metaroom_xml_parser/load_utilities.h>
 #include <dynamic_object_retrieval/summary_iterators.h>
+#include <dynamic_object_retrieval/surfel_type.h>
 #include <Stopwatch.h>
 #include "object_3d_benchmark/benchmark_result.h"
 #include "object_3d_benchmark/benchmark_visualization.h" // maybe move the get_score_for_sweep to another header?
@@ -13,6 +14,8 @@ namespace benchmark_retrieval {
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
 using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
+using SurfelT = SurfelType;
+using SurfelCloudT = pcl::PointCloud<SurfelT>;
 using correct_ratio = std::pair<double, double>;
 
 double get_match_accuracy(CloudT::Ptr& object, CloudT::Ptr& cluster);
@@ -92,6 +95,8 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
     std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > camera_transforms;
     std::tie(K, camera_transforms) = benchmark_retrieval::get_camera_matrix_and_transforms(sweep_xml);
     CloudT::Ptr sweep_cloud = semantic_map_load_utilties::loadMergedCloudFromSingleSweep<PointT>(sweep_xml);
+    SurfelCloudT::Ptr surfel_map(new SurfelCloudT);
+    pcl::io::loadPCDFile((sweep_path.parent_path() / "surfel_map.pcd").string(), *surfel_map);
     Eigen::Matrix4f T = benchmark_retrieval::get_global_camera_rotation(labels);
 
     std::vector<std::string> objects_to_check = {"backpack", "trash_bin", "lamp", "chair", "desktop", "pillow", "hanger_jacket", "water_boiler"};
@@ -145,7 +150,7 @@ std::pair<benchmark_retrieval::benchmark_result, std::vector<cv::Mat> > get_scor
         // this is really the only thing we need, can put this in a wrapper, (e.g lambda function?)
         //tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
-        std::tie(retrieved_clouds, sweep_paths) = rfunc(query_cloud, query_image, query_depth, K);
+        std::tie(retrieved_clouds, sweep_paths) = rfunc(query_cloud, query_image, query_depth, surfel_map, K);
         for (int i = 0; i < sweep_paths.size() && i < retrieved_clouds.size(); ++i) {
             if (sweep_paths[i] == sweep_path) {
                 retrieved_clouds.erase(retrieved_clouds.begin() + i);

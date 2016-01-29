@@ -16,7 +16,7 @@
 #include <time.h>
 #include <dynamic_object_retrieval/definitions.h>
 
-#define CONVEX_SEGMENTS_ONLY 1
+#define CONVEX_SEGMENTS_ONLY 0
 
 using namespace std;
 
@@ -49,15 +49,30 @@ benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder
 
     int counter = 0;
     for (const string& xml : folder_xmls) {
+
+        if (counter == 717 || counter == 833) { // have a bug in visualization of these sweeps for re-weight querying causing crash, TODO: fix this
+            ++counter;
+            continue;
+        }
+
         TICK("get_score_for_sweep");
         vector<cv::Mat> visualizations;
-        auto rfunc = [&](CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth, const Eigen::Matrix3f& K) {
+        auto rfunc = [&](CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth, SurfelCloudT::Ptr& surfel_map, const Eigen::Matrix3f& K) {
 #if CONVEX_SEGMENTS_ONLY
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, query_cloud, query_image, query_depth, K, 15, vocabulary_path, summary, false);
+            auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, query_cloud, query_image, query_depth,
+                                                                               K, 15, vocabulary_path, summary, surfel_map, false);
 #else
-            auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth, K, 15, vocabulary_path, summary, false);
+            // no re-weighting
+            //auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth,
+            //                                                                   K, 15, vocabulary_path, summary, surfel_map, false);
+            // re-weighting
+            auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, query_cloud, query_image, query_depth,
+                                                                               K, 15, vocabulary_path, summary, surfel_map, true);
 #endif
-            return benchmark_retrieval::load_retrieved_clouds(results.first);
+            // no re-weighting
+            //return benchmark_retrieval::load_retrieved_clouds(results.first);
+            // re-weighting
+            return benchmark_retrieval::load_retrieved_clouds(results.second);
         };
 
         tie(benchmark, visualizations) = benchmark_retrieval::get_score_for_sweep(rfunc, xml, benchmark);
@@ -68,6 +83,8 @@ benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder
             ++counter;
         }
         TOCK("get_score_for_sweep");
+
+        benchmark_retrieval::save_benchmark(benchmark, benchmark_path);
     }
 
     return benchmark;
@@ -92,6 +109,9 @@ int main(int argc, char** argv)
         folder_xmls.insert(folder_xmls.end(), data_xmls.begin(), data_xmls.end());
     }
 
+    std::chrono::time_point<std::chrono::system_clock> start, end;
+    start = std::chrono::system_clock::now();
+
     /*
     for (const string& xml : folder_xmls) {
         cout << xml << endl;
@@ -109,9 +129,9 @@ int main(int argc, char** argv)
     strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", timeinfo);
 
 #if CONVEX_SEGMENTS_ONLY
-    boost::filesystem::path benchmark_path = vocabulary_path / (string("benchmark ") + buffer + " CONVEX");
+    boost::filesystem::path benchmark_path = vocabulary_path / (string("benchmark ") + buffer + " CONVEX SURFELS");
 #else
-    boost::filesystem::path benchmark_path = vocabulary_path / (string("benchmark ") + buffer + " INCREMENTAL");
+    boost::filesystem::path benchmark_path = vocabulary_path / (string("benchmark ") + buffer + " INCREMENTAL SURFELS");
 #endif
     boost::filesystem::create_directory(benchmark_path);
 
@@ -139,6 +159,11 @@ int main(int argc, char** argv)
     benchmark_retrieval::save_benchmark(benchmark, benchmark_path);
 
     Stopwatch::getInstance().sendAll();
+
+    end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end-start;
+
+    std::cout << "Benchmark took " << elapsed_seconds.count() << " seconds" << std::endl;
 
     return 0;
 }

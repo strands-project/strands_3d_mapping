@@ -4,7 +4,7 @@
 
 #include <boost/filesystem.hpp>
 
-#define ONCE_PER_MAP 1
+#define ONCE_PER_MAP 0
 
 using namespace std;
 
@@ -45,7 +45,7 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& up
         top_combined_similarities(scores, query_cloud, 500);
     }
     else {
-        top_combined_similarities(scores, query_cloud, 10*nbr_query); // make initial number of subsegments configurable
+        top_combined_similarities(scores, query_cloud, 200); // make initial number of subsegments configurable
     }
 
     if (mapping.empty()) {
@@ -84,17 +84,53 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& up
         cout << "Found " << selected_indices.size() << " number of subsegments..." << endl;
     }
 
+
     std::sort(updated_scores.begin(), updated_scores.end(), [](const result_type& s1, const result_type& s2)
     {
         return s1.group_index < s2.group_index;
     });
 
+    // this approach has some problems, most importantly, we should keep the intersection with the lowest distance
+    /*
     auto new_end = std::unique(updated_scores.begin(), updated_scores.end(), [](const result_type& s1, const result_type& s2)
     {
         return s1.group_index == s2.group_index && (s1.subgroup_group_indices.begin(), s1.subgroup_group_indices.end(),
                                                     s2.subgroup_group_indices.begin(), s2.subgroup_group_indices.end()) != s1.subgroup_group_indices.end();
     });
     updated_scores.erase(new_end, updated_scores.end());
+    */
+
+    // just go through everything in a group, keep everything unless there is overlap with one of the previous ones,
+    // in that case keep the one with the highest score
+    vector<pair<result_type, size_t> > index_scores;
+    int current_index = -1;
+    for (size_t i = 0; i < updated_scores.size(); ++i) {
+        if (updated_scores[i].group_index != current_index) {
+            current_index = updated_scores[i].group_index;
+            std::sort(index_scores.begin(), index_scores.end(), [](const pair<result_type, size_t>& s1, const pair<result_type, size_t>& s2)
+            {
+                return s1.first.score < s2.first.score;
+            });
+            for (size_t j = 1; j < index_scores.size(); ++j) {
+                for (size_t k = 0; k < j; ++k) { // this is a f*in bug, we shouldn't remove stuff that we already removed...
+                    if (updated_scores[index_scores[k].second].score > 999.0f) { // if we already removed it, don't check overlap
+                        continue;
+                    }
+                    // check if there is an overlap with any of the better scoring segments, if so, remove
+                    if (std::find_first_of(index_scores[j].first.subgroup_group_indices.begin(), index_scores[j].first.subgroup_group_indices.end(),
+                        index_scores[k].first.subgroup_group_indices.begin(), index_scores[k].first.subgroup_group_indices.end()) !=
+                            index_scores[j].first.subgroup_group_indices.end()) {
+                        // not good, it has an overlap with some of the others, discard by setting score very high!
+                        //remove_indices.push_back(index_scores[j].second);
+                        updated_scores[index_scores[j].second].score = 1000.0f;
+                        break;
+                    }
+                }
+            }
+            index_scores.clear();
+        }
+        index_scores.push_back(make_pair(updated_scores[i], i));
+    }
 
     std::sort(updated_scores.begin(), updated_scores.end(), [](const result_type& s1, const result_type& s2)
     {

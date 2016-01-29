@@ -28,6 +28,7 @@ int main(int argc, char** argv)
 
     cout << "Analyzing convex segments..." << endl;
 
+    set<int> already_inserted;
     CloudT::Ptr overlap_cloud(new CloudT);
     // now, associate each point in segment with a surfel in the surfel cloud!
     for (PointT p : mask->points) {
@@ -41,8 +42,15 @@ int main(int argc, char** argv)
             cout << "Distances empty, wtf??" << endl;
             exit(0);
         }
-        p.rgba = complete->at(indices[0]).rgba;
-        overlap_cloud->push_back(p);
+        for (int i : indices) {
+            if (already_inserted.count(i) != 0) {
+                continue;
+            }
+            already_inserted.insert(i);
+            //overlap_cloud->push_back(complete->at(i));
+            p.rgba = complete->at(i).rgba;
+            overlap_cloud->push_back(p);
+        }
     }
 
     boost::filesystem::path overlap_path = complete_path.parent_path() / (complete_path.stem().string() + "_overlap.pcd");

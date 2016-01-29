@@ -4,6 +4,7 @@
 #include "dynamic_object_retrieval/summary_types.h"
 #include "dynamic_object_retrieval/visualize.h"
 #include "dynamic_object_retrieval/summary_iterators.h"
+#include "dynamic_object_retrieval/extract_surfel_features.h"
 #include "extract_sift/extract_sift.h"
 #include "object_3d_retrieval/pfhrgb_estimation.h"
 #include "object_3d_retrieval/shot_estimation.h"
@@ -15,6 +16,8 @@
 #include <boost/filesystem.hpp>
 #include <pcl/io/pcd_io.h>
 #include <dynamic_object_retrieval/definitions.h>
+
+#define WITH_SURFEL_NORMALS 1
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
@@ -230,7 +233,6 @@ reweight_query(CloudT::Ptr& query_cloud, HistCloudT::Ptr& features, SiftCloudT::
         std::tie(match_sift_cloud, match_sift_keypoints, match_cloud) = extract_sift::get_sift_for_cloud_path(s.first);
         std::cout << "Number of sift features for match: " << match_sift_cloud->size() << std::endl;
 
-        /*
         register_objects ro;
         ro.set_input_clouds(sift_keypoints, match_sift_keypoints);
         //ro.set_input_clouds(query_cloud, match_cloud); // here we should have the actual clouds instead
@@ -244,14 +246,18 @@ reweight_query(CloudT::Ptr& query_cloud, HistCloudT::Ptr& features, SiftCloudT::
         }
         // TODO: vt index is not correct for grouped_vocabulary
         //weighted_indices.insert(std::make_pair(s.second.index, spatial_score));
-        insert_index_score(weighted_indices, s.second, spatial_score);
+        if (spatial_score != 0.0f) {
+            insert_index_score(weighted_indices, s.second, spatial_score);
 
-        weight_sum += spatial_score;
-        */
+            weight_sum += spatial_score;
+        }
+
+        /*
         float match_volume = compute_cloud_volume(match_cloud);
         float score = std::min(query_volume/match_volume, match_volume/query_volume);
         insert_index_score(weighted_indices, s.second, score);
         weight_sum += score;
+        */
     }
 
     for (reweight_type& w : weighted_indices) {
@@ -384,6 +390,59 @@ query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& qu
     CloudT::Ptr keypoints(new CloudT);
     pfhrgb_estimation::compute_surfel_features(features, keypoints, query_cloud, false, true);
     //shot_estimation::compute_features(features, keypoints, query_cloud);
+    TOCK("compute_query_features");
+
+    std::cout << "Querying vocabulary..." << std::endl;
+
+    if (!do_reweighting) {
+        result_type retrieved_paths = query_vocabulary(features, nbr_query, vt, vocabulary_path, summary);
+        return make_pair(retrieved_paths, result_type());
+    }
+
+    TICK("query_vocabulary");
+
+    result_type retrieved_paths = query_vocabulary(features, 2*nbr_query, vt, vocabulary_path, summary);
+
+    TOCK("query_vocabulary");
+
+    std::cout << "Computing sift features for query..." << std::endl;
+    TICK("extract_sift_features");
+    SiftCloudT::Ptr sift_features;
+    CloudT::Ptr sift_keypoints;
+    tie(sift_features, sift_keypoints) = extract_sift::extract_sift_for_image(query_image, query_depth, K);
+    TOCK("extract_sift_features");
+
+    std::cout << "Reweighting and querying..." << std::endl;
+    std::cout << "Number of query sift features: " << sift_features->size() << std::endl;
+    TICK("query_reweight_vocabulary");
+    result_type reweighted_paths = reweight_query(query_cloud, features, sift_features, sift_keypoints, nbr_query, vt, retrieved_paths, vocabulary_path, summary);
+    TOCK("query_reweight_vocabulary");
+
+    return std::make_pair(retrieved_paths, reweighted_paths);
+}
+
+template <typename VocabularyT>
+std::pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >,
+std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
+query_reweight_vocabulary(VocabularyT& vt, CloudT::Ptr& query_cloud, cv::Mat& query_image, cv::Mat& query_depth,
+                          const Eigen::Matrix3f& K, size_t nbr_query, const boost::filesystem::path& vocabulary_path,
+                          const vocabulary_summary& summary, SurfelCloudT::Ptr& surfel_map, bool do_reweighting = true)
+{
+    using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
+
+    if (vt.empty()) {
+        load_vocabulary(vt, vocabulary_path);
+        vt.set_min_match_depth(3);
+        vt.compute_normalizing_constants();
+
+        std::cout << "Mean leaves: " << vt.get_mean_leaf_points() << std::endl;
+    }
+
+    std::cout << "Computing query features..." << std::endl;
+    TICK("compute_query_features");
+    HistCloudT::Ptr features(new HistCloudT);
+    CloudT::Ptr keypoints(new CloudT);
+    dynamic_object_retrieval::compute_query_features(features, keypoints, query_cloud, surfel_map);
     TOCK("compute_query_features");
 
     std::cout << "Querying vocabulary..." << std::endl;

@@ -71,7 +71,7 @@ std::vector<T, Eigen::aligned_allocator<T> > apply_permutation(
     return sorted_vec;
 }
 
-float compute_cloud_volume(CloudT::Ptr& cloud)
+float compute_cloud_size(CloudT::Ptr& cloud)
 {
     float resolution = 0.05f;
     pcl::octree::OctreePointCloud<PointT> octree(resolution);
@@ -182,7 +182,7 @@ add_segments(VocabularyT& vt,
         CloudT::Ptr cloud(new CloudT);
         pcl::io::loadPCDFile(segment_path.string(), *cloud);
 
-        float volume = compute_cloud_volume(cloud);
+        float volume = compute_cloud_size(cloud);
         int size_ind;
         for (size_ind = 0; size_ind < dividers.size() && volume > dividers[size_ind]; ++size_ind) {}
         size_ind--;
@@ -404,7 +404,7 @@ vector<float> discretize_sizes(const boost::filesystem::path& data_path)
         LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(xml);
 
         for (CloudT::Ptr& cloud : labels.objectClouds) {
-            float volume = compute_cloud_volume(cloud);
+            float volume = compute_cloud_size(cloud);
             volumes.push_back(volume);
         }
     }
@@ -580,7 +580,7 @@ compute_vocabulary_error(VocabularyT& vt, int current_ind, const vector<float>& 
             NormalCloudT::Ptr normals;
             tie(refined_query, normals) = surfel_features::cloud_normals_from_surfel_mask(surfel_cloud, query_mask, camera_transforms[scan_index], K);
             //CloudT::Ptr refined_query = benchmark_retrieval::get_cloud_from_sweep_mask(sweep_cloud, query_mask, camera_transforms[scan_index], K);
-            float volume = compute_cloud_volume(refined_query);
+            float volume = compute_cloud_size(refined_query);
             int size_ind;
             for (size_ind = 0; size_ind < dividers.size() && volume > dividers[size_ind]; ++size_ind) {}
             size_ind--;
@@ -793,7 +793,7 @@ vector<float> learn_size_mappings(SegmentMapT& clouds, KeypointMapT& keypoint_pa
         std::sort(keypoints->points.begin(), keypoints->points.end(), [](const PointT& p, const PointT& q) {
            return p.rgb < q.rgb;
         });
-        float volume = compute_cloud_volume(cloud);
+        float volume = compute_cloud_size(cloud);
         int size_ind;
         for (size_ind = 0; size_ind < dividers.size() && volume > dividers[size_ind]; ++size_ind) {}
         size_ind--;
@@ -830,7 +830,7 @@ void compute_prior(const vector<float>& dividers, const boost::filesystem::path&
     for (const string& xml : folder_xmls) {
         LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(xml);
         for (CloudT::Ptr& cloud : labels.objectClouds) {
-            float volume = compute_cloud_volume(cloud);
+            float volume = compute_cloud_size(cloud);
             int size_ind;
             for (size_ind = 0; size_ind < dividers.size() && volume > dividers[size_ind]; ++size_ind) {}
             size_ind--;
@@ -849,7 +849,7 @@ void compute_size_numbers(const vector<float>& dividers, const boost::filesystem
     dynamic_object_retrieval::convex_segment_cloud_map segments(data_path);
 
     for (CloudT::Ptr& cloud : segments) {
-        float volume = compute_cloud_volume(cloud);
+        float volume = compute_cloud_size(cloud);
         int size_ind;
         for (size_ind = 0; size_ind < dividers.size() && volume > dividers[size_ind]; ++size_ind) {}
         size_ind--;
@@ -868,7 +868,7 @@ void compute_mean_sizes(const vector<float>& dividers, const boost::filesystem::
     dynamic_object_retrieval::convex_segment_cloud_map segments(data_path);
 
     for (CloudT::Ptr& cloud : segments) {
-        float volume = compute_cloud_volume(cloud);
+        float volume = compute_cloud_size(cloud);
         int size_ind;
         for (size_ind = 0; size_ind < dividers.size() && volume > dividers[size_ind]; ++size_ind) {}
         size_ind--;
@@ -906,7 +906,7 @@ void compute_mean_keypoints(const vector<float>& dividers, const vector<float>& 
         CloudT::Ptr keypoints(new CloudT);
         pcl::io::loadPCDFile(keypoint_path.string(), *keypoints);
 
-        float volume = compute_cloud_volume(cloud);
+        float volume = compute_cloud_size(cloud);
         int size_ind;
         for (size_ind = 0; size_ind < dividers.size() && volume > dividers[size_ind]; ++size_ind) {}
         size_ind--;

@@ -6,7 +6,7 @@
 #include <pcl/features/pfhrgb.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <dynamic_object_retrieval/visualize.h>
-#include "density_learning/surfel_type.h"
+#include "dynamic_object_retrieval/surfel_type.h"
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include "density_learning/surfel_features.h"
 

@@ -90,7 +90,7 @@ int main(int argc, char** argv)
     repr.dimension = 250; // pfh feature dimension
     repr.numCenters = nbr_centers; // seems good defaults
 
-    vlad_representation::build_vlad_representation(data_path, 100000, repr);
+    vlad_representation::build_vlad_representation(data_path, 400000, repr);
     vlad_representation::encode_vlad_representation(data_path, repr);
 
     vl_kmeans_delete(repr.kmeans);

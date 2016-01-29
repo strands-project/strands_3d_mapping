@@ -50,7 +50,7 @@ struct segment_iterator_base {
     // for iterating sweeps
     std::vector<std::string> folder_xmls; // very easy to just swap this for different values
     std::string folder_name; // either "convex_segments" or "subsegments"
-    std::string segment_name; // so that we can iterate over both "segment" and "feature"
+    std::string segment_name; // so that we can iterate over both "segment" and "pfhrgbfeature"
     size_t xml_pos;
     size_t xml_size;
     //std::vector<std::string>::iterator xml_iter;
@@ -318,7 +318,7 @@ struct convex_feature_map {
 
     segment_path_iterator begin()
     {
-        return segment_path_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "feature");
+        return segment_path_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "pfhrgbfeature");
     }
 
     segment_path_iterator end()
@@ -335,7 +335,7 @@ struct convex_keypoint_map {
 
     segment_path_iterator begin()
     {
-        return segment_path_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "keypoint");
+        return segment_path_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "pfhrgbkeypoint");
     }
 
     segment_path_iterator end()
@@ -373,7 +373,7 @@ struct convex_feature_cloud_map {
 
     iterator begin()
     {
-        return iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "feature");
+        return iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "pfhrgbfeature");
     }
 
     iterator end()
@@ -392,7 +392,7 @@ struct convex_keypoint_cloud_map {
 
     iterator begin()
     {
-        return iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "keypoint");
+        return iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "pfhrgbkeypoint");
     }
 
     iterator end()
@@ -498,7 +498,7 @@ struct subsegment_feature_map {
 
     segment_path_iterator begin()
     {
-        return segment_path_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "feature");
+        return segment_path_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "pfhrgbfeature");
     }
 
     segment_path_iterator end()
@@ -515,7 +515,7 @@ struct subsegment_keypoint_map {
 
     segment_path_iterator begin()
     {
-        return segment_path_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "keypoint");
+        return segment_path_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "pfhrgbkeypoint");
     }
 
     segment_path_iterator end()
@@ -534,7 +534,7 @@ struct subsegment_feature_cloud_map {
 
     iterator begin()
     {
-        return iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "feature");
+        return iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "pfhrgbfeature");
     }
 
     iterator end()
@@ -553,7 +553,7 @@ struct subsegment_keypoint_cloud_map {
 
     iterator begin()
     {
-        return iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "keypoint");
+        return iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "subsegments", "pfhrgbkeypoint");
     }
 
     iterator end()
@@ -589,7 +589,7 @@ struct sweep_convex_feature_map {
 
     segment_path_iterator begin()
     {
-        return segment_path_iterator(std::vector<std::string>({sweep_path.string()}), "convex_segments", "feature");
+        return segment_path_iterator(std::vector<std::string>({sweep_path.string()}), "convex_segments", "pfhrgbfeature");
     }
 
     segment_path_iterator end()
@@ -606,7 +606,7 @@ struct sweep_convex_keypoint_map {
 
     segment_path_iterator begin()
     {
-        return segment_path_iterator(std::vector<std::string>({sweep_path.string()}), "convex_segments", "keypoint");
+        return segment_path_iterator(std::vector<std::string>({sweep_path.string()}), "convex_segments", "pfhrgbkeypoint");
     }
 
     segment_path_iterator end()
@@ -644,7 +644,7 @@ struct sweep_convex_feature_cloud_map {
 
     iterator begin()
     {
-        return iterator(std::vector<std::string>({sweep_path.string()}), "convex_segments", "feature");
+        return iterator(std::vector<std::string>({sweep_path.string()}), "convex_segments", "pfhrgbfeature");
     }
 
     iterator end()
@@ -716,7 +716,7 @@ struct sweep_subsegment_feature_map {
 
     segment_path_iterator begin()
     {
-        return segment_path_iterator(std::vector<std::string>({sweep_path.string()}), "subsegments", "feature");
+        return segment_path_iterator(std::vector<std::string>({sweep_path.string()}), "subsegments", "pfhrgbfeature");
     }
 
     segment_path_iterator end()
@@ -733,7 +733,7 @@ struct sweep_subsegment_keypoint_map {
 
     segment_path_iterator begin()
     {
-        return segment_path_iterator(std::vector<std::string>({sweep_path.string()}), "subsegments", "keypoint");
+        return segment_path_iterator(std::vector<std::string>({sweep_path.string()}), "subsegments", "pfhrgbkeypoint");
     }
 
     segment_path_iterator end()
@@ -752,7 +752,7 @@ struct sweep_subsegment_feature_cloud_map {
 
     iterator begin()
     {
-        return iterator(std::vector<std::string>({sweep_path.string()}), "subsegments", "feature");
+        return iterator(std::vector<std::string>({sweep_path.string()}), "subsegments", "pfhrgbfeature");
     }
 
     iterator end()
