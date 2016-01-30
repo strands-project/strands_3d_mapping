@@ -142,5 +142,5 @@ target_link_libraries(benchmark_discovery_segmentation benchmark_segmentation ex
 
 add_executable(compute_discovery_graphs src/compute_discovery_graphs.cpp
                include/detection/UnionFindSimple.hpp include/detection/segmenter.cpp)
-target_link_libraries(compute_discovery_graphs dynamic_visualize
+target_link_libraries(compute_discovery_graphs dynamic_visualize extract_surfel_features
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})

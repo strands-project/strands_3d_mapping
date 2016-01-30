@@ -248,6 +248,8 @@ int main(int argc, char** argv)
         vt.set_cache_path(vocabulary_path.string());
         vt.set_min_match_depth(3);
         vt.compute_normalizing_constants();
+        cout << vt.size() << endl;
+        return 0;
         for (const string& xml : folder_xmls) {
             //visualize_query_sweep((vocabulary_tree<HistT, 8>&)vt, xml, vocabulary_path, summary, objects_to_check);
             visualize_query_sweep(vt, xml, vocabulary_path, summary, objects_to_check);

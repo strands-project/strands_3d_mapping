@@ -157,6 +157,8 @@ NormalCloudT::Ptr compute_surfel_normals(SurfelCloudT::Ptr& surfel_cloud, CloudT
     normals->reserve(segment->size());
     for (const PointT& p : segment->points) {
         if (!pcl::isFinite(p)) {
+            NormalT crap; crap.normal_x = 0; crap.normal_y = 0; crap.normal_z = 0;
+            normals->push_back(crap);
             continue;
         }
         vector<int> indices;
