@@ -69,9 +69,9 @@ void encode_vlad_representation(const boost::filesystem::path& data_path,
     // allocate space for vlad encoding
     //float * enc = (float*)vl_malloc(sizeof(VL_TYPE_FLOAT) * repr.dimension * repr.numCenters);
 
-    vl_uint32 * indexes = (vl_uint32*)vl_malloc(sizeof(vl_uint32) * 2000);
-    float * assignments = (float*)vl_malloc(sizeof(float) * 2000 * repr.numCenters);
-    float * distances = (float*)vl_malloc(sizeof(float) * 2000);
+    vl_uint32 * indexes = (vl_uint32*)vl_malloc(sizeof(vl_uint32) * 20000);
+    float * assignments = (float*)vl_malloc(sizeof(float) * 20000 * repr.numCenters);
+    float * distances = (float*)vl_malloc(sizeof(float) * 20000);
 
     VladCloudT::Ptr vcloud(new VladCloudT);
     for (HistCloudT::Ptr& f : features) {

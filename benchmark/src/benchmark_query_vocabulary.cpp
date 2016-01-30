@@ -15,7 +15,7 @@
 #include <pcl/common/transforms.h>
 #include <time.h>
 #include <dynamic_object_retrieval/definitions.h>
-
+	
 #define CONVEX_SEGMENTS_ONLY 0
 
 using namespace std;
@@ -43,6 +43,7 @@ benchmark_retrieval::benchmark_result run_benchmark(const vector<string>& folder
     VocabularyT vt;
     if (vt.empty()) {
         dynamic_object_retrieval::load_vocabulary(vt, vocabulary_path);
+        vt.set_cache_path(vocabulary_path.string());
         vt.set_min_match_depth(3);
         vt.compute_normalizing_constants();
     }
@@ -142,7 +143,7 @@ int main(int argc, char** argv)
 
     benchmark_retrieval::benchmark_result benchmark;
     if (summary.vocabulary_type == "standard") {
-        benchmark = run_benchmark<vocabulary_tree<HistT, 8> >(folder_xmls, vocabulary_path, summary, benchmark_path);
+        //benchmark = run_benchmark<vocabulary_tree<HistT, 8> >(folder_xmls, vocabulary_path, summary, benchmark_path);
     }
     else if (summary.vocabulary_type == "incremental") {
         benchmark = run_benchmark<grouped_vocabulary_tree<HistT, 8> >(folder_xmls, vocabulary_path, summary, benchmark_path);

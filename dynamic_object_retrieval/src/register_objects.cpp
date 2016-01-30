@@ -54,7 +54,7 @@ public:
 double register_objects::compute_overlap(CloudT::Ptr& A, CloudT::Ptr& B)
 {
     // Octree resolution - side length of octree voxels
-    const float resolution = 0.02f;
+    const float resolution = 0.05f;
 
     // Instantiate octree-based point cloud change detection class
     OctreePointCloudOverlap<PointT> octree(resolution);
@@ -614,13 +614,13 @@ pair<double, double> register_objects::get_match_score()
 pair<double, double> register_objects::get_match_score()
 {
     if (c1->empty() || c2->empty()) {
-        return make_pair(0.1, 0.0);
+        return make_pair(0.05, 0.0);
     }
     CloudT::Ptr new_cloud(new CloudT);
     pcl::transformPointCloud(*c1, *new_cloud, T);
 
     double overlap = compute_overlap(c2, new_cloud);
-    overlap = std::min(overlap, 0.1);
+    overlap = std::max(overlap, 0.05);
 
     return make_pair(overlap, 0.0);
 }

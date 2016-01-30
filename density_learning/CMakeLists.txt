@@ -75,7 +75,7 @@ target_link_libraries(surfel_features ${OpenCV_LIBS} ${PCL_LIBRARIES})
 add_executable(compute_correct_matrix src/compute_correct_matrix.cpp)
 target_link_libraries(compute_correct_matrix grouped_vocabulary_tree vocabulary_tree k_means_tree dynamic_visualize
                       register_objects extract_sift sift pfhrgb_estimation shot_estimation supervoxel_segmentation
-                      benchmark_retrieval benchmark_visualization surfel_renderer surfel_features
+                      benchmark_retrieval benchmark_visualization benchmark_overlap surfel_renderer surfel_features
                       ${OPENGL_gl_LIBRARY} ${QT_QTOPENGL_LIBRARY}
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
