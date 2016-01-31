@@ -124,7 +124,7 @@ cv::Mat add_query_image(cv::Mat& results, cv::Mat& query_image, const std::strin
     cout << resized_width << ", " << results.rows << endl;
     cv::resize(cropped_query, resized_query, cv::Size(resized_width, results.rows), 0, 0, cv::INTER_CUBIC);
 
-    put_text(resized_query, query_label);
+    //put_text(resized_query, query_label);
 
     cv::Mat result_image(results.rows, results.cols + resized_query.cols, CV_8UC3);
     cv::Mat left(result_image, cv::Rect(0, 0, resized_query.cols, resized_query.rows)); // Copy constructor
@@ -178,7 +178,7 @@ void interpolate_projection(cv::Mat& image)
 
 void put_text(cv::Mat& image, const string& text)
 {
-    cv::putText(image, text, cv::Point(5, 15), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cv::Scalar(0,0,255), 1, CV_AA);
+    cv::putText(image, text, cv::Point(5, 25), cv::FONT_HERSHEY_COMPLEX_SMALL, 1.4, cv::Scalar(0,0,255), 1, CV_AA);
 }
 
 cv::Mat project_image(CloudT::Ptr& transformed_cloud, const Eigen::Matrix3f& K, size_t height, size_t width)
@@ -247,7 +247,7 @@ cv::Mat render_image(CloudT::Ptr& cloud, const Eigen::Matrix4f& T, const Eigen::
 cv::Mat make_image(std::vector<CloudT::Ptr>& results, const Eigen::Matrix4f& room_transform,
                    vector<boost::filesystem::path>& sweep_paths, const std::vector<std::string>& optional_text)
 {
-    pair<int, int> sizes = get_similar_sizes(results.size());
+    pair<int, int> sizes = make_pair(1, 10);//get_similar_sizes(results.size());
 
     int width = 200;
     int height = 200;
