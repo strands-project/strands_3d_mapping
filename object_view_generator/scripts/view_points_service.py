@@ -142,6 +142,15 @@ class TrajectoryGenerator(object):
                 p.orientation.w=1 # default
                 p.position.x = x
                 p.position.y = y
+
+                heading = math.atan2(pose.position.y - y,
+                                   pose.position.x - x)
+                quaternion = tf.transformations.quaternion_from_euler(0,0, heading)
+                p.orientation.x = quaternion[0]
+                p.orientation.y = quaternion[1]
+                p.orientation.z = quaternion[2]
+                p.orientation.w = quaternion[3]
+
                 if self._poly is not None and not is_inside(p.position, self._poly.points):
                     continue
                 if self.test_pose(p):
