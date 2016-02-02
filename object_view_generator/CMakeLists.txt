@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
     rospy
     tf
     std_msgs
+	soma_roi_manager
 )
 
 add_service_files(
@@ -29,6 +30,7 @@ catkin_package(
     rospy
     tf
     std_msgs  
+	soma_roi_manager
 )
 
 include_directories(
