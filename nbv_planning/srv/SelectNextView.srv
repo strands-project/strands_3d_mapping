@@ -1,0 +1,6 @@
+bool disable_view
+---
+bool success
+geometry_msgs/Pose selected_view
+uint32 selected_view_index
+float64 view_score
