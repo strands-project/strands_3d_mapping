@@ -69,9 +69,9 @@ class TrajectoryGenerator(object):
         rospy.loginfo("Sampling goals in %s", self.map_frame)
 
         # setting up the service
-        self.ser = rospy.Service('/test_nav_goal', GetTrajectoryPoints,
+        self.ser = rospy.Service('/generate_object_views', GetTrajectoryPoints,
                                  self.generate_trajectory_points)
-        self.pub = rospy.Publisher("/nav_goals", PoseArray, queue_size=1)
+        self.pub = rospy.Publisher("/object_view_goals", PoseArray, queue_size=1)
 
         rospy.spin()
         rospy.loginfo("Stopped nav_goals_generator service")
@@ -153,58 +153,62 @@ class TrajectoryGenerator(object):
         res.goals.header.frame_id = "/map"
         if len(res.goals.poses) < 1 :
             return res
-        # Order the goals in visiting sequence
-        # Already in clockwise order, find the longest between two adjacents
-        # and cut it there.
-        get_plan =  rospy.ServiceProxy("/move_base/make_plan", GetPlan)
-        request = GetPlanRequest()
-        request.start.header.frame_id = "/map"
-        request.goal.header.frame_id = "/map"
-        sub_plans = []
-        for i in range(0, len(res.goals.poses)):
-            print "Testing between %d and %d" % (i - 1, i)
-            request.start.pose.position = res.goals.poses[i-1].position
-            request.goal.pose.position = res.goals.poses[i].position
-            plan = get_plan(request)
-            sub_plans.append(self.plan_length(plan.plan))
-            print "sub-plan length:", self.plan_length(plan.plan)
-        start = numpy.argmax(sub_plans)
-#        start=max(start-1,0)
-        poses=res.goals.poses[start:]
-        poses.extend(res.goals.poses[:start])
 
-        # which is closest to current position; choose as start and strim the
-        # shorter direction off. this is not so nice as it wastes views
-        robot_pose = rospy.wait_for_message("/robot_pose", Pose)
-        print "Robot at ", robot_pose
-        dists = map(lambda x: (x.position.x-robot_pose.position.x)**2 +
-                    (x.position.y-robot_pose.position.y)**2, poses)
-        start = numpy.argmin(dists)
-        if start > len(poses)/2:
-            poses = [a for a in reversed(poses[:start+1])]
-        else:
-            poses = poses[start:]
+        # If requested to return points as a trajectory, remove some of them, order them right and make
+        # sure they have the right heading...
+        if req.return_as_trajectory:
+            # Order the goals in visiting sequence
+            # Already in clockwise order, find the longest between two adjacents
+            # and cut it there.
+            get_plan =  rospy.ServiceProxy("/move_base/make_plan", GetPlan)
+            request = GetPlanRequest()
+            request.start.header.frame_id = "/map"
+            request.goal.header.frame_id = "/map"
+            sub_plans = []
+            for i in range(0, len(res.goals.poses)):
+                print "Testing between %d and %d" % (i - 1, i)
+                request.start.pose.position = res.goals.poses[i-1].position
+                request.goal.pose.position = res.goals.poses[i].position
+                plan = get_plan(request)
+                sub_plans.append(self.plan_length(plan.plan))
+                print "sub-plan length:", self.plan_length(plan.plan)
+            start = numpy.argmax(sub_plans)
+    #        start=max(start-1,0)
+            poses=res.goals.poses[start:]
+            poses.extend(res.goals.poses[:start])
 
-        for i in range(len(poses)-1):
-            angle = math.atan2(poses[i+1].position.y - poses[i].position.y,
-                               poses[i+1].position.x - poses[i].position.x)
-            print "Angle = ",angle
-            quaternion = tf.transformations.quaternion_from_euler(0,0, angle)
-            print " - - > quaternion=",quaternion
-            poses[i].orientation.x = quaternion[0]
-            poses[i].orientation.y = quaternion[1]
-            poses[i].orientation.z = quaternion[2]
-            poses[i].orientation.w = quaternion[3]
-        if len(poses)>1:
-            poses[-1].orientation.x = poses[-2].orientation.x
-            poses[-1].orientation.y = poses[-2].orientation.y
-            poses[-1].orientation.z = poses[-2].orientation.z
-            poses[-1].orientation.w = poses[-2].orientation.w
-        else:
-            poses=[]
-                               
+            # which is closest to current position; choose as start and strim the
+            # shorter direction off. this is not so nice as it wastes views
+            robot_pose = rospy.wait_for_message("/robot_pose", Pose)
+            print "Robot at ", robot_pose
+            dists = map(lambda x: (x.position.x-robot_pose.position.x)**2 +
+                        (x.position.y-robot_pose.position.y)**2, poses)
+            start = numpy.argmin(dists)
+            if start > len(poses)/2:
+                poses = [a for a in reversed(poses[:start+1])]
+            else:
+                poses = poses[start:]
+
+            for i in range(len(poses)-1):
+                angle = math.atan2(poses[i+1].position.y - poses[i].position.y,
+                                   poses[i+1].position.x - poses[i].position.x)
+                print "Angle = ",angle
+                quaternion = tf.transformations.quaternion_from_euler(0,0, angle)
+                print " - - > quaternion=",quaternion
+                poses[i].orientation.x = quaternion[0]
+                poses[i].orientation.y = quaternion[1]
+                poses[i].orientation.z = quaternion[2]
+                poses[i].orientation.w = quaternion[3]
+            if len(poses)>1:
+                poses[-1].orientation.x = poses[-2].orientation.x
+                poses[-1].orientation.y = poses[-2].orientation.y
+                poses[-1].orientation.z = poses[-2].orientation.z
+                poses[-1].orientation.w = poses[-2].orientation.w
+            else:
+                poses=[]
+
+            res.goals.poses=poses
             
-        res.goals.poses=poses
         self.pub.publish(res.goals)
         
         return res

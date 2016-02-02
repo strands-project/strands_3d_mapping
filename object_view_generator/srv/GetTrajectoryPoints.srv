@@ -3,6 +3,7 @@ float32 max_dist
 int16 number_views
 float32 inflation_radius
 geometry_msgs/Pose target_pose
+bool return_as_trajectory
 string SOMA_region
 ---
 geometry_msgs/PoseArray goals
