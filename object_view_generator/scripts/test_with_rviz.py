@@ -22,8 +22,6 @@ class GeneratorTestClient(object):
         
     def point_clicked(self, point):
         """ A point was clicked in RViz.... """
-        print "Point clicked:"
-        print point
         pose = Pose()
         pose.position = point.point        
         self._generator(self.min_dist, self.max_dist, self.number_views, self.inflation_radius,
