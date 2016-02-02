@@ -1,0 +1,8 @@
+float32 min_dist
+float32 max_dist
+int16 number_views
+float32 inflation_radius
+geometry_msgs/Pose target_pose
+string SOMA_region
+---
+geometry_msgs/PoseArray goals
