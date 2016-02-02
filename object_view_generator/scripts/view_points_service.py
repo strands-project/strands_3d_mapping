@@ -64,7 +64,7 @@ class TrajectoryGenerator(object):
         rospy.init_node('view_trajectory_generator')
 
         # subscribing to a map
-        self.map_frame = rospy.get_param('~map_topic', '/waypoint_map')
+        self.map_frame = rospy.get_param('~map_topic', '/map')
         self.is_costmap = rospy.get_param('~is_costmap', False)
         rospy.loginfo("Sampling goals in %s", self.map_frame)
 
