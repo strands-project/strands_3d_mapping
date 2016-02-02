@@ -14,7 +14,7 @@ set(PACKAGE_DEPENDENCIES
   visualization_msgs
 )
 
-find_package(catkin REQUIRED COMPONENTS message_generation cmake_modules ${PACKAGE_DEPENDENCIES})
+find_package(catkin REQUIRED COMPONENTS cmake_modules ${PACKAGE_DEPENDENCIES} message_generation)
 
 find_package(cmake_modules REQUIRED)
 
@@ -36,11 +36,20 @@ include_directories(
   ${Boost_INCLUDE_DIRS}
 )
 
+add_service_files(
+  FILES
+  SetTarget.srv
+  SelectNextView.srv
+  SetViews.srv
+  Update.srv
+)
+generate_messages( DEPENDENCIES std_msgs geometry_msgs sensor_msgs)
+
 catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS ${PACKAGE_DEPENDENCIES}
-  DEPENDS message_runtime octomap eigen
+        INCLUDE_DIRS include
+        LIBRARIES ${PROJECT_NAME}
+        CATKIN_DEPENDS ${PACKAGE_DEPENDENCIES} message_runtime
+        DEPENDS octomap eigen
 )
 
 set(LINK_LIBS

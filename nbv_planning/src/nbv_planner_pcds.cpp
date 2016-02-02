@@ -109,11 +109,12 @@ int main(int argc, char **argv) {
     // Setup planner and go through each view selecting the best each time
     planner.set_candidate_views(view_poses);
     planner.publish_views();
-    double got_view = true;
+    bool got_view = true;
+    double score;
 //    unsigned int view =0;
     while (got_view) {
         unsigned int view;
-        got_view = planner.choose_next_view(view);
+        got_view = planner.choose_next_view(true, view, score);
 
         if (got_view) {
             ROS_INFO("Updating map");

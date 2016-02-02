@@ -12,8 +12,8 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <octomap_msgs/Octomap.h>
 #include <octomap_msgs/conversions.h>
-
 #include <octomap_ros/conversions.h>
+#include <boost/shared_ptr.hpp>
 
 using namespace visualization_msgs;
 
@@ -23,8 +23,10 @@ namespace nbv_planning {
      * publishes visualisations.
      */
     class NBVFinderROS : public NBVFinder {
-
     public:
+        typedef boost::shared_ptr<NBVFinderROS> Ptr;
+
+
         /**
          * Takes the ROS node handle in addition to the NBVFinder signature.
          */

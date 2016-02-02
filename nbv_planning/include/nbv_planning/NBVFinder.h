@@ -89,9 +89,11 @@ namespace nbv_planning {
 
         /**
          * Select the next best view from the candidate views.
-         * @pram selected_view_index  The index of the view that was selected.
+         * @param selected_view_index  The index of the view that was selected.
+         * @param disable_view   If true then the selected view will be removed from candidates, so as to not be selected again
+         * @return false if no view could be chosen (e.g none left to select from)
          */
-        bool choose_next_view(unsigned int &selected_view_index);
+        bool choose_next_view(bool disable_view, unsigned int &selected_view_index, double &view_score);
 
         /**
          * Evaluate a view, returning the expected information of that view.

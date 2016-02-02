@@ -226,7 +226,7 @@ namespace nbv_planning {
         return value;
     }
 
-    bool NBVFinder::choose_next_view(unsigned int &selected_view_index) {
+    bool NBVFinder::choose_next_view(bool disable_view, unsigned int &selected_view_index, double &view_score) {
         // Choose which of the views provided by set_candidate_views is the best to select.
         std::vector<double> scores;
         scores.reserve(m_available_view_idx.size());
@@ -248,6 +248,7 @@ namespace nbv_planning {
             return false;
         else {
             std::cout << "SELECTED VIEW: " << best_index << std::endl;
+            view_score = max_score;
             std::vector<unsigned int>::iterator i=std::find(m_available_view_idx.begin(),
                                                             m_available_view_idx.end(), best_index);
             std::swap(*i, m_available_view_idx.back());
