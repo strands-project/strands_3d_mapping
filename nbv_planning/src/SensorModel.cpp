@@ -11,7 +11,7 @@
  *
  *  This returns 6 points, likle opengl; left, right, top, bottom, near, far
  */
-std::vector<double> nbv_planning::SensorModel::get_frustum() {
+std::vector<double> nbv_planning::SensorModel::get_frustum() const{
 //    Eigen::Vector3f ;
     // Convert the projection matrix into the viewing angles
     std::vector<double> frustum(6);
@@ -32,32 +32,32 @@ std::vector<double> nbv_planning::SensorModel::get_frustum() {
     return frustum;
 }
 
-std::vector<Eigen::Vector3f> nbv_planning::SensorModel::frustum_to_vertices(const std::vector<double> &frustum) {
-    std::vector<Eigen::Vector3f> vertices(8);
+std::vector<Eigen::Vector3d> nbv_planning::SensorModel::frustum_to_vertices(const std::vector<double> &frustum) {
+    std::vector<Eigen::Vector3d> vertices(8);
     // Front plane is easy
-    vertices[0] = Eigen::Vector3f(frustum[0], frustum[2], frustum[4]); // top, left, near
-    vertices[1] = Eigen::Vector3f(frustum[0], frustum[3], frustum[4]); // top, right, near
-    vertices[2] = Eigen::Vector3f(frustum[1], frustum[2], frustum[4]); // bottom, left, near
-    vertices[3] = Eigen::Vector3f(frustum[1], frustum[3], frustum[4]); // bottom, right, near
+    vertices[0] = Eigen::Vector3d(frustum[0], frustum[2], frustum[4]); // top, left, near
+    vertices[1] = Eigen::Vector3d(frustum[0], frustum[3], frustum[4]); // top, right, near
+    vertices[2] = Eigen::Vector3d(frustum[1], frustum[2], frustum[4]); // bottom, left, near
+    vertices[3] = Eigen::Vector3d(frustum[1], frustum[3], frustum[4]); // bottom, right, near
     // The back plane
     double diff = frustum[5] - frustum[4];
-    vertices[4] = Eigen::Vector3f(frustum[0] + (diff * frustum[0]) / frustum[4],
-                                  frustum[2] + (diff * frustum[2]) / frustum[4],
-                                  frustum[5]); // top, left, far
-    vertices[5] = Eigen::Vector3f(frustum[0] + (diff * frustum[0]) / frustum[4],
-                                  frustum[3] + (diff * frustum[3]) / frustum[4],
-                                  frustum[5]); // top, right, far
-    vertices[6] = Eigen::Vector3f(frustum[1] + (diff * frustum[1]) / frustum[4],
-                                  frustum[2] + (diff * frustum[2]) / frustum[4],
-                                  frustum[5]); // bottom, left, far
-    vertices[7] = Eigen::Vector3f(frustum[1] + (diff * frustum[1]) / frustum[4],
+    vertices[4] = Eigen::Vector3d(frustum[0] + (diff * frustum[0]) / frustum[4],
+                                 frustum[2] + (diff * frustum[2]) / frustum[4],
+                                 frustum[5]); // top, left, far
+    vertices[5] = Eigen::Vector3d(frustum[0] + (diff * frustum[0]) / frustum[4],
+                                 frustum[3] + (diff * frustum[3]) / frustum[4],
+                                 frustum[5]); // top, right, far
+    vertices[6] = Eigen::Vector3d(frustum[1] + (diff * frustum[1]) / frustum[4],
+                                 frustum[2] + (diff * frustum[2]) / frustum[4],
+                                 frustum[5]); // bottom, left, far
+    vertices[7] = Eigen::Vector3d(frustum[1] + (diff * frustum[1]) / frustum[4],
                                   frustum[3] + (diff * frustum[3]) / frustum[4], frustum[5]); // bottom, right, far
 
     return vertices;
 
 }
 
-std::vector<Eigen::Vector3f> nbv_planning::SensorModel::get_frustum_vertices(double max_range) {
+std::vector<Eigen::Vector3d> nbv_planning::SensorModel::get_frustum_vertices(double max_range) const{
     std::vector<double> frustum = get_frustum();
     //std::cout << "Frustum: " << frustum.size() << std::endl;
     // Cap the max range...

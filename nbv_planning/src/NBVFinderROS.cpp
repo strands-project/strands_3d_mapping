@@ -89,7 +89,7 @@ bool nbv_planning::NBVFinderROS::update_current_volume(const sensor_msgs::PointC
     return update_current_volume(pcl_cloud, sensor_origin);
 }
 
-inline geometry_msgs::Point convert_vector_to_point(const Eigen::Vector3f &vector){
+inline geometry_msgs::Point convert_vector_to_point(const Eigen::Vector3d &vector){
     geometry_msgs::Point point;
     point.x=vector(0);
     point.y=vector(1);
@@ -111,7 +111,7 @@ void nbv_planning::NBVFinderROS::publish_views() {
         camera.color.a=1;
         camera.color.g=1;
 
-        std::vector<Eigen::Vector3f> frustum = m_sensor_model.get_frustum_vertices(m_sensor_model.get_min_range()+0.3);
+        std::vector<Eigen::Vector3d> frustum = m_sensor_model.get_frustum_vertices(m_sensor_model.get_min_range()+0.3);
         geometry_msgs::Pose pose;
         tf::poseEigenToMsg(*view, pose);
         camera.pose = pose;
@@ -168,6 +168,24 @@ void nbv_planning::NBVFinderROS::publish_views() {
 //        camera.action = visualization_msgs::Marker::ADD;
 //        cameras.markers.push_back(camera);
     }
+//    Eigen::Vector3d min,max;
+//    calculate_viewed_volume(min,max);
+//    Marker viewed_area;
+//    viewed_area.id = id++;
+//    viewed_area.header.frame_id = "/map";
+//    viewed_area.type = Marker::LINE_LIST;
+//    viewed_area.action = Marker::ADD;
+//    viewed_area.scale.x = 0.05;//max(0)-min(0);
+////    viewed_area.scale.y = max(1)-min(1);
+////    viewed_area.scale.z = max(2)-min(2);
+////    viewed_area.pose.position.x=(min(0)+max(0))/2.0;
+////    viewed_area.pose.position.y=(min(1)+max(1))/2.0;
+////    viewed_area.pose.position.z=(min(2)+max(2))/2.0;
+//    viewed_area.points.push_back(convert_vector_to_point());
+//    viewed_area.ns = "views";
+//    viewed_area.color.a=1;
+//    viewed_area.color.g=1;
+//    cameras.markers.push_back(viewed_area);
     m_view_marker_publisher.publish(cameras);
 }
 

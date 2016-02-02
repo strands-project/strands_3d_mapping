@@ -1,3 +1,19 @@
+/**
+ * Runs the NBV algorithm on a supplied set of pointcloud files.
+ *
+ * Run this with a single command line argument:
+ *
+ * nbv_pcds path_to_yaml
+ *
+ * Where the YAML file supplied give the location of the pointclouds, target volume and sensor model. See test_files/out.yaml
+ * for an example YAML file.
+ *
+ * The pointclouds supplied need to contain there position within the VIEWPOINT field. Compatible point clouds can be
+ * captured using scripts/capture_some_clouds.py.
+ *
+ * The output of the program will be the view scores and the selected view. To visualise the progress in RViz, subscribe
+ * to /nbv_planner/views, /nbv_planner/octomap, and /nbv_planner/volume.
+ */
 #include <ros/ros.h>
 #include <nbv_planning/NBVFinderROS.h>
 #include <sensor_msgs/CameraInfo.h>
@@ -66,7 +82,7 @@ int main(int argc, char **argv) {
 
 
 
-    ROS_INFO("Loading clouds from disk...");
+    ROS_INFO("Loading clouds from  disk...");
     std::vector<Eigen::Affine3d> view_poses;
     std::vector<nbv_planning::NBVFinder::CloudPtr> view_clouds;
     for (YAML::const_iterator view=config["views"].begin();view!=config["views"].end();++view) {
@@ -94,14 +110,22 @@ int main(int argc, char **argv) {
     planner.set_candidate_views(view_poses);
     planner.publish_views();
     double got_view = true;
+//    unsigned int view =0;
     while (got_view) {
         unsigned int view;
         got_view = planner.choose_next_view(view);
+
         if (got_view) {
             ROS_INFO("Updating map");
             planner.update_current_volume(view_clouds[view], view_poses[view]);
             planner.publish_octomap();
+            std::cout << "Number of unobserved cells=";
+            std::flush(std::cout);
+            std::cout << planner.count_unobserved_cells() << std::endl;
         }
+//        view++;
+//        if (view>view_clouds.size())
+//            got_view=false;
     }
 
     std::cout << "Done, now spinning..." << std::endl;

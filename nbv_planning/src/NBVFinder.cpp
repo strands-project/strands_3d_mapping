@@ -34,8 +34,8 @@ namespace octomap {
 
 namespace nbv_planning {
 
-    NBVFinder::NBVFinder(const nbv_planning::SensorModel &m_sensor_model,
-                         double threshold_a) : m_sensor_model(m_sensor_model), m_a(threshold_a) {
+    NBVFinder::NBVFinder(const nbv_planning::SensorModel &sensor_model,
+                         double threshold_a) : m_sensor_model(sensor_model), m_a(threshold_a) {
         // Initialise the candidate views vector
         m_candidate_views.clear();
         create_octree();
@@ -65,29 +65,32 @@ namespace nbv_planning {
     }
 
     bool NBVFinder::update_current_volume(NBVFinder::CloudPtr cloud, const Eigen::Affine3d &sensor_origin) {
-        // Filter the pointcloud so that it only has stuff inside the target volume.
+        // Filter the pointcloud so that it only has stuff inside the area covered by the view set.
+        if (m_candidate_views.size() > 1) { // only filter if there are some views, otherwise we just take the lot
+            Eigen::Vector3d min,max;
+            calculate_viewed_volume(min,max);
+            ROS_INFO("Filtering out non-view volume cloud");
+            pcl::PassThrough<pcl::PointXYZRGB> pass_x;
+            pass_x.setFilterFieldName("x");
+            pass_x.setFilterLimits(min(0),max(0));
+            pass_x.setInputCloud(cloud);
+            pass_x.filter(*cloud);
+
+            pcl::PassThrough<pcl::PointXYZRGB> pass_y;
+            pass_y.setFilterFieldName("y");
+            pass_x.setFilterLimits(min(1),max(1));
+            pass_y.setInputCloud(cloud);
+            pass_y.filter(*cloud);
+
+            pcl::PassThrough<pcl::PointXYZRGB> pass_z;
+            pass_z.setFilterFieldName("z");
+            pass_x.setFilterLimits(min(2),max(2));
+            pass_z.setInputCloud(cloud);
+            pass_z.filter(*cloud);
+
+        }
+        // The target
         pcl::transformPointCloud(*cloud, *cloud, sensor_origin);
-//        ROS_INFO("Filtering out non-volumen cloud");
-//        pcl::PassThrough<pcl::PointXYZRGB> pass_x;
-//        pass_x.setFilterFieldName("x");
-//        pass_x.setFilterLimits(m_target_volume.get_x_origin() - 0.5f * m_target_volume.get_x_size(),
-//                               m_target_volume.get_x_origin() + 0.5f * m_target_volume.get_x_size());
-//        pass_x.setInputCloud(cloud);
-//        pass_x.filter(*cloud);
-//
-//        pcl::PassThrough<pcl::PointXYZRGB> pass_y;
-//        pass_y.setFilterFieldName("y");
-//        pass_y.setFilterLimits(m_target_volume.get_y_origin() - 0.5f * m_target_volume.get_y_size(),
-//                               m_target_volume.get_y_origin() + 0.5f * m_target_volume.get_y_size());
-//        pass_y.setInputCloud(cloud);
-//        pass_y.filter(*cloud);
-//
-//        pcl::PassThrough<pcl::PointXYZRGB> pass_z;
-//        pass_z.setFilterFieldName("z");
-//        pass_z.setFilterLimits(m_target_volume.get_z_origin() - 0.5f * m_target_volume.get_z_size(),
-//                               m_target_volume.get_z_origin() + 0.5f * m_target_volume.get_z_size());
-//        pass_z.setInputCloud(cloud);
-//        pass_z.filter(*cloud);
 
         octomap::Pointcloud octomap_cloud;
         octomap::pointcloudPCLToOctomap(*cloud, octomap_cloud);
@@ -95,28 +98,8 @@ namespace nbv_planning {
         octomap::point3d origin(sensor_origin.translation().x(), sensor_origin.translation().y(),sensor_origin.translation().z());
 
 
-//        Eigen::Quaterniond q = (Eigen::Quaterniond) sensor_origin.linear();
-//        //TODO: The following might be necessary?
-////        m.orientation.x = q.x();
-////        m.orientation.y = q.y();
-////        m.orientation.z = q.z();
-////        m.orientation.w = q.w();
-////        if (m.orientation.w < 0) {
-////            m.orientation.x *= -1;
-////            m.orientation.y *= -1;
-////            m.orientation.z *= -1;
-////            m.orientation.w *= -1;
-////        }
-//
-//        octomap::pose6d frame(octomath::Vector3(sensor_origin.translation()[0],
-//                                                sensor_origin.translation()[1],
-//                                                sensor_origin.translation()[2]),
-//                              octomath::Quaternion(q.w(), q.x(), q.y(), q.z()));
-
-//        std::cout << frame;
-
         m_octree->insertPointCloud(octomap_cloud, origin, -1,false,true);
-//        m_octree->toMaxLikelihood();
+        // m_octree->toMaxLikelihood();
         std::cout << "Octree now has " << m_octree->calcNumNodes() << " nodes.\n";
         return false;
     }
@@ -124,20 +107,21 @@ namespace nbv_planning {
     bool NBVFinder::set_candidate_views(const std::vector<Eigen::Affine3d> &views) {
         m_candidate_views = views;
         m_available_view_idx.reserve(m_candidate_views.size());
-        for (unsigned i=0;i<m_candidate_views.size();i++)
+        for (unsigned i=0;i<m_candidate_views.size();++i)
             m_available_view_idx.push_back(i);
         return true;
     }
 
-    float NBVFinder::evaluate_view(Eigen::Affine3d &view) {
+    float NBVFinder::evaluate_view(Eigen::Affine3d &view) const  {
         // Find the entry of the view rays into the view volume
         // Find the exit
         // Get the cells along the way
+        // Rate the view using the algorithm in the paper
         double view_gain=0;
         Rays rays = m_sensor_model.get_rays(view, m_target_volume);
 
         float max_range = m_sensor_model.get_max_range();
-        for (Rays::iterator ray = rays.begin(); ray < rays.end(); ray++) {
+        for (Rays::iterator ray = rays.begin(); ray < rays.end(); ++ray) {
             Eigen::Vector3f volume_origin = m_target_volume.get_origin();
             octomap::point3d origin(ray->position()(0), ray->position()(1), ray->position()(2)),
                     start, end;
@@ -158,8 +142,8 @@ namespace nbv_planning {
             double prev_p_x = 1;
             double prev_p_o = 0;
             int number_of_cells_passed =0;
-
-            for (octomap::KeyRay::iterator cell = full_ray.begin(); cell < full_ray.end(); cell++) {
+//            double ray_vis=1;
+            for (octomap::KeyRay::iterator cell = full_ray.begin(); cell < full_ray.end(); ++cell) {
                 number_of_cells_passed+=1;
 
                 if (*cell == *(ray_inside_volume.begin())) {
@@ -168,6 +152,11 @@ namespace nbv_planning {
                 }
                 double prev_cell_value = get_node_value(*(cell-1));
                 double current_cell_value = get_node_value(*cell);
+
+//                ray_vis*=current_cell_value;
+//                if (counting && current_cell_value==0.5){
+//                    view_gain+=ray_vis;
+//                }
 
                 // The visibility transition matrix (just one vector from); Eqn. 9
                 double p_x_plus_1_given_x[] = {std::pow(m_a, number_of_cells_passed), 0.00000001};
@@ -216,6 +205,7 @@ namespace nbv_planning {
                     double gain = prev_entropy - new_entropy; //(Eqn. 4)
                     view_gain +=gain;
                 }
+
             }
         }
 
@@ -227,7 +217,7 @@ namespace nbv_planning {
         m_octree->writeBinary("/tmp/volume.bt");
     }
 
-    double NBVFinder::get_node_value(const octomap::OcTreeKey &key) {
+    double NBVFinder::get_node_value(const octomap::OcTreeKey &key) const {
         double value = 0.5;
         octomap::OcTreeNode *node = m_octree->search(key,0);
         if (node != NULL) {
@@ -245,7 +235,7 @@ namespace nbv_planning {
         double score;
         unsigned  int best_index =-1;
         for (std::vector<unsigned int>::iterator view_index = m_available_view_idx.begin();
-                view_index<m_available_view_idx.end();view_index++) {
+                view_index<m_available_view_idx.end();++view_index) {
             std::cout << "Evaluating view " << *view_index << std::endl;
             score = evaluate_view(m_candidate_views[*view_index]);
             if (score > max_score) {
@@ -265,5 +255,39 @@ namespace nbv_planning {
             selected_view_index = best_index;
             return true;
         }
+    }
+
+    int NBVFinder::count_unobserved_cells() const{
+        int count = 0;
+        Eigen::Vector3f lower = m_target_volume.get_origin() - m_target_volume.get_extents();
+        Eigen::Vector3f upper = m_target_volume.get_origin() + m_target_volume.get_extents();
+        for (double x=lower(0);x<upper(0);x+=m_target_volume.get_scale()){
+            for (double y=lower(1);y<upper(1);y+=m_target_volume.get_scale()) {
+                for (double z=lower(2);z<upper(2);z+=m_target_volume.get_scale()){
+                    octomap::OcTreeNode *node = m_octree->search(x,y,z);
+                    if (node == NULL)
+                        count+=1;
+                }
+            }
+        }
+        return count;
+    }
+
+    bool NBVFinder::calculate_viewed_volume(Eigen::Vector3d &min, Eigen::Vector3d &max) const {
+        if (m_candidate_views.size()<1)
+            return false;
+        std::vector<Eigen::Vector3d>  vertices = m_sensor_model.get_frustum_vertices();
+        min(0)=min(1)=min(2)=30.0;
+        max(0)=max(1)=max(2)=-30.0;
+        for (std::vector<Eigen::Affine3d>::const_iterator view=m_candidate_views.begin(); view<m_candidate_views.end();++view){
+            for (std::vector<Eigen::Vector3d>::iterator vertice=vertices.begin();vertice<vertices.end();++vertice) {
+                Eigen::Vector3d v=(*view) * (*vertice);
+                for (unsigned i=0;i<3;i++) {
+                    min(i)=std::min(min(i), v(i));
+                    max(i)=std::max(max(i), v(i));
+                }
+            }
+        }
+        return true;
     }
 }
