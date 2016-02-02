@@ -7,7 +7,7 @@ from geometry_msgs.msg import Point32
 from nav_msgs.msg import OccupancyGrid
 from nav_msgs.srv import GetPlan, GetPlanRequest
 import tf
-from soma_roi_manager.soma_roi import SOMAROIQuery
+
 import math
 import numpy
 import sys
@@ -121,6 +121,12 @@ class TrajectoryGenerator(object):
         # If req.region is filled then get the SOMA region from it
         self._poly = None
         if req.SOMA_region != "":
+            try:
+                from soma_roi_manager.soma_roi import SOMAROIQuery
+            except:
+                rospy.logerr("Trying to make a trajectory point generation call using SOMA Roi"
+                             " but soma_roi_manager is not available.")
+                return res
             try:
                 soma_map, soma_conf, roi_id = req.SOMA_region.split("/")
                 rospy.loginfo("Aiming for: %s, %s, %s"%(soma_map, soma_conf, roi_id))
