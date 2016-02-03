@@ -4,9 +4,6 @@
 #include <tf_conversions/tf_eigen.h>
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
-#include <pcl/common/eigen.h>
-#include <math.h>
-#include <pcl/common/time.h>
 #include "nbv_planning/SetTarget.h"
 #include "nbv_planning/SetViews.h"
 #include "nbv_planning/Update.h"
@@ -21,7 +18,7 @@ class WaitForMessage {
 public:
     static MessageType get(const std::string &topic_name) {
         WaitForMessage waiter(topic_name);
-        ROS_INFO_STREAM("Waiting for message on " << topic_name);
+//        ROS_INFO_STREAM("Waiting for message on " << topic_name);
         while (!waiter.got_it_) {
             ros::spinOnce();
         }
@@ -74,6 +71,12 @@ public:
 
     }
 
+    void shutdown() {
+        m_set_views_srv.shutdown();
+        m_select_next_view_srv.shutdown();
+        m_update_srv.shutdown();
+        m_set_target_volume_srv.shutdown();
+    }
 private:
     bool set_target_volume(nbv_planning::SetTargetRequest &req, nbv_planning::SetTargetResponse &resp) {
         ROS_INFO_STREAM("Setting target volume.");
@@ -134,7 +137,7 @@ private:
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "nbv_planner");
-    ros::NodeHandle n;
+    ros::NodeHandle n("~");
 
     NBVFinderROSServer server(n);
 
@@ -146,6 +149,8 @@ int main(int argc, char **argv) {
         ROS_ERROR("nbv_planner_server exception: %s", e.what());
         return -1;
     }
+    std::cout << "Shutting down..." << std::endl;
+    server.shutdown();
 
     return 0;
 }
