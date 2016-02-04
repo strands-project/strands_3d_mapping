@@ -19,7 +19,6 @@
   <build_depend>strands_navigation_msgs</build_depend>
   <build_depend>object_view_generator</build_depend>
   <build_depend>python-yaml</build_depend>
-  <build_depend>metric_sweep</build_depend>
   <build_depend>dynamic_reconfigure</build_depend>
   <build_depend>ptu_follow_frame</build_depend>
   <build_depend>static_transform_manager</build_depend>
@@ -43,7 +42,6 @@
   <run_depend>strands_navigation_msgs</run_depend>
   <run_depend>object_view_generator</run_depend>
   <run_depend>python-yaml</run_depend>
-  <run_depend>metric_sweep</run_depend>
   <run_depend>dynamic_reconfigure</run_depend>
   <run_depend>ptu_follow_frame</run_depend>
   <run_depend>static_transform_manager</run_depend>
