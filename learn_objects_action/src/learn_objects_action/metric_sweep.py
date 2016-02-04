@@ -102,7 +102,7 @@ class SelectCluster(smach.State):
                                              DynamicObjectsService)
         self._get_specific_cluster = get_ros_service("/object_manager_node/ObjectManager/GetDynamicObjectService",
                                                      GetDynamicObjectService)
-        self._get_plan_points = get_ros_service('/test_nav_goal', GetTrajectoryPoints)
+        self._get_plan_points = get_ros_service('/generate_object_views', GetTrajectoryPoints)
 
         self._rois_file=rois_file
         self._debug_mode = debug_mode
@@ -145,7 +145,8 @@ class SelectCluster(smach.State):
                                                   number_views=25,
                                                   inflation_radius=0.3, 
                                                   target_pose=p,
-                                                  SOMA_region=soma_region)
+                                                  SOMA_region=soma_region,
+                                                  return_as_trajectory=True)
                     scores[i] = len(poses.goals.poses)
                 ID=numpy.argmax(scores) # the one to look at is the one that has the most observation available
             else:
