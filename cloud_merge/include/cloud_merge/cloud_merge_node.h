@@ -426,8 +426,9 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
          // get room start time
          aSemanticRoom.setRoomLogStartTime(ros::Time::now().toBoost());
-         aSemanticRoom.clearIntermediateClouds();
-         aSemanticRoom.resetRoomTransform();
+         aSemanticRoom.clearAllData();
+//         aSemanticRoom.resetRoomTransform();
+//         aSemanticRoom.clearIntermediateClouds();
 
          m_CloudMerge.resetIntermediateCloud();
          m_CloudMerge.resetMergedCloud();

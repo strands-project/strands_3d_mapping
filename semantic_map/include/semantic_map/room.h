@@ -77,6 +77,7 @@ public:
     SemanticRoom(bool saveIntermediateClouds=true);
     ~SemanticRoom();
 
+    void clearAllData();
     auto getDynamicClustersCloud() -> decltype(m_DynamicClustersCloud);
     void setDynamicClustersCloud(CloudPtr dynCl);
     void setDynamicClustersCloud(std::string dynClF);
@@ -90,6 +91,7 @@ public:
 
     void addIntermediateCloudImages(IntermediatePositionImages newImages);
     auto getIntermdiatePositionImages()  -> decltype(m_vIntermediatePositionImages);
+    void clearIntermdiatePositionImages();
 
     int addIntermediateRoomCloud(std::string filename, tf::StampedTransform cloud_tf, image_geometry::PinholeCameraModel cloudCamParams=image_geometry::PinholeCameraModel());
     bool getSaveIntermediateClouds();

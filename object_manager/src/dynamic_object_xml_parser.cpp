@@ -151,6 +151,7 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool loa
         if (xmlReader->hasError())
         {
             std::cout << "XML error: " << xmlReader->errorString().toStdString() << std::endl;
+            delete xmlReader;
             return object;
         }
 
@@ -165,6 +166,7 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool loa
                     object->m_label = labelS.toStdString();
                 } else {
                     std::cerr<<"Object xml node does not have label attribute. Aborting."<<std::endl;
+                    delete xmlReader;
                     return object;
                 }
                 if (attributes.hasAttribute("roomLogString"))
@@ -203,6 +205,7 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool loa
 
                 } else {
                     std::cerr<<"Object xml node does not have filename attribute. Aborting."<<std::endl;
+                    delete xmlReader;
                     return object;
                 }
 
@@ -294,6 +297,7 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool loa
         cout<<"Loaded object from: "<<filename<<endl;
     }
 
+    delete xmlReader;
     return object;
 }
 

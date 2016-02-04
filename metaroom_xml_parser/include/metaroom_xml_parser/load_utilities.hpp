@@ -360,6 +360,155 @@
     }
 
     /********************************************** DYNAMIC CLUSTER UTILITIES ****************************************************************************************/
+    template <class PointType>
+    DynamicObjectData<PointType> loadDynamicObjectFromSingleSweep(std::string objectXmlPath, bool verbose, bool load_cloud ){
+        DynamicObjectData<PointType> toRet;
+        auto object = SimpleDynamicObjectParser<PointType>::loadDynamicObject(objectXmlPath, verbose, load_cloud);
+        toRet.objectCloud = object.m_points;
+        toRet.objectLabel = object.m_label;
+        toRet.time = object.m_time;
+        toRet.vAdditionalViews = object.m_vAdditionalViews;
+        toRet.vAdditionalViewsTransforms = object.m_vAdditionalViewsTransforms;
+        toRet.intermediateCloud = boost::shared_ptr<pcl::PointCloud<PointType>>(new pcl::PointCloud<PointType>());
+
+        return toRet;
+    }
+
+
+
+    template <class PointType>
+    std::vector<DynamicObjectData<PointType>> loadAllDynamicObjectsFromSingleSweep(std::string sweepFolder, bool verbose, bool load_cloud ){
+        std::vector<DynamicObjectData<PointType>> toRet;
+
+        // check if the user provided the sweep xml or the folder
+        unsigned found = sweepFolder.find_last_of(".");
+        std::string extension = sweepFolder.substr(found+1,3);
+
+        if (extension == "xml") {
+            // strip the extension and the file and keep the folder
+            found = sweepFolder.find_last_of("/");
+            sweepFolder = sweepFolder.substr(0, found+1);
+        }
+
+        sweepFolder+="/"; // safety, in case the / is missing
+        if (verbose){
+            std::cout<<"Looking for dynamic elements in "<<sweepFolder<<std::endl;
+        }
+
+        QStringList objectFiles = QDir(sweepFolder.c_str()).entryList(QStringList("*object*.xml"));
+
+        if (verbose){
+            std::cout<<"Found "<<objectFiles.size()<<" dynamic objects."<<std::endl;
+        }
+
+        for (auto objectFile : objectFiles){
+            if (verbose){
+                std::cout<<"Now parsing "<<objectFile.toStdString()<<std::endl;
+                auto object = loadDynamicObjectFromSingleSweep<PointType>(sweepFolder+objectFile.toStdString(),verbose);
+                // load mask
+                std::string mask_file = objectFile.toStdString().substr(0,objectFile.toStdString().size()-4) + "_mask.txt";
+                std::ifstream mask_stream(sweepFolder+mask_file);
+                int index;
+                while (mask_stream.is_open() && !mask_stream.eof()){
+                    mask_stream>>index;
+                    object.objectScanIndices.push_back(index);
+                }
+
+                if (!object.objectScanIndices.size() > 0){
+                    if (verbose){
+                        std::cout<<"The mask hasn't been saved for object ' "<<sweepFolder+objectFile.toStdString()<<" Skipping."<<std::endl;
+                        continue;
+                    }
+                }
+
+                // find intermediate cloud for this object
+                std::string sweep_xml = sweepFolder+"room.xml";
+                auto completeSweepData = SimpleXMLParser<PointType>::loadRoomFromXML(sweep_xml);
+
+                if (completeSweepData.vIntermediateRoomClouds.size() != 0){
+                    // first transform the object cloud by the inverse of the room transform
+                    Eigen::Matrix4f roomTransformInverse = completeSweepData.roomTransform.inverse();
+                    pcl::transformPointCloud (*object.objectCloud, *object.objectCloud, roomTransformInverse);
+
+                    // transform all the intermediate clouds in the map frame
+                    tf::StampedTransform transformToOrigin = completeSweepData.vIntermediateRoomCloudTransforms[0];
+                    std::vector<tf::StampedTransform> allTransforms = completeSweepData.vIntermediateRoomCloudTransformsRegistered;
+
+                    int min_size = 1000000;
+                    int best_cloud = -1;
+
+                    for (size_t i=0; i< completeSweepData.vIntermediateRoomClouds.size(); i++){
+                        // check if the mask has been set & filter intermediate cloud (should speed up computation)
+                        boost::shared_ptr<pcl::PointCloud<PointType>> filteredCloud(new pcl::PointCloud<PointType>());
+                        if (object.objectScanIndices.size() > 0){
+                            for (auto index : object.objectScanIndices){
+                                filteredCloud->points.push_back(completeSweepData.vIntermediateRoomClouds[i]->points[index]);
+                            }
+                        } else {
+                            if (verbose){
+                                std::cout<<"The mask hasn't been saved for object "<<sweepFolder+objectFile.toStdString()<<std::endl;
+                            }
+                            *filteredCloud = *completeSweepData.vIntermediateRoomClouds[i];
+                        }
+
+                        if (verbose){
+                            std::cout<<"Now comparing with intermediate cloud "<<i<<std::endl;
+                        }
+
+                        pcl_ros::transformPointCloud(*filteredCloud, *filteredCloud,allTransforms[i]);
+                        pcl_ros::transformPointCloud(*filteredCloud, *filteredCloud,transformToOrigin);
+
+                        // compute difference
+                        boost::shared_ptr<pcl::PointCloud<PointType>> difference(new pcl::PointCloud<PointType>());
+                        pcl::SegmentDifferences<PointType> segment;
+                        segment.setInputCloud(object.objectCloud);
+                        segment.setTargetCloud(filteredCloud);
+                        segment.setDistanceThreshold(0.001);
+                        segment.segment(*difference);
+
+                        if (difference->points.size() != object.objectCloud->points.size()){
+                            if (difference->points.size() < min_size) {
+                                min_size = difference->points.size();
+                                best_cloud = i;
+                            }
+                        }
+
+                    }
+
+                    if (best_cloud!=-1){
+
+                        object.intermediateCloud = completeSweepData.vIntermediateRoomClouds[best_cloud];
+                        object.transformToGlobal = transformToOrigin;
+                        object.calibratedTransform = allTransforms[best_cloud];
+                        // compute cv images from intermediate cloud
+                        auto images = SimpleXMLParser<PointType>::createRGBandDepthFromPC(object.intermediateCloud);
+                        object.objectRGBImage = images.first;
+                        object.objectDepthImage = images.second;
+
+                        if (verbose){
+                            std::cout<<"Matching intermediate cloud found. Cloud number "<<best_cloud<<std::endl;
+                        }
+                    }
+
+                    if (!object.intermediateCloud->points.size()){
+                        ROS_ERROR_STREAM("Intermediate cloud couldn't be found for object "<<sweepFolder+objectFile.toStdString());
+                    }
+                } else {
+                    ROS_ERROR_STREAM("Sweep XML "<<sweep_xml<<" doesn't contain intermediate cloud data. Cannot find the intermediate cloud where the dynamic object came from.");
+                }
+
+
+                toRet.push_back(object);
+            }
+        }
+
+//        p->removeAllPointClouds();
+
+        return toRet;
+    }
+
+
+
     ///* The default parameters are the same as during the metaroom update
     template <class PointType>
     std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> loadDynamicClustersFromSingleSweep(std::string sweepXmlPath, bool verbose=false, double tolerance = 0.05, int min_cluster_size = 75, int max_cluster_size=50000)

@@ -21,6 +21,10 @@
 
 template <class PointType>
 class SimpleXMLParser {
+
+template <class PointT>
+friend class SimpleDynamicObjectParser;
+
 public:
 
 
@@ -62,6 +66,7 @@ public:
         int                                                                                   roomRunNumber;
         boost::posix_time::ptime                                                              roomLogStartTime;
         std::vector<IntermediatePositionImages>                                               vIntermediatePositionImages;
+        Eigen::Matrix4f                                                                       roomTransform;
 
         RoomData(){
             completeRoomCloud = boost::shared_ptr<pcl::PointCloud<PointType>>(new pcl::PointCloud<PointType>());
@@ -279,6 +284,18 @@ public:
                     auto positionImages = parseIntermediatePositionImages(xmlReader, roomFolder.toStdString(), verbose);
 
                     aRoom.vIntermediatePositionImages.push_back(positionImages);
+                }
+
+                if (xmlReader->name() == "RoomTransform")
+                {
+                    QString transformS = xmlReader->readElementText();
+                    Eigen::Matrix4f transform;
+                    QStringList transformSlist = transformS.split(' ');
+                    for (size_t i=0; i<16;i++)
+                    {
+                        transform(i)=transformSlist[i].toDouble();
+                    }
+                    aRoom.roomTransform = transform;
                 }
             }
         }

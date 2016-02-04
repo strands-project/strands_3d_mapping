@@ -20,6 +20,38 @@ SemanticRoom<PointType>::~SemanticRoom()
 }
 
 template <class PointType>
+void SemanticRoom<PointType>::clearAllData()
+{
+    m_RoomStringId = "";
+    m_RoomLogName = "";
+    m_RoomRunNumber = -1;
+    m_bIsMetaRoom = false;
+
+    clearIntermediateClouds();
+    clearIntermediateCloudRegisteredTransforms();
+    clearIntermediateCloudCameraParametersCorrected();
+    clearIntermdiatePositionImages();
+    this->m_RoomTransform = Eigen::Matrix4f::Identity();
+
+    this->m_DynamicClustersCloud->points.clear();
+    this->m_CompleteRoomCloud->points.clear();
+    this->m_InteriorRoomCloud->points.clear();
+    this->m_WallsCloud->points.clear();
+
+    this->m_DynamicClustersFilename = "";
+    this->m_CompleteRoomCloudFilename = "";
+    this->m_InteriorRoomCloudFilename = "";
+    this->m_WallsCloudFilename = "";
+
+    this->m_CompleteRoomCloudLoaded = false;
+    this->m_InteriorRoomCloudLoaded = false;
+    this->m_DeNoisedRoomCloudLoaded = false;
+    this->m_DynamicClustersLoaded = false;
+
+    return;
+}
+
+template <class PointType>
 auto SemanticRoom<PointType>::getDynamicClustersCloud() -> decltype (m_DynamicClustersCloud)
 {
     if (!m_DynamicClustersLoaded)
@@ -136,6 +168,11 @@ template <class PointType>
 auto SemanticRoom<PointType>::getIntermdiatePositionImages()  -> decltype(m_vIntermediatePositionImages)
 {
     return m_vIntermediatePositionImages;
+}
+
+template <class PointType>
+void SemanticRoom<PointType>::clearIntermdiatePositionImages(){
+    m_vIntermediatePositionImages.clear();
 }
 
 template <class PointType>
