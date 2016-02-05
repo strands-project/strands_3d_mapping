@@ -195,7 +195,7 @@ class LearnObjectActionMachineInfoGain(smach.StateMachine):
             recoveries[r][0] = False
         rospy.set_param("/monitored_navigation/recover_states", recoveries)
 
-        super(LearnObjectActionMachineRAL16, self).execute(parent_ud)
+        super(LearnObjectActionMachineInfoGain, self).execute(parent_ud)
             
     
     def finish(self, userdata, terminal_states, outcome):
