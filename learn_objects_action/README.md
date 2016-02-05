@@ -1,4 +1,4 @@
-This package provides an action server for performing object learning, as demonstrated at the Y2 review and published in (RA-L reference).
+This package provides an action server for performing object learning, as demonstrated at the Y2 review and published in (RA-L reference). It depends heavily on the STRANDS setup, in particular the robot PTU configuration and topological navigation.
 
 # Dependencies
 
@@ -28,7 +28,8 @@ is used to stitch together views of the object and learn a model.
 is (not yet) used to re-recognise the learned object.
 
 
-# Running 
+# Starting the server node 
+
 A lot of nodes need to be running before this action server will start. If any are missing then a warning will be printed out.
 The required nodes are as follows:
 
@@ -63,3 +64,21 @@ learning process. At each stage the action server will need confirmation to proc
 - `planning_method`: This selects which planning method to use to aquire the additional object views. Currently just the 
 default 'ral16' is working, but there is a skeleton method 'infogain' that is ready to add the [nbv_planning](https://github.com/cburbridge/scitos_3d_mapping/tree/hydro-devel/nbv_planning) code to.
 
+# Triggering a learning session
+
+The object learning is triggered by the action `/learn_object`. This takes the waypoint name as the only field in it's goal definition. This sould be the waypoint that the robot is already at when triggering the learning.
+
+Once started, the robot will perform a short metric map sweep, calculate the difference between the new map and the previous one at that location, select a cluster to learn based on how many views it can get of it, then drive around the object acquiring views. These views will be stitched together by the incremental object learning code from V4r, and finally a model will be save in the specified (by a parameter) folder. 
+
+# RViz montoring
+
+There are several topics that can be monitored in RViz to get an idea of what is happening:
+- `/waypoint_map` shows the free space that the robot can plan in. Add it as a costmap to make it easier to see ontop of the base map.
+- `/object_view_goals : PoseArray` shows the view points that the robot will try and reach
+- `/local_metric_map/dynamic_clusters : PointCloud2` shows the difference between this map and the last one. Once of the shown clusters will be the learning target.
+- `/local_metric_map/observations : PointCloud2` shows the new observations of the target object as they arrive.
+
+
+# Debug mode
+
+When in debug mode the action server will wait for confirmation to proceed between states, and confirmation of which dynamic cluster to select. If running in debug mode then it is best to [look at the code](https://github.com/cburbridge/scitos_3d_mapping/blob/hydro-devel/learn_objects_action/src/learn_objects_action/metric_sweep.py#L51) to see what is required.
