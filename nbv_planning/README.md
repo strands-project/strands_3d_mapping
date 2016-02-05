@@ -25,10 +25,9 @@ to `/nbv_planner/views`, `/nbv_planner/octomap`, and `/nbv_planner/volume`.
 This package provides a single ROS node that can be used to do NBV planning. To start the node:
 
 ```
-rosrun nbv_planning nbv_server
+rosrun nbv_planning nbv_server _camera_info_topic:=.ead_xtion/depth/camera_info
 ```
-
-This node then provides the following services:
+The camera info topic needs to be correct so that the planner can get the intrinsic parameters of the camera.
 
 #### /nbv_planner/set_target_volume
 This sets the volume that views should be selected for. The request takes the centroid of a bounding box, and 
@@ -51,3 +50,7 @@ There are some topics to visualise the planning:
 - `/nbv_planner/octomap` : this is an octomap_msgs/Octomap, subscribe using the RViz plugin to see the current volume knowledge
 - `/nbv_planner/volume` : this is a MarkerArray showing the target region to select views for
 - `/nbv_planner/views` : this is a MarkerArray showing the candidate views the planner is working with. 
+ 
+# Limitations
+
+This code has not been thoroughly tested. In particular, there is likely to be bugs in relation to formulae (6) and (7), and the advantage of the method stated in the paper over "simple_inf_gain" was not so apparant in tests that I carried out. None the less, hopefully this package can be the basis for some better implementation or alternative method.
