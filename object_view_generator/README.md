@@ -42,3 +42,11 @@ The return of the service is as follows:
 - `geometry_msgs/PoseArray goals` - This is simply the list of goals.
 
 For convenience the service handle will also publish the generated goals on the topic `/object_view_goals` of type `PoseArray`.
+
+# Testing
+
+The test client can be started with 
+
+`rosrun object_view_generator test_with_rviz.py`
+
+This provides a simple text interface to call the service with different parameters. Subscribe to `/object_view_goals` in RViz to see the results.
