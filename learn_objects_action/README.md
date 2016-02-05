@@ -58,7 +58,7 @@ rosrun learn_objects_action server.py _model_path:=/home/strands/test_models
 There node can be started with the following parameters:
 - `model_path`: this is non-optional and must provide the directory where the learnt model should be stored.
 - `rois_file`: this is the optional path to a file detailing the SOMA roi to use for which waypoint. If not 
-provided then no SOMA regions will be needed.
+provided then no SOMA regions will be needed. (see below for example file)
 - `debug_mode`: by default this is False, but if set True then the action will step through the various parts of the 
 learning process. At each stage the action server will need confirmation to proceed, supplied over a ros topic.
 - `planning_method`: This selects which planning method to use to aquire the additional object views. Currently just the 
@@ -82,3 +82,21 @@ There are several topics that can be monitored in RViz to get an idea of what is
 # Debug mode
 
 When in debug mode the action server will wait for confirmation to proceed between states, and confirmation of which dynamic cluster to select. If running in debug mode then it is best to [look at the code](https://github.com/cburbridge/scitos_3d_mapping/blob/hydro-devel/learn_objects_action/src/learn_objects_action/metric_sweep.py#L51) to see what is required.
+
+# SOMA Rois file format
+
+The optional file detailing which ROI to use for which region should be of the following format:
+
+```
+WayPointName: 'conf/map/region_no`
+OtherPointName: 'conf/map/another_region`
+WayPointN: ''
+```
+
+where every waypoint is covered, ones that should not be constrained to a region are given empty strings.
+
+# Limitations
+ - Sometimes, if the object is too far behind the robot, the robot turning completely will be too fast and the camera tracker fail. This results in bad models due to failed registration.
+ - If the object crosses the back of the robot while driving, then the PTU has to do a full 360 degree spin to keep tracking it. During this the camera tracker will likely fail. Therefore runs with objects infront of the waypoint are more likely to be nice.
+ - If monitored navigation fails to move the robot, only one re-attempt is made. If that fails the action fails.
+ - The PTU tilt angle is super restricted. Very often objects are too low down, so the PTU can not see them at a reasonable close distance to the object, resulting in tracking of the object without it actually being in view. Make sure objects to learn are at chest height.
