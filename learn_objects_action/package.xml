@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<package>
+  <name>learn_objects_action</name>
+  <version>0.0.0</version>
+  <description>The learn_objects_action package provides an action server for driving the robot around a dynamic object and building an instance model of it.</description>
+
+  <author email="cburbridge@gmail.com">Chris Burbridge</author>
+  <maintainer email="cburbridge@gmail.com">Chris Burbridge</maintainer>
+  <license>BSD</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>smach</build_depend>
+  <build_depend>smach_ros</build_depend>
+  <build_depend>actionlib</build_depend>
+  <build_depend>actionlib_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>strands_navigation_msgs</build_depend>
+  <build_depend>object_view_generator</build_depend>
+  <build_depend>python-yaml</build_depend>
+  <build_depend>dynamic_reconfigure</build_depend>
+  <build_depend>ptu_follow_frame</build_depend>
+  <build_depend>static_transform_manager</build_depend>
+  <build_depend>std_srvs</build_depend>
+  <build_depend>scitos_ptu</build_depend>
+  <build_depend>object_manager</build_depend>
+  <build_depend>semantic_map_to_2d</build_depend>
+  <build_depend>cloud_merge</build_depend>
+  <build_depend>camera_srv_definitions</build_depend>
+  <build_depend>incremental_object_learning_srv_definitions</build_depend>
+  <build_depend>recognition_srv_definitions</build_depend>
+
+  <run_depend>rospy</run_depend>
+  <run_depend>smach</run_depend>
+  <run_depend>smach_ros</run_depend>
+  <run_depend>actionlib</run_depend>
+  <run_depend>actionlib_msgs</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>strands_navigation_msgs</run_depend>
+  <run_depend>object_view_generator</run_depend>
+  <run_depend>python-yaml</run_depend>
+  <run_depend>dynamic_reconfigure</run_depend>
+  <run_depend>ptu_follow_frame</run_depend>
+  <run_depend>static_transform_manager</run_depend>
+  <run_depend>std_srvs</run_depend>
+  <run_depend>scitos_ptu</run_depend>
+  <run_depend>object_manager</run_depend>
+  <run_depend>semantic_map_to_2d</run_depend>
+  <run_depend>cloud_merge</run_depend>
+  <run_depend>camera_srv_definitions</run_depend>
+  <run_depend>incremental_object_learning_srv_definitions</run_depend>
+  <run_depend>recognition_srv_definitions</run_depend>
+
+  <export>   </export>
+</package>

@@ -1,0 +1,4 @@
+sensor_msgs/PointCloud2 view
+geometry_msgs/Pose      view_pose
+---
+bool success
