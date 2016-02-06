@@ -404,6 +404,7 @@
         for (auto objectFile : objectFiles){
             if (verbose){
                 std::cout<<"Now parsing "<<objectFile.toStdString()<<std::endl;
+            }
                 auto object = loadDynamicObjectFromSingleSweep<PointType>(sweepFolder+objectFile.toStdString(),verbose);
                 // load mask
                 std::string mask_file = objectFile.toStdString().substr(0,objectFile.toStdString().size()-4) + "_mask.txt";
@@ -499,7 +500,6 @@
 
 
                 toRet.push_back(object);
-            }
         }
 
 //        p->removeAllPointClouds();
