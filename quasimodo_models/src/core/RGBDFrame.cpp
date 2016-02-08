@@ -134,13 +134,13 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 			}
 		}
 
-		pcl::io::savePCDFileASCII ("test_pcd.pcd", *cloud);
+		//pcl::io::savePCDFileASCII ("test_pcd.pcd", *cloud);
 
 		pcl::IntegralImageNormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
 		ne.setInputCloud(cloud);
 
 
-		bool tune = true;
+		bool tune = false;
 		unsigned char * combidata;
 		cv::Mat combined;
 

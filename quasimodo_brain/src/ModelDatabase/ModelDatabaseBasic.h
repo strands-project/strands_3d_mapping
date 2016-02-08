@@ -6,14 +6,10 @@
 
 class ModelDatabaseBasic: public ModelDatabase{
 	public:
-	virtual int add(pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud, double weight = 1);
-		
-	// return true if successfull
-	// return false if fail
-	virtual bool remove(int index);
-		
-	//Find the number_of_matches closest matches in dabase to the pointcloud for index 
-	virtual std::vector<int> search(int index, int number_of_matches);
+	
+	virtual void add(reglib::Model * model);
+	virtual bool remove(reglib::Model * model);
+	virtual std::vector<reglib::Model *> search(reglib::Model * model, int number_of_matches);
 		
 	ModelDatabaseBasic();
 	~ModelDatabaseBasic();

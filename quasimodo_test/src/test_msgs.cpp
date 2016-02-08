@@ -56,6 +56,7 @@ int main(int argc, char** argv)
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path, true);
 
     for (const string& sweep_xml : folder_xmls) {
+		printf("doing sweep\n");
         LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
         semantic_map_load_utilties::IntermediateCloudCompleteData<PointT> data = semantic_map_load_utilties::loadIntermediateCloudsCompleteDataFromSingleSweep<PointT>(sweep_xml);
 
@@ -64,6 +65,7 @@ int main(int argc, char** argv)
         image_geometry::PinholeCameraModel cm = data.vIntermediateRoomCloudCamParams[0];
 
         for (int i = 0; i < labels.objectClouds.size(); ++i) {
+			printf("doing label: %s\n",labels.objectLabels[i].c_str());
             quasimodo_msgs::query_cloud srv;
 
             pcl::toROSMsg(*labels.objectClouds[i], srv.request.query.cloud);

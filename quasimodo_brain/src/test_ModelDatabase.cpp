@@ -29,6 +29,9 @@
 
 #include "ModelDatabase/ModelDatabase.h"
 
+#include "../../quasimodo_models/include/modelupdater/ModelUpdater.h"
+#include "core/RGBDFrame.h"
+
 using namespace std;
 
 using PointT = pcl::PointXYZRGB;
@@ -38,7 +41,7 @@ using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
 
 
 int main(int argc, char** argv){
-
+	reglib::Camera * camera		= new reglib::Camera();
 	ModelDatabase * db = new ModelDatabaseBasic();
 	
 	std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> clouds;
@@ -59,7 +62,32 @@ int main(int argc, char** argv){
 		for (int i = 0; i < labels.objectLabels.size(); ++i) {
 			
 			if(labels.objectLabels[i].compare("chair1") == 0 || labels.objectLabels[i].compare("chair2") == 0 ){
+					
+				printf("doing label: %s\n",labels.objectLabels[i].c_str());
+				unsigned int frame_indice = labels.objectScanIndices[i];
+				char buff [1024];
+				sprintf(buff,"%srgb_%04i.jpg",sweep_xml.substr(0,sweep_xml.size()-8).c_str(),frame_indice);
+				string rgbpath = string(buff);
+				sprintf(buff,"%sdepth_%04i.png",sweep_xml.substr(0,sweep_xml.size()-8).c_str(),frame_indice);
+				string depthpath = string(buff);
+
+				cv::Mat mask	= labels.objectMasks[i];
+				cv::Mat rgb		= cv::imread(rgbpath.c_str(),	-1);
+				cv::Mat depth	= cv::imread(depthpath.c_str(),	-1);
+
+				cv::namedWindow("rgbimage",		cv::WINDOW_AUTOSIZE );
+				cv::imshow(		"rgbimage",		rgb );
+				cv::waitKey(30);
+				
+				reglib::RGBDFrame * frame	= new reglib::RGBDFrame(camera,rgb, depth);
+				reglib::Model * newmodel	= new reglib::Model(frame,mask);
+				
+				db->add(newmodel);
+				std::vector<reglib::Model * > res = db->search(newmodel,5);
+				printf("nr_matches: %i \n",res.size());
 			
+			
+			/*
 				boost::shared_ptr<pcl::PointCloud<PointT>> cloud = labels.objectClouds[i];
 							
 				pcl::NormalEstimation<PointT, pcl::Normal> ne;
@@ -97,7 +125,7 @@ int main(int argc, char** argv){
 				//viewer->addPointCloud<pcl::PointXYZRGB> (cloud, rgb, "cloud");
 				//viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 				//viewer->spin();
-				/*
+
 				for(unsigned int ind = 0; ind < res.size(); ind++){
 					printf("result: %i %i\n",clouds.size(),ind);
 					viewer->removeAllPointClouds();

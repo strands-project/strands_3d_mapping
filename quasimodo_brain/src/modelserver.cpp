@@ -31,12 +31,17 @@
 
 #include <map>
 
+#include "ModelDatabase/ModelDatabase.h"
+
+#include <thread>
+
 std::map<int , reglib::Camera *>		cameras;
 std::map<int , reglib::RGBDFrame *>		frames;
 
 std::map<int , reglib::Model *>			models;
 std::map<int , reglib::ModelUpdater *>	updaters;
 reglib::RegistrationGOICP *				registration;
+ModelDatabase * 						modeldatabase;
 
 boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
 
@@ -45,9 +50,13 @@ bool myfunction (reglib::Model * i,reglib::Model * j) { return i->frames.size() 
 int savecounter = 0;
 void show_sorted(){
 	std::vector<reglib::Model *> results;
-	for (std::map<int,reglib::Model *>::iterator it=models.begin(); it!=models.end(); ++it){
-		results.push_back(it->second);
+	for(unsigned int i = 0; i < modeldatabase->models.size(); i++){
+		results.push_back(modeldatabase->models[i]);
 	}
+	//for (std::map<int,reglib::Model *>::iterator it=models.begin(); it!=models.end(); ++it){
+	//	results.push_back(it->second);
+	//}
+
 	std::sort (results.begin(), results.end(), myfunction);
 
 	viewer->removeAllPointClouds();
@@ -55,7 +64,7 @@ void show_sorted(){
 
 	float maxx = 0;
 
-	for(int i = 0; i < results.size(); i++){
+	for(unsigned int i = 0; i < results.size(); i++){
 		printf("results %i -> %i\n",i,results[i]->frames.size());
 
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = results[i]->getPCLcloud(results[i]->frames.size(), false);
@@ -71,7 +80,7 @@ void show_sorted(){
 		meany /= float(cloud->points.size());
 		meanz /= float(cloud->points.size());
 
-		for(int j = 0; j < cloud->points.size(); j++){
+		for(unsigned int j = 0; j < cloud->points.size(); j++){
 			cloud->points[j].x -= meanx;
 			cloud->points[j].y -= meany;
 			cloud->points[j].z -= meanz;
@@ -79,14 +88,15 @@ void show_sorted(){
 
 		float minx = 100000000000;
 
-		for(int j = 0; j < cloud->points.size(); j++){minx = std::min(cloud->points[j].x , minx);}
-		for(int j = 0; j < cloud->points.size(); j++){cloud->points[j].x += maxx-minx + 1.0;}
-		for(int j = 0; j < cloud->points.size(); j++){maxx = std::max(cloud->points[j].x,maxx);}
+		for(unsigned int j = 0; j < cloud->points.size(); j++){minx = std::min(cloud->points[j].x , minx);}
+		for(unsigned int j = 0; j < cloud->points.size(); j++){cloud->points[j].x += maxx-minx + 1.0;}
+		for(unsigned int j = 0; j < cloud->points.size(); j++){maxx = std::max(cloud->points[j].x,maxx);}
 		char buf [1024];
 		sprintf(buf,"cloud%i",i);
 		viewer->addPointCloud<pcl::PointXYZRGB> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cloud), buf);
 	}
-	if(savecounter == 0){viewer->spin();}
+	//viewer->spin();
+	if(savecounter % 5 == 0){viewer->spin();}
 	char buf [1024];
 	sprintf(buf,"globalimg%i.png",savecounter++);
 	viewer->saveScreenshot(std::string(buf));
@@ -204,6 +214,151 @@ bool removeModel(int id){
 	updaters.erase(id);
 }
 
+reglib::Model * mod;
+std::vector<reglib::Model * > res;
+std::vector<reglib::FusionResults > fr_res;
+
+void call_from_thread(int i) {
+	reglib::Model * model2 = res[i];
+
+	printf("testreg %i to %i\n",mod->id,model2->id);
+	reglib::RegistrationGOICP *	reg		= new reglib::RegistrationGOICP();
+	reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
+	mu->viewer							= viewer;
+	reg->visualizationLvl				= 1;
+
+	reglib::FusionResults fr = mu->registerModel(mod);
+
+	fr_res[i] = fr;
+
+
+	delete mu;
+	delete reg;
+}
+
+void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
+	if(add){database->add(model);}
+	
+	printf("added to database");
+
+	//printf("new model created, time to run quasimodo algorithm\n");
+	//New data in:
+		//while true
+		//Search for more of the same <-- Nils stuff, Rares stuff, other?
+		//if the same is found
+			//Register
+			//Fuse
+		//else
+			//Break
+	
+	mod = model;
+	res = modeldatabase->search(model,15);
+	fr_res.resize(res.size());
+	printf("nr_matches: %i\n",res.size());
+
+	if(res.size() == 0){return;}
+	
+	std::vector<reglib::Model * > models2merge;
+	std::vector<reglib::FusionResults > fr2merge;
+
+	const int num_threads = res.size();
+	std::thread t[num_threads];
+
+	for (int i = 0; i < num_threads; ++i) {
+		t[i] = std::thread(call_from_thread,i);
+	}
+
+	std::cout << "Launched from the main\n";
+
+	for (int i = 0; i < num_threads; ++i) {t[i].join();}
+
+	for (int i = 0; i < num_threads; ++i) {
+		reglib::Model * model2 = res[i];
+		reglib::FusionResults fr = fr_res[i];
+		if(fr.score > 800){
+			fr.guess = fr.guess.inverse();
+
+			fr2merge.push_back(fr);
+			models2merge.push_back(model2);
+			printf("%i could be registered\n",i);
+		}
+	}
+/*
+	exit(0);
+	for(unsigned int i = 0; i < res.size(); i++){
+		reglib::Model * model2 = res[i];
+		
+		printf("testreg %i to %i\n",model->id,model2->id);
+		reglib::RegistrationGOICP *	reg		= new reglib::RegistrationGOICP();
+		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
+		mu->viewer							= viewer;
+		reg->visualizationLvl				= 1;
+				
+		reglib::FusionResults fr = mu->registerModel(model);
+		
+		if(fr.score > 800){
+			fr.guess = fr.guess.inverse();
+			
+			fr2merge.push_back(fr);
+			models2merge.push_back(model2);
+			printf("could be registered\n");
+		}
+				
+		delete mu;
+		delete reg;
+	}
+*/
+	std::map<int , reglib::Model *>	new_models;
+	std::map<int , reglib::Model *>	updated_models;
+	
+	for(unsigned int i = 0; i < models2merge.size(); i++){
+		reglib::Model * model2 = models2merge[i];
+
+		reglib::RegistrationGOICP *	reg		= new reglib::RegistrationGOICP();
+		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
+		mu->viewer							= viewer;
+		reg->visualizationLvl				= 1;
+
+		reglib::UpdatedModels ud = mu->fuseData(&(fr2merge[i]), model, model2);
+
+		printf("merge %i to %i\n",model->id,model2->id);
+		printf("new_models:     %i\n",ud.new_models.size());
+		printf("updated_models: %i\n",ud.updated_models.size());
+		printf("deleted_models: %i\n",ud.deleted_models.size());
+			
+		delete mu;
+		delete reg;
+		
+		for(unsigned int j = 0; j < ud.new_models.size(); j++){
+			new_models[ud.new_models[j]->id] = ud.new_models[j];
+		}
+		
+		for(unsigned int j = 0; j < ud.updated_models.size(); j++){
+			updated_models[ud.updated_models[j]->id] = ud.updated_models[j];
+		}
+		
+		for(unsigned int j = 0; j < ud.deleted_models.size(); j++){
+			database->remove(ud.deleted_models[j]);
+			delete ud.deleted_models[j];
+		}		
+	}
+	
+	
+	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end(); ++it){
+		database->remove(it->second);	
+	}
+	
+	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end(); ++it){
+		addToDB(database, it->second);
+	}
+	
+	for (std::map<int,reglib::Model *>::iterator it=new_models.begin(); it!=new_models.end(); ++it){
+		addToDB(database, it->second);
+	}
+	
+	printf("DONE WITH REGISTER\n");
+}
+
 bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_msgs::model_from_frame::Response & res){
 	printf("======================================\nmodelFromFrame\n======================================\n");
     uint64 frame_id = req.frame_id;
@@ -213,6 +368,81 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 	
 	cv::Mat mask					= mask_ptr->image;
 	reglib::Model * newmodel		= new reglib::Model(frames[frame_id],mask);
+	
+    res.model_id					= newmodel->id;
+    	
+	addToDB(modeldatabase, newmodel);
+	show_sorted();
+	return true;
+/*
+    	//Search for more of the same <-- Nils stuff, Rares stuff, other?
+    	std::vector<SearchResult *> sr = getSearchResult(newmodel);
+    	bool changed = false;
+
+		std::vector<reglib::FusionResults> fr_to_fuse;
+		std::vector<SearchResult *> sr_to_fuse;
+
+		while(sr.size() != 0){
+			SearchResult * result = sr.back();
+			sr.pop_back();
+			if(result->score > 0.5){
+				reglib::RegistrationGOICP *	reg = new reglib::RegistrationGOICP();
+				
+				//reglib::ModelUpdaterBasicFuse * muf1 = new reglib::ModelUpdaterBasicFuse( newmodel, reg);
+				reglib::ModelUpdaterBasicFuse * muf2 = new reglib::ModelUpdaterBasicFuse( result->model, reg);
+				
+				reglib::FusionResults fr2 = muf2->registerModel(newmodel);
+				
+				delete muf2;
+				delete reg;
+			
+				reglib::FusionResults fr = updaters[result->model->id]->registerModel(newmodel);
+				if(fr.score > 800){
+					fr.guess = fr.guess.inverse();
+					fr_to_fuse.push_back(fr);
+					sr_to_fuse.push_back(result);
+					printf("could be registered\n");
+					continue;
+				}
+			}
+			delete result;
+		}
+		for(unsigned int i = 0; i < fr_to_fuse.size(); i++){
+
+			//((reglib::ModelUpdaterBasicFuse *)updaters[newmodel->id])->graph->merge(fr_to_fuse[i].guess.matrix().cast<double>(), ((reglib::ModelUpdaterBasicFuse *)updaters[sr_to_fuse[i]->model->id])->graph);
+			reglib::UpdatedModels ud = updaters[newmodel->id]->fuseData(&(fr_to_fuse[i]), newmodel, sr_to_fuse[i]->model);
+			printf("new_models:     %i\n",ud.new_models.size());
+			printf("updated_models: %i\n",ud.updated_models.size());
+			printf("deleted_models: %i\n",ud.deleted_models.size());
+			for(unsigned int j = 0; j < ud.deleted_models.size(); j++){
+				removeModel(ud.deleted_models[j]->id);
+			}
+			//newmodel = result->model;
+			//changed = true;
+			//break;
+		}
+		if(fr_to_fuse.size() == 0){
+			break;
+		}
+
+    }
+    */
+
+}
+
+/*
+bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_msgs::model_from_frame::Response & res){
+	printf("======================================\nmodelFromFrame\n======================================\n");
+    uint64 frame_id = req.frame_id;
+    cv_bridge::CvImagePtr			mask_ptr;
+	try{							mask_ptr = cv_bridge::toCvCopy(req.mask, sensor_msgs::image_encodings::MONO8);}
+	catch (cv_bridge::Exception& e){ROS_ERROR("cv_bridge exception: %s", e.what());return false;}
+	
+	cv::Mat mask					= mask_ptr->image;
+	reglib::Model * newmodel		= new reglib::Model(frames[frame_id],mask);
+	
+	modeldatabase->add(newmodel);
+	printf("added to database");
     models[newmodel->id]			= newmodel;
 
 	char buf [1024];
@@ -220,12 +450,8 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 	cv::imwrite( buf, mask );
 	printf("saving: %s\n",buf);
 
-	//printf("newmodel->id: %i\n",newmodel->id);
-    
-	//reglib::ModelUpdater * mu       = new reglib::ModelUpdaterBasicFuse( newmodel, new reglib::RegistrationGOICP() );// = new reglib::ModelUpdaterBasicFuse( newmodel, new reglib::RegistrationGOICP() );
 	reglib::ModelUpdaterBasicFuse * muf = new reglib::ModelUpdaterBasicFuse( newmodel, registration);
-	//muf->graph->viewer = viewer;
-	//muf->graph->add(Eigen::Matrix4d::Identity(),frames[frame_id],mask);
+
 
 	reglib::ModelUpdater * mu       = muf;
 	mu->viewer						= viewer;
@@ -260,6 +486,16 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 			SearchResult * result = sr.back();
 			sr.pop_back();
 			if(result->score > 0.5){
+				reglib::RegistrationGOICP *	reg = new reglib::RegistrationGOICP();
+				
+				//reglib::ModelUpdaterBasicFuse * muf1 = new reglib::ModelUpdaterBasicFuse( newmodel, reg);
+				reglib::ModelUpdaterBasicFuse * muf2 = new reglib::ModelUpdaterBasicFuse( result->model, reg);
+				
+				reglib::FusionResults fr2 = muf2->registerModel(newmodel);
+				
+				delete muf2;
+				delete reg;
+			
 				reglib::FusionResults fr = updaters[result->model->id]->registerModel(newmodel);
 				if(fr.score > 800){
 					fr.guess = fr.guess.inverse();
@@ -294,34 +530,8 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 	printf("DONE WITH REGISTER\n");
 	return true;
 }
-
-bool fuseModels(quasimodo_msgs::fuse_models::Request  & req, quasimodo_msgs::fuse_models::Response & res){
-	/*
-    printf("start === fuseModels\n");
-    int model_id1 = req.model1;
-	int model_id2 = req.model2;
-    reglib::Model *			model1			= models[model_id1];
-	reglib::ModelUpdater *	modelupdater1	= updaters[model_id1];
-
-	reglib::Model *			model2			= models[model_id2];
-	reglib::ModelUpdater *	modelupdater2	= updaters[model_id2];
-
-	geometry_msgs::Pose			pose		= req.pose;
-	Eigen::Affine3d epose;
-	tf::poseMsgToEigen(pose, epose);
-
-    modelupdater1->fuse(model2, epose.matrix());
-    models.erase(model_id2);
-    updaters.erase(model_id2);
-    delete model2;
-    delete modelupdater2;
-
-	res.fused_model = model_id1;
-
-    printf("end === fuseModels\n");
-    return true;
-	*/
-}
+*/
+bool fuseModels(quasimodo_msgs::fuse_models::Request  & req, quasimodo_msgs::fuse_models::Response & res){}
 
 
 int main(int argc, char **argv){
@@ -330,6 +540,7 @@ int main(int argc, char **argv){
 
 	cameras[0]		= new reglib::Camera();
 	registration	= new reglib::RegistrationGOICP();
+	modeldatabase	= new ModelDatabaseBasic();
 
 	viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("viewer"));
 	viewer->addCoordinateSystem();

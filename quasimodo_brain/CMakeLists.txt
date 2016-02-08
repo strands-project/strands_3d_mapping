@@ -85,7 +85,7 @@ target_link_libraries(	usepreload quasimodo_ModelUpdater image_geometry cpp_comm
 
 add_executable(			modelserver src/modelserver.cpp)
 add_dependencies(		modelserver roscpp quasimodo_msgs_generate_messages_cpp)
-target_link_libraries(	modelserver quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(	modelserver quasimodo_ModelDatabase quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 
 add_executable(			modelserver2 src/modelserver2.cpp)

@@ -29,12 +29,15 @@
 namespace reglib
 {
 
-MassRegistrationPPR::MassRegistrationPPR(bool visualize){
+MassRegistrationPPR::MassRegistrationPPR(double startreg, bool visualize){
 	type					= PointToPlane;
 	use_PPR_weight			= true;
 	use_features			= true;
 	normalize_matchweights	= true;
-	func					= new DistanceWeightFunction2PPR();
+	
+	DistanceWeightFunction2PPR * dwf = new DistanceWeightFunction2PPR();
+	dwf->startreg = startreg;
+	func					= dwf;
 
 	if(visualize){
 		visualizationLvl = 1;
@@ -338,6 +341,11 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 		return MassFusionResults();
 	}
 
+	std::vector<Eigen::Matrix4d> poses1; poses1.resize(poses.size());
+	std::vector<Eigen::Matrix4d> poses2; poses2.resize(poses.size());
+	std::vector<Eigen::Matrix4d> poses3; poses3.resize(poses.size());
+	std::vector<Eigen::Matrix4d> poses4; poses4.resize(poses.size());
+
 	nr_matches.resize(nr_frames);
 	matchids.resize(nr_frames);
 	nr_datas.resize(nr_frames);
@@ -452,35 +460,11 @@ view->initCameraParameters ();
 		}
 		informations.push_back(information);
 		trees.push_back(new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X));
-/*
-		printf("--------------------------------\n");
-		for(unsigned int i = 0; i < count; i++){if(i%100 == 0){printf("X: %f %f %f\n",X(0,i),X(1,i),X(2,i));}}
-		for(unsigned int i = 0; i < count; i++){if(i%100 == 0){printf("tX: %f %f %f\n",tX(0,i),tX(1,i),tX(2,i));}}
-		printf("--------------------------------\n");
 
-		char buf [1024];
-		sprintf(buf,"cloud%i",i);
-		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-		cloud->points.clear();
-		for(unsigned int c = 0; c < count; c++){
-			pcl::PointXYZRGBNormal p;
-			p.x = X(0,c);
-			p.y = X(1,c);
-			p.z = X(2,c);
-			p.b = 0;
-			p.g = 255;
-			p.r = 0;
-			cloud->points.push_back(p);
-		}
-		view->addPointCloud<pcl::PointXYZRGBNormal> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud), buf );
-		view->spin();
-
-		printf("end local : data loaded successfully\n");
-*/
 	}
 	printf("data loaded successfully\n");
 	func->reset();
-	func->regularization = 0.01;
+	//func->regularization = 0.01;
 
     Eigen::MatrixXd Xo1;
 
@@ -488,7 +472,7 @@ view->initCameraParameters ();
 
 	for(int funcupdate=0; funcupdate < 50; ++funcupdate) {
 		printf("funcupdate: %i\n",funcupdate);
-		for(int rematching=0; rematching < 3; ++rematching) {
+		for(int rematching=0; rematching < 5; ++rematching) {
 			printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
 			
 			if(visualizationLvl > 0){
@@ -498,6 +482,8 @@ view->initCameraParameters ();
 				sprintf(buf,"image%5.5i.png",imgcount++);
 				show(Xv,true,std::string(buf),imgcount);
 			}
+
+			for(unsigned int i = 0; i < nr_frames; i++){poses1[i] = poses[i];}
 			
 			for(unsigned int i = 0; i < nr_frames; i++){
 				nr_matches[i] = 0;
@@ -583,21 +569,19 @@ view->initCameraParameters ();
 				}
 			}
 
-			func->debugg_print = true;
+			//func->debugg_print = true;
 			switch(type) {
 				case PointToPoint:	{func->computeModel(all_residuals); 				} 	break;
 				case PointToPlane:	{func->computeModel(all_residuals.colwise().norm());}	break;
 				default:  			{printf("type not set\n");} break;
 			}
-			func->debugg_print = false;
-
-
+			//func->debugg_print = false;
 
 			for(int outer=0; outer < 10; ++outer) {
+				for(unsigned int i = 0; i < nr_frames; i++){poses2[i] = poses[i];}
+
 				printf("funcupdate: %i rematching: %i outer: %i\n",funcupdate,rematching,outer);
 				for(unsigned int i = 0; i < nr_frames; i++){
-					//printf("funcupdate: %i rematching: %i outer: %i frame: %i\n",funcupdate,rematching,outer,i);
-
 					unsigned int nr_match = 0;
 					for(unsigned int j = 0; j < nr_frames; j++){
 						std::vector<int> & matchidj = matchids[j][i];
@@ -652,32 +636,8 @@ view->initCameraParameters ();
 							}
 						}
 					}
-/*
-					Eigen::MatrixXd residuals;
-					switch(type) {
-						case PointToPoint:	{residuals = Xp-Qp;} 						break;
-						case PointToPlane:	{residuals = Qn.array()*(Xp-Qp).array();}	break;
-						default:			{printf("type not set\n");}					break;
-					}
-					for(unsigned int k=0; k < nr_match; ++k) {residuals.col(k) *= rangeW(k);}
-					switch(type) {
-						case PointToPoint:	{func->computeModel(residuals); 				} 	break;
-						case PointToPlane:	{func->computeModel(residuals.colwise().norm());}	break;
-						default:  			{printf("type not set\n");} break;
-					}
 
-*/
 					for(int inner=0; inner < 5; ++inner) {
-						/*
-						if(inner != 0){
-							switch(type) {
-								case PointToPoint:	{residuals = Xp-Qp;} 						break;
-								case PointToPlane:	{residuals = Qn.array()*(Xp-Qp).array();}	break;
-								default:			{printf("type not set\n");}					break;
-							}
-							for(int k=0; k<nr_match; ++k) {residuals.col(k) *= rangeW(k);}
-						}
-						*/
 						Eigen::MatrixXd residuals;
 						switch(type) {
 							case PointToPoint:	{residuals = Xp-Qp;} 						break;
@@ -707,10 +667,7 @@ view->initCameraParameters ();
 
                         double stop1 = (Xp-Xo1).colwise().norm().maxCoeff();
                         Xo1 = Xp;
-						//printf("funcupdate: %i rematching: %i outer: %i frame: %i inner: %i ",funcupdate,rematching,outer,i,inner);
-						//printf("stop1: %10.10f\n",stop1);
-
-						//if(stop1 < stop) break;
+						if(stop1 < 0.00001) break;
 					}
 
 					pcl::TransformationFromCorrespondences tfc;
@@ -726,6 +683,7 @@ view->initCameraParameters ();
 					float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
 					float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
 
+					double change = 0;
                     for(int c = 0; c < Xi.cols(); c++){
 						float x = Xi(0,c);
 						float y = Xi(1,c);
@@ -735,6 +693,11 @@ view->initCameraParameters ();
 						float ny = Xni(1,c);
 						float nz = Xni(2,c);
 
+						double tXi0c	= tXi(0,c);
+						double tXi1c	= tXi(1,c);
+						double tXi2c	= tXi(2,c);
+
+
 						tXi(0,c)		= m00*x + m01*y + m02*z + m03;
 						tXi(1,c)		= m10*x + m11*y + m12*z + m13;
 						tXi(2,c)		= m20*x + m21*y + m22*z + m23;
@@ -742,9 +705,26 @@ view->initCameraParameters ();
 						tXni(0,c)		= m00*nx + m01*ny + m02*nz;
 						tXni(1,c)		= m10*nx + m11*ny + m12*nz;
 						tXni(2,c)		= m20*nx + m21*ny + m22*nz;
+
+						double dx = tXi0c-tXi(0,c);
+						double dy = tXi1c-tXi(1,c);
+						double dz = tXi2c-tXi(2,c);
+						double d = dx*dx+dy*dy+dz*dz;
+						change = std::max(d,change);
 					}
+					change = sqrt(change);
+					//printf("    change: %f\n",change);
+
+					if(change < 0.00001) break;
+/*
+					double change = 0;
+					for(unsigned int i = 0; i < nr_frames; i++){
+						Eigen::Matrix4d change = poses2[i].inverse()*poses[i];
+					}
+*/
 				}
 
+				double change = 0;
 				Eigen::Matrix4d p0inv = poses[0].inverse();
 				for(unsigned int j = 0; j < nr_frames; j++){
 					poses[j] = p0inv*poses[j];
@@ -768,6 +748,10 @@ view->initCameraParameters ();
 						float ny = Xni(1,c);
 						float nz = Xni(2,c);
 
+						double tXi0c	= tXi(0,c);
+						double tXi1c	= tXi(1,c);
+						double tXi2c	= tXi(2,c);
+
 						tXi(0,c)		= m00*x + m01*y + m02*z + m03;
 						tXi(1,c)		= m10*x + m11*y + m12*z + m13;
 						tXi(2,c)		= m20*x + m21*y + m22*z + m23;
@@ -775,9 +759,70 @@ view->initCameraParameters ();
 						tXni(0,c)		= m00*nx + m01*ny + m02*nz;
 						tXni(1,c)		= m10*nx + m11*ny + m12*nz;
 						tXni(2,c)		= m20*nx + m21*ny + m22*nz;
+
+						double dx = tXi0c-tXi(0,c);
+						double dy = tXi1c-tXi(1,c);
+						double dz = tXi2c-tXi(2,c);
+						double d = dx*dx+dy*dy+dz*dz;
+						change = std::max(d,change);
 					}
 				}
-			}		
+
+				change = sqrt(change);
+				//if(change < 0.00001) break;
+
+				double change_trans = 0;
+				double change_rot = 0;
+				for(unsigned int i = 0; i < nr_frames; i++){
+					for(unsigned int j = i+1; j < nr_frames; j++){
+						Eigen::Matrix4d diff_before = poses2[i].inverse()*poses2[j];
+						Eigen::Matrix4d diff_after	= poses[i].inverse()*poses[j];
+						Eigen::Matrix4d diff = diff_before.inverse()*diff_after;
+
+						double dt = 0;
+						for(unsigned int k = 0; k < 3; k++){
+							dt += diff(k,3)*diff(k,3);
+							for(unsigned int l = 0; l < 3; l++){
+								if(k == l){ change_rot += fabs(1-diff(k,l));}
+								else{		change_rot += fabs(diff(k,l));}
+							}
+						}
+						change_trans += sqrt(dt);
+					}
+				}
+
+				change_trans /= double(nr_frames*(nr_frames-1));
+				change_rot	 /= double(nr_frames*(nr_frames-1));
+
+				printf("outer: change relative transforms: %10.10f %10.10f\n",change_trans,change_rot);
+				if(change_trans < 0.0001 && change_rot < 0.00001){printf("----------BREAK OUTER-----------\n");break;}
+			}
+
+			double change_trans = 0;
+			double change_rot = 0;
+			for(unsigned int i = 0; i < nr_frames; i++){
+				for(unsigned int j = i+1; j < nr_frames; j++){
+					Eigen::Matrix4d diff_before = poses1[i].inverse()*poses1[j];
+					Eigen::Matrix4d diff_after	= poses[i].inverse()*poses[j];
+					Eigen::Matrix4d diff = diff_before.inverse()*diff_after;
+
+					double dt = 0;
+					for(unsigned int k = 0; k < 3; k++){
+						dt += diff(k,3)*diff(k,3);
+						for(unsigned int l = 0; l < 3; l++){
+							if(k == l){ change_rot += fabs(1-diff(k,l));}
+							else{		change_rot += fabs(diff(k,l));}
+						}
+					}
+					change_trans += sqrt(dt);
+				}
+			}
+
+			change_trans /= double(nr_frames*(nr_frames-1));
+			change_rot	 /= double(nr_frames*(nr_frames-1));
+
+			printf("retmatch: change relative transforms: %10.10f %10.10f\n",change_trans,change_rot);
+			if(change_trans < 0.0001 && change_rot < 0.00001){printf("----------BREAK REMATCH-----------\n");break;}
 		}
 
 		//std::vector<Eigen::MatrixXd> Xv;
@@ -794,140 +839,10 @@ view->initCameraParameters ();
 		printf("before: %5.5f after: %5.5f relative size: %5.5f\n",noise_before,noise_after,noise_after/noise_before);
 		if(fabs(1.0 - noise_after/noise_before) < 0.01){break;}
 	}
-
-
-
+if(nr_frames >= 3){exit(0);}
 	printf("stop MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> guess)\n");
 	//exit(0);
 	return MassFusionResults(poses,-1);
 }
 
-/*
-
-FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
-	double stop		= 0.00001;
-	/// Buffers
-
-	Eigen::VectorXd  W		= Eigen::VectorXd::Zero(	X.cols());
-	Eigen::VectorXd  Wold	= Eigen::VectorXd::Zero(	X.cols());
-
-	Eigen::Matrix3Xd Xo1 = X;
-	Eigen::Matrix3Xd Xo2 = X;
-	Eigen::Matrix3Xd Xo3 = X;
-	Eigen::Matrix3Xd Xo4 = X;
-	Eigen::VectorXd angles;
-
-	std::vector<int> matchid;
-	matchid.resize(s_nr_data);
-
-	std::vector<double> total_dweight;
-	total_dweight.resize(d_nr_data);
-	//if(visualizationLvl >= 1){show(X,Xn,Y,N);}
-
-	/// ICP
-	for(int funcupdate=0; funcupdate < 50; ++funcupdate) {
-		for(int rematching=0; rematching < 1; ++rematching) {
-			//printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
-
-			#pragma omp parallel for
-			for(unsigned int i=0; i< s_nr_data; ++i) {matchid[i] = kdtree.closest(X.col(i).data());}
-
-			/// Find closest point
-			#pragma omp parallel for
-			for(unsigned int i=0; i< s_nr_data; ++i) {
-				int id = matchid[i];
-				Qn.col(i) = N.col(id);
-				Qp.col(i) = Y.col(id);
-				rangeW(i) = 1.0/(1.0/SRC_INORMATION(i)+1.0/DST_INORMATION(id));
-			}
-
-			if(visualizationLvl >= 2){show(X,Xn,Y,N);}
-
-			for(int outer=0; outer< 1; ++outer) {
-
-				for(int inner=0; inner< 1; ++inner) {
-					//printf("icp: %i outer: %i inner: %i ",icp,outer,inner);
-					if(inner != 0){
-						switch(type) {
-							case PointToPoint:	{residuals = X-Qp;} 						break;
-							case PointToPlane:	{residuals	= Qn.array()*(X-Qp).array();}	break;
-							default:			{printf("type not set\n");}					break;
-						}
-						for(int i=0; i<X.cols(); ++i) {residuals.col(i) *= rangeW(i);}
-					}
-
-					switch(type) {
-						case PointToPoint:	{W = func->getProbs(residuals); } 					break;
-						case PointToPlane:	{
-							W = func->getProbs(residuals.colwise().norm());
-							for(int i=0; i<X.cols(); ++i) {W(i) = W(i)*float((Xn(0,i)*Qn(0,i) + Xn(1,i)*Qn(1,i) + Xn(2,i)*Qn(2,i)) > 0.0);}
-						}	break;
-						default:			{printf("type not set\n");} break;
-					}
-
-					Wold = W;
-
-					float score1 = Wold.sum()/(pow(func->getNoise(),2)*float(s_nr_data));
-					//printf("sum: %f noise: %f score: %f\n",Wold.sum(),func->getNoise(),score1);
-
-					//Normalizing weights has an effect simmilar to one to one matching
-					//in that it reduces the effect of border points
-					if(normalize_matchweights){
-						for(unsigned int i=0; i < d_nr_data; ++i) {	total_dweight[i] = 0.0000001;}//Reset to small number to avoid division by zero
-						for(unsigned int i=0; i< s_nr_data; ++i) {	total_dweight[matchid[i]] += W(i);}
-						for(unsigned int i=0; i< s_nr_data; ++i) {	W(i) = W(i)*(W(i)/total_dweight[matchid[i]]);}
-					}
-					//W = fwt.array()*W.array();
-					//if(visualizationLvl >= 3){show(X,Qp,W);}
-					W = W.array()*rangeW.array()*rangeW.array();
-
-					switch(type) {
-						case PointToPoint:	{RigidMotionEstimator::point_to_point(X, Qp, W);}		break;
-						case PointToPlane:	{RigidMotionEstimator2::point_to_plane(X, Xn, Qp, Qn, W);}	break;
-						default:  			{printf("type not set\n"); } break;
-					}
-
-					double stop1 = (X-Xo1).colwise().norm().maxCoeff();
-					Xo1 = X;
-					if(stop1 < stop) break;
-				}
-				double stop2 = (X-Xo2).colwise().norm().maxCoeff();
-				Xo2 = X;
-				if(stop2 < stop) break;
-			}
-			//func->update();
-			//for(unsigned int f = 0; f < nr_features; f++){feature_func[f]->update();}
-			//if(visualizationLvl >= 3){show(X,Y);}
-			double stop3 = (X-Xo3).colwise().norm().maxCoeff();
-			Xo3 = X;
-			if(stop3 < stop) break;
-		}
-
-		func->update();
-
-		double stop4 = (X-Xo4).colwise().norm().maxCoeff();
-		Xo4 = X;
-		if(stop4 < stop && funcupdate > 25) break;
-	}
-
-	float score = Wold.sum()*pow(func->getNoise(),-1)/float(s_nr_data);
-	//printf("sum: %f noise: %f score: %f\n",Wold.sum(),func->getNoise(),score);
-
-	pcl::TransformationFromCorrespondences tfc;
-	for(unsigned int i = 0; i < s_nr_data; i++){
-		Eigen::Vector3f a (X(0,i),				X(1,i),			X(2,i));
-		Eigen::Vector3f b (src->data(0,i),		src->data(1,i), src->data(2,i));
-		tfc.add(b,a);
-	}
-	Eigen::Matrix4d np = tfc.getTransformation().matrix().cast<double>();
-
-	//show(X,Xn,Y,N);
-	//return FusionResults(best_transform,best_score);
-
-	//clock_t clockEnd3 = clock();
-	//std::cout << (double)(clockEnd3 - clockBegin3)/CLOCKS_PER_SEC << "s (CPU)" << std::endl;
-
-	return FusionResults(np,score);
-}
-*/
 }

@@ -118,8 +118,10 @@ void ModelUpdaterBasicFuse::fuse(Model * model2, Eigen::Matrix4d guess, double u
 
 UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1, Model * model2){
 	UpdatedModels retval = UpdatedModels();
+	Eigen::Matrix4d pose;
 
 	printf("void ModelUpdaterBasicFuse::fuseData\n");
+/*
 	registration->only_initial_guess = true;
 
 	int step1 = std::max(int(model->frames.size())/2,5);
@@ -133,7 +135,8 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 	FusionResults fr = registration->getTransform(pose);
 
 	registration->only_initial_guess = false;
-	pose = fr.guess;
+*/
+	pose = f->guess;
 
 	std::vector<Eigen::Matrix4d>	current_poses;
 	std::vector<RGBDFrame*>			current_frames;
@@ -152,7 +155,7 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 	}
 
 	std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_masks);
-	std::vector<std::vector < float > > scores = getScores(ocs,2);
+	std::vector<std::vector < float > > scores = getScores(ocs,10);
 	std::vector<int> partition = getPartition(scores,2,5,2);
 
 	//MassRegistrationPPR * massreg = new MassRegistrationPPR();
@@ -172,43 +175,39 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 	printf("----------------------------\n");
 	printf("partition: ");for(unsigned int i = 0; i < partition.size(); i++){printf("%i ",partition[i]);}printf("\n");
 	for(unsigned int i = 0; i < count.size(); i++){printf("count %i -> %i\n",i,count[i]);}
-	
+
 	if(count.size() == 1){
 		
 		for(unsigned int i = 0; i < model2->frames.size();i++){
 			model1->addFrameToModel(model2->frames[i], model2->masks[i],pose*model2->relativeposes[i]);
 		}
 	
-		if(current_poses.size() % 5 == 0){
+		//if(current_poses.size() % 5 == 0){
 			printf("time to refine again\n");
 
-			MassRegistrationPPR * massreg = new MassRegistrationPPR();
+			MassRegistrationPPR * massreg = new MassRegistrationPPR(0.05,false);
 			massreg->setData(current_frames,current_masks);
 			MassFusionResults mfr = massreg->getTransforms(current_poses);
 
 			//maybe check to ensure still coherent
 			model1->relativeposes = mfr.poses;
 			model1->recomputeModelPoints();
-		}
-
-//		std::vector< Model * > new_models;
-//		std::vector< Model * > updated_models;
-//		std::vector< Model * > deleted_models;
-		
+		//}
 
 		retval.updated_models.push_back(model1);
 		retval.deleted_models.push_back(model2);
-	}else{//Cannot fully fuse...
+	}
+	else{//Cannot fully fuse...
 		printf("Cannot fully fuse...\n");
 		//Atempt mass registration to solve problem
 		
-		MassRegistrationPPR * massreg = new MassRegistrationPPR(false);
+		MassRegistrationPPR * massreg = new MassRegistrationPPR(0.05,false);
 		massreg->setData(current_frames,current_masks);
 		MassFusionResults mfr = massreg->getTransforms(current_poses);
 		current_poses = mfr.poses;
 		
 		std::vector<std::vector < OcclusionScore > > ocs2 = getOcclusionScores(current_poses, current_frames,current_masks);
-		std::vector<std::vector < float > > scores2 = getScores(ocs2,2);
+		std::vector<std::vector < float > > scores2 = getScores(ocs2,10);
 		std::vector<int> partition2 = getPartition(scores2,2,5,2);
 
 		std::vector<int> count2;
@@ -237,19 +236,20 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 			retval.deleted_models.push_back(model2);
 		}else{//Mass registration did NOT solve the problem
 			printf("Mass registration did NOT solve the problem UPDATE THIS PART\n");
-			/*
-			if(current_frames.size() > 10){
-				for(int i = 0; i < current_frames.size(); i++){
-					scores[i][i] = 0;
-					for(int j = i+1; j < current_frames.size(); j++){
-						if(( ocs2[i][j].score+ocs2[j][i].score - 2*(ocs2[i][j].occlusions+ocs2[j][i].occlusions)) < 0){
-							Eigen::Matrix4d relative_pose = current_poses[i].inverse() * current_poses[j];
-							computeOcclusionScore(current_frames[j], current_masks[j], current_frames[i], current_masks[i],relative_pose,true);
-							computeOcclusionScore(current_frames[i], current_masks[i], current_frames[j], current_masks[j],relative_pose.inverse(),true);
-						}
-					}
-				}
-			}*/
+			
+			//if(current_frames.size() > 10){
+			//	for(int i = 0; i < current_frames.size(); i++){
+			//		scores[i][i] = 0;
+			//		for(int j = i+1; j < current_frames.size(); j++){
+			//			if(( ocs2[i][j].score+ocs2[j][i].score - 2*(ocs2[i][j].occlusions+ocs2[j][i].occlusions)) < 0){
+			//				Eigen::Matrix4d relative_pose = current_poses[i].inverse() * current_poses[j];
+			//				computeOcclusionScore(current_frames[j], current_masks[j], current_frames[i], current_masks[i],relative_pose,true);
+			//				computeOcclusionScore(current_frames[i], current_masks[i], current_frames[j], current_masks[j],relative_pose.inverse(),true);
+			//			}
+			//		}
+			//	}
+			//}
+			
 
 			//Check if identical to input partition
 			int c = 0;
@@ -280,6 +280,7 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 			retval.updated_models.push_back(model2);
 		}
 	}
+
 	return retval;
 }
 
@@ -292,7 +293,7 @@ massreg->setData(current_frames,current_masks);
 MassFusionResults mfr = massreg->getTransforms(current_poses);
 
 std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_masks);
-std::vector<std::vector < float > > scores = getScores(ocs,4);
+std::vector<std::vector < float > > scores = getScores(ocs,10);
 std::vector<int> partition = getPartition(scores,2,5,2);
 printf("new partition: ");for(unsigned int i = 0; i < partition.size(); i++){printf("%i ",partition[i]);}printf("\n");
 

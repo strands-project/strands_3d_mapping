@@ -3,18 +3,30 @@
 ModelDatabaseBasic::ModelDatabaseBasic(){}
 ModelDatabaseBasic::~ModelDatabaseBasic(){}
 
-//Add pointcloud to database, return index number in database, weight is the bias of the system to perfer this object when searching
-int ModelDatabaseBasic::add(pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud, double weight){
-	return true;
+
+void ModelDatabaseBasic::add(reglib::Model * model){
+	models.push_back(model);
+	printf("number of models: %i\n",models.size());
 }
-		
-// return true if successfull
-// return false if fail
-bool ModelDatabaseBasic::remove(int index){
+
+bool ModelDatabaseBasic::remove(reglib::Model * model){
+	for(unsigned int i = 0; i < models.size(); i++){
+		if(models[i] == model){
+			models[i] = models.back();
+			models.pop_back();
+			return true;
+		}	
+	}
 	return false;
 }
-		
-//Find the number_of_matches closest matches in dabase to the pointcloud for index 
-std::vector<int> ModelDatabaseBasic::search(int index, int number_of_matches){
-	return std::vector<int>();
+
+std::vector<reglib::Model *> ModelDatabaseBasic::search(reglib::Model * model, int number_of_matches){
+	std::vector<reglib::Model *> ret;
+		for(unsigned int i = 0; i < models.size(); i++){
+		if(models[i] != model){
+			ret.push_back(models[i]);
+		}
+		if(ret.size() == number_of_matches){break;}
+	}
+	return ret;
 }

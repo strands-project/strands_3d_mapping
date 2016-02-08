@@ -39,7 +39,7 @@ namespace reglib
 
 		DistanceWeightFunction2 * func;
 
-		MassRegistrationPPR(bool visualize = false);
+		MassRegistrationPPR(double startreg = 0.05, bool visualize = false);
 		~MassRegistrationPPR();
 		
 		MassFusionResults getTransforms(std::vector<Eigen::Matrix4d> guess);
