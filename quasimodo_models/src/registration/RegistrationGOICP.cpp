@@ -509,14 +509,14 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 
 	std::vector<double> total_dweight;
 	total_dweight.resize(d_nr_data);
-	//if(visualizationLvl >= 1){show(X,Xn,Y,N);}
+	if(visualizationLvl >= 2){show(X,Xn,Y,N);}
 
 	/// ICP
 	//for(int icp=0; icp < 50; ++icp) {
 	//for(int icp=0; icp < 50; ++icp) {
 	//while(true){
-	for(int funcupdate=0; funcupdate < 50; ++funcupdate) {
-		for(int rematching=0; rematching < 1; ++rematching) {
+	for(int funcupdate=0; funcupdate < 100; ++funcupdate) {
+		for(int rematching=0; rematching < 2; ++rematching) {
 			//printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
 
 			#pragma omp parallel for
@@ -531,9 +531,9 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 				rangeW(i) = 1.0/(1.0/SRC_INORMATION(i)+1.0/DST_INORMATION(id));
 			}
 
-			if(visualizationLvl >= 2){show(X,Xn,Y,N);}
 
-			for(int outer=0; outer< 1; ++outer) {
+
+			for(int outer=0; outer< 3; ++outer) {
 				/// Compute weights
 				switch(type) {
 					case PointToPoint:	{residuals = X-Qp;} 						break;
@@ -548,7 +548,9 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 				}
 
 
-				for(int inner=0; inner< 1; ++inner) {
+				for(int inner=0; inner< 2; ++inner) {
+
+					//printf("funcupdate: %i rematching: %i  outer: %i inner: %i\n",funcupdate,rematching,outer,inner);
 					//printf("icp: %i outer: %i inner: %i ",icp,outer,inner);
 					if(inner != 0){
 						switch(type) {
@@ -584,73 +586,49 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 					//if(visualizationLvl >= 3){show(X,Qp,W);}
 					W = W.array()*rangeW.array()*rangeW.array();
 
-/*
-					printf("----%i----\n",__LINE__);
-					tfc.reset();
-					for(unsigned int i = 0; i < s_nr_data; i++){
-						Eigen::Vector3f a (X(0,i),				X(1,i),			X(2,i));
-						Eigen::Vector3f b (src->data(0,i),		src->data(1,i), src->data(2,i));
-						tfc.add(b,a);
-					}
-					//Eigen::Matrix4d old = tfc.getTransformation().matrix().cast<double>();
-*/
-
 					Eigen::Affine3d change;
 					switch(type) {
 						case PointToPoint:	{RigidMotionEstimator::point_to_point(X, Qp, W);}		break;
 						case PointToPlane:	{change = RigidMotionEstimator2::point_to_plane(X, Xn, Qp, Qn, W);}	break;
 						default:  			{printf("type not set\n"); } break;
 					}
-/*
-					printf("----%i----\n",__LINE__);
-					tfc.reset();
-					for(unsigned int i = 0; i < s_nr_data; i++){
-						Eigen::Vector3f a (X(0,i),				X(1,i),			X(2,i));
-						Eigen::Vector3f b (src->data(0,i),		src->data(1,i), src->data(2,i));
-						tfc.add(b,a);
-					}
-					np = tfc.getTransformation().matrix().cast<double>();
 
-					Eigen::Matrix4d gt_change = np*old.inverse();
-					//tmptest
-					//std::cout << test.matrix() << std::endl << std::endl;
-					std::cout << "old: \n" << old << std::endl << std::endl;
-					std::cout << "gt: \n" << np << std::endl << std::endl;
-					std::cout << "change: \n" << change.matrix() << std::endl << std::endl;
-					std::cout << "gtchange: \n" << gt_change << std::endl << std::endl;
-					//std::cout << "1: \n" << (test*change).matrix() << std::endl << std::endl;
-					//std::cout << "2: \n" << (test*change.inverse()).matrix() << std::endl << std::endl;
-					std::cout << "3: \n" <<(change*test).matrix() << std::endl << std::endl;
-					//std::cout << "4: \n" <<(change.inverse()*test).matrix() << std::endl << std::endl;
-					//std::cout << test.matrix() << std::endl << std::endl;
-
-					std::cout << "gt_change*old : \n" << gt_change*old << std::endl << std::endl;
-					printf("--------\n");
-exit(0);
-*/
 					double stop1 = (X-Xo1).colwise().norm().maxCoeff();
+					//printf("stop: %f stop1: %f\n",stop,stop1);
 					Xo1 = X;
 					if(stop1 < stop) break;
 				}
+
 				double stop2 = (X-Xo2).colwise().norm().maxCoeff();
+				//printf("stop: %f stop2: %f\n",stop,stop2);
 				Xo2 = X;
 				if(stop2 < stop) break;
 			}
-			//func->update();
-			//for(unsigned int f = 0; f < nr_features; f++){feature_func[f]->update();}
-			//if(visualizationLvl >= 3){show(X,Y);}
+
 			double stop3 = (X-Xo3).colwise().norm().maxCoeff();
+			//printf("stop: %f stop3: %f\n",stop,stop3);
 			Xo3 = X;
 			if(stop3 < stop) break;
 		}
 
+		//if(visualizationLvl >= 2){show(X,Xn,Y,N);}
+/*
 		func->update();
 
 		double stop4 = (X-Xo4).colwise().norm().maxCoeff();
 		Xo4 = X;
 		if(stop4 < stop && funcupdate > 25) break;
-	}
+		*/
 
+		func->debugg_print = true;
+		double noise_before = func->getNoise();
+		func->update();
+		double noise_after = func->getNoise();
+		func->debugg_print = false;
+		//printf("before: %5.5f after: %5.5f relative size: %5.5f\n",noise_before,noise_after,noise_after/noise_before);
+		if(fabs(1.0 - noise_after/noise_before) < 0.01){break;}
+	}
+if(visualizationLvl >= 2){show(X,Xn,Y,N);}
 	float score = Wold.sum()*pow(func->getNoise(),-1)/float(s_nr_data);
 	//printf("sum: %f noise: %f score: %f\n",Wold.sum(),func->getNoise(),score);
 

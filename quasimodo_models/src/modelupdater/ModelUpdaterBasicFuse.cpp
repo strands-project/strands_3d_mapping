@@ -26,16 +26,57 @@ ModelUpdaterBasicFuse::~ModelUpdaterBasicFuse(){}
 FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix4d guess, double uncertanity){
 	if(model->frames.size() > 0){
 		registration->viewer	= viewer;
-		int step1 = std::max(int(model->frames.size())/2,5);
+		int step1 = std::max(int(model->frames.size())/5,5);
+		int step2 = std::max(int(model2->frames.size())/5,5);//int step2 = 5;//std::min(int(model2->frames.size()),5);
+
 		CloudData * cd1 = model ->getCD(model->points.size()/step1);
 		registration->setDst(cd1);
-		int step2 = 5;//std::min(int(model2->frames.size()),5);
+
 		CloudData * cd2	= model2->getCD(model2->points.size()/step2);
 		registration->setSrc(cd2);
 		FusionResults fr = registration->getTransform(guess);
-		//fr.score = -1;
+
 		
 		printf("score: %6.6f\n",fr.score);
+		delete cd1;
+		delete cd2;
+/*
+		if(fr.score < 100){return fr;}
+
+		step1 = std::max(int(model->frames.size())/1,1);
+		step2 = std::max(int(model2->frames.size())/1,1);//int step2 = 5;//std::min(int(model2->frames.size()),5);
+
+		cd1 = model ->getCD(model->points.size()/step1);
+		registration->setDst(cd1);
+
+		cd2	= model2->getCD(model2->points.size()/step2);
+		registration->setSrc(cd2);
+
+
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+		printf("REFINE\n");
+
+		registration->only_initial_guess = true;
+		fr = registration->getTransform(fr.guess);
+		registration->only_initial_guess = false;
+
+		delete cd1;
+		delete cd2;
+		exit(0);
+*/
 /*
 		if(fr.score > 2000){
 			Eigen::Matrix4d pose = fr.guess;
@@ -76,8 +117,7 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 			exit(0);
 		}else{fr.score = -1;}
 */
-		delete cd1;
-		delete cd2;
+
 		return fr;
 	}
 	return FusionResults();

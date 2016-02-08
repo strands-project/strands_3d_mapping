@@ -41,7 +41,7 @@ using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
 
 
 int main(int argc, char** argv){
-<<<<<<< HEAD
+//<<<<<<< HEAD
 	reglib::Camera * camera		= new reglib::Camera();
 	ModelDatabase * db = new ModelDatabaseBasic();
 	
@@ -52,14 +52,14 @@ int main(int argc, char** argv){
 	viewer->initCameraParameters ();
 
 	string data_path = "/media/johane/SSDstorage/KTH_longterm_dataset_labels";
-=======
+//=======
 
-    ModelDatabase * db = new ModelDatabaseRetrieval();
+//    ModelDatabase * db = new ModelDatabaseRetrieval();
 
-    std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> clouds;
+//    std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> clouds;
 
-    string data_path = "/home/nbore/Data/KTH/KTH_longterm_surfels";
->>>>>>> 7443006c4d9be611bc3605f4524dd74e4b426728
+//    string data_path = "/home/nbore/Data/KTH/KTH_longterm_surfels";
+//>>>>>>> 7443006c4d9be611bc3605f4524dd74e4b426728
 	if(argc == 2){data_path = argv[2];}
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path, true);
 
@@ -152,10 +152,9 @@ int main(int argc, char** argv){
 					viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 					viewer->spin();
 				}
-
+			*/
 			}
 		}
-
     }
 
 }

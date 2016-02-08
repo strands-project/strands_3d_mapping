@@ -261,53 +261,55 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 	std::vector<reglib::Model * > models2merge;
 	std::vector<reglib::FusionResults > fr2merge;
 
-	const int num_threads = res.size();
-	std::thread t[num_threads];
+	bool multi_thread = false;
+	if(multi_thread){
+		const int num_threads = res.size();
+		std::thread t[num_threads];
 
-	for (int i = 0; i < num_threads; ++i) {
-		t[i] = std::thread(call_from_thread,i);
-	}
-
-	std::cout << "Launched from the main\n";
-
-	for (int i = 0; i < num_threads; ++i) {t[i].join();}
-
-	for (int i = 0; i < num_threads; ++i) {
-		reglib::Model * model2 = res[i];
-		reglib::FusionResults fr = fr_res[i];
-		if(fr.score > 800){
-			fr.guess = fr.guess.inverse();
-
-			fr2merge.push_back(fr);
-			models2merge.push_back(model2);
-			printf("%i could be registered\n",i);
+		for (int i = 0; i < num_threads; ++i) {
+			t[i] = std::thread(call_from_thread,i);
 		}
-	}
-/*
-	exit(0);
-	for(unsigned int i = 0; i < res.size(); i++){
-		reglib::Model * model2 = res[i];
-		
-		printf("testreg %i to %i\n",model->id,model2->id);
-		reglib::RegistrationGOICP *	reg		= new reglib::RegistrationGOICP();
-		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
-		mu->viewer							= viewer;
-		reg->visualizationLvl				= 1;
-				
-		reglib::FusionResults fr = mu->registerModel(model);
-		
-		if(fr.score > 800){
-			fr.guess = fr.guess.inverse();
-			
-			fr2merge.push_back(fr);
-			models2merge.push_back(model2);
-			printf("could be registered\n");
+
+		std::cout << "Launched from the main\n";
+
+		for (int i = 0; i < num_threads; ++i) {t[i].join();}
+
+		for (int i = 0; i < num_threads; ++i) {
+			reglib::Model * model2 = res[i];
+			reglib::FusionResults fr = fr_res[i];
+			if(fr.score > 800){
+				fr.guess = fr.guess.inverse();
+
+				fr2merge.push_back(fr);
+				models2merge.push_back(model2);
+				printf("%i could be registered\n",i);
+			}
 		}
-				
-		delete mu;
-		delete reg;
-	}
-*/
+	}else{
+		for(unsigned int i = 0; i < res.size(); i++){
+			reglib::Model * model2 = res[i];
+
+			printf("testreg %i to %i\n",model->id,model2->id);
+			reglib::RegistrationGOICP *	reg		= new reglib::RegistrationGOICP();
+			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
+			mu->viewer							= viewer;
+			reg->visualizationLvl				= 2;
+
+			reglib::FusionResults fr = mu->registerModel(model);
+
+			if(fr.score > 800){
+				fr.guess = fr.guess.inverse();
+
+				fr2merge.push_back(fr);
+				models2merge.push_back(model2);
+				printf("could be registered\n");
+			}
+
+			delete mu;
+			delete reg;
+		}
+	}\
+
 	std::map<int , reglib::Model *>	new_models;
 	std::map<int , reglib::Model *>	updated_models;
 	

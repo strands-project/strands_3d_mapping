@@ -471,9 +471,9 @@ view->initCameraParameters ();
 	int imgcount = 0;
 
 	for(int funcupdate=0; funcupdate < 50; ++funcupdate) {
-		printf("funcupdate: %i\n",funcupdate);
+		//printf("funcupdate: %i\n",funcupdate);
 		for(int rematching=0; rematching < 5; ++rematching) {
-			printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
+			//printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
 			
 			if(visualizationLvl > 0){
 				std::vector<Eigen::MatrixXd> Xv;
@@ -518,7 +518,7 @@ view->initCameraParameters ();
 				}
 			}
 
-			printf("total_matches: %i\n",total_matches);
+			//printf("total_matches: %i\n",total_matches);
 
 			Eigen::MatrixXd all_residuals = Eigen::Matrix3Xd::Zero(3,total_matches);
 			int count = 0;
@@ -580,7 +580,7 @@ view->initCameraParameters ();
 			for(int outer=0; outer < 10; ++outer) {
 				for(unsigned int i = 0; i < nr_frames; i++){poses2[i] = poses[i];}
 
-				printf("funcupdate: %i rematching: %i outer: %i\n",funcupdate,rematching,outer);
+				//printf("funcupdate: %i rematching: %i outer: %i\n",funcupdate,rematching,outer);
 				for(unsigned int i = 0; i < nr_frames; i++){
 					unsigned int nr_match = 0;
 					for(unsigned int j = 0; j < nr_frames; j++){
@@ -716,12 +716,6 @@ view->initCameraParameters ();
 					//printf("    change: %f\n",change);
 
 					if(change < 0.00001) break;
-/*
-					double change = 0;
-					for(unsigned int i = 0; i < nr_frames; i++){
-						Eigen::Matrix4d change = poses2[i].inverse()*poses[i];
-					}
-*/
 				}
 
 				double change = 0;
@@ -794,8 +788,8 @@ view->initCameraParameters ();
 				change_trans /= double(nr_frames*(nr_frames-1));
 				change_rot	 /= double(nr_frames*(nr_frames-1));
 
-				printf("outer: change relative transforms: %10.10f %10.10f\n",change_trans,change_rot);
-				if(change_trans < 0.0001 && change_rot < 0.00001){printf("----------BREAK OUTER-----------\n");break;}
+				//printf("outer: change relative transforms: %10.10f %10.10f\n",change_trans,change_rot);
+				if(change_trans < 0.0001 && change_rot < 0.00001){/* printf("----------BREAK OUTER-----------\n"); */break;}
 			}
 
 			double change_trans = 0;
@@ -821,7 +815,7 @@ view->initCameraParameters ();
 			change_trans /= double(nr_frames*(nr_frames-1));
 			change_rot	 /= double(nr_frames*(nr_frames-1));
 
-			printf("retmatch: change relative transforms: %10.10f %10.10f\n",change_trans,change_rot);
+			//printf("retmatch: change relative transforms: %10.10f %10.10f\n",change_trans,change_rot);
 			if(change_trans < 0.0001 && change_rot < 0.00001){printf("----------BREAK REMATCH-----------\n");break;}
 		}
 
@@ -836,10 +830,10 @@ view->initCameraParameters ();
 		func->update();
 		double noise_after = func->getNoise();
 		func->debugg_print = false;
-		printf("before: %5.5f after: %5.5f relative size: %5.5f\n",noise_before,noise_after,noise_after/noise_before);
+		//printf("before: %5.5f after: %5.5f relative size: %5.5f\n",noise_before,noise_after,noise_after/noise_before);
 		if(fabs(1.0 - noise_after/noise_before) < 0.01){break;}
 	}
-if(nr_frames >= 3){exit(0);}
+//if(nr_frames >= 3){exit(0);}
 	printf("stop MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> guess)\n");
 	//exit(0);
 	return MassFusionResults(poses,-1);

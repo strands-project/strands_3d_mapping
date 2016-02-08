@@ -395,12 +395,12 @@ VectorXd DistanceWeightFunction2PPR::getProbs(MatrixXd mat){
 void DistanceWeightFunction2PPR::update(){
 
 
-	if(debugg_print){printf("###############################################################################################################\n");}
-	if(debugg_print){printf("hist = [");			for(unsigned int k = 0; k < 100; k++){printf("%i ",int(histogram[k]));}		printf("];\n");}
-	if(debugg_print){printf("noise = [");			for(unsigned int k = 0; k < 100; k++){printf("%i ",int(noise[k]));}			printf("];\n");}
-	if(debugg_print){printf("hist_smooth = [");		for(unsigned int k = 0; k < 100; k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
-	if(debugg_print){printf("prob = [");			for(unsigned int k = 0; k < 100; k++){printf("%2.2f ",prob[k]);}				printf("];\n");}
-	if(debugg_print){printf("###############################################################################################################\n");}
+	//if(debugg_print){printf("###############################################################################################################\n");}
+	//if(debugg_print){printf("hist = [");			for(unsigned int k = 0; k < 100; k++){printf("%i ",int(histogram[k]));}		printf("];\n");}
+	//if(debugg_print){printf("noise = [");			for(unsigned int k = 0; k < 100; k++){printf("%i ",int(noise[k]));}			printf("];\n");}
+	//if(debugg_print){printf("hist_smooth = [");		for(unsigned int k = 0; k < 100; k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
+	//if(debugg_print){printf("prob = [");			for(unsigned int k = 0; k < 100; k++){printf("%2.2f ",prob[k]);}				printf("];\n");}
+	//if(debugg_print){printf("###############################################################################################################\n");}
 
 	if(true || debugg_print){
 		std::vector<float> new_prob = prob;
@@ -411,19 +411,25 @@ void DistanceWeightFunction2PPR::update(){
 		float old_sum = 0;
 		for(unsigned int k = 0; k < histogram_size; k++){
 			old_sum_prob += prob[k] * histogram[k];
-			old_sum += histogram[k];
+			//old_sum += histogram[k];
 		}
 
-		old_sum_prob/= old_sum;
+		//old_sum_prob/= old_sum;
 
 		Gaussian g = getModel(stdval,blur_histogram,uniform_bias);
 
-
+		int iteration = 0;
 		while(true){
-
+			//printf("iteration: %i regularization: %f\n",iteration,regularization);
+			iteration++;
 			//printf("running regularization loop with regularization = %6.6f\n",regularization);
-			regularization *= 0.75;
+			regularization *= 0.5;
 			double change = histogram_size*regularization/maxd;
+
+			//printf("change: %f\n",change);
+
+
+
 			//if(change < 0.01*stdval){printf("break becouse of convergence\n");break;}
 			if(change < 0.01*stdval){break;}
 
@@ -438,30 +444,35 @@ void DistanceWeightFunction2PPR::update(){
 				if(k < g.mean){	new_prob[k] = maxp;	}
 				else{
 					double hs = new_blur_histogram[k] +0.0000001;
-					prob[k] = std::min(maxp , new_noise[k]/hs);//never fully trust any data
+					new_prob[k] = std::min(maxp , new_noise[k]/hs);//never fully trust any data
 				}
 			}
 
 			float new_sum_prob = 0;
-			float new_sum = 0;
+			//float new_sum = 0;
 			for(unsigned int k = 0; k < histogram_size; k++){
 				new_sum_prob += new_prob[k] * new_histogram[k];
-				new_sum += histogram[k];
+				//new_sum += histogram[k];
 			}
 
-			new_sum_prob/= new_sum;
+			//new_sum_prob/= new_sum;
+
+			//if(debugg_print){printf("hist_smooth = [");		for(unsigned int k = 0; k < 100; k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
+			//if(debugg_print){printf("prob =     [");			for(unsigned int k = 0; k < 100; k++){printf("%2.2f ",prob[k]);}				printf("];\n");}
+			//if(debugg_print){printf("new_prob = [");			for(unsigned int k = 0; k < 100; k++){printf("%2.2f ",new_prob[k]);}				printf("];\n");}
+			//if(debugg_print){printf("###############################################################################################################\n");}
 
 			//printf("new_sum_prob: %15.15f old_sum_prob: %15.15f\n",new_sum_prob,old_sum_prob);
 
 			//if(new_sum_prob < 0.95*old_sum_prob){printf("break becouse regularization had effect\n");}
-			if(new_sum_prob < 0.95*old_sum_prob){break;}
+			if(new_sum_prob < 0.9999*old_sum_prob){break;}
 
 			g.stdval -= change;
 			g.update();
 			//break;
 		}
 	}else{
-		regularization *= 0.75;
+		regularization *= 0.5;
 	}
 	//exit(0);
 }

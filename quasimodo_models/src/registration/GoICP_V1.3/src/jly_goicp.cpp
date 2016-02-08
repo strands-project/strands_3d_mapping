@@ -497,6 +497,8 @@ GoICP::GoICP()
 	working_thread_count_mutex	= PTHREAD_MUTEX_INITIALIZER;
 	queueTrans_mutex			= PTHREAD_MUTEX_INITIALIZER;
 	current_optErrorT_mutex		= PTHREAD_MUTEX_INITIALIZER;
+
+	max_time = 3;
 /*
 	int rc;
 	int i;
@@ -532,7 +534,7 @@ void GoICP::BuildDT()
 // Run ICP and calculate sum squared L2 error
 float GoICP::ICP(Matrix& R_icp, Matrix& t_icp)
 {
-	max_time = 3;
+
   int i;
 	float error, dis;
 
