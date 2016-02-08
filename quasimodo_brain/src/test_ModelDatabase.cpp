@@ -41,6 +41,7 @@ using LabelT = semantic_map_load_utilties::LabelledData<PointT>;
 
 
 int main(int argc, char** argv){
+<<<<<<< HEAD
 	reglib::Camera * camera		= new reglib::Camera();
 	ModelDatabase * db = new ModelDatabaseBasic();
 	
@@ -51,6 +52,14 @@ int main(int argc, char** argv){
 	viewer->initCameraParameters ();
 
 	string data_path = "/media/johane/SSDstorage/KTH_longterm_dataset_labels";
+=======
+
+    ModelDatabase * db = new ModelDatabaseRetrieval();
+
+    std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> clouds;
+
+    string data_path = "/home/nbore/Data/KTH/KTH_longterm_surfels";
+>>>>>>> 7443006c4d9be611bc3605f4524dd74e4b426728
 	if(argc == 2){data_path = argv[2];}
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path, true);
 
@@ -124,17 +133,25 @@ int main(int argc, char** argv){
 				//pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
 				//viewer->addPointCloud<pcl::PointXYZRGB> (cloud, rgb, "cloud");
 				//viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
+<<<<<<< HEAD
 				//viewer->spin();
+=======
+                //viewer->spin();
+>>>>>>> 7443006c4d9be611bc3605f4524dd74e4b426728
 
 				for(unsigned int ind = 0; ind < res.size(); ind++){
 					printf("result: %i %i\n",clouds.size(),ind);
-					viewer->removeAllPointClouds();
+                    std::cout << res[ind] << std::endl;
+                    //viewer->removeAllPointClouds();
+                    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+                    viewer->setBackgroundColor (0, 0, 0);
+                    viewer->addCoordinateSystem (1.0);
+                    viewer->initCameraParameters ();
 					pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(clouds[res[ind]]);
 					viewer->addPointCloud<pcl::PointXYZRGB> (clouds[res[ind]], rgb, "cloud");
 					viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud");
 					viewer->spin();
 				}
-				*/
 
 			}
 		}

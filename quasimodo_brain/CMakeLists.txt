@@ -11,6 +11,43 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+# Required for retrieval stuff
+#include_directories(${catkin_INCLUDE_DIRS})
+
+# This is the root dir of https://github.com/nilsbore/dynamic_object_retrieval
+set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../../../object_3d_retrieval)
+
+# This is the main project, used for retrieval
+set(retrieval_dir ${retrieval_project_dir}/dynamic_object_retrieval)
+set(retrieval_libraries dynamic_visualize grouped_vocabulary_tree vocabulary_tree k_means_tree
+    dynamic_retrieval extract_surfel_features
+    register_objects extract_sift sift pfhrgb_estimation)
+include_directories(${retrieval_dir}/include)
+link_directories(${retrieval_dir}/build)
+
+# This is the base vocabulary tree representation
+set(k_means_tree_dir ${retrieval_project_dir}/k_means_tree)
+set(k_means_tree_library_dir ${k_means_tree_dir}/build)
+include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
+link_directories(${k_means_tree_library_dir})
+
+# This is the stopwatch by Whelan, also included in the base dir
+set(stopwatch_dir ${retrieval_dir}/stopwatch)
+set(stopwatch_include_dir ${stopwatch_dir}/src)
+include_directories(${stopwatch_include_dir})
+
+find_package(OpenGL)
+
+# The benchmark project is also in the base dir
+set(benchmark_dir ${retrieval_project_dir}/benchmark)
+set(benchmark_libraries benchmark_result benchmark_retrieval benchmark_visualization benchmark_overlap surfel_renderer ${OPENGL_gl_LIBRARY} ${QT_QTOPENGL_LIBRARY})
+include_directories(${benchmark_dir}/include)
+link_directories(${benchmark_dir}/build)
+
+# Define the locations of cereal serialization header files
+set(cereal_include_dir ${k_means_tree_dir}/cereal/include)
+include_directories(${cereal_include_dir})
+
 ##############################################
 ##################### INCLUDES ###############
 ##############################################
@@ -54,8 +91,15 @@ catkin_package(
 
 include_directories(${catkin_INCLUDE_DIRS})
 
-add_library(quasimodo_ModelDatabase src/ModelDatabase/ModelDatabase.cpp src/ModelDatabase/ModelDatabaseBasic.cpp)
-target_link_libraries(quasimodo_ModelDatabase ${catkin_LIBRARIES})
+add_library(quasimodo_ModelDatabase src/ModelDatabase/ModelDatabase.cpp src/ModelDatabase/ModelDatabaseBasic.cpp
+                                    src/ModelDatabase/ModelDatabaseRetrieval.h src/ModelDatabaseRetrieval.cpp)
+target_link_libraries(quasimodo_ModelDatabase
+                      ${retrieval_libraries}
+                      ${benchmark_libraries}
+                      ${OpenCV_LIBS}
+                      ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
+                      ${PCL_LIBRARIES}
+                      ${catkin_LIBRARIES})
 
 add_executable(			test_ModelDatabase src/test_ModelDatabase.cpp)
 add_dependencies(		test_ModelDatabase roscpp quasimodo_msgs_generate_messages_cpp)
@@ -88,9 +132,9 @@ add_dependencies(		modelserver roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	modelserver quasimodo_ModelDatabase quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 
-add_executable(			modelserver2 src/modelserver2.cpp)
-add_dependencies(		modelserver2 roscpp quasimodo_msgs_generate_messages_cpp)
-target_link_libraries(	modelserver2 quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+#add_executable(			modelserver2 src/modelserver2.cpp)
+#add_dependencies(		modelserver2 roscpp quasimodo_msgs_generate_messages_cpp)
+#target_link_libraries(	modelserver2 quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 #add_executable(			kinect_node src/kinect_node.cpp)
 #add_dependencies(		kinect_node roscpp quasimodo_msgs_generate_messages_cpp)

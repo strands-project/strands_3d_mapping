@@ -28,4 +28,5 @@ class ModelDatabase{
 };
 
 #include "ModelDatabaseBasic.h"
+#include "ModelDatabaseRetrieval.h"
 #endif // ModelDatabase_H
