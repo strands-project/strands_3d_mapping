@@ -17,7 +17,7 @@ endif()
 # This is the root dir of https://github.com/nilsbore/dynamic_object_retrieval
 #set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../../../object_3d_retrieval)
 
-set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}../../dynamic_object_retrieval/)
+set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../dynamic_object_retrieval/)
 
 # This is the main project, used for retrieval
 set(retrieval_dir ${retrieval_project_dir}/dynamic_object_retrieval)
@@ -93,11 +93,10 @@ catkin_package(
 
 include_directories(${catkin_INCLUDE_DIRS})
 
-add_library(quasimodo_ModelDatabase src/ModelDatabase/ModelDatabase.cpp src/ModelDatabase/ModelDatabaseBasic.cpp)
-									#src/ModelDatabase/ModelDatabaseRetrieval.h src/ModelDatabaseRetrieval.cpp)
+add_library(quasimodo_ModelDatabase src/ModelDatabase/ModelDatabase.cpp src/ModelDatabase/ModelDatabaseBasic.cpp src/ModelDatabase/ModelDatabaseRetrieval.cpp)
 target_link_libraries(quasimodo_ModelDatabase
-					  #${retrieval_libraries}
-					  #${benchmark_libraries}
+					  ${retrieval_libraries}
+					  ${benchmark_libraries}
                       ${OpenCV_LIBS}
                       ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
                       ${PCL_LIBRARIES}
@@ -119,6 +118,10 @@ target_link_libraries(	preload_data quasimodo_ModelUpdater image_geometry cpp_co
 add_executable(			preload_chair_data src/preload_chair_data.cpp)
 add_dependencies(		preload_chair_data roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	preload_chair_data quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(			preload_object_data src/preload_object_data.cpp)
+add_dependencies(		preload_object_data roscpp quasimodo_msgs_generate_messages_cpp)
+target_link_libraries(	preload_object_data quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(			preload_test_data src/preload_test_data.cpp)
 add_dependencies(		preload_test_data roscpp quasimodo_msgs_generate_messages_cpp)

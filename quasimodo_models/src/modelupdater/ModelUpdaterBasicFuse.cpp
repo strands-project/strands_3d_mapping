@@ -26,8 +26,8 @@ ModelUpdaterBasicFuse::~ModelUpdaterBasicFuse(){}
 FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix4d guess, double uncertanity){
 	if(model->frames.size() > 0){
 		registration->viewer	= viewer;
-		int step1 = std::max(int(model->frames.size())/5,5);
-		int step2 = std::max(int(model2->frames.size())/5,5);//int step2 = 5;//std::min(int(model2->frames.size()),5);
+		int step1 = std::max(int(model->frames.size())/1,1);
+		int step2 = std::max(int(model2->frames.size())/1,1);//int step2 = 5;//std::min(int(model2->frames.size()),5);
 
 		CloudData * cd1 = model ->getCD(model->points.size()/step1);
 		registration->setDst(cd1);
@@ -198,6 +198,15 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 	std::vector<std::vector < float > > scores = getScores(ocs,10);
 	std::vector<int> partition = getPartition(scores,2,5,2);
 
+	double sumscore = 0;
+	for(int i = 0; i < scores.size(); i++){
+		for(int j = 0; j < scores.size(); j++){
+			if(partition[i] == partition[j]){sumscore += scores[i][j];}
+		}
+	}
+
+	printf("sumscore before: %f\n",sumscore);
+
 	//MassRegistrationPPR * massreg = new MassRegistrationPPR();
 	//massreg->setData(current_frames,current_masks);
 	//MassFusionResults mfr = massreg->getTransforms(current_poses);
@@ -250,74 +259,70 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 		std::vector<std::vector < float > > scores2 = getScores(ocs2,10);
 		std::vector<int> partition2 = getPartition(scores2,2,5,2);
 
-		std::vector<int> count2;
-		for(unsigned int i = 0; i < partition2.size(); i++){
-			if(count2.size() <= partition2[i]){count2.resize(partition2[i]+1);}
-			count2[partition2[i]]++;
+		double sumscore_after = 0;
+		for(int i = 0; i < scores2.size(); i++){
+			for(int j = 0; j < scores2.size(); j++){
+				if(partition2[i] == partition2[j]){sumscore_after += scores2[i][j];}
+			}
 		}
 
-		int minpart2 = count2[0];
-		for(unsigned int i = 1; i < count2.size(); i++){minpart2 = std::min(minpart2,count2[i]);}
+		if(sumscore_after > sumscore){
+			printf("sumscore after: %f\n",sumscore_after);
 
-		printf("----------------------------\n");
-		printf("partition2: ");for(unsigned int i = 0; i < partition2.size(); i++){printf("%i ",partition2[i]);}printf("\n");
-		for(unsigned int i = 0; i < count2.size(); i++){printf("count2 %i -> %i\n",i,count2[i]);}
-	
-		if(count2.size() == 1){//Mass registration solved the problem, GREAT
-			printf("Mass registration solved the problem, GREAT\n");
-			for(unsigned int i = 0; i < model2->frames.size();i++){
-				model1->frames.push_back(model2->frames[i]);
-				model1->masks.push_back(model2->masks[i]);
-			}
-			model1->relativeposes = current_poses;
-			model1->recomputeModelPoints();
-			
-			retval.updated_models.push_back(model1);
-			retval.deleted_models.push_back(model2);
-		}else{//Mass registration did NOT solve the problem
-			printf("Mass registration did NOT solve the problem UPDATE THIS PART\n");
-			
-			//if(current_frames.size() > 10){
-			//	for(int i = 0; i < current_frames.size(); i++){
-			//		scores[i][i] = 0;
-			//		for(int j = i+1; j < current_frames.size(); j++){
-			//			if(( ocs2[i][j].score+ocs2[j][i].score - 2*(ocs2[i][j].occlusions+ocs2[j][i].occlusions)) < 0){
-			//				Eigen::Matrix4d relative_pose = current_poses[i].inverse() * current_poses[j];
-			//				computeOcclusionScore(current_frames[j], current_masks[j], current_frames[i], current_masks[i],relative_pose,true);
-			//				computeOcclusionScore(current_frames[i], current_masks[i], current_frames[j], current_masks[j],relative_pose.inverse(),true);
-			//			}
-			//		}
-			//	}
-			//}
-			
-
-			//Check if identical to input partition
-			int c = 0;
-			
-			int model1_ind = partition2.front();
-			bool model1_same = true;
-			for(int i = 0; i < model1->frames.size(); i++){
-				if(partition2[c] != model1_ind){model1_same = false;}
-				c++;
+			std::vector<int> count2;
+			for(unsigned int i = 0; i < partition2.size(); i++){
+				if(count2.size() <= partition2[i]){count2.resize(partition2[i]+1);}
+				count2[partition2[i]]++;
 			}
 
-			int model2_ind = partition2.back();
-			bool model2_same = true;
-			for(int i = 0; i < model2->frames.size(); i++){
-				if(partition2[c] != model2_ind){model2_same = false;}
-				c++;
-			}
-			
-			if(!model1_same || !model2_same){//If something changed, update models
-				printf("SOMETHING CHANGED\n");
-				exit(0);
-			}else{//
+			int minpart2 = count2[0];
+			for(unsigned int i = 1; i < count2.size(); i++){minpart2 = std::min(minpart2,count2[i]);}
 
-			}
-			//if not update
+			printf("----------------------------\n");
+			printf("partition2: ");for(unsigned int i = 0; i < partition2.size(); i++){printf("%i ",partition2[i]);}printf("\n");
+			for(unsigned int i = 0; i < count2.size(); i++){printf("count2 %i -> %i\n",i,count2[i]);}
 
-			retval.updated_models.push_back(model1);
-			retval.updated_models.push_back(model2);
+			if(count2.size() == 1){//Mass registration solved the problem, GREAT
+				printf("Mass registration solved the problem, GREAT\n");
+				for(unsigned int i = 0; i < model2->frames.size();i++){
+					model1->frames.push_back(model2->frames[i]);
+					model1->masks.push_back(model2->masks[i]);
+				}
+				model1->relativeposes = current_poses;
+				model1->recomputeModelPoints();
+
+				retval.updated_models.push_back(model1);
+				retval.deleted_models.push_back(model2);
+			}else{//Mass registration did NOT solve the problem
+				printf("Mass registration did NOT solve the problem UPDATE THIS PART\n");
+	/*
+				//Check if identical to input partition
+				int c = 0;
+
+				int model1_ind = partition2.front();
+				bool model1_same = true;
+				for(int i = 0; i < model1->frames.size(); i++){
+					if(partition2[c] != model1_ind){model1_same = false;}
+					c++;
+				}
+
+				int model2_ind = partition2.back();
+				bool model2_same = true;
+				for(int i = 0; i < model2->frames.size(); i++){
+					if(partition2[c] != model2_ind){model2_same = false;}
+					c++;
+				}
+
+				if(!model1_same || !model2_same){//If something changed, update models
+					printf("SOMETHING CHANGED\n");
+					retval.updated_models.push_back(model1);
+					retval.updated_models.push_back(model2);
+				}else{//
+					retval.unchanged_models.push_back(model1);
+					retval.unchanged_models.push_back(model2);
+				}
+	*/
+			}
 		}
 	}
 

@@ -498,7 +498,7 @@ GoICP::GoICP()
 	queueTrans_mutex			= PTHREAD_MUTEX_INITIALIZER;
 	current_optErrorT_mutex		= PTHREAD_MUTEX_INITIALIZER;
 
-	max_time = 3;
+	max_time = 20;
 /*
 	int rc;
 	int i;

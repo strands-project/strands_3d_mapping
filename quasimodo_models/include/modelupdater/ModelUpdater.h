@@ -19,6 +19,7 @@ namespace reglib
 		public:
 		std::vector< Model * > new_models;
 		std::vector< Model * > updated_models;
+		std::vector< Model * > unchanged_models;
 		std::vector< Model * > deleted_models;
 		
 		UpdatedModels(){}

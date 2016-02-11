@@ -17,6 +17,12 @@ private:
     int training_indices;
 
 public:
+
+
+	virtual void add(reglib::Model * model);
+	virtual bool remove(reglib::Model * model);
+	virtual std::vector<reglib::Model *> search(reglib::Model * model, int number_of_matches);
+
     virtual int add(pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud, double weight = 1);
 
     // return true if successfull
@@ -26,7 +32,7 @@ public:
     //Find the number_of_matches closest matches in dabase to the pointcloud for index
     virtual std::vector<int> search(int index, int number_of_matches);
 
-    ModelDatabaseRetrieval();
+	ModelDatabaseRetrieval(std::string vpath = "/media/johane/SSDstorage/vocabulary_johan/");
     ~ModelDatabaseRetrieval();
 };
 

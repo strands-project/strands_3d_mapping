@@ -211,6 +211,83 @@ CloudData * Model::getCD(unsigned int target_points){
 
 Model::~Model(){}
 
+pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr Model::getPCLnormalcloud(int step, bool color){
+	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_ptr (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+	for(unsigned int i = 0; i < points.size(); i+=step){
+		superpoint & sp = points[i];
+		pcl::PointXYZRGBNormal p;
+		p.x = sp.point(0);
+		p.y = sp.point(1);
+		p.z = sp.point(2);
+
+		p.normal_x = sp.normal(0);
+		p.normal_y = sp.normal(1);
+		p.normal_z = sp.normal(2);
+		if(color){
+			p.b =   0;
+			p.g = 255;
+			p.r =   0;
+		}else{
+			p.r = sp.feature(0);
+			p.g = sp.feature(1);
+			p.b = sp.feature(2);
+		}
+
+		cloud_ptr->points.push_back(p);
+	}
+/*
+	for(unsigned int i = 0; i < frames.size(); i++){
+		cv::Mat rgb = frames[i]->rgb;
+		unsigned char * rgbdata = (unsigned char *)rgb.data;
+
+		cv::Mat depth = frames[i]->depth;
+		unsigned short * depthdata = (unsigned short *)depth.data;
+
+		Camera * camera = frames[i]->camera;
+		const unsigned int width = camera->width;
+		const unsigned int height = camera->height;
+		const double idepth = camera->idepth_scale;
+		const double cx		= camera->cx;
+		const double cy		= camera->cy;
+		const double ifx	= 1.0/camera->fx;
+		const double ify	= 1.0/camera->fy;
+
+		Eigen::Matrix4d pose = relativeposes[i];
+		const double m00 = pose(0,0); const double m01 = pose(0,1); const double m02 = pose(0,2); const double m03 = pose(0,3);
+		const double m10 = pose(1,0); const double m11 = pose(1,1); const double m12 = pose(1,2); const double m13 = pose(1,3);
+		const double m20 = pose(2,0); const double m21 = pose(2,1); const double m22 = pose(2,2); const double m23 = pose(2,3);
+
+		int r = (rand()%4)*255/4; int g = (rand()%4)*255/4; int b = (rand()%4)*255/4;
+
+		for(unsigned int w = 0; w < width; w+=step){
+			for(unsigned int h = 0; h < height;h+=step){
+				int ind = h*width+w;
+				double z = idepth*double(depthdata[ind]);
+				if(z > 0){
+					pcl::PointXYZRGB p;
+					double x = (double(w) - cx) * z * ifx;
+					double y = (double(h) - cy) * z * ify;
+					p.x = m00*x + m01*y + m02*z + m03;
+					p.y = m10*x + m11*y + m12*z + m13;
+					p.z = m20*x + m21*y + m22*z + m23;
+					if(color){
+						p.b = rgbdata[3*ind+0];
+						p.g = rgbdata[3*ind+1];
+						p.r = rgbdata[3*ind+2];
+					}else{
+						p.b = r;
+						p.g = g;
+						p.r = b;
+					}
+					cloud_ptr->points.push_back(p);
+				}
+			}
+		}
+	}
+*/
+	return cloud_ptr;
+}
+
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr Model::getPCLcloud(int step, bool color){
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
 	for(unsigned int i = 0; i < points.size(); i+=step){

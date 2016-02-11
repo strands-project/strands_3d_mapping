@@ -430,7 +430,8 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 						if(dst_z > 0){
 							float dst_x = (float(dst_w) - dst_cx) * dst_z * dst_ifx;
 							float dst_y = (float(dst_h) - dst_cy) * dst_z * dst_ify;
-							float diff_z2 = tnx*(dst_x-tx)+tny*(dst_y-ty)+tnz*(dst_z-tz);
+							//float diff_z2 = tnx*(dst_x-tx)+tny*(dst_y-ty)+tnz*(dst_z-tz);
+							float diff_z2 = (dst_z-tz)/(z*z+dst_z*dst_z);
 
 							float diff_z = (dst_z-tz)/(z*z+dst_z*dst_z);//if tz < dst_z then tz infront and diff_z > 0
 							if(diff_z < 0 && diff_z2 > 0){diff_z2 *= -1;}
@@ -449,11 +450,13 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 		}
 	}
 
+
+//exit(0);
 	if(debugg){
 		for(unsigned int dst_w = 0; dst_w < dst_width; dst_w++){
 			for(unsigned int dst_h = 0; dst_h < dst_height;dst_h++){
 				int dst_ind = dst_h*dst_width+dst_w;
-				if(dst_maskdata[dst_ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
+				if(true || dst_maskdata[dst_ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
 					float z = dst_idepth*float(dst_depthdata[dst_ind]);
 					if(z > 0){
 						float x = (float(dst_w) - dst_cx) * z * dst_ifx;
@@ -470,10 +473,25 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 		}
 	}
 
+	DistanceWeightFunction2PPR * func = new DistanceWeightFunction2PPR();
+	func->update_size = true;
+	func->startreg = 0.0001;
+	func->debugg_print = false;
+	func->reset();
+
+	Eigen::MatrixXd X = Eigen::MatrixXd::Zero(1,residuals.size());
+	for(int i = 0; i < residuals.size(); i++){
+		X(0,i) = residuals[i];
+	}
+
+	func->computeModel(X);
+	Eigen::VectorXd  W = func->getProbs(X);
+	delete func;
+
 	for(unsigned int i = 0; i < residuals.size(); i++){
 		float r = residuals[i];
-		float weight = 1;
-		if(fabs(r) > 0.0005){weight = 0;}//Replace with PPR
+		float weight = W(i);
+		//if(fabs(r) > 0.0005){weight = 0;}//Replace with PPR
 
 		float ocl = 0;
 		if(r > 0){ocl += 1-weight;}
@@ -497,6 +515,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 	}
 
 	if(debugg){
+		viewer->removeAllPointClouds();
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
 		cv::namedWindow("debuggimage",		cv::WINDOW_AUTOSIZE );
@@ -793,6 +812,15 @@ vector<vector< OcclusionScore > > ModelUpdater::computeAllOcclusionScores(RGBDFr
 		}
 	}
 
+	DistanceWeightFunction2PPR * func = new DistanceWeightFunction2PPR();
+	func->update_size = true;
+	func->startreg = 0.0001;
+	func->debugg_print = true;
+	func->reset();
+
+
+	delete func;
+
 	for(int i = 0; i < src_nr_labels; i++){
 		for(int j = 0; j < dst_nr_labels; i++){
 			std::vector<float> & resi = all_residuals[i][j];
@@ -829,6 +857,7 @@ vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(vector<Matri
 			scores[i][j]		= computeOcclusionScore(current_frames[i], current_masks[i], current_frames[j], current_masks[j],relative_pose.inverse(),debugg_scores);
 		}
 	}
+
 	return scores;
 }
 
@@ -929,6 +958,15 @@ std::vector<std::vector < float > > ModelUpdater::getScores(std::vector<std::vec
 			scores[j][i] = scores[i][j];
 		}
 	}
+
+	printf("=======================================================\n");
+	for(int i = 0; i < scores.size(); i++){
+		for(int j = 0; j < scores.size(); j++){
+			printf("%5.5f ",scores[i][j]);
+		}
+		printf("\n");
+	}
+	printf("=======================================================\n");
 	return scores;
 }
 /*

@@ -355,16 +355,33 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 		clock_t clockBegin2 = clock();
 		std::cout << "Looking for intitial guess " << std::flush;
 		for(int i = 0; i < 1; i++){
-			int pts = 75 << i;
+			int pts = 50 << i;
 			pts = std::min(pts,Nd);
-			//printf("nr points to use = %i\n",pts);
+			printf("nr points to use = %i\n",pts);
 			goicp.Nd = pts;
 			if(pts > Nd){goicp.Nd = Nd;} // Only use first NdDownsampled data points (assumes data points are randomly ordered)
 
 			goicp.optError = 99999999999999999999999999;
+			goicp.prove_optimal = true;
+			goicp.MSEThresh = 0.01;//0.001;
+			goicp.InitializeData();
+			goicp.InitializeModel();
+			float rv = goicp.OuterBnB();
+			goicp.clearData();
+			goicp.clearModel();
 
+			if(rv < 0){
+				clock_t clockEnd2 = clock();
+				std::cout << (double)(clockEnd2 - clockBegin2)/CLOCKS_PER_SEC << "s (CPU)" << std::endl;
+
+				goicp.clearBasic();
+				delete[] pModel;
+				delete[] pData;
+				return FusionResults();
+			}
+/*
 			if(i == 0){
-				for(float current_MSEThresh = 1.0; current_MSEThresh >= 0.01; current_MSEThresh *= 0.1){
+				for(float current_MSEThresh = 0.1; current_MSEThresh >= 0.01; current_MSEThresh *= 0.1){
 					goicp.prove_optimal = true;
 					goicp.MSEThresh = current_MSEThresh;//0.001;
 					goicp.InitializeData();
@@ -392,6 +409,7 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 				goicp.clearData();
 				goicp.clearModel();
 			}
+			*/
 			//cout << "inner Optimal Rotation Matrix:" << endl;
 			//cout << goicp.optR << endl;
 			//cout << "inner Optimal Translation Vector:" << endl;
@@ -509,7 +527,7 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 
 	std::vector<double> total_dweight;
 	total_dweight.resize(d_nr_data);
-	if(visualizationLvl >= 2){show(X,Xn,Y,N);}
+//	if(visualizationLvl >= 2){show(X,Xn,Y,N);}
 
 	/// ICP
 	//for(int icp=0; icp < 50; ++icp) {
@@ -531,7 +549,7 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 				rangeW(i) = 1.0/(1.0/SRC_INORMATION(i)+1.0/DST_INORMATION(id));
 			}
 
-
+func->debugg_print = false;
 
 			for(int outer=0; outer< 3; ++outer) {
 				/// Compute weights
@@ -547,9 +565,8 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 					default:  			{printf("type not set\n");} break;
 				}
 
-
-				for(int inner=0; inner< 2; ++inner) {
-
+//exit(0);
+				for(int inner=0; inner< 5; ++inner) {
 					//printf("funcupdate: %i rematching: %i  outer: %i inner: %i\n",funcupdate,rematching,outer,inner);
 					//printf("icp: %i outer: %i inner: %i ",icp,outer,inner);
 					if(inner != 0){
@@ -598,13 +615,13 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 					Xo1 = X;
 					if(stop1 < stop) break;
 				}
-
+//if(visualizationLvl >= 2){show(X,Xn,Y,N);}
 				double stop2 = (X-Xo2).colwise().norm().maxCoeff();
 				//printf("stop: %f stop2: %f\n",stop,stop2);
 				Xo2 = X;
 				if(stop2 < stop) break;
 			}
-
+//if(visualizationLvl >= 2){show(X,Xn,Y,N);}
 			double stop3 = (X-Xo3).colwise().norm().maxCoeff();
 			//printf("stop: %f stop3: %f\n",stop,stop3);
 			Xo3 = X;
@@ -614,17 +631,16 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 		//if(visualizationLvl >= 2){show(X,Xn,Y,N);}
 /*
 		func->update();
-
 		double stop4 = (X-Xo4).colwise().norm().maxCoeff();
 		Xo4 = X;
 		if(stop4 < stop && funcupdate > 25) break;
-		*/
-
-		func->debugg_print = true;
+*/
+//if(visualizationLvl >= 2){show(X,Xn,Y,N);}
+		//func->debugg_print = true;
 		double noise_before = func->getNoise();
 		func->update();
 		double noise_after = func->getNoise();
-		func->debugg_print = false;
+		//func->debugg_print = false;
 		//printf("before: %5.5f after: %5.5f relative size: %5.5f\n",noise_before,noise_after,noise_after/noise_before);
 		if(fabs(1.0 - noise_after/noise_before) < 0.01){break;}
 	}
@@ -660,7 +676,7 @@ if(visualizationLvl >= 2){show(X,Xn,Y,N);}
 
 	//clock_t clockEnd3 = clock();
 	//std::cout << (double)(clockEnd3 - clockBegin3)/CLOCKS_PER_SEC << "s (CPU)" << std::endl;
-
+//exit(0);
 	return FusionResults(np,score);
 }
 

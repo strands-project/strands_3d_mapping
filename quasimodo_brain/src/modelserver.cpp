@@ -95,8 +95,8 @@ void show_sorted(){
 		sprintf(buf,"cloud%i",i);
 		viewer->addPointCloud<pcl::PointXYZRGB> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cloud), buf);
 	}
-	//viewer->spin();
-	if(savecounter % 5 == 0){viewer->spin();}
+	viewer->spin();
+	//if(savecounter % 5 == 0){viewer->spin();}
 	char buf [1024];
 	sprintf(buf,"globalimg%i.png",savecounter++);
 	viewer->saveScreenshot(std::string(buf));
@@ -277,7 +277,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 		for (int i = 0; i < num_threads; ++i) {
 			reglib::Model * model2 = res[i];
 			reglib::FusionResults fr = fr_res[i];
-			if(fr.score > 800){
+			if(fr.score > 100){
 				fr.guess = fr.guess.inverse();
 
 				fr2merge.push_back(fr);
@@ -293,11 +293,11 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 			reglib::RegistrationGOICP *	reg		= new reglib::RegistrationGOICP();
 			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
 			mu->viewer							= viewer;
-			reg->visualizationLvl				= 2;
+			reg->visualizationLvl				= 1;
 
 			reglib::FusionResults fr = mu->registerModel(model);
 
-			if(fr.score > 800){
+			if(fr.score > 100){
 				fr.guess = fr.guess.inverse();
 
 				fr2merge.push_back(fr);

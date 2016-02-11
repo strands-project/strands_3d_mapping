@@ -36,7 +36,9 @@ MassRegistrationPPR::MassRegistrationPPR(double startreg, bool visualize){
 	normalize_matchweights	= true;
 	
 	DistanceWeightFunction2PPR * dwf = new DistanceWeightFunction2PPR();
+	dwf->update_size = true;
 	dwf->startreg = startreg;
+	dwf->debugg_print = false;
 	func					= dwf;
 
 	if(visualize){
@@ -825,7 +827,7 @@ view->initCameraParameters ();
 		//sprintf(buf,"image%5.5i.png",imgcount++);
 		//show(Xv,true,std::string(buf),imgcount);
 
-		func->debugg_print = true;
+		func->debugg_print = false;
 		double noise_before = func->getNoise();
 		func->update();
 		double noise_after = func->getNoise();

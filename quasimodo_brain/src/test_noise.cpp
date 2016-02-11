@@ -116,12 +116,12 @@ void align(DistanceWeightFunction2 * func, Eigen::Matrix3Xd & X, Eigen::Matrix3X
 	Eigen::VectorXd  W		= Eigen::VectorXd::Zero(	X.cols());
 	func->reset();
 	for(int i=0; i< 50; ++i) {
-		for(int j=0; j< 30; ++j) {
+		for(int j=0; j< 10; ++j) {
 			residuals = X-Qp;
 			func->computeModel(residuals);
 
 			for(int k=0; k< 30; ++k) {
-				//printf("i:%i j:%i k:%i\n",i,j,k);
+
 				if(k != 0){residuals = X-Qp;}
 				W = func->getProbs(residuals);
 
@@ -131,7 +131,9 @@ void align(DistanceWeightFunction2 * func, Eigen::Matrix3Xd & X, Eigen::Matrix3X
 				double stop1 = (X-Xo1).colwise().norm().maxCoeff();
 				Xo1 = X;
 				stop = func->getConvergenceThreshold();
-				//printf("stop: %10.10f stop1: %10.10f\n",stop,stop1);
+
+				printf("i:%i j:%i k:%i ",i,j,k);
+				printf("stop: %10.10f stop1: %10.10f\n",stop,stop1);
 				if(stop1 < stop) break;
 			}
 			double stop2 = (X-Xo2).colwise().norm().maxCoeff();
@@ -153,8 +155,39 @@ double getTime(){
 	return double(start1.tv_sec+(start1.tv_usec/1000000.0));
 }
 
+double phi(double x)
+{
+	// constants
+	double a1 =  0.254829592;
+	double a2 = -0.284496736;
+	double a3 =  1.421413741;
+	double a4 = -1.453152027;
+	double a5 =  1.061405429;
+	double p  =  0.3275911;
+
+	// Save the sign of x
+	int sign = 1;
+	if (x < 0)
+		sign = -1;
+	x = fabs(x)/sqrt(2.0);
+
+	// A&S formula 7.1.26
+	double t = 1.0/(1.0 + p*x);
+	double y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*exp(-x*x);
+
+	return 0.5*(1.0 + sign*y);
+}
+
+
 int main(int argc, char **argv){
-	int size = 100;
+/*
+	for(double i = 1; i <= 10; i++){
+		double diff = 1-(phi(i)-phi(-i));
+		printf("%f -> %15.15f -> %15.15f\n",i,diff,log10(diff));
+	}
+exit(0);
+*/
+	int size = 10;
 	int cols = 1000;
 
 	double overall_scale = 1.0;
@@ -172,45 +205,67 @@ int main(int argc, char **argv){
 	//funcs.push_back(new DistanceWeightFunction2());
 	//funcs.back()->f = PNORM; funcs.back()->p = 2.0;
 
-	funcs.push_back(new DistanceWeightFunction2());
-	funcs.back()->f = NONE;	funcs.back()->p = 0.1;			funcs.back()->convergence_threshold = 0.00001*noise;
-
+	//funcs.push_back(new DistanceWeightFunction2());
+	//funcs.back()->f = NONE;	funcs.back()->p = 0.1;			funcs.back()->convergence_threshold = 0.00001*noise;
+/*
 	funcs.push_back(new DistanceWeightFunction2());
 	funcs.back()->f = PNORM;	funcs.back()->p = 0.1;		funcs.back()->convergence_threshold = 0.0001*noise;
 
 	funcs.push_back(new DistanceWeightFunction2());
-	funcs.back()->f = THRESHOLD; funcs.back()->p = noise*4; funcs.back()->convergence_threshold = 0.0001*noise;
+	funcs.back()->f = PNORM;	funcs.back()->p = 0.5;		funcs.back()->convergence_threshold = 0.0001*noise;
+
 	funcs.push_back(new DistanceWeightFunction2());
-	funcs.back()->f = THRESHOLD; funcs.back()->p = noise*3; funcs.back()->convergence_threshold = 0.0001*noise;
+	funcs.back()->f = PNORM;	funcs.back()->p = 1.0;		funcs.back()->convergence_threshold = 0.0001*noise;
+*/
+	//funcs.push_back(new DistanceWeightFunction2());
+	//funcs.back()->f = THRESHOLD; funcs.back()->p = noise*4; funcs.back()->convergence_threshold = 0.0001*noise;
+	//funcs.push_back(new DistanceWeightFunction2());
+	//funcs.back()->f = THRESHOLD; funcs.back()->p = noise*3; funcs.back()->convergence_threshold = 0.0001*noise;
+
 	//for(double i = 0.01; i < 5; i++){
-	for(double i = 4.0; i < 5; i++){
+	//for(double i = 4.0; i < 5; i++){
+	for(double j = 0.001; j <= 1; j*=10.0){
+		for(double i = 0.01; i < 1000; i*=100){
+			//DistanceWeightFunction2PPR * ppr = new DistanceWeightFunction2PPR(overall_scale*1.0,1000);
+/*
+			DistanceWeightFunction2PPR * ppr = new DistanceWeightFunction2PPR(overall_scale*i,1000);
+			ppr->startreg			= overall_scale*0.00;
+			//ppr->blurval			= i;
+			ppr->stdval				= 100;
+			ppr->stdgrow			= 1.0;
+			ppr->noiseval			= 100.0;
+			ppr->debugg_print		= false;
+			ppr->threshold			= false;
+			ppr->uniform_bias		= false;
+			ppr->scale_convergence	= true;
+			//ppr->convergence_threshold = 0.05;
+			ppr->convergence_threshold = 0.5;
 
-		DistanceWeightFunction2PPR * ppr = new DistanceWeightFunction2PPR(overall_scale*1.0,1000);
-		ppr->startreg			= overall_scale*0.00;
-		ppr->blurval			= i;
-		ppr->stdval				= 100;
-		ppr->stdgrow			= 1.0;
-		ppr->noiseval			= 100.0;
-		ppr->debugg_print		= false;
-		ppr->threshold			= false;
-		ppr->uniform_bias		= false;
-		ppr->scale_convergence	= true;
-		ppr->convergence_threshold = 0.05;
-		funcs.push_back(ppr);
+			ppr->update_size = false;
+			ppr->noiseval = ppr->maxd;
+			ppr->meanoffset = std::max(0.0,(ppr->maxd - ppr->regularization - ppr->noiseval)/ppr->target_length);
 
-		DistanceWeightFunction2PPR * ppr2 = new DistanceWeightFunction2PPR(overall_scale*1.0,1000);
-		ppr2->startreg			= overall_scale*0.05;
-		ppr2->blurval			= i;
-		ppr2->stdval			= 100;//ppr->blurval;
-		ppr2->stdgrow			= 1.0;
-		ppr2->noiseval			= 100.0;
-		ppr2->debugg_print		= false;
-		ppr2->threshold			= false;
-		ppr2->uniform_bias		= false;
-		ppr2->convergence_threshold = 0.05;
-		ppr2->scale_convergence	= true;
-		funcs.push_back(ppr2);
+			//funcs.push_back(ppr);
+*/
+			//DistanceWeightFunction2PPR * ppr2 = new DistanceWeightFunction2PPR(overall_scale*1.0,1000);
+			DistanceWeightFunction2PPR * ppr2 = new DistanceWeightFunction2PPR(overall_scale*i,1000);
+			ppr2->startreg			= overall_scale*j;
+			//ppr2->blurval			= i;
+			ppr2->stdval			= 100;//ppr->blurval;
+			ppr2->stdgrow			= 1.0;
+			ppr2->noiseval			= 100.0;
+			ppr2->debugg_print		= false;
+			ppr2->threshold			= false;
+			ppr2->uniform_bias		= false;
+			ppr2->convergence_threshold = 0.05;
+			ppr2->scale_convergence	= true;
 
+			ppr2->update_size = true;
+			ppr2->noiseval = ppr2->maxd;
+			ppr2->meanoffset = std::max(0.0,(ppr2->maxd - ppr2->regularization - ppr2->noiseval)/ppr2->target_length);
+			funcs.push_back(ppr2);
+
+		}
 	}
 
 	//funcs.back()->f = THRESHOLD; funcs.back()->p = noise*4;
@@ -240,7 +295,7 @@ int main(int argc, char **argv){
 		double angle1 = double(i);double angle2 = 0;double angle3 = 0;
 		double t1 = double(i*0.00);double t2 = 0;double t3 = 0;
 */
-	for(int i = 0; i <= 100; i+=1){
+	for(int i = 0; i <= 40; i+=25){
 		double angle1 = double(0);double angle2 = 0;double angle3 = 0;
 		double t1 = double(i*0.01);double t2 = 0;	double t3 = 0;
 
@@ -253,8 +308,8 @@ int main(int argc, char **argv){
 
 		transformations.push_back(transformation);
 	}
-
-	for(int i = 0; i <= 180; i+=2){
+/*
+	for(int i = 0; i <= 180; i+=20){
 		double angle1 = double(i);double angle2 = 0;double angle3 = 0;
 		double t1 = double(0);double t2 = 0;	double t3 = 0;
 
@@ -267,7 +322,7 @@ int main(int argc, char **argv){
 
 		transformations.push_back(transformation);
 	}
-
+*/
 	double optimal = 0;
 	vector< vector< double > > results;
 	vector< vector< double > > times;
@@ -300,6 +355,7 @@ int main(int argc, char **argv){
 	}
 
 	for(int i = 0; i < size; i++){
+		printf("%i / %i\n",i,size);
 		Matrix3Xd measurements_tmp	= overall_scale * measurements[i];
 		Matrix3Xd gt_tmp			= overall_scale * gt[i];
 		//printf("start L2:\n");
@@ -323,6 +379,7 @@ int main(int argc, char **argv){
 			for(int j = 0; j < funcs.size(); j++){
 				Matrix3Xd measurements_full_tmp = overall_scale*measurements_full_trans;
 
+				printf("%i %i %i / %i %i %i\n",i,k,j,size,transformations.size(),funcs.size());
 				//cout << measurements_full_tmp << endl << endl;
 				double start = getTime();
 				align(funcs[j], measurements_full_tmp, gt_full);
@@ -334,6 +391,8 @@ int main(int argc, char **argv){
 				times[j][k] += stop;//-start;
 				all_results[j][k][i] = rms-opt_rms;
 				all_times[j][k][i] = stop;//-start;
+
+				//if(stop > 1){exit(0);}
 
 				//printf("getNoise: %f\n",funcs[j]->getNoise());
 				//printf("%f += %f - %f (%f)\n",times[j],stop,start,stop-start);

@@ -76,6 +76,7 @@ class superpoint{
 		void addFrameToModel(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d p);
 		CloudData * getCD(unsigned int target_points = 2000);
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr getPCLcloud(int step = 5, bool color = true);
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr getPCLnormalcloud(int step = 5, bool color = true);
 	};
 
 }

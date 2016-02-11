@@ -1,4 +1,4 @@
-#include "ModelDatabase/ModelDatabaseRetrieval.h"
+#include "ModelDatabaseRetrieval.h"
 
 #include <dynamic_object_retrieval/dynamic_retrieval.h>
 #include <dynamic_object_retrieval/visualize.h>
@@ -17,11 +17,11 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
                                    (float[250], histogram, histogram)
 )
 
-ModelDatabaseRetrieval::ModelDatabaseRetrieval() : vt_features()
+ModelDatabaseRetrieval::ModelDatabaseRetrieval(std::string vpath) : vt_features()
 {
     // actually, maybe we should just add some features to the vocabulary so it's not empty, like load an old vocabulary?
     // good idea
-    boost::filesystem::path vocabulary_path("/home/nbore/Data/KTH/vocabulary_johan");
+	boost::filesystem::path vocabulary_path(vpath);
     dynamic_object_retrieval::load_vocabulary(vt, vocabulary_path);
     vt.set_min_match_depth(3);
     vt.compute_normalizing_constants();
@@ -29,6 +29,34 @@ ModelDatabaseRetrieval::ModelDatabaseRetrieval() : vt_features()
 }
 
 ModelDatabaseRetrieval::~ModelDatabaseRetrieval(){}
+
+void ModelDatabaseRetrieval::add(reglib::Model * model){
+	models.push_back(model);
+	printf("number of models: %i\n",models.size());
+}
+
+bool ModelDatabaseRetrieval::remove(reglib::Model * model){
+	for(unsigned int i = 0; i < models.size(); i++){
+		if(models[i] == model){
+			models[i] = models.back();
+			models.pop_back();
+			return true;
+		}
+	}
+	return false;
+}
+
+std::vector<reglib::Model *> ModelDatabaseRetrieval::search(reglib::Model * model, int number_of_matches){
+	std::vector<reglib::Model *> ret;
+		for(unsigned int i = 0; i < models.size(); i++){
+		if(models[i] != model){
+			ret.push_back(models[i]);
+		}
+		if(ret.size() == number_of_matches){break;}
+	}
+	return ret;
+}
+
 
 //Add pointcloud to database, return index number in database, weight is the bias of the system to perfer this object when searching
 int ModelDatabaseRetrieval::add(pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud, double weight)

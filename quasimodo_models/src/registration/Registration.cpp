@@ -66,10 +66,10 @@ void Registration::show(Eigen::MatrixXd X, Eigen::MatrixXd Xn, Eigen::MatrixXd Y
 	for(unsigned int i = 0; i < s_nr_data; i++){pcl::Normal p;p.normal_x = Xn(0,i);p.normal_y = Xn(1,i);p.normal_z = Xn(2,i);sNcloud->points.push_back(p);}
 	for(unsigned int i = 0; i < d_nr_data; i++){pcl::Normal p;p.normal_x = Yn(0,i);p.normal_y = Yn(1,i);p.normal_z = Yn(2,i);dNcloud->points.push_back(p);}
 	viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
-	viewer->addPointCloudNormals<pcl::PointXYZRGBNormal, pcl::Normal> (scloud, sNcloud, 100, 0.2, "sNcloud");
+	//viewer->addPointCloudNormals<pcl::PointXYZRGBNormal, pcl::Normal> (scloud, sNcloud, 100, 0.2, "sNcloud");
 
 	viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
-	viewer->addPointCloudNormals<pcl::PointXYZRGBNormal, pcl::Normal> (dcloud, dNcloud, 100, 0.2, "dNcloud");
+	//viewer->addPointCloudNormals<pcl::PointXYZRGBNormal, pcl::Normal> (dcloud, dNcloud, 100, 0.2, "dNcloud");
 	//printf("pre\n");
 	viewer->spin();
 	//printf("post\n");

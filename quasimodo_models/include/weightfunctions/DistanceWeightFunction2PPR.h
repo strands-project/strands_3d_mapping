@@ -24,6 +24,9 @@ class DistanceWeightFunction2PPR : public DistanceWeightFunction2
 {
 public:
 	double stdval;
+	double mulval;
+	double meanval;
+
 	double maxd;
 	int histogram_size;
 	double blurval;
@@ -31,6 +34,13 @@ public:
 
 	double noiseval;
 	double startreg;
+
+	bool update_size;
+	double target_length;
+	double data_per_bin;
+	double meanoffset;
+
+	double start_maxd;
 	
 	std::vector<float> prob;
 	std::vector<float> histogram;

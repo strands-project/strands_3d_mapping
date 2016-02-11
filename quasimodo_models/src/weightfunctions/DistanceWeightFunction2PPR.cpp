@@ -3,6 +3,9 @@
 namespace reglib{
 
 DistanceWeightFunction2PPR::DistanceWeightFunction2PPR(	double maxd_, int histogram_size_){
+	update_size = true;
+
+	start_maxd = maxd_;
 	regularization		= 0.1;
 	maxd 				= maxd_;
 	histogram_size		= histogram_size_;
@@ -20,14 +23,43 @@ DistanceWeightFunction2PPR::DistanceWeightFunction2PPR(	double maxd_, int histog
 	blur_histogram.resize(histogram_size+1);
 	noise.resize(histogram_size+1);
 
-	startreg = 0.05;
+	startreg = regularization;
+	noiseval = maxd_;
+
+
+
 	threshold = false;
 	uniform_bias = true;
 	debugg_print = false;
 	scale_convergence = true;
 	nr_inliers = 1;
+
+	update_size = true;
+	target_length = 5.0;
+	data_per_bin = 10;
+
+	meanoffset = std::max(0.0,(maxd_ -regularization -noiseval)/target_length);
 }
 DistanceWeightFunction2PPR::~DistanceWeightFunction2PPR(){}
+
+inline double exp1(double x) {
+  x = 1.0 + x / 256.0;
+  x *= x; x *= x; x *= x; x *= x;
+  x *= x; x *= x; x *= x; x *= x;
+  return x;
+}
+
+inline double exp2(double x) {
+  x = 1.0 + x / 1024;
+  x *= x; x *= x; x *= x; x *= x;
+  x *= x; x *= x; x *= x; x *= x;
+  x *= x; x *= x;
+  return x;
+}
+
+inline double usedExp(double x){
+	return exp(x);
+}
 
 class Gaussian {
 	public:
@@ -46,7 +78,7 @@ class Gaussian {
 	
 	double getval(double x){
 		double dx = mean-x;
-		return mul*exp(dx*dx*scaledinformation);
+		return mul*usedExp(dx*dx*scaledinformation);
 	}
 };
 
@@ -58,7 +90,7 @@ class gaussian2 {
 		if(mul_ > 0){
 			double dx = x_-mean_;
 			residuals[0]  = 0;
-			residuals[0] += mul_*exp(-0.5*dx*dx/(stddiv*stddiv));
+			residuals[0] += mul_*usedExp(-0.5*dx*dx/(stddiv*stddiv));
 			residuals[0] -= y_;
 			if(residuals[0] > 0){	residuals[0] =  sqrt( 5.0*residuals[0]);}
 			else{					residuals[0] = -sqrt(-residuals[0]);}
@@ -88,7 +120,7 @@ void blurHistogram(std::vector<float> & blur_hist,  std::vector<float> & hist, f
 	double info = -0.5/(stdval*stdval);
 	
 	double weights[nr_data];
-	for(int i = 0; i < nr_data; i++){weights[i] = exp(i*i*info);}
+	for(int i = 0; i < nr_data; i++){weights[i] = usedExp(i*i*info);}
 	
 	int offset = 3.0*stdval;
 	offset = std::max(3,offset);
@@ -99,7 +131,7 @@ void blurHistogram(std::vector<float> & blur_hist,  std::vector<float> & hist, f
 		int start	= std::max(0,i-offset);
 		int stop	= std::min(nr_data,i+offset+1);
 		for(int j = start; j < stop; j++){
-			double w = weights[abs(i-j)];//exp(dx*dx*info);
+			double w = weights[abs(i-j)];//usedExp(dx*dx*info);
 			double v = hist[j];
 			sumV += w*v;
 			sumW += w;
@@ -109,48 +141,53 @@ void blurHistogram(std::vector<float> & blur_hist,  std::vector<float> & hist, f
 }
 
 
+const double step_h = 0.00001;
+const unsigned int step_iter = 20;
+const double cutoff_exp = -12;
+
 double scoreCurrent(double bias, double mul, double mean, double stddiv, std::vector<float> & X, std::vector<float> & Y, unsigned int nr_data){
 	double info = -0.5/(stddiv*stddiv);
 	double sum = 0;
+	double sum2 = 0;
 	for(unsigned int i = 0; i < nr_data; i++){
 		double dx = X[i] - mean;
-		double diff = mul*exp(info*dx*dx) - Y[i] - bias;
-		if(diff > 0){
-			sum += 3.0*diff;
+		double inp = info*dx*dx;
+		if(inp < cutoff_exp){
+			sum += Y[i];
 		}else{
-			sum -= diff;//*diff;
+			double diff = mul*usedExp(info*dx*dx) - Y[i];
+			if(diff > 0){
+				sum += 3.0*diff;
+			}else{
+				sum -= diff;//*diff;
+			}
 		}
 	}
 	return sum;
 }
 
+
+
 double fitStdval(double bias, double mul, double mean, std::vector<float> & X, std::vector<float> & Y, unsigned int nr_data){
 	int iter = 25;
-	double h = 0.000000001;
 
 	double ysum = 0;
-	for(unsigned int i = 0; i < nr_data; i++){
-		ysum += fabs(Y[i]);
-	}
+	for(unsigned int i = 0; i < nr_data; i++){ysum += fabs(Y[i]);}
 
 	double std_mid = 0;
-	for(unsigned int i = 0; i < nr_data; i++){
-		std_mid += (X[i]-mean)*(X[i]-mean)*fabs(Y[i]-bias)/ysum;
-	}
+	for(unsigned int i = 0; i < nr_data; i++){std_mid += (X[i]-mean)*(X[i]-mean)*fabs(Y[i]-bias)/ysum;}
+
 	std_mid = sqrt(std_mid);
 	double std_max = std_mid*2;
 	double std_min = 0;
 
-	for(int i = 0; i < iter; i++){
+	for(int i = 0; i < step_iter; i++){
 		std_mid = (std_max+std_min)/2;
-		double std_neg = scoreCurrent(bias,mul,mean,std_mid-h,X,Y,nr_data);
-		double std_pos = scoreCurrent(bias,mul,mean,std_mid+h,X,Y,nr_data);
+		double std_neg = scoreCurrent(bias,mul,mean,std_mid-step_h,X,Y,nr_data);
+		double std_pos = scoreCurrent(bias,mul,mean,std_mid+step_h,X,Y,nr_data);
 
-		if(std_neg < std_pos){
-			std_max = std_mid;
-		}else{
-			std_min = std_mid;
-		}
+		if(std_neg < std_pos){	std_max = std_mid;}
+		else{					std_min = std_mid;}
 	}
 	return std_mid;
 }
@@ -165,14 +202,11 @@ double fitBias(double bias, double mul, double mean, double std_mid, std::vector
 
 	for(int i = 0; i < iter; i++){
 		bias = (bias_max+bias_min)/2;
-		double std_neg = scoreCurrent(bias-h,mul,mean,std_mid,X,Y,nr_data);
-		double std_pos = scoreCurrent(bias+h,mul,mean,std_mid,X,Y,nr_data);
+		double std_neg = scoreCurrent(bias-step_h,mul,mean,std_mid,X,Y,nr_data);
+		double std_pos = scoreCurrent(bias+step_h,mul,mean,std_mid,X,Y,nr_data);
 
-		if(std_neg < std_pos){
-			bias_max = bias;
-		}else{
-			bias_min = bias;
-		}
+		if(std_neg < std_pos){	bias_max = bias;}
+		else{					bias_min = bias;}
 	}
 	return bias;
 }
@@ -183,17 +217,13 @@ double fitMean(double bias,double mul, double mean, double std_mid, std::vector<
 	double mean_max = mean*2;
 	double mean_min = 0;
 
-	for(int i = 0; i < iter; i++){
+	for(int i = 0; i < step_iter; i++){
 		mean = (mean_max+mean_min)/2;
-		double std_neg = scoreCurrent(bias,mul,mean-h,std_mid,X,Y,nr_data);
-		double std_pos = scoreCurrent(bias,mul,mean+h,std_mid,X,Y,nr_data);
+		double std_neg = scoreCurrent(bias,mul,mean-step_h,std_mid,X,Y,nr_data);
+		double std_pos = scoreCurrent(bias,mul,mean+step_h,std_mid,X,Y,nr_data);
 
-		if(std_neg < std_pos){
-			mean_max = mean;
-		}else{
-			mean_min = mean;
-		}
-		//printf("max: %f min: %f\n",mean_max,mean_min);
+		if(std_neg < std_pos){	mean_max = mean;}
+		else{					mean_min = mean;}
 	}
 	return mean;
 }
@@ -204,17 +234,13 @@ double fitMul(double bias, double mul, double mean, double std_mid, std::vector<
 	double mul_max = mul*2;
 	double mul_min = 0;
 
-	for(int i = 0; i < iter; i++){
+	for(int i = 0; i < step_iter; i++){
 		mul = (mul_max+mul_min)/2;
-		double std_neg = scoreCurrent(bias,mul-h,mean,std_mid,X,Y,nr_data);
-		double std_pos = scoreCurrent(bias,mul+h,mean,std_mid,X,Y,nr_data);
+		double std_neg = scoreCurrent(bias,mul-step_h,mean,std_mid,X,Y,nr_data);
+		double std_pos = scoreCurrent(bias,mul+step_h,mean,std_mid,X,Y,nr_data);
 
-		if(std_neg < std_pos){
-			mul_max = mul;
-		}else{
-			mul_min = mul;
-		}
-		//printf("max: %f min: %f\n",mul_max,mul_min);
+		if(std_neg < std_pos){	mul_max = mul;}
+		else{					mul_min = mul;}
 	}
 	return mul;
 }
@@ -251,68 +277,59 @@ Gaussian getModel(double & stdval,std::vector<float> & hist, bool uniform_bias){
 		bias /= nr_data_opt;
 	}
 
-	for(int i = 0; i < 3; i++){
-		if(uniform_bias){
-			bias = fitStdval(bias, mul,mean,X,Y,nr_data_opt);
-			//printf("%i -> %f\n",i,scoreCurrent(bias,mul,mean,stdval,X,Y,nr_data_opt));
-			//printf("%f %f %f %f\n",bias,mul,mean,stdval);
-		}
+	for(int i = 0; i < 1; i++){
+		//if(uniform_bias){bias = fitStdval(bias, mul,mean,X,Y,nr_data_opt);}
 		stdval = fitStdval(bias, mul,mean,X,Y,nr_data_opt);
-		//printf("%i -> %f\n",i,scoreCurrent(bias,mul,mean,stdval,X,Y,nr_data_opt));
-		mean = fitMean(bias, mul,mean,stdval,X,Y,nr_data_opt);
-		//printf("%i -> %f\n",i,scoreCurrent(bias,mul,mean,stdval,X,Y,nr_data_opt));
-		mul = fitMul(bias, mul,mean,stdval,X,Y,nr_data_opt);
-		//printf("%f %f %f %f\n",bias,mul,mean,stdval);
-		//printf("%i -> %f\n",i,scoreCurrent(bias,mul,mean,stdval,X,Y,nr_data_opt));
-	}
-	//exit(0);
-
-	/*
-
-	
-	Problem problem;
-	Solver::Options options;
-	options.max_num_iterations = 100;
-	options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;//SPARSE_QR;
-	options.minimizer_progress_to_stdout = false;
-	options.function_tolerance = 0.00000001;
-	for(unsigned int k = 0; k < nr_bins; k++){
-		if(hist[k]  > mul*0.01){
-			printf("k:%i hist:%f\n",k,hist[k]);
-			CostFunction* cost_function = new ceres::NumericDiffCostFunction<gaussian2, ceres::CENTRAL, 1, 1>(new gaussian2(mean,mul,k,hist[k]));
-			problem.AddResidualBlock(cost_function,NULL,&stdval);
-		}
+		//mean = fitMean(bias, mul,mean,stdval,X,Y,nr_data_opt);
+		//mul = fitMul(bias, mul,mean,stdval,X,Y,nr_data_opt);
 	}
 
-	printf("stdval: %f\n",stdval);
-	Solver::Summary summary;
-	options.minimizer_progress_to_stdout = true;
-	Solve(options, &problem, &summary);
-	std::cout << summary.BriefReport() << "\n";
-
-	stdval = fabs(stdval);
-*/
-//	printf("stdval: %f\n",stdval);
 	return Gaussian(mul,mean,stdval);
 }
 
 double DistanceWeightFunction2PPR::getNoise(){return regularization+noiseval;}// + stdval*double(histogram_size)/maxd;}
 
 void DistanceWeightFunction2PPR::computeModel(MatrixXd mat){
-	//printf("start DistanceWeightFunction2PPR::computeModel\n");
-	//if(debugg_print){printf("start DistanceWeightFunction2PPR::computeModel\n");}
+//printf("void DistanceWeightFunction2PPR::computeModel(MatrixXd mat)\n");
+
 	const unsigned int nr_data = mat.cols();
 	const int nr_dim = mat.rows();
-	//if(debugg_print){printf("dims: %i %i\n",nr_data,nr_dim);}
-	//if(debugg_print){printf("histogram_size: %i\n",histogram_size);exit(0);}
 	double start_time = getCurrentTime2();
+
+
+	if(update_size){
+		maxd = (getNoise()+meanoffset)*target_length;
+	}
+
+	int nr_inside = 0;
+	for(unsigned int j = 0; j < nr_data; j++){
+		for(int k = 0; k < nr_dim; k++){
+			if(fabs(mat(k,j)) < maxd){nr_inside++;}
+		}
+	}
+
+	if(update_size){
+		histogram_size = std::min(int(prob.size()),std::max(10,std::min(1000,int(float(nr_inside)/data_per_bin))));
+		blurval = 0.01*double(histogram_size);
+	}
+
+	//printf("maxd %f histogram_size: %i blurval %f\n",maxd,histogram_size,blurval);
+
 	const float histogram_mul = float(histogram_size)/maxd;
+/*
+	for(unsigned int j = 0; j < nr_data; j++){
+		for(int k = 0; k < nr_dim; k++){
+			int ind = fabs(mat(k,j))*histogram_mul;
+			if(ind >= 0 && ind < histogram_size){histogram[ind]++;}
+		}
+	}
+*/
+
 	for(int j = 0; j < histogram_size; j++){histogram[j] = 0;}
 	for(unsigned int j = 0; j < nr_data; j++){
 		for(int k = 0; k < nr_dim; k++){
 			int ind = fabs(mat(k,j))*histogram_mul;
 			if(ind >= 0 && ind < histogram_size){histogram[ind]++;}
-			//if(debugg_print){printf("%i -> %6.6f : ratio: %6.6f histogram_size: %6.6f found: %i\n",nr_dim*j+k,fabs(mat(k,j)),fabs(mat(k,j))/maxd,float(histogram_size),ind);}
 		}
 	}
 
@@ -320,18 +337,28 @@ void DistanceWeightFunction2PPR::computeModel(MatrixXd mat){
 	blurHistogram(blur_histogram,histogram,blurval);
 	
 	Gaussian g = getModel(stdval,blur_histogram,uniform_bias);
+
+	stdval	= g.stdval;
+	mulval	= g.mul;
+	meanval	= g.mean;
+
 	noiseval = maxd*g.stdval/float(histogram_size);
-	stdval = g.stdval;
+	meanoffset = maxd*g.mean/float(histogram_size);
+
 	g.stdval += histogram_size*regularization/maxd;
 	g.update();
-
-	//printf("mul: %f mean: %f stdval: %f g.stdval: %f\n",g.mul,g.mean,stdval,g.stdval);
-	//if(debugg_print){printf("mul: %f mean: %f stdval: %f g.stdval: %f\n",g.mul,g.mean,stdval,g.stdval);}
 	
 	for(int k = 0; k < histogram_size; k++){	noise[k] = g.getval(k);}
 	
 	double maxp = 0.99;
-	
+	for(int k = 0; k < histogram_size; k++){
+		//if(k < g.mean){	prob[k] = maxp;	}
+		//else{
+			double hs = blur_histogram[k] +0.0000001;
+			prob[k] = std::min(maxp , noise[k]/hs);//never fully trust any data
+		//}
+	}
+/*
 	for(int k = 0; k < histogram_size; k++){
 		if(k < g.mean){	prob[k] = maxp;	}
 		else{
@@ -339,18 +366,48 @@ void DistanceWeightFunction2PPR::computeModel(MatrixXd mat){
 			prob[k] = std::min(maxp , noise[k]/hs);//never fully trust any data
 		}
 	}
+*/
+	double next_maxd = log2(((getNoise()+meanoffset)*target_length)/maxd);
 
 	if(debugg_print){printf("###############################################################################################################\n");}
+	if(debugg_print){printf("maxd: %f histogram_size: %i blurval: %f \n",maxd,histogram_size,blurval);}
+	if(debugg_print){printf("log2(next_maxd) %f\n",next_maxd);}
+	if(debugg_print){printf("regularization: %f\n",regularization);}
+	if(debugg_print){printf("estimated: %f\n",maxd*stdval/float(histogram_size));}
+	if(debugg_print){printf("meanoffset: %f\n",meanoffset);}
 	if(debugg_print){printf("hist = [");			for(unsigned int k = 0; k < 100 && k < histogram_size; k++){printf("%i ",int(histogram[k]));}		printf("];\n");}
 	if(debugg_print){printf("noise = [");			for(unsigned int k = 0; k < 100 && k < histogram_size; k++){printf("%i ",int(noise[k]));}			printf("];\n");}
 	if(debugg_print){printf("hist_smooth = [");		for(unsigned int k = 0; k < 100 && k < histogram_size; k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
 	if(debugg_print){printf("prob = [");			for(unsigned int k = 0; k < 100 && k < histogram_size; k++){printf("%2.2f ",prob[k]);}				printf("];\n");}
 	if(debugg_print){printf("###############################################################################################################\n");}
-	if(debugg_print){printf("end DistanceWeightFunction2PPR::computeModel\n");exit(0);}
 
+	if(update_size){
+		if(fabs(next_maxd) > 1){computeModel(mat);}
+	}
+
+	//if(debugg_print){printf("end DistanceWeightFunction2PPR::computeModel\n");exit(0);}
+/*
+	if(update_size){
+		printf("maxd: %f nr_data: %i nr_bins: %i\n",maxd,nr_data,histogram_size);
+		printf("regularization: %f\n",regularization);
+		printf("estimated: %f\n",maxd*stdval/float(histogram_size));
+		printf("nr_data: %i data_per_bin: %f estimated nr bins: %i\n",nr_data,data_per_bin,int(float(nr_data)/data_per_bin));
+		//printf("new nr_bins: %i noiseval: %f regularization: %f\n",nr_data/data_per_bin,noiseval,regularization);
+		int new_histogram_size = std::min(int(prob.size()),std::max(10,std::min(1000,int(float(nr_data)/data_per_bin))));
+		double new_maxd = getNoise()*target_length;
+		printf("new_maxd: %f\n",new_maxd);
+		printf("new_histogram_size: %i\n",new_histogram_size);
+
+	}
+	//target_length = 10.0;
+	//data_per_bin = 20;
+	exit(0);
+	*/
 }
 
 VectorXd DistanceWeightFunction2PPR::getProbs(MatrixXd mat){
+	//printf("debugg_print: %i\n",debugg_print);
+	//exit(0);
 	const unsigned int nr_data = mat.cols();
 	const int nr_dim = mat.rows();
 	const float histogram_mul = float(histogram_size)/maxd;
@@ -378,23 +435,10 @@ VectorXd DistanceWeightFunction2PPR::getProbs(MatrixXd mat){
 			weights(j) = weights(j) > 0.5;
 		}
 	}
-
-/*
-	printf("----------------------------------------------------------\n");
-	for(unsigned int j = 0; j < nr_data; j+=500){
-		printf("%6.6i -> ",j);
-		for(int k = 0; k < nr_dim; k++){printf(" %5.5f",mat(k,j));}
-		printf(" -> weight %5.5f",weights(j));
-		printf("\n");
-	}
-	printf("----------------------------------------------------------\n");
-*/
 	return weights;
 }
 
 void DistanceWeightFunction2PPR::update(){
-
-
 	//if(debugg_print){printf("###############################################################################################################\n");}
 	//if(debugg_print){printf("hist = [");			for(unsigned int k = 0; k < 100; k++){printf("%i ",int(histogram[k]));}		printf("];\n");}
 	//if(debugg_print){printf("noise = [");			for(unsigned int k = 0; k < 100; k++){printf("%i ",int(noise[k]));}			printf("];\n");}
@@ -403,87 +447,57 @@ void DistanceWeightFunction2PPR::update(){
 	//if(debugg_print){printf("###############################################################################################################\n");}
 
 	if(true || debugg_print){
-		std::vector<float> new_prob = prob;
 		std::vector<float> new_histogram = histogram;
 		std::vector<float> new_blur_histogram = blur_histogram;
-		std::vector<float> new_noise = noise;
+
 		float old_sum_prob = 0;
-		float old_sum = 0;
-		for(unsigned int k = 0; k < histogram_size; k++){
-			old_sum_prob += prob[k] * histogram[k];
-			//old_sum += histogram[k];
-		}
+		for(unsigned int k = 0; k < histogram_size; k++){old_sum_prob += prob[k] * histogram[k];}
 
-		//old_sum_prob/= old_sum;
-
-		Gaussian g = getModel(stdval,blur_histogram,uniform_bias);
+		double maxp = 0.99;
+		Gaussian g = Gaussian(mulval,meanval,stdval);//getModel(stdval,blur_histogram,uniform_bias);
 
 		int iteration = 0;
 		while(true){
-			//printf("iteration: %i regularization: %f\n",iteration,regularization);
 			iteration++;
-			//printf("running regularization loop with regularization = %6.6f\n",regularization);
 			regularization *= 0.5;
 			double change = histogram_size*regularization/maxd;
-
-			//printf("change: %f\n",change);
-
-
-
-			//if(change < 0.01*stdval){printf("break becouse of convergence\n");break;}
-			if(change < 0.01*stdval){break;}
+			if(change < 0.001*stdval){break;}
 
 			g.stdval += change;
 			g.update();
 
-			for(int k = 0; k < histogram_size; k++){	new_noise[k] = g.getval(k);}
-
-			double maxp = 0.99;
-
-			for(int k = 0; k < histogram_size; k++){
-				if(k < g.mean){	new_prob[k] = maxp;	}
-				else{
-					double hs = new_blur_histogram[k] +0.0000001;
-					new_prob[k] = std::min(maxp , new_noise[k]/hs);//never fully trust any data
-				}
-			}
-
 			float new_sum_prob = 0;
-			//float new_sum = 0;
-			for(unsigned int k = 0; k < histogram_size; k++){
-				new_sum_prob += new_prob[k] * new_histogram[k];
-				//new_sum += histogram[k];
+			for(int k = 0; k < histogram_size; k++){
+				double hs = new_blur_histogram[k] +0.0000001;
+				new_sum_prob += std::min(maxp , g.getval(k)/hs) * new_histogram[k];
 			}
 
-			//new_sum_prob/= new_sum;
-
-			//if(debugg_print){printf("hist_smooth = [");		for(unsigned int k = 0; k < 100; k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
-			//if(debugg_print){printf("prob =     [");			for(unsigned int k = 0; k < 100; k++){printf("%2.2f ",prob[k]);}				printf("];\n");}
-			//if(debugg_print){printf("new_prob = [");			for(unsigned int k = 0; k < 100; k++){printf("%2.2f ",new_prob[k]);}				printf("];\n");}
-			//if(debugg_print){printf("###############################################################################################################\n");}
-
-			//printf("new_sum_prob: %15.15f old_sum_prob: %15.15f\n",new_sum_prob,old_sum_prob);
-
-			//if(new_sum_prob < 0.95*old_sum_prob){printf("break becouse regularization had effect\n");}
-			if(new_sum_prob < 0.9999*old_sum_prob){break;}
-
+			if(new_sum_prob < 0.999*old_sum_prob){break;}
 			g.stdval -= change;
 			g.update();
-			//break;
 		}
 	}else{
 		regularization *= 0.5;
 	}
 	//exit(0);
 }
-void DistanceWeightFunction2PPR::reset(){	regularization = startreg;}
+void DistanceWeightFunction2PPR::reset(){
+	regularization = startreg;
+	noiseval = start_maxd;
+	meanoffset = std::max(0.0,(start_maxd -regularization -noiseval)/target_length);
+}
 
 std::string DistanceWeightFunction2PPR::getString(){
+	char buf [1024];
+
 	if(startreg != 0){
-		return "PPRreg";
+		sprintf(buf,"PPRreg%15.15ld",long (1000.0*start_maxd));
+		//return "PPRreg";
 	}else{
-		return "PPR";
+		sprintf(buf,"PPR%15.15ld",long (1000.0*start_maxd));
+		//return "PPR";
 	}
+	return std::string(buf);
 }
 
 double DistanceWeightFunction2PPR::getConvergenceThreshold(){
