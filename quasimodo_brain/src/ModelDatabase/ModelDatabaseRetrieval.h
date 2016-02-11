@@ -15,6 +15,7 @@ private:
     vector<HistCloudT::Ptr> vt_features;
     map<int, int> added_indices;
     int training_indices;
+    set<int> removed_indices;
 
 public:
 

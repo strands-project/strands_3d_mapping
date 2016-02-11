@@ -104,6 +104,8 @@ int ModelDatabaseRetrieval::add(pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr clo
 bool ModelDatabaseRetrieval::remove(int index)
 {
     // don't do this for now
+    removed_indices.insert(index);
+
     return false;
 }
 
@@ -129,11 +131,13 @@ std::vector<int> ModelDatabaseRetrieval::search(int index, int number_of_matches
             continue;
         }
         cout << "Accessing added cloud at vt index: " << r.index << endl;
-        rtn.push_back(added_indices[r.index]);
+        int return_index = added_indices[r.index];
+        if (removed_indices.count(return_index) == 0) {
+            rtn.push_back(return_index);
+        }
     }
 
     cout << "Filtered out only the added cloud, got " << rtn.size() << " clouds!" << endl;
 
     return rtn;
 }
-
