@@ -5,26 +5,26 @@
 #include <iostream>
 #include <fstream>
 
-#include "g2o/core/optimizable_graph.h"
-#include "g2o/core/sparse_optimizer.h"
-#include "g2o/core/block_solver.h"
-#include "g2o/core/optimization_algorithm_gauss_newton.h"
-#include "g2o/core/optimization_algorithm_levenberg.h"
-#include "g2o/solvers/pcg/linear_solver_pcg.h"
+// #include "g2o/core/optimizable_graph.h"
+// #include "g2o/core/sparse_optimizer.h"
+// #include "g2o/core/block_solver.h"
+// #include "g2o/core/optimization_algorithm_gauss_newton.h"
+// #include "g2o/core/optimization_algorithm_levenberg.h"
+// #include "g2o/solvers/pcg/linear_solver_pcg.h"
 
-#include "g2o/core/factory.h"
+//#include "g2o/core/factory.h"
 
 //#include "g2o/config.h"
 //#include "g2o/core/base_vertex.h"
 //#include "g2o/core/hyper_graph_action.h"
 //#include "g2o/types/slam3d/isometry3d_mappings.h"
 //#include "g2o/types/slam3d/g2o_types_slam3d_api.h"
-#include "g2o/types/slam3d/vertex_se3.h"
-#include "g2o/types/slam3d/edge_se3_pointxyz.h"
-#include "g2o/types/slam3d/edge_se3.h"
+//#include "g2o/types/slam3d/vertex_se3.h"
+//#include "g2o/types/slam3d/edge_se3_pointxyz.h"
+//#include "g2o/types/slam3d/edge_se3.h"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include "g2o/core/eigen_types.h"
+//#include "g2o/core/eigen_types.h"
 
 namespace reglib
 {
@@ -34,7 +34,7 @@ MassRegistrationPPR::MassRegistrationPPR(double startreg, bool visualize){
 	use_PPR_weight			= true;
 	use_features			= true;
 	normalize_matchweights	= true;
-	
+
 	DistanceWeightFunction2PPR * dwf = new DistanceWeightFunction2PPR();
 	dwf->update_size = true;
 	dwf->startreg = startreg;
@@ -332,7 +332,7 @@ double getError0(              Eigen::MatrixBase<Derived1> X,
 }
 
 
-using namespace g2o;
+//using namespace g2o;
 
 MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses){
 	printf("start MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses)\n");
@@ -476,7 +476,7 @@ view->initCameraParameters ();
 		//printf("funcupdate: %i\n",funcupdate);
 		for(int rematching=0; rematching < 5; ++rematching) {
 			//printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
-			
+
 			if(visualizationLvl > 0){
 				std::vector<Eigen::MatrixXd> Xv;
 				for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
@@ -486,7 +486,7 @@ view->initCameraParameters ();
 			}
 
 			for(unsigned int i = 0; i < nr_frames; i++){poses1[i] = poses[i];}
-			
+
 			for(unsigned int i = 0; i < nr_frames; i++){
 				nr_matches[i] = 0;
 				for(unsigned int j = 0; j < nr_frames; j++){
