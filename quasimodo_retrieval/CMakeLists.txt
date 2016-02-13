@@ -15,7 +15,8 @@ find_package(catkin REQUIRED COMPONENTS roscpp tf sensor_msgs std_msgs image_geo
 include_directories(${catkin_INCLUDE_DIRS})
 
 # This is the root dir of https://github.com/nilsbore/dynamic_object_retrieval
-set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../dynamic_object_retrieval)
+#set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../dynamic_object_retrieval)
+set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../../../object_3d_retrieval/)
 
 # This is the main project, used for retrieval
 set(retrieval_dir ${retrieval_project_dir}/dynamic_object_retrieval)

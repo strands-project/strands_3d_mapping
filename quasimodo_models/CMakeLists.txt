@@ -14,6 +14,9 @@ find_package(catkin REQUIRED COMPONENTS
 ##################### INCLUDES ###############
 ##############################################
 
+# Temp: g2o
+#include_directories(/home/nbore/Workspace/dynamic_objects/g2o)
+
 # PCL
 find_package(PCL 1.7 REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
@@ -76,7 +79,7 @@ add_library(quasimodo_core  src/core/Camera.cpp src/core/RGBDFrame.cpp)
 target_link_libraries(quasimodo_core  ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 add_library(quasimodo_massreglib src/registration/MassRegistration.cpp src/registration/MassRegistrationPPR.cpp)
-target_link_libraries(quasimodo_massreglib quasimodo_reglib quasimodo_core g2o_cli g2o_interactive g2o_solver_cholmod g2o_solver_slam2d_linear g2o_types_sba g2o_types_slam3d_addons g2o_core g2o_interface g2o_solver_csparse g2o_solver_structure_only g2o_types_sclam2d g2o_types_slam3d g2o_csparse_extension g2o_opengl_helper g2o_solver_dense g2o_stuff g2o_types_sim3 g2o_viewer g2o_ext_freeglut_minimal g2o_parser g2o_solver_eigen g2o_types_data g2o_types_slam2d_addons g2o_incremental g2o_simulator g2o_solver_pcg g2o_types_icp g2o_types_slam2d)
+target_link_libraries(quasimodo_massreglib quasimodo_reglib quasimodo_core)# g2o_cli g2o_interactive g2o_solver_cholmod g2o_solver_slam2d_linear g2o_types_sba g2o_types_slam3d_addons g2o_core g2o_interface g2o_solver_csparse g2o_solver_structure_only g2o_types_sclam2d g2o_types_slam3d g2o_csparse_extension g2o_opengl_helper g2o_solver_dense g2o_stuff g2o_types_sim3 g2o_viewer g2o_ext_freeglut_minimal g2o_parser g2o_solver_eigen g2o_types_data g2o_types_slam2d_addons g2o_incremental g2o_simulator g2o_solver_pcg g2o_types_icp g2o_types_slam2d)
 
 add_library(quasimodo_model src/model/Model.cpp)
 target_link_libraries(quasimodo_model quasimodo_core quasimodo_reglib ${catkin_LIBRARIES})
@@ -90,5 +93,3 @@ catkin_package(
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
 )
-
-
