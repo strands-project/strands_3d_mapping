@@ -52,13 +52,18 @@ public:
 	bool scale_convergence;
 	double nr_inliers;
 
+	double maxp;
+
+	bool bidir;
+	int iter;
+
 	DistanceWeightFunction2PPR(	double maxd_	= 0.25, int histogram_size_ = 25000);
 	~DistanceWeightFunction2PPR();
 	virtual void computeModel(MatrixXd mat);
 	virtual VectorXd getProbs(MatrixXd mat);
 	virtual double getNoise();
 	virtual double getConvergenceThreshold();
-	virtual void update();
+	virtual bool update();
 	virtual void reset();
 	virtual std::string getString();
 };

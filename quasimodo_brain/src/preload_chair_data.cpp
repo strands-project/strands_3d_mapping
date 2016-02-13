@@ -61,7 +61,7 @@ int main(int argc, char** argv){
         LabelT labels = semantic_map_load_utilties::loadLabelledDataFromSingleSweep<PointT>(sweep_xml);
 		printf("sweep_xml:%s\n",sweep_xml.c_str());
 		for (int i = 0; i < labels.objectLabels.size(); ++i) {
-			if(labels.objectLabels[i].compare("chair1") == 0 || labels.objectLabels[i].compare("chair2") == 0 ){
+			if(labels.objectLabels[i].compare("chair1") == 0 /*|| labels.objectLabels[i].compare("chair2") == 0*/ ){
 				printf("doing label: %s\n",labels.objectLabels[i].c_str());
 				unsigned int frame_indice = labels.objectScanIndices[i];
 				char buff [1024];
@@ -98,7 +98,7 @@ int main(int argc, char** argv){
 				cv::waitKey(30);
 			}
 		}
-		if(rgbs.size() >= 160){break;}
+		if(rgbs.size() >= 10){break;}
 		printf("rgbs: %i\n",rgbs.size());
     }
     

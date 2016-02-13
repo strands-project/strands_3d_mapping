@@ -53,7 +53,7 @@ VectorXd DistanceWeightFunction2::getProbs(MatrixXd mat){
 }
 
 double DistanceWeightFunction2::getNoise(){return 1;}
-void DistanceWeightFunction2::update(){}
+bool DistanceWeightFunction2::update(){return true;}
 void DistanceWeightFunction2::reset(){}
 
 std::string DistanceWeightFunction2::getString(){

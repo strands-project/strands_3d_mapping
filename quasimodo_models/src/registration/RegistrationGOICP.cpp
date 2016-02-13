@@ -363,7 +363,7 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 
 			goicp.optError = 99999999999999999999999999;
 			goicp.prove_optimal = true;
-			goicp.MSEThresh = 0.01;//0.001;
+			goicp.MSEThresh = 0.1;//0.001;
 			goicp.InitializeData();
 			goicp.InitializeModel();
 			float rv = goicp.OuterBnB();

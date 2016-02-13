@@ -48,7 +48,7 @@ public:
 	virtual VectorXd getProbs(MatrixXd mat);
 	virtual double getNoise();
 	virtual double getConvergenceThreshold();
-	virtual void update();
+	virtual bool update();
 	virtual void reset();
 	virtual std::string getString();
 };

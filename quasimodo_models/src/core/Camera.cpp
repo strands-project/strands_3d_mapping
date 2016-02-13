@@ -12,7 +12,7 @@ Camera::Camera(){
 	cx = float(width-1)/2;
 	cy = float(height-1)/2;
 
-	idepth_scale = 0.001;
+	idepth_scale = 0.001/5.0;
 
 	bias = 500;
 

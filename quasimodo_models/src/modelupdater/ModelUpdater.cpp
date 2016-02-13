@@ -408,12 +408,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 					float ty	= m10*x + m11*y + m12*z + m13;
 					float tz	= m20*x + m21*y + m22*z + m23;
 					if(debugg){
-						scloud->points[src_ind].x = tx;
-						scloud->points[src_ind].y = ty;
-						scloud->points[src_ind].z = tz;
-						scloud->points[src_ind].r = 0;
-						scloud->points[src_ind].g = 0;
-						scloud->points[src_ind].b = 255;
+
 					}
 					float tnx	= m00*nx + m01*ny + m02*nz;
 					float tny	= m10*nx + m11*ny + m12*nz;
@@ -438,8 +433,21 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 							if(diff_z > 0 && diff_z2 < 0){diff_z2 *= -1;}
 							diff_z2 /= (z*z+dst_z*dst_z);//if tz < dst_z then tz infront and diff_z > 0
 
-							residuals.push_back(diff_z2);
+
+
+							residuals.push_back(diff_z);
+
+//							if(residuals.size()%1000 == 1){
+//printf("w: %5.5i h: %5.5i z: %5.5f tz: %5.5f dz: %5.5f diff: %5.5f scaled: %5.5f\n",src_w,src_h, z,tz,dst_z,(dst_z-tz),(dst_z-tz)/(z*z+dst_z*dst_z));
+//								printf("%5.5i scaled: %10.10f scaled: %10.10f\n",residuals.size(),residuals.back(),(dst_z-tz)/(z*z+dst_z*dst_z));
+//							}
 							if(debugg){
+								scloud->points[src_ind].x = tx;
+								scloud->points[src_ind].y = ty;
+								scloud->points[src_ind].z = tz+2;
+								scloud->points[src_ind].r = 0;
+								scloud->points[src_ind].g = 0;
+								scloud->points[src_ind].b = 255;
 								ws.push_back(src_w);
 								hs.push_back(src_h);
 							}
@@ -458,36 +466,78 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 				int dst_ind = dst_h*dst_width+dst_w;
 				if(true || dst_maskdata[dst_ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
 					float z = dst_idepth*float(dst_depthdata[dst_ind]);
-					if(z > 0){
+					if(z > 0){// && (dst_w%3 == 0) && (dst_h%3 == 0)){
 						float x = (float(dst_w) - dst_cx) * z * dst_ifx;
 						float y = (float(dst_h) - dst_cy) * z * dst_ify;
 						dcloud->points[dst_ind].x = x;
 						dcloud->points[dst_ind].y = y;
-						dcloud->points[dst_ind].z = z;
-						dcloud->points[dst_ind].r = 0;
-						dcloud->points[dst_ind].g = 0;
-						dcloud->points[dst_ind].b = 255;
+						dcloud->points[dst_ind].z = z+2;
+						dcloud->points[dst_ind].r = dst_rgbdata[3*dst_ind+2];
+						dcloud->points[dst_ind].g = dst_rgbdata[3*dst_ind+1];
+						dcloud->points[dst_ind].b = dst_rgbdata[3*dst_ind+0];
 					}
 				}
 			}
 		}
 	}
 
-	DistanceWeightFunction2PPR * func = new DistanceWeightFunction2PPR();
-	func->update_size = true;
-	func->startreg = 0.0001;
-	func->debugg_print = false;
+/*
+	for(unsigned int i = 0; i < residuals.size(); i+=1000){
+		float r = residuals[i];
+		printf("%5.5i -> %10.10f\n",i,r);
+	}
+*/
+	DistanceWeightFunction2PPR * func = new DistanceWeightFunction2PPR(100);
+	func->maxp			= 1.0;
+	func->update_size	= true;
+	func->startreg		= 0.0001;
+	func->debugg_print	= true;
+	func->bidir			= true;
 	func->reset();
 
 	Eigen::MatrixXd X = Eigen::MatrixXd::Zero(1,residuals.size());
-	for(int i = 0; i < residuals.size(); i++){
-		X(0,i) = residuals[i];
-	}
-
+	for(int i = 0; i < residuals.size(); i++){X(0,i) = residuals[i];}
 	func->computeModel(X);
 	Eigen::VectorXd  W = func->getProbs(X);
-	delete func;
 
+	int dbres = 500;
+	Eigen::MatrixXd X2 = Eigen::MatrixXd::Zero(1,dbres);
+	for(int i = 0; i < dbres; i++){X2(0,i) = func->maxd*double(i-dbres/2)/double(dbres/2);}
+
+	//func->computeModel(X2);
+	Eigen::VectorXd  W2 = func->getProbs(X2);
+	//printf("rscore = [");			for(unsigned int k = 0; k < dbres; k++){printf("%i ",int(W2(k)));}		printf("];\n");
+	printf("rscore = [");
+	for(unsigned int i = 0; i < dbres; i++){
+		float r = X2(0,i);
+		float weight = W2(i);
+		float ocl = 0;
+		if(r > 0){ocl += 1-weight;}
+		double score = weight-5.0*ocl;
+		printf("%5.5f ",score);
+
+	}
+	printf("];\n");
+
+	delete func;
+/*
+	for(unsigned int i = 0; i < dbres; i++){
+		float r = X2(0,i);
+		float weight = W2(i);
+		printf("i:%5.5i r:%10.10f weight:%10.10f\n",i,r,weight);
+	}
+	*/
+	//printf("rscore = [");			for(unsigned int k = 0; k < dbres; k++){printf("%i ",int(W2(k)));}		printf("];\n");
+	//delete func;
+/*
+	for(unsigned int i = 0; i < 100; i++){
+		int ind = rand()%residuals.size();
+		float r = residuals[ind];
+		float weight = W(ind);
+		printf("%5.5i %5.5i -> %10.10f %10.10f\n",i,ind,r,weight);
+	}
+*/
+//exit(0);
 	for(unsigned int i = 0; i < residuals.size(); i++){
 		float r = residuals[i];
 		float weight = W(i);
@@ -503,10 +553,16 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 			int w = ws[i];
 			int h = hs[i];
 			unsigned int src_ind = h * src_width + w;
-			if(ocl > 0 || weight > 0){
+
+
+			if(ocl > 0.01 || weight > 0.01){
 				scloud->points[src_ind].r = 255.0*ocl;
 				scloud->points[src_ind].g = 255.0*weight;
 				scloud->points[src_ind].b = 0;
+			}else{
+				scloud->points[src_ind].x = 0;
+				scloud->points[src_ind].y = 0;
+				scloud->points[src_ind].z = 0;
 			}
 			debugg_img_data[3*src_ind+0] = 0;
 			debugg_img_data[3*src_ind+1] = 255.0*weight;
@@ -848,7 +904,7 @@ vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(vector<Matri
 	scores.resize(current_frames.size());
 	for(int i = 0; i < current_frames.size(); i++){scores[i].resize(current_frames.size());}
 
-	bool debugg_scores = false;
+	bool debugg_scores = true;
 
 	for(int i = 0; i < current_frames.size(); i++){
 		for(int j = i+1; j < current_frames.size(); j++){

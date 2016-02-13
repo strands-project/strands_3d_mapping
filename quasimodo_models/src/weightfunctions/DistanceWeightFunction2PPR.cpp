@@ -35,10 +35,15 @@ DistanceWeightFunction2PPR::DistanceWeightFunction2PPR(	double maxd_, int histog
 	nr_inliers = 1;
 
 	update_size = true;
-	target_length = 5.0;
-	data_per_bin = 10;
+	target_length = 10.0;
+	data_per_bin = 15;
+
+	maxp = 0.99;
 
 	meanoffset = std::max(0.0,(maxd_ -regularization -noiseval)/target_length);
+
+	bidir = false;
+	iter = 0;
 }
 DistanceWeightFunction2PPR::~DistanceWeightFunction2PPR(){}
 
@@ -113,33 +118,97 @@ double getCurrentTime2(){
 	return t;
 }
 
-
-//multiple optimization obvious
-void blurHistogram(std::vector<float> & blur_hist,  std::vector<float> & hist, float stdval){
+void blurHistogram(std::vector<float> & blur_hist,  std::vector<float> & hist, float stdval,bool debugg_print = false){
 	int nr_data = blur_hist.size();
-	double info = -0.5/(stdval*stdval);
-	
-	double weights[nr_data];
-	for(int i = 0; i < nr_data; i++){weights[i] = usedExp(i*i*info);}
-	
-	int offset = 3.0*stdval;
-	offset = std::max(3,offset);
+	int nr_data2 = 2*nr_data;
+
+	std::vector<float> tmphist;
+	tmphist.resize(nr_data2);
+
+	std::vector<float> tmphist_blur;
+	tmphist_blur.resize(nr_data2);
 
 	for(int i = 0; i < nr_data; i++){
-		double sumV = 0;
-		double sumW = 0;
+		tmphist[i]			= hist[nr_data-1-i];
+		tmphist[nr_data+i]	= hist[i];
+		tmphist_blur[i]			= 0;
+		tmphist_blur[nr_data+i]	= 0;
+	}
+
+	double info = -0.5/(stdval*stdval);
+	double weights[nr_data2];
+	for(int i = 0; i < nr_data2; i++){
+		double current = exp(i*i*info);
+		weights[i] = current;
+	}
+
+	int offset = 4.0*stdval;
+	offset = std::max(4,offset);
+	for(int i = 0; i < nr_data2; i++){
+		double v = tmphist[i];
+		if(v == 0){continue;}
+
 		int start	= std::max(0,i-offset);
-		int stop	= std::min(nr_data,i+offset+1);
+		int stop	= std::min(nr_data2,i+offset+1);
+
+		//double sum = 1;
+		//for(int j = start; j < stop; j++){sum += weights[abs(i-j)];}
 		for(int j = start; j < stop; j++){
-			double w = weights[abs(i-j)];//usedExp(dx*dx*info);
-			double v = hist[j];
-			sumV += w*v;
-			sumW += w;
+			double w = weights[abs(i-j)];
+			tmphist_blur[j] += v*w;///sum;
 		}
-		blur_hist[i] = sumV/sumW;
+	}
+	for(int i = 0; i < nr_data; i++){
+		blur_hist[i] = tmphist_blur[i+nr_data];
+	}
+
+	float bef = 0;
+	float aft = 0;
+	for(int i = 0; i < nr_data; i++){
+		bef += hist[i];
+		aft += blur_hist[i];
+	}
+
+	for(int i = 0; i < nr_data; i++){
+		blur_hist[i] *= bef/aft;
 	}
 }
 
+void blurHistogramBidir(std::vector<float> & blur_hist,  std::vector<float> & hist, float stdval,bool debugg_print = false){
+	int nr_data = blur_hist.size();
+	double info = -0.5/(stdval*stdval);
+	double weights[nr_data];
+	for(int i = 0; i < nr_data; i++){
+		double current = exp(i*i*info);
+		weights[i] = current;
+	}
+
+	int offset = 4.0*stdval;
+	offset = std::max(4,offset);
+	for(int i = 0; i < nr_data; i++){
+		double v = hist[i];
+		if(v == 0){continue;}
+
+		int start	= std::max(0,i-offset);
+		int stop	= std::min(nr_data,i+offset+1);
+
+		for(int j = start; j < stop; j++){
+			double w = weights[abs(i-j)];
+			blur_hist[j] += v*w;///sum;
+		}
+	}
+
+	float bef = 0;
+	float aft = 0;
+	for(int i = 0; i < nr_data; i++){
+		bef += hist[i];
+		aft += blur_hist[i];
+	}
+
+	for(int i = 0; i < nr_data; i++){
+		blur_hist[i] *= bef/aft;
+	}
+}
 
 const double step_h = 0.00001;
 const unsigned int step_iter = 20;
@@ -296,10 +365,7 @@ void DistanceWeightFunction2PPR::computeModel(MatrixXd mat){
 	const int nr_dim = mat.rows();
 	double start_time = getCurrentTime2();
 
-
-	if(update_size){
-		maxd = (getNoise()+meanoffset)*target_length;
-	}
+	if(update_size){maxd = (getNoise()+meanoffset)*target_length;}
 
 	int nr_inside = 0;
 	for(unsigned int j = 0; j < nr_data; j++){
@@ -310,20 +376,13 @@ void DistanceWeightFunction2PPR::computeModel(MatrixXd mat){
 
 	if(update_size){
 		histogram_size = std::min(int(prob.size()),std::max(10,std::min(1000,int(float(nr_inside)/data_per_bin))));
-		blurval = 0.01*double(histogram_size);
+		blurval = 0.1*double(histogram_size)/double(target_length);
+		//blurval = ;//getNoise
 	}
 
-	//printf("maxd %f histogram_size: %i blurval %f\n",maxd,histogram_size,blurval);
-
-	const float histogram_mul = float(histogram_size)/maxd;
-/*
-	for(unsigned int j = 0; j < nr_data; j++){
-		for(int k = 0; k < nr_dim; k++){
-			int ind = fabs(mat(k,j))*histogram_mul;
-			if(ind >= 0 && ind < histogram_size){histogram[ind]++;}
-		}
-	}
-*/
+float histogram_mul = 0;
+if(!bidir){
+	histogram_mul = float(histogram_size)/maxd;
 
 	for(int j = 0; j < histogram_size; j++){histogram[j] = 0;}
 	for(unsigned int j = 0; j < nr_data; j++){
@@ -334,8 +393,24 @@ void DistanceWeightFunction2PPR::computeModel(MatrixXd mat){
 	}
 
 	start_time = getCurrentTime2();
-	blurHistogram(blur_histogram,histogram,blurval);
-	
+	blurHistogram(blur_histogram,histogram,blurval,debugg_print);
+}else{
+	histogram_mul = float(histogram_size)/(2.0*maxd);
+	for(int j = 0; j < histogram_size; j++){histogram[j] = 0;}
+
+	for(unsigned int j = 0; j < nr_data; j++){
+		for(int k = 0; k < nr_dim; k++){
+			int ind = (mat(k,j)+maxd)*histogram_mul;
+			if(ind >= 0 && ind < histogram_size){histogram[ind]++;}
+		}
+	}
+
+	start_time = getCurrentTime2();
+	blurHistogramBidir(blur_histogram,histogram,blurval,debugg_print);
+}
+
+
+
 	Gaussian g = getModel(stdval,blur_histogram,uniform_bias);
 
 	stdval	= g.stdval;
@@ -343,66 +418,58 @@ void DistanceWeightFunction2PPR::computeModel(MatrixXd mat){
 	meanval	= g.mean;
 
 	noiseval = maxd*g.stdval/float(histogram_size);
-	meanoffset = maxd*g.mean/float(histogram_size);
-
+	if(!bidir){
+		meanoffset = maxd*g.mean/float(histogram_size);
+	}else{
+		meanoffset = 2.0*maxd*g.mean/float(histogram_size) - maxd;
+	}
 	g.stdval += histogram_size*regularization/maxd;
 	g.update();
+
+	for(int k = 0; k < histogram_size; k++){
+		blur_histogram[k] += 1.0f;
+	}
 	
 	for(int k = 0; k < histogram_size; k++){	noise[k] = g.getval(k);}
-	
-	double maxp = 0.99;
 	for(int k = 0; k < histogram_size; k++){
-		//if(k < g.mean){	prob[k] = maxp;	}
-		//else{
-			double hs = blur_histogram[k] +0.0000001;
-			prob[k] = std::min(maxp , noise[k]/hs);//never fully trust any data
-		//}
+		double hs = blur_histogram[k];
+		prob[k] = std::min(maxp , noise[k]/hs);//never fully trust any data
 	}
 /*
-	for(int k = 0; k < histogram_size; k++){
-		if(k < g.mean){	prob[k] = maxp;	}
-		else{
-			double hs = blur_histogram[k] +0.0000001;
-			prob[k] = std::min(maxp , noise[k]/hs);//never fully trust any data
+	if(debugg_print){
+		for(int k = 0; k < histogram_size; k++){
+			double h = blur_histogram[k];
+			double n = noise[k];
+			double p = std::min(maxp , n/h);//never fully trust any data
+			//printf("%i -> h: %f n: %f p: %f\n",k,h,n,p);
 		}
 	}
 */
 	double next_maxd = log2(((getNoise()+meanoffset)*target_length)/maxd);
 
-	if(debugg_print){printf("###############################################################################################################\n");}
-	if(debugg_print){printf("maxd: %f histogram_size: %i blurval: %f \n",maxd,histogram_size,blurval);}
-	if(debugg_print){printf("log2(next_maxd) %f\n",next_maxd);}
-	if(debugg_print){printf("regularization: %f\n",regularization);}
-	if(debugg_print){printf("estimated: %f\n",maxd*stdval/float(histogram_size));}
-	if(debugg_print){printf("meanoffset: %f\n",meanoffset);}
-	if(debugg_print){printf("hist = [");			for(unsigned int k = 0; k < 100 && k < histogram_size; k++){printf("%i ",int(histogram[k]));}		printf("];\n");}
-	if(debugg_print){printf("noise = [");			for(unsigned int k = 0; k < 100 && k < histogram_size; k++){printf("%i ",int(noise[k]));}			printf("];\n");}
-	if(debugg_print){printf("hist_smooth = [");		for(unsigned int k = 0; k < 100 && k < histogram_size; k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
-	if(debugg_print){printf("prob = [");			for(unsigned int k = 0; k < 100 && k < histogram_size; k++){printf("%2.2f ",prob[k]);}				printf("];\n");}
-	if(debugg_print){printf("###############################################################################################################\n");}
+	//if(debugg_print){printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");}
+	if(debugg_print){printf("maxd = %f;\n",maxd);}
+	//if(debugg_print){printf("log2(next_maxd) %f\n",next_maxd);}
+	if(debugg_print){printf("regularization = %f;\n",regularization);}
+	if(debugg_print){printf("estimated = %f;\n",maxd*stdval/float(histogram_size));}
+	//if(debugg_print){printf("meanoffset: %f\n",meanoffset);}
+	if(debugg_print){printf("X = [");				for(unsigned int k = 0; k < histogram_size; k++){printf("%5.5f ",double(2*k)*maxd/double(histogram_size) -maxd);}		printf("];\n");}
+	if(debugg_print){printf("hist = [");			for(unsigned int k = 0; k < 1000 && k < histogram_size; k++){printf("%i ",int(histogram[k]));}		printf("];\n");}
+	if(debugg_print){printf("noise = [");			for(unsigned int k = 0; k < 1000 && k < histogram_size; k++){printf("%i ",int(noise[k]));}			printf("];\n");}
+	if(debugg_print){printf("hist_smooth = [");		for(unsigned int k = 0; k < 1000 && k < histogram_size; k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
+	if(debugg_print){printf("prob = [");			for(unsigned int k = 0; k < 1000 && k < histogram_size; k++){printf("%2.2f ",prob[k]);}				printf("];\n");}
+	//if(debugg_print){printf("###############################################################################################################\n");}
 
-	if(update_size){
-		if(fabs(next_maxd) > 1){computeModel(mat);}
+	if(update_size ){
+		if(fabs(next_maxd) > 0.1 && iter < 100){
+			iter++;
+			computeModel(mat);
+		}else{
+			iter = 0;
+		}
 	}
 
-	//if(debugg_print){printf("end DistanceWeightFunction2PPR::computeModel\n");exit(0);}
-/*
-	if(update_size){
-		printf("maxd: %f nr_data: %i nr_bins: %i\n",maxd,nr_data,histogram_size);
-		printf("regularization: %f\n",regularization);
-		printf("estimated: %f\n",maxd*stdval/float(histogram_size));
-		printf("nr_data: %i data_per_bin: %f estimated nr bins: %i\n",nr_data,data_per_bin,int(float(nr_data)/data_per_bin));
-		//printf("new nr_bins: %i noiseval: %f regularization: %f\n",nr_data/data_per_bin,noiseval,regularization);
-		int new_histogram_size = std::min(int(prob.size()),std::max(10,std::min(1000,int(float(nr_data)/data_per_bin))));
-		double new_maxd = getNoise()*target_length;
-		printf("new_maxd: %f\n",new_maxd);
-		printf("new_histogram_size: %i\n",new_histogram_size);
-
-	}
-	//target_length = 10.0;
-	//data_per_bin = 20;
-	exit(0);
-	*/
+	//if(bidir){exit(0);}
 }
 
 VectorXd DistanceWeightFunction2PPR::getProbs(MatrixXd mat){
@@ -410,6 +477,44 @@ VectorXd DistanceWeightFunction2PPR::getProbs(MatrixXd mat){
 	//exit(0);
 	const unsigned int nr_data = mat.cols();
 	const int nr_dim = mat.rows();
+
+	nr_inliers = 0;
+	VectorXd weights = VectorXd(nr_data);
+	float histogram_mul = 0;
+	if(!bidir){
+		histogram_mul = float(histogram_size)/maxd;
+		for(unsigned int j = 0; j < nr_data; j++){
+			float inl  = 1;
+			float ninl = 1;
+			for(int k = 0; k < nr_dim; k++){
+				int ind = fabs(mat(k,j))*histogram_mul;
+				float p = 0;
+				if(ind >= 0 && ind < histogram_size){p = prob[ind];}
+				inl *= p;
+				ninl *= 1.0-p;
+			}
+			double d = inl / (inl+ninl);
+			nr_inliers += d;
+			weights(j) = d;
+		}
+	}else{
+		histogram_mul = float(histogram_size)/(2.0*maxd);
+		for(unsigned int j = 0; j < nr_data; j++){
+			float inl  = 1;
+			float ninl = 1;
+			for(int k = 0; k < nr_dim; k++){
+				int ind = (mat(k,j)+maxd)*histogram_mul;
+				float p = 0;
+				if(ind >= 0 && ind < histogram_size){p = prob[ind];}
+				inl *= p;
+				ninl *= 1.0-p;
+			}
+			double d = inl / (inl+ninl);
+			nr_inliers += d;
+			weights(j) = d;
+		}
+	}
+/*
 	const float histogram_mul = float(histogram_size)/maxd;
 
 	nr_inliers = 0;
@@ -428,7 +533,9 @@ VectorXd DistanceWeightFunction2PPR::getProbs(MatrixXd mat){
 		nr_inliers += d;
 		weights(j) = d;
 	}
-	//printf("sum: %f\n",sum);
+*/
+
+
 
 	if(threshold){
 		for(unsigned int j = 0; j < nr_data; j++){
@@ -438,7 +545,7 @@ VectorXd DistanceWeightFunction2PPR::getProbs(MatrixXd mat){
 	return weights;
 }
 
-void DistanceWeightFunction2PPR::update(){
+bool DistanceWeightFunction2PPR::update(){
 	//if(debugg_print){printf("###############################################################################################################\n");}
 	//if(debugg_print){printf("hist = [");			for(unsigned int k = 0; k < 100; k++){printf("%i ",int(histogram[k]));}		printf("];\n");}
 	//if(debugg_print){printf("noise = [");			for(unsigned int k = 0; k < 100; k++){printf("%i ",int(noise[k]));}			printf("];\n");}
@@ -453,7 +560,7 @@ void DistanceWeightFunction2PPR::update(){
 		float old_sum_prob = 0;
 		for(unsigned int k = 0; k < histogram_size; k++){old_sum_prob += prob[k] * histogram[k];}
 
-		double maxp = 0.99;
+		//double maxp = 0.99;
 		Gaussian g = Gaussian(mulval,meanval,stdval);//getModel(stdval,blur_histogram,uniform_bias);
 
 		int iteration = 0;
@@ -461,7 +568,7 @@ void DistanceWeightFunction2PPR::update(){
 			iteration++;
 			regularization *= 0.5;
 			double change = histogram_size*regularization/maxd;
-			if(change < 0.001*stdval){break;}
+			if(change < 0.001*stdval){return true;}
 
 			g.stdval += change;
 			g.update();
@@ -472,7 +579,7 @@ void DistanceWeightFunction2PPR::update(){
 				new_sum_prob += std::min(maxp , g.getval(k)/hs) * new_histogram[k];
 			}
 
-			if(new_sum_prob < 0.999*old_sum_prob){break;}
+			if(new_sum_prob < 0.999*old_sum_prob){return false;}
 			g.stdval -= change;
 			g.update();
 		}

@@ -545,8 +545,8 @@ int main(int argc, char **argv){
 	modeldatabase	= new ModelDatabaseBasic();
 
 	viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("viewer"));
-	viewer->addCoordinateSystem();
-	viewer->setBackgroundColor(0.8,0.8,0.8);
+	//viewer->addCoordinateSystem();
+	viewer->setBackgroundColor(0.9,0.9,0.9);
 
 	ros::ServiceServer service1 = n.advertiseService("model_from_frame", modelFromFrame);
 	ROS_INFO("Ready to add use model_from_frame.");

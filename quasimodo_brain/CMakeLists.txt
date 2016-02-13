@@ -123,6 +123,10 @@ add_executable(			preload_object_data src/preload_object_data.cpp)
 add_dependencies(		preload_object_data roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	preload_object_data quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
+#add_executable(			load_additional_views src/load_additional_views.cpp)
+#add_dependencies(		load_additional_views roscpp quasimodo_msgs_generate_messages_cpp)
+#target_link_libraries(	load_additional_views quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+
 add_executable(			preload_test_data src/preload_test_data.cpp)
 add_dependencies(		preload_test_data roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	preload_test_data quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
