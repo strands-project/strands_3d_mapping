@@ -39,11 +39,13 @@ public:
 	double target_length;
 	double data_per_bin;
 	double meanoffset;
+    double blur;
 
 	double start_maxd;
 	
 	std::vector<float> prob;
 	std::vector<float> histogram;
+    std::vector<float> smallblur_histogram;
 	std::vector<float> blur_histogram;
 	std::vector<float> noise;
 

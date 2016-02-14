@@ -269,7 +269,7 @@ int main(int argc, char **argv){
 	}
 exit(0);
 */
-	int size = 100;
+    int size = 10;
 	int cols = 1000;
 
 	double overall_scale = 1.0;
@@ -299,8 +299,8 @@ exit(0);
 	funcs.push_back(new DistanceWeightFunction2());
 	funcs.back()->f = PNORM;	funcs.back()->p = 1.0;		funcs.back()->convergence_threshold = 0.0001*noise;
 */
-//	funcs.push_back(new DistanceWeightFunction2());
-//	funcs.back()->f = THRESHOLD; funcs.back()->p = noise*4; funcs.back()->convergence_threshold = 0.0001*noise;
+    funcs.push_back(new DistanceWeightFunction2());
+    funcs.back()->f = THRESHOLD; funcs.back()->p = noise*4; funcs.back()->convergence_threshold = 0.0001*noise;
 //	funcs.push_back(new DistanceWeightFunction2());
 //	funcs.back()->f = THRESHOLD; funcs.back()->p = noise*3; funcs.back()->convergence_threshold = 0.0001*noise;
 
@@ -351,24 +351,26 @@ exit(0);
 		}
 	}
 
+    for(double blv = 0.05; blv < 0.07; blv += 0.01){
+        DistanceWeightFunction2PPR * ppr2 = new DistanceWeightFunction2PPR(2,1000);
+        ppr2->startreg			= 1.05;
+        //ppr2->blurval			= i;
+        ppr2->stdval			= 100;//ppr->blurval;
+        ppr2->stdgrow			= 1.0;
+        ppr2->blur              = blv;
+        ppr2->noiseval			= 100.0;
+        ppr2->debugg_print		= false;
+        ppr2->threshold			= false;
+        ppr2->uniform_bias		= false;
+        ppr2->convergence_threshold = 0.05;
+        ppr2->scale_convergence	= true;
 
-	DistanceWeightFunction2PPR * ppr2 = new DistanceWeightFunction2PPR(2,1000);
-	ppr2->startreg			= 0.05;
-	//ppr2->blurval			= i;
-	ppr2->stdval			= 100;//ppr->blurval;
-	ppr2->stdgrow			= 1.0;
-	ppr2->noiseval			= 100.0;
-	ppr2->debugg_print		= false;
-	ppr2->threshold			= false;
-	ppr2->uniform_bias		= false;
-	ppr2->convergence_threshold = 0.05;
-	ppr2->scale_convergence	= true;
-
-	ppr2->update_size = true;
-	ppr2->noiseval = ppr2->maxd;
-	ppr2->meanoffset = std::max(0.0,(ppr2->maxd - ppr2->regularization - ppr2->noiseval)/ppr2->target_length);
-	funcs.push_back(ppr2);
-
+        ppr2->update_size = true;
+        ppr2->noiseval = ppr2->maxd;
+        ppr2->meanoffset = std::max(0.0,(ppr2->maxd - ppr2->regularization - ppr2->noiseval)/ppr2->target_length);
+        funcs.push_back(ppr2);
+    }
+/*
 	DistanceWeightFunction2PPR * ppr = new DistanceWeightFunction2PPR(2,1000);
 	ppr->startreg			= 0.00;
 	//ppr2->blurval			= i;
@@ -384,8 +386,8 @@ exit(0);
 	ppr->update_size = true;
 	ppr->noiseval = ppr2->maxd;
 	ppr->meanoffset = std::max(0.0,(ppr->maxd - ppr->regularization - ppr->noiseval)/ppr->target_length);
-	funcs.push_back(ppr);
-
+    //funcs.push_back(ppr);
+*/
 	//funcs.back()->f = THRESHOLD; funcs.back()->p = noise*4;
 
 
@@ -413,7 +415,7 @@ exit(0);
 		double angle1 = double(i);double angle2 = 0;double angle3 = 0;
 		double t1 = double(i*0.00);double t2 = 0;double t3 = 0;
 */
-	for(int i = 0; i <= 100; i+=1){
+    for(int i = 1000; i <= 100; i+=1000){
 		double angle1 = double(0);double angle2 = 0;double angle3 = 0;
 		double t1 = double(i*0.01);double t2 = 0;	double t3 = 0;
 
@@ -427,7 +429,7 @@ exit(0);
 		transformations.push_back(transformation);
 	}
 
-	for(int i = 0; i <= 180; i+=1){
+    for(int i = 0; i <= 180; i+=10){
 		double angle1 = double(i);double angle2 = 0;double angle3 = 0;
 		double t1 = double(0);double t2 = 0;	double t3 = 0;
 
