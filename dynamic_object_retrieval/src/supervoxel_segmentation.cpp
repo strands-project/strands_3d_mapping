@@ -552,7 +552,8 @@ vector<supervoxel_segmentation::CloudT::Ptr> supervoxel_segmentation::compute_rg
 
 supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph(vector<CloudT::Ptr>& segments,
                                                                                  vector<CloudT::Ptr>& rgb_segments,
-                                                                                 CloudT::Ptr& cloud_in)
+                                                                                 CloudT::Ptr& cloud_in,
+                                                                                 NormalCloudT::Ptr* normals_in)
 {
     // pre-process clouds
     CloudT::Ptr cloud(new CloudT);
@@ -575,7 +576,13 @@ supervoxel_segmentation::Graph* supervoxel_segmentation::create_supervoxel_graph
     start = chrono::system_clock::now();
 
     pcl::SupervoxelClustering<PointT> super(voxel_resolution, seed_resolution, use_transform);
-    super.setInputCloud(cloud);
+    if (normals_in == NULL) {
+        super.setInputCloud(cloud);
+    }
+    else {
+        super.setInputCloud(cloud_in);
+        super.setNormalCloud(*normals_in); // something
+    }
     super.setColorImportance(color_importance);
     super.setSpatialImportance(spatial_importance);
     super.setNormalImportance(normal_importance);
@@ -1249,6 +1256,7 @@ tuple<supervoxel_segmentation::Graph*, supervoxel_segmentation::Graph*,
       vector<supervoxel_segmentation::CloudT::Ptr>, vector<supervoxel_segmentation::CloudT::Ptr>, map<size_t, size_t> >
 supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, bool visualize)
 {
+    // why am I still doing this? should not be needed!
     CloudT::Ptr subsampled_cloud(new CloudT);
     subsample_cloud(subsampled_cloud, cloud_in);
 
@@ -1304,6 +1312,46 @@ supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, 
     if (visualize) {
         visualize_segments(clouds_out, true);
     }*/
+
+    // segments need to be the full versions from e.g. create_full_segments_clouds
+    return make_tuple(graph_copy, connected_graph, rgb_segments, connected_clouds, indices);
+}
+
+tuple<supervoxel_segmentation::Graph*, supervoxel_segmentation::Graph*,
+      vector<supervoxel_segmentation::CloudT::Ptr>, vector<supervoxel_segmentation::CloudT::Ptr>, map<size_t, size_t> >
+supervoxel_segmentation::compute_convex_oversegmentation(CloudT::Ptr& cloud_in, NormalCloudT::Ptr& normals_in, bool visualize)
+{
+    vector<CloudT::Ptr> voxel_segments;
+    vector<CloudT::Ptr> rgb_segments;
+    Graph* graph_in = create_supervoxel_graph(voxel_segments, rgb_segments, cloud_in, &normals_in);
+    Graph* graph_copy = new Graph;
+    boost::copy_graph(*graph_in, *graph_copy);
+    vector<Graph*> graphs_convex;
+    recursive_split(graphs_convex, *graph_in);
+
+    cout << "Segment size:" << endl;
+    cout << voxel_segments.size() << endl;
+    cout << rgb_segments.size() << endl;
+
+    if (visualize) {
+        visualize_segments(graphs_convex, rgb_segments);
+    }
+    /*vector<Graph*> graphs_out = color_model_split(graphs_convex, voxel_segments);
+    if (visualize) {
+        visualize_segments(graphs_out, rgb_segments);
+    }*/
+
+    //cout << "Graphs size: " << graphs_out.size() << endl;
+
+    vector<CloudT::Ptr> connected_clouds;
+    map<size_t, size_t> indices;
+    tie(connected_clouds, indices) = merge_connected_clouds(rgb_segments, graphs_convex);
+
+    Graph* connected_graph = create_merged_graph(*graph_copy, graphs_convex, indices, connected_clouds);
+
+    for (Graph* g : graphs_convex) {
+        delete g;
+    }
 
     // segments need to be the full versions from e.g. create_full_segments_clouds
     return make_tuple(graph_copy, connected_graph, rgb_segments, connected_clouds, indices);

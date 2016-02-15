@@ -83,9 +83,13 @@ public:
     std::tuple<Graph*, Graph*, std::vector<CloudT::Ptr>,
                std::vector<CloudT::Ptr>, std::map<size_t, size_t> >
     compute_convex_oversegmentation(CloudT::Ptr& cloud_in, bool visualize = false);
+    std::tuple<Graph*, Graph*, std::vector<CloudT::Ptr>,
+               std::vector<CloudT::Ptr>, std::map<size_t, size_t> >
+    compute_convex_oversegmentation(CloudT::Ptr& cloud_in, NormalCloudT::Ptr& normals_in, bool visualize = false);
     std::vector<CloudT::Ptr> compute_rgb_clouds(pcl::PointCloud<pcl::PointXYZL>::Ptr& cloud_l,
                                                 CloudT::Ptr& cloud_in, supervoxel_map& supervoxel_clusters, int max_label);
-    Graph* create_supervoxel_graph(std::vector<CloudT::Ptr>& segments, std::vector<CloudT::Ptr>& rgb_segments, CloudT::Ptr& cloud_in);
+    Graph* create_supervoxel_graph(std::vector<CloudT::Ptr>& segments, std::vector<CloudT::Ptr>& rgb_segments,
+                                   CloudT::Ptr& cloud_in, NormalCloudT::Ptr* normals_in = NULL);
     void compute_voxel_clouds(std::vector<CloudT::Ptr>& segment_voxels, std::map<uint32_t, size_t>& voxel_inds,
                               supervoxel_map& supervoxels, float voxel_resolution, CloudT::Ptr& original);
     void subsample_cloud(CloudT::Ptr& cloud_out, CloudT::Ptr& cloud_in);

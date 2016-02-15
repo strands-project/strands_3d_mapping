@@ -163,6 +163,9 @@ target_link_libraries(test_feature_keypoint_match ${ROS_LIBRARIES} ${OpenCV_LIBS
 add_executable(test_segmentation test/test_segmentation.cpp)
 target_link_libraries(test_segmentation supervoxel_segmentation dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(test_surfel_segmentation test/test_surfel_segmentation.cpp)
+target_link_libraries(test_surfel_segmentation supervoxel_segmentation dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(test_supervoxel_keypoints test/test_supervoxel_keypoints.cpp)
 target_link_libraries(test_supervoxel_keypoints dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
