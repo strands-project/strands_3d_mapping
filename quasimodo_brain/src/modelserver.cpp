@@ -222,7 +222,7 @@ void call_from_thread(int i) {
 	reglib::Model * model2 = res[i];
 
 	printf("testreg %i to %i\n",mod->id,model2->id);
-	reglib::RegistrationGOICP *	reg		= new reglib::RegistrationGOICP();
+	reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 	reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
 	mu->viewer							= viewer;
 	reg->visualizationLvl				= 1;
@@ -250,7 +250,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 			//Fuse
 		//else
 			//Break
-	
+
 	mod = model;
 	res = modeldatabase->search(model,15);
 	fr_res.resize(res.size());
@@ -266,9 +266,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 		const int num_threads = res.size();
 		std::thread t[num_threads];
 
-		for (int i = 0; i < num_threads; ++i) {
-			t[i] = std::thread(call_from_thread,i);
-		}
+		for (int i = 0; i < num_threads; ++i) {t[i] = std::thread(call_from_thread,i);}
 
 		std::cout << "Launched from the main\n";
 
@@ -290,16 +288,15 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 			reglib::Model * model2 = res[i];
 
 			printf("testreg %i to %i\n",model->id,model2->id);
-			reglib::RegistrationGOICP *	reg		= new reglib::RegistrationGOICP();
+			reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
 			mu->viewer							= viewer;
-			reg->visualizationLvl				= 1;
+			reg->visualizationLvl				= 2;
 
 			reglib::FusionResults fr = mu->registerModel(model);
 
 			if(fr.score > 100){
 				fr.guess = fr.guess.inverse();
-
 				fr2merge.push_back(fr);
 				models2merge.push_back(model2);
 				printf("could be registered\n");
@@ -308,7 +305,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 			delete mu;
 			delete reg;
 		}
-	}\
+	}
 
 	std::map<int , reglib::Model *>	new_models;
 	std::map<int , reglib::Model *>	updated_models;
@@ -316,7 +313,8 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 	for(unsigned int i = 0; i < models2merge.size(); i++){
 		reglib::Model * model2 = models2merge[i];
 
-		reglib::RegistrationGOICP *	reg		= new reglib::RegistrationGOICP();
+		//reglib::RegistrationGOICP *	reg		= new reglib::RegistrationGOICP();
+		reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
 		mu->viewer							= viewer;
 		reg->visualizationLvl				= 1;
@@ -331,13 +329,8 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 		delete mu;
 		delete reg;
 		
-		for(unsigned int j = 0; j < ud.new_models.size(); j++){
-			new_models[ud.new_models[j]->id] = ud.new_models[j];
-		}
-		
-		for(unsigned int j = 0; j < ud.updated_models.size(); j++){
-			updated_models[ud.updated_models[j]->id] = ud.updated_models[j];
-		}
+		for(unsigned int j = 0; j < ud.new_models.size(); j++){		new_models[ud.new_models[j]->id]			= ud.new_models[j];}
+		for(unsigned int j = 0; j < ud.updated_models.size(); j++){	updated_models[ud.updated_models[j]->id]	= ud.updated_models[j];}
 		
 		for(unsigned int j = 0; j < ud.deleted_models.size(); j++){
 			database->remove(ud.deleted_models[j]);
@@ -345,19 +338,10 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 		}		
 	}
 	
-	
-	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end(); ++it){
-		database->remove(it->second);	
-	}
-	
-	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end(); ++it){
-		addToDB(database, it->second);
-	}
-	
-	for (std::map<int,reglib::Model *>::iterator it=new_models.begin(); it!=new_models.end(); ++it){
-		addToDB(database, it->second);
-	}
-	
+	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end();	++it){	database->remove(it->second);}
+	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end();	++it){	addToDB(database, it->second);}
+	for (std::map<int,reglib::Model *>::iterator it=new_models.begin();		it!=new_models.end();		++it){	addToDB(database, it->second);}
+
 	printf("DONE WITH REGISTER\n");
 }
 
@@ -374,167 +358,11 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
     res.model_id					= newmodel->id;
     	
 	addToDB(modeldatabase, newmodel);
-	show_sorted();
-	return true;
-/*
-    	//Search for more of the same <-- Nils stuff, Rares stuff, other?
-    	std::vector<SearchResult *> sr = getSearchResult(newmodel);
-    	bool changed = false;
-
-		std::vector<reglib::FusionResults> fr_to_fuse;
-		std::vector<SearchResult *> sr_to_fuse;
-
-		while(sr.size() != 0){
-			SearchResult * result = sr.back();
-			sr.pop_back();
-			if(result->score > 0.5){
-				reglib::RegistrationGOICP *	reg = new reglib::RegistrationGOICP();
-				
-				//reglib::ModelUpdaterBasicFuse * muf1 = new reglib::ModelUpdaterBasicFuse( newmodel, reg);
-				reglib::ModelUpdaterBasicFuse * muf2 = new reglib::ModelUpdaterBasicFuse( result->model, reg);
-				
-				reglib::FusionResults fr2 = muf2->registerModel(newmodel);
-				
-				delete muf2;
-				delete reg;
-			
-				reglib::FusionResults fr = updaters[result->model->id]->registerModel(newmodel);
-				if(fr.score > 800){
-					fr.guess = fr.guess.inverse();
-					fr_to_fuse.push_back(fr);
-					sr_to_fuse.push_back(result);
-					printf("could be registered\n");
-					continue;
-				}
-			}
-			delete result;
-		}
-		for(unsigned int i = 0; i < fr_to_fuse.size(); i++){
-
-			//((reglib::ModelUpdaterBasicFuse *)updaters[newmodel->id])->graph->merge(fr_to_fuse[i].guess.matrix().cast<double>(), ((reglib::ModelUpdaterBasicFuse *)updaters[sr_to_fuse[i]->model->id])->graph);
-			reglib::UpdatedModels ud = updaters[newmodel->id]->fuseData(&(fr_to_fuse[i]), newmodel, sr_to_fuse[i]->model);
-			printf("new_models:     %i\n",ud.new_models.size());
-			printf("updated_models: %i\n",ud.updated_models.size());
-			printf("deleted_models: %i\n",ud.deleted_models.size());
-			for(unsigned int j = 0; j < ud.deleted_models.size(); j++){
-				removeModel(ud.deleted_models[j]->id);
-			}
-			//newmodel = result->model;
-			//changed = true;
-			//break;
-		}
-		if(fr_to_fuse.size() == 0){
-			break;
-		}
-
-    }
-    */
-
-}
-
-/*
-bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_msgs::model_from_frame::Response & res){
-	printf("======================================\nmodelFromFrame\n======================================\n");
-    uint64 frame_id = req.frame_id;
-    cv_bridge::CvImagePtr			mask_ptr;
-	try{							mask_ptr = cv_bridge::toCvCopy(req.mask, sensor_msgs::image_encodings::MONO8);}
-	catch (cv_bridge::Exception& e){ROS_ERROR("cv_bridge exception: %s", e.what());return false;}
-	
-	cv::Mat mask					= mask_ptr->image;
-	reglib::Model * newmodel		= new reglib::Model(frames[frame_id],mask);
-	
-	modeldatabase->add(newmodel);
-	printf("added to database");
-    models[newmodel->id]			= newmodel;
-
-	char buf [1024];
-	sprintf(buf,"mask%i.png",frame_id);
-	cv::imwrite( buf, mask );
-	printf("saving: %s\n",buf);
-
-	reglib::ModelUpdaterBasicFuse * muf = new reglib::ModelUpdaterBasicFuse( newmodel, registration);
-
-
-	reglib::ModelUpdater * mu       = muf;
-	mu->viewer						= viewer;
-    updaters[newmodel->id]			= mu;
-    
-    res.model_id					= newmodel->id;
-    
-
-	if(newmodel->id > 10 ){	registration->visualizationLvl = 1;}
-	else{					registration->visualizationLvl = 1;}
-
-	//printf("new model created, time to run quasimodo algorithm\n");
-    
-    //Wait for data...
-	//New data in:
-		//while true
-		//Search for more of the same <-- Nils stuff, Rares stuff, other?
-		//if the same is found
-			//Register
-			//Fuse
-		//else
-			//Break
-    while(true){
-    	//Search for more of the same <-- Nils stuff, Rares stuff, other?
-    	std::vector<SearchResult *> sr = getSearchResult(newmodel);
-    	bool changed = false;
-
-		std::vector<reglib::FusionResults> fr_to_fuse;
-		std::vector<SearchResult *> sr_to_fuse;
-
-		while(sr.size() != 0){
-			SearchResult * result = sr.back();
-			sr.pop_back();
-			if(result->score > 0.5){
-				reglib::RegistrationGOICP *	reg = new reglib::RegistrationGOICP();
-				
-				//reglib::ModelUpdaterBasicFuse * muf1 = new reglib::ModelUpdaterBasicFuse( newmodel, reg);
-				reglib::ModelUpdaterBasicFuse * muf2 = new reglib::ModelUpdaterBasicFuse( result->model, reg);
-				
-				reglib::FusionResults fr2 = muf2->registerModel(newmodel);
-				
-				delete muf2;
-				delete reg;
-			
-				reglib::FusionResults fr = updaters[result->model->id]->registerModel(newmodel);
-				if(fr.score > 800){
-					fr.guess = fr.guess.inverse();
-					fr_to_fuse.push_back(fr);
-					sr_to_fuse.push_back(result);
-					printf("could be registered\n");
-					continue;
-				}
-			}
-			delete result;
-		}
-		for(unsigned int i = 0; i < fr_to_fuse.size(); i++){
-
-			//((reglib::ModelUpdaterBasicFuse *)updaters[newmodel->id])->graph->merge(fr_to_fuse[i].guess.matrix().cast<double>(), ((reglib::ModelUpdaterBasicFuse *)updaters[sr_to_fuse[i]->model->id])->graph);
-			reglib::UpdatedModels ud = updaters[newmodel->id]->fuseData(&(fr_to_fuse[i]), newmodel, sr_to_fuse[i]->model);
-			printf("new_models:     %i\n",ud.new_models.size());
-			printf("updated_models: %i\n",ud.updated_models.size());
-			printf("deleted_models: %i\n",ud.deleted_models.size());
-			for(unsigned int j = 0; j < ud.deleted_models.size(); j++){
-				removeModel(ud.deleted_models[j]->id);
-			}
-			//newmodel = result->model;
-			//changed = true;
-			//break;
-		}
-		if(fr_to_fuse.size() == 0){
-			break;
-		}
-    }
-
 	//show_sorted();
-	printf("DONE WITH REGISTER\n");
 	return true;
 }
-*/
-bool fuseModels(quasimodo_msgs::fuse_models::Request  & req, quasimodo_msgs::fuse_models::Response & res){}
 
+bool fuseModels(quasimodo_msgs::fuse_models::Request  & req, quasimodo_msgs::fuse_models::Response & res){}
 
 int main(int argc, char **argv){
 	ros::init(argc, argv, "quasimodo_model_server");
@@ -545,7 +373,7 @@ int main(int argc, char **argv){
 	modeldatabase	= new ModelDatabaseBasic();
 
 	viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("viewer"));
-	//viewer->addCoordinateSystem();
+	viewer->addCoordinateSystem(0.1);
 	viewer->setBackgroundColor(0.9,0.9,0.9);
 
 	ros::ServiceServer service1 = n.advertiseService("model_from_frame", modelFromFrame);

@@ -1,5 +1,5 @@
-#ifndef DistanceWeightFunction2PPRtest_H
-#define DistanceWeightFunction2PPRtest_H
+#ifndef DistanceWeightFunction2PPR2test_H
+#define DistanceWeightFunction2PPR2test_H
 
 #include <cmath>
 #include <sys/time.h>
@@ -20,49 +20,63 @@ using ceres::Problem;
 using ceres::Solver;
 using ceres::Solve;
 
-class DistanceWeightFunction2PPR : public DistanceWeightFunction2
+class DistanceWeightFunction2PPR2 : public DistanceWeightFunction2
 {
 public:
 	double stdval;
+	double stdval2;
 	double mulval;
 	double meanval;
+	double meanval2;
 
-	double maxd;
-	int histogram_size;
-	double blurval;
-	double stdgrow;
+	double costpen;
 
-	double noiseval;
-	double startreg;
+	double maxp;
+
+	bool first;
 
 	bool update_size;
 	double target_length;
 	double data_per_bin;
 	double meanoffset;
-    double blur;
+	double blur;
 
-	double start_maxd;
+	double startmaxd;
+	double maxd;
+	int histogram_size;
+	int starthistogram_size;
+	double blurval;
+	double stdgrow;
+
+	double noiseval;
+	double startreg;
 	
 	std::vector<float> prob;
 	std::vector<float> histogram;
-    std::vector<float> smallblur_histogram;
 	std::vector<float> blur_histogram;
 	std::vector<float> noise;
 
-	bool max_under_mean;
-	bool interp;
+	int nr_refineiters;
+	bool refine_mean;
+	bool refine_mul;
+	bool refine_std;
+
 	bool threshold;
 	bool uniform_bias;
 	bool scale_convergence;
 	double nr_inliers;
 
-	double maxp;
+	bool rescaling;
+
+	bool interp;
+
+	bool max_under_mean;
 
 	bool bidir;
 	int iter;
 
-	DistanceWeightFunction2PPR(	double maxd_	= 0.25, int histogram_size_ = 25000);
-	~DistanceWeightFunction2PPR();
+	DistanceWeightFunction2PPR2(	double maxd_	= 0.25, int histogram_size_ = 25000);
+	~DistanceWeightFunction2PPR2();
 	virtual void computeModel(MatrixXd mat);
 	virtual VectorXd getProbs(MatrixXd mat);
 	virtual double getNoise();
@@ -74,4 +88,4 @@ public:
 
 }
 
-#endif // DistanceWeightFunction2PPRtest_H
+#endif // DistanceWeightFunction2PPR2test_H

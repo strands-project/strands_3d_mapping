@@ -25,6 +25,7 @@
 
 namespace reglib
 {
+
 	enum MatchType { PointToPoint, PointToPlane };
 
 	class CloudData{
@@ -42,6 +43,10 @@ namespace reglib
 
 		Eigen::MatrixXd guess;
 		double score;
+
+		std::vector< Eigen::MatrixXd > candidates;
+		std::vector< int > counts;
+		std::vector< double > scores;
 
 		FusionResults(){score = -1;}
 		FusionResults(Eigen::MatrixXd guess_, double score_){
@@ -82,4 +87,5 @@ namespace reglib
 #include "RegistrationSICP.h"
 #include "RegistrationPPR.h"
 #include "RegistrationGOICP.h"
+#include "RegistrationRandom.h"
 #endif // Registration_H

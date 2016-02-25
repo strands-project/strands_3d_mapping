@@ -226,12 +226,9 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 	for(unsigned int i = 0; i < count.size(); i++){printf("count %i -> %i\n",i,count[i]);}
 
 	if(count.size() == 1){
-		
-		for(unsigned int i = 0; i < model2->frames.size();i++){
-			model1->addFrameToModel(model2->frames[i], model2->masks[i],pose*model2->relativeposes[i]);
-		}
-	
-		//if(current_poses.size() % 5 == 0){
+		for(unsigned int i = 0; i < model2->frames.size();i++){model1->addFrameToModel(model2->frames[i], model2->masks[i],pose*model2->relativeposes[i]);}
+/*
+		if(current_poses.size() > 2){
 			printf("time to refine again\n");
 
 			MassRegistrationPPR * massreg = new MassRegistrationPPR(0.05,false);
@@ -240,15 +237,16 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 
 			//maybe check to ensure still coherent
 			model1->relativeposes = mfr.poses;
-			model1->recomputeModelPoints();
-		//}
+		}
+*/
+		model1->recomputeModelPoints();
 
 		retval.updated_models.push_back(model1);
 		retval.deleted_models.push_back(model2);
 	}
 	else{//Cannot fully fuse...
+		return retval;
 		printf("Cannot fully fuse...\n");
-		//Atempt mass registration to solve problem
 		
 		MassRegistrationPPR * massreg = new MassRegistrationPPR(0.05,false);
 		massreg->setData(current_frames,current_masks);
@@ -295,7 +293,7 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 				retval.deleted_models.push_back(model2);
 			}else{//Mass registration did NOT solve the problem
 				printf("Mass registration did NOT solve the problem UPDATE THIS PART\n");
-	/*
+/*
 				//Check if identical to input partition
 				int c = 0;
 
@@ -321,7 +319,7 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 					retval.unchanged_models.push_back(model1);
 					retval.unchanged_models.push_back(model2);
 				}
-	*/
+*/
 			}
 		}
 	}

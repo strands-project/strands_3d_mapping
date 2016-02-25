@@ -487,7 +487,8 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 		printf("%5.5i -> %10.10f\n",i,r);
 	}
 */
-	DistanceWeightFunction2PPR * func = new DistanceWeightFunction2PPR(100);
+	//DistanceWeightFunction2PPR * func = new DistanceWeightFunction2PPR(100);
+	DistanceWeightFunction2PPR2 * func = new DistanceWeightFunction2PPR2();
 	func->maxp			= 1.0;
 	func->update_size	= true;
 	func->startreg		= 0.0001;
@@ -498,8 +499,9 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 	Eigen::MatrixXd X = Eigen::MatrixXd::Zero(1,residuals.size());
 	for(int i = 0; i < residuals.size(); i++){X(0,i) = residuals[i];}
 	func->computeModel(X);
-	Eigen::VectorXd  W = func->getProbs(X);
 
+	Eigen::VectorXd  W = func->getProbs(X);
+/*
 	int dbres = 500;
 	Eigen::MatrixXd X2 = Eigen::MatrixXd::Zero(1,dbres);
 	for(int i = 0; i < dbres; i++){X2(0,i) = func->maxd*double(i-dbres/2)/double(dbres/2);}
@@ -507,6 +509,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 	//func->computeModel(X2);
 	Eigen::VectorXd  W2 = func->getProbs(X2);
 	//printf("rscore = [");			for(unsigned int k = 0; k < dbres; k++){printf("%i ",int(W2(k)));}		printf("];\n");
+
 	printf("rscore = [");
 	for(unsigned int i = 0; i < dbres; i++){
 		float r = X2(0,i);
@@ -518,7 +521,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 
 	}
 	printf("];\n");
-
+*/
 	delete func;
 /*
 	for(unsigned int i = 0; i < dbres; i++){
@@ -904,7 +907,7 @@ vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(vector<Matri
 	scores.resize(current_frames.size());
 	for(int i = 0; i < current_frames.size(); i++){scores[i].resize(current_frames.size());}
 
-	bool debugg_scores = true;
+	bool debugg_scores = false;
 
 	for(int i = 0; i < current_frames.size(); i++){
 		for(int j = i+1; j < current_frames.size(); j++){

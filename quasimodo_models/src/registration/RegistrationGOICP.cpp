@@ -16,7 +16,11 @@ RegistrationGOICP::RegistrationGOICP(){
 	use_PPR_weight			= true;
 	use_features			= true;
 	normalize_matchweights	= true;
-	func					= new DistanceWeightFunction2PPR();
+	//DistanceWeightFunction2PPR * fu = new DistanceWeightFunction2PPR();
+	DistanceWeightFunction2PPR2 * fu = new DistanceWeightFunction2PPR2();
+	fu->startreg			= 0.01;
+	fu->debugg_print		= true;
+	func					= fu;
 
 	visualizationLvl = 1;
 
@@ -379,41 +383,6 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 				delete[] pData;
 				return FusionResults();
 			}
-/*
-			if(i == 0){
-				for(float current_MSEThresh = 0.1; current_MSEThresh >= 0.01; current_MSEThresh *= 0.1){
-					goicp.prove_optimal = true;
-					goicp.MSEThresh = current_MSEThresh;//0.001;
-					goicp.InitializeData();
-					goicp.InitializeModel();
-					float rv = goicp.OuterBnB();
-					goicp.clearData();
-					goicp.clearModel();
-
-					if(rv < 0){
-						clock_t clockEnd2 = clock();
-						std::cout << (double)(clockEnd2 - clockBegin2)/CLOCKS_PER_SEC << "s (CPU)" << std::endl;
-
-						goicp.clearBasic();
-						delete[] pModel;
-						delete[] pData;
-						return FusionResults();
-					}
-				}
-			}else{
-				goicp.prove_optimal = true;
-				goicp.MSEThresh = 0.01;
-				goicp.InitializeData();
-				goicp.InitializeModel();
-				goicp.OuterBnB();
-				goicp.clearData();
-				goicp.clearModel();
-			}
-			*/
-			//cout << "inner Optimal Rotation Matrix:" << endl;
-			//cout << goicp.optR << endl;
-			//cout << "inner Optimal Translation Vector:" << endl;
-			//cout << goicp.optT << endl;
 		}
 		goicp.clearBasic();
 
@@ -492,28 +461,10 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 
 	Eigen::Matrix4d np;
 	pcl::TransformationFromCorrespondences tfc;
-/*
-	printf("----%i----\n",__LINE__);
-	tfc.reset();
-	for(unsigned int i = 0; i < s_nr_data; i++){
-		Eigen::Vector3f a (X(0,i),				X(1,i),			X(2,i));
-		Eigen::Vector3f b (src->data(0,i),		src->data(1,i), src->data(2,i));
-		tfc.add(b,a);
-	}
-	np = tfc.getTransformation().matrix().cast<double>();
-*/
-	//std::cout << np << std::endl << std::endl;
-	//std::cout << test.matrix() << std::endl;
-	//printf("--------\n");
-	//cout << guess << endl;
 
 	func->reset();
-	func->regularization = 0.1;
 
-	for(unsigned int f = 0; f < feature_func.size(); f++){
-		feature_func[f]->regularization = 15;
-	}
-
+	for(unsigned int f = 0; f < feature_func.size(); f++){feature_func[f]->regularization = 15;}
 
 	Eigen::Matrix3Xd Xo1 = X;
 	Eigen::Matrix3Xd Xo2 = X;
@@ -527,14 +478,14 @@ FusionResults RegistrationGOICP::getTransform(Eigen::MatrixXd guess){
 
 	std::vector<double> total_dweight;
 	total_dweight.resize(d_nr_data);
-//	if(visualizationLvl >= 2){show(X,Xn,Y,N);}
+	if(visualizationLvl >= 2){show(X,Xn,Y,N);}
 
 	/// ICP
 	//for(int icp=0; icp < 50; ++icp) {
 	//for(int icp=0; icp < 50; ++icp) {
 	//while(true){
 	for(int funcupdate=0; funcupdate < 100; ++funcupdate) {
-		for(int rematching=0; rematching < 2; ++rematching) {
+		for(int rematching=0; rematching < 10; ++rematching) {
 			//printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
 
 			#pragma omp parallel for
@@ -555,24 +506,48 @@ func->debugg_print = false;
 				/// Compute weights
 				switch(type) {
 					case PointToPoint:	{residuals = X-Qp;} 						break;
-					case PointToPlane:	{residuals = Qn.array()*(X-Qp).array();}	break;
+					case PointToPlane:	{
+						residuals		= Eigen::MatrixXd::Zero(1,	X.cols());
+						for(int i=0; i<X.cols(); ++i) {
+							float dx = X(0,i)-Qp(0,i);
+							float dy = X(1,i)-Qp(1,i);
+							float dz = X(2,i)-Qp(2,i);
+							float qx = Qn(0,i);
+							float qy = Qn(1,i);
+							float qz = Qn(2,i);
+							float di = qx*dx + qy*dy + qz*dz;
+							residuals(0,i) = di;
+						}
+					}break;
 					default:			{printf("type not set\n");}					break;
 				}
-				for(unsigned int i=0; i<X.cols(); ++i) {residuals.col(i) *= rangeW(i);}
+				for(int i=0; i<X.cols(); ++i) {residuals.col(i) *= rangeW(i);}
+
 				switch(type) {
-					case PointToPoint:	{func->computeModel(residuals); 				} 	break;
-					case PointToPlane:	{func->computeModel(residuals.colwise().norm());}	break;
+					case PointToPoint:	{func->computeModel(residuals);} 	break;
+					case PointToPlane:	{func->computeModel(residuals);}	break;
 					default:  			{printf("type not set\n");} break;
 				}
 
-//exit(0);
 				for(int inner=0; inner< 5; ++inner) {
-					//printf("funcupdate: %i rematching: %i  outer: %i inner: %i\n",funcupdate,rematching,outer,inner);
-					//printf("icp: %i outer: %i inner: %i ",icp,outer,inner);
+					printf("funcupdate: %i rematching: %i  outer: %i inner: %i\n",funcupdate,rematching,outer,inner);
+
 					if(inner != 0){
 						switch(type) {
 							case PointToPoint:	{residuals = X-Qp;} 						break;
-							case PointToPlane:	{residuals	= Qn.array()*(X-Qp).array();}	break;
+							case PointToPlane:	{
+								residuals		= Eigen::MatrixXd::Zero(1,	X.cols());
+								for(int i=0; i<X.cols(); ++i) {
+									float dx = X(0,i)-Qp(0,i);
+									float dy = X(1,i)-Qp(1,i);
+									float dz = X(2,i)-Qp(2,i);
+									float qx = Qn(0,i);
+									float qy = Qn(1,i);
+									float qz = Qn(2,i);
+									float di = qx*dx + qy*dy + qz*dz;
+									residuals(0,i) = di;
+								}
+							}break;
 							default:			{printf("type not set\n");}					break;
 						}
 						for(int i=0; i<X.cols(); ++i) {residuals.col(i) *= rangeW(i);}
@@ -581,7 +556,7 @@ func->debugg_print = false;
 					switch(type) {
 						case PointToPoint:	{W = func->getProbs(residuals); } 					break;
 						case PointToPlane:	{
-							W = func->getProbs(residuals.colwise().norm());
+							W = func->getProbs(residuals);
 							for(int i=0; i<X.cols(); ++i) {W(i) = W(i)*float((Xn(0,i)*Qn(0,i) + Xn(1,i)*Qn(1,i) + Xn(2,i)*Qn(2,i)) > 0.0);}
 						}	break;
 						default:			{printf("type not set\n");} break;
@@ -595,9 +570,9 @@ func->debugg_print = false;
 					//Normalizing weights has an effect simmilar to one to one matching
 					//in that it reduces the effect of border points
 					if(normalize_matchweights){
-						for(unsigned int i=0; i < d_nr_data; ++i) {	total_dweight[i] = 0.0000001;}//Reset to small number to avoid division by zero
-						for(unsigned int i=0; i< s_nr_data; ++i) {	total_dweight[matchid[i]] += W(i);}
-						for(unsigned int i=0; i< s_nr_data; ++i) {	W(i) = W(i)*(W(i)/total_dweight[matchid[i]]);}
+						for(unsigned int i=0; i < d_nr_data; ++i)	{	total_dweight[i] = 0.0000001;}//Reset to small number to avoid division by zero
+						for(unsigned int i=0; i< s_nr_data; ++i)	{	total_dweight[matchid[i]] += W(i);}
+						for(unsigned int i=0; i< s_nr_data; ++i)	{	W(i) = W(i)*(W(i)/total_dweight[matchid[i]]);}
 					}
 					//W = fwt.array()*W.array();
 					//if(visualizationLvl >= 3){show(X,Qp,W);}
@@ -646,10 +621,7 @@ func->debugg_print = false;
 	}
 if(visualizationLvl >= 2){show(X,Xn,Y,N);}
 	float score = Wold.sum()*pow(func->getNoise(),-1)/float(s_nr_data);
-	//printf("sum: %f noise: %f score: %f\n",Wold.sum(),func->getNoise(),score);
 
-
-	//printf("----%i----\n",__LINE__);
 	tfc.reset();
 	for(unsigned int i = 0; i < s_nr_data; i++){
 		Eigen::Vector3f a (X(0,i),				X(1,i),			X(2,i));
@@ -657,25 +629,6 @@ if(visualizationLvl >= 2){show(X,Xn,Y,N);}
 		tfc.add(b,a);
 	}
 	np = tfc.getTransformation().matrix().cast<double>();
-
-	//std::cout << np << std::endl << std::endl;
-	//std::cout << test.matrix() << std::endl;
-	//printf("--------\n");
-	//exit(0);
-/*
-	guess = np;
-
-	if(score > best_score){
-		best_score = score;
-		best_transform = np;
-		//if(score > 400){show(X,Xn,Y,N);}
-	}
-*/
-	//show(X,Xn,Y,N);
-	//return FusionResults(best_transform,best_score);
-
-	//clock_t clockEnd3 = clock();
-	//std::cout << (double)(clockEnd3 - clockBegin3)/CLOCKS_PER_SEC << "s (CPU)" << std::endl;
 //exit(0);
 	return FusionResults(np,score);
 }

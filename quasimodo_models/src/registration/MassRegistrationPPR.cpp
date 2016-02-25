@@ -5,26 +5,8 @@
 #include <iostream>
 #include <fstream>
 
-// #include "g2o/core/optimizable_graph.h"
-// #include "g2o/core/sparse_optimizer.h"
-// #include "g2o/core/block_solver.h"
-// #include "g2o/core/optimization_algorithm_gauss_newton.h"
-// #include "g2o/core/optimization_algorithm_levenberg.h"
-// #include "g2o/solvers/pcg/linear_solver_pcg.h"
-
-//#include "g2o/core/factory.h"
-
-//#include "g2o/config.h"
-//#include "g2o/core/base_vertex.h"
-//#include "g2o/core/hyper_graph_action.h"
-//#include "g2o/types/slam3d/isometry3d_mappings.h"
-//#include "g2o/types/slam3d/g2o_types_slam3d_api.h"
-//#include "g2o/types/slam3d/vertex_se3.h"
-//#include "g2o/types/slam3d/edge_se3_pointxyz.h"
-//#include "g2o/types/slam3d/edge_se3.h"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-//#include "g2o/core/eigen_types.h"
 
 namespace reglib
 {
@@ -35,10 +17,10 @@ MassRegistrationPPR::MassRegistrationPPR(double startreg, bool visualize){
 	use_features			= true;
 	normalize_matchweights	= true;
 
-	DistanceWeightFunction2PPR * dwf = new DistanceWeightFunction2PPR();
-	dwf->update_size = true;
-	dwf->startreg = startreg;
-	dwf->debugg_print = false;
+	DistanceWeightFunction2PPR2 * dwf = new DistanceWeightFunction2PPR2();
+	dwf->update_size		= true;
+	dwf->startreg			= startreg;
+	dwf->debugg_print		= false;
 	func					= dwf;
 
 	if(visualize){
@@ -76,9 +58,6 @@ namespace RigidMotionEstimator3 {
 		typedef Eigen::Matrix<double, 6, 6> Matrix66;
 		typedef Eigen::Matrix<double, 6, 1> Vector6;
 		typedef Eigen::Block<Matrix66, 3, 3> Block33;
-
-        //Eigen::Matrix4d start = Eigen::Matrix4d::Identity();
-        //for(int i=0; i<4; ++i){}
 
 		/// Normalize weight vector
 		Eigen::VectorXd w_normalized = w/w.sum();
@@ -122,7 +101,6 @@ namespace RigidMotionEstimator3 {
 			LHS1 = LHS1.selfadjointView<Eigen::Upper>();
 		}
 
-
 		Matrix66 LHS2 = Matrix66::Zero();
 		Vector6 RHS2 = Vector6::Zero();
 		if(doy){
@@ -154,12 +132,7 @@ namespace RigidMotionEstimator3 {
 			}
 			LHS2 = LHS2.selfadjointView<Eigen::Upper>();
 		}
-/*
-		std::cout << LHS1 << std::endl << std::endl;
-		std::cout << LHS2 << std::endl << std::endl;
-		std::cout << RHS1 << std::endl << std::endl;
-		std::cout << -RHS2 << std::endl << std::endl;
-*/
+
 		Matrix66 LHS = LHS1 + LHS2;
 		Vector6 RHS = RHS1 - RHS2;
 		/// Compute transformation
@@ -169,53 +142,6 @@ namespace RigidMotionEstimator3 {
 		transformation  = Eigen::AngleAxisd(RHS(0), Eigen::Vector3d::UnitX()) *
 						  Eigen::AngleAxisd(RHS(1), Eigen::Vector3d::UnitY()) *
 						  Eigen::AngleAxisd(RHS(2), Eigen::Vector3d::UnitZ());
-/*
-		//BIDIRECTIONAL
-		/// Prepare LHS and RHS
-		Matrix66 LHS2 = Matrix66::Zero();
-		Vector6 RHS2 = Vector6::Zero();
-		Block33 TL2 = LHS2.topLeftCorner<3,3>();
-		Block33 TR2 = LHS2.topRightCorner<3,3>();
-		Block33 BR2 = LHS2.bottomRightCorner<3,3>();
-		Eigen::MatrixXd C2 = Eigen::MatrixXd::Zero(3,Y.cols());
-		#pragma omp parallel
-		{
-			#pragma omp for
-			for(int i=0; i<Y.cols(); i++) {
-				C2.col(i) = Y.col(i).cross(Xn.col(i));
-			}
-			#pragma omp sections nowait
-			{
-				#pragma omp section
-				for(int i=0; i<Y.cols(); i++) TL2.selfadjointView<Eigen::Upper>().rankUpdate(C2.col(i), w(i));
-				#pragma omp section
-				for(int i=0; i<Y.cols(); i++) TR2 += (C2.col(i)*Xn.col(i).transpose())*w(i);
-				#pragma omp section
-				for(int i=0; i<Y.cols(); i++) BR2.selfadjointView<Eigen::Upper>().rankUpdate(Xn.col(i), w(i));
-				#pragma omp section
-				for(int i=0; i<C2.cols(); i++) {
-					double dist_to_plane = -((Y.col(i) - X.col(i)).dot(Xn.col(i)) - u(i))*w(i);
-					RHS2.head<3>() += C2.col(i)*dist_to_plane;
-					RHS2.tail<3>() += Xn.col(i)*dist_to_plane;
-				}
-			}
-		}
-		LHS2 = LHS2.selfadjointView<Eigen::Upper>();
-		/// Compute transformation
-		Eigen::Affine3d transformation2;
-		Eigen::LDLT<Matrix66> ldlt2(LHS2);
-		RHS2 = ldlt.solve(RHS2);
-
-		std::cout << LHS << std::endl << std::endl;
-
-		std::cout << LHS2 << std::endl << std::endl;
-
-
-		std::cout << RHS << std::endl << std::endl;
-
-		std::cout << -RHS2 << std::endl << std::endl;
-		exit(0);
-*/
 		Xn = transformation*Xn;
 
 		transformation.translation() = RHS.tail<3>();
@@ -244,99 +170,11 @@ namespace RigidMotionEstimator3 {
 	}
 }
 
-
-/*
-
-        */
-double getError0(){
-
-}
-
-namespace RigidMotionEstimator4 {
-
-template <typename Derived1, typename Derived2, typename Derived3, typename Derived4, typename Derived5, typename Derived6>
-double getError0(              Eigen::MatrixBase<Derived1> X,
-                               Eigen::MatrixBase<Derived2> Xn,
-                               Eigen::MatrixBase<Derived3> Y,
-                               Eigen::MatrixBase<Derived4> Yn,
-                               const Eigen::MatrixBase<Derived5> w){
-    MatrixXd R = Yn.array()*(X-Y).array();
-    double R_sum1 = 0;
-    int nr_pts = R.cols();
-    for(int i = 0; i < nr_pts; i++){float norm = R.col(i).norm();R_sum1 += w(i)*norm*norm;}
-    printf("R_sum1: %15.15f\n",R_sum1);
-    return R_sum1;
-}
-    /// @param Source (one 3D point per column)
-    /// @param Target (one 3D point per column)
-    /// @param Target normals (one 3D normal per column)
-    /// @param Confidence weights
-    /// @param Right hand side
-    template <typename Derived1, typename Derived2, typename Derived3, typename Derived4, typename Derived5, typename Derived6>
-    Eigen::Affine3d point_to_plane(Eigen::MatrixBase<Derived1>& X,
-                                   Eigen::MatrixBase<Derived2>& Xn,
-                                   Eigen::MatrixBase<Derived3>& Y,
-                                   Eigen::MatrixBase<Derived4>& Yn,
-                                   const Eigen::MatrixBase<Derived5>& w,
-                                   const Eigen::MatrixBase<Derived6>& u,
-                                   bool dox,
-                                   bool doy) {
-
-        if(!dox && !doy){return Eigen::Affine3d::Identity();}
-        double step = 0.00001;
-
-        Eigen::Affine3d xr_transformation;
-        xr_transformation  = Eigen::AngleAxisd(step, Eigen::Vector3d::UnitX());
-
-        Eigen::Affine3d yr_transformation;
-        yr_transformation  = Eigen::AngleAxisd(step, Eigen::Vector3d::UnitY());
-
-        Eigen::Affine3d zr_transformation;
-        zr_transformation  = Eigen::AngleAxisd(step, Eigen::Vector3d::UnitZ());
-
-        double emid = getError0(X,Xn,Y,Yn,w);
-        double exr = getError0(xr_transformation*X,xr_transformation*Xn,Y,Yn,w);
-        double eyr = getError0(yr_transformation*X,yr_transformation*Xn,Y,Yn,w);
-        double ezr = getError0(zr_transformation*X,zr_transformation*Xn,Y,Yn,w);
-/*
-        Eigen::Affine3d transformation;
-        Eigen::LDLT<Matrix66> ldlt(LHS);
-        RHS = ldlt.solve(RHS);
-        transformation  = Eigen::AngleAxisd(RHS(0), Eigen::Vector3d::UnitX()) *
-                          Eigen::AngleAxisd(RHS(1), Eigen::Vector3d::UnitY()) *
-                          Eigen::AngleAxisd(RHS(2), Eigen::Vector3d::UnitZ());
-
-        Xn = transformation*Xn;
-
-        transformation.translation() = RHS.tail<3>();
-        /// Apply transformation
-        X = transformation*X;
-*/
-        return Eigen::Affine3d::Identity();
-    }
-
-    /// @param Source (one 3D point per column)
-    /// @param Target (one 3D point per column)
-    /// @param Target normals (one 3D normal per column)
-    /// @param Confidence weights
-    template <typename Derived1, typename Derived2, typename Derived3, typename Derived4, typename Derived5>
-    inline Eigen::Affine3d point_to_plane(Eigen::MatrixBase<Derived1>& X,
-                                          Eigen::MatrixBase<Derived2>& Xn,
-                                          Eigen::MatrixBase<Derived3>& Yp,
-                                          Eigen::MatrixBase<Derived4>& Yn,
-                                          const Eigen::MatrixBase<Derived5>& w,
-                                          bool dox = true,
-                                          bool doy = false) {
-        return point_to_plane(X,Xn,Yp, Yn, w, Eigen::VectorXd::Zero(X.cols()),dox,doy);
-    }
-}
-
-
 //using namespace g2o;
 
 MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses){
 	printf("start MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses)\n");
-//testMinimizer();
+
 	unsigned int nr_frames = frames.size();
 	if(poses.size() != nr_frames){
 		printf("ERROR: poses.size() != nr_frames\n");
@@ -464,8 +302,9 @@ view->initCameraParameters ();
 		trees.push_back(new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X));
 
 	}
-	printf("data loaded successfully\n");
+	//printf("data loaded successfully\n");
 	func->reset();
+	//printf("func->reset()\n");
 	//func->regularization = 0.01;
 
     Eigen::MatrixXd Xo1;
@@ -473,9 +312,9 @@ view->initCameraParameters ();
 	int imgcount = 0;
 
 	for(int funcupdate=0; funcupdate < 50; ++funcupdate) {
-		//printf("funcupdate: %i\n",funcupdate);
+		printf("funcupdate: %i\n",funcupdate);
 		for(int rematching=0; rematching < 5; ++rematching) {
-			//printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
+			printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
 
 			if(visualizationLvl > 0){
 				std::vector<Eigen::MatrixXd> Xv;
@@ -548,6 +387,9 @@ view->initCameraParameters ();
 
 					for(unsigned int ki = 0; ki < matchesi; ki++){
 						int kj = matchidi[ki];
+						if( ki >= Qp.cols() || kj < 0 || kj >= tXj.cols() ){continue;}
+
+						//printf("%i %i / %i %i\n",ki,kj,Qp.cols(),tXj.cols());
 
 						Qp.col(ki) = tXj.col(kj);
 						Qn.col(ki) = tXnj.col(kj);
@@ -560,7 +402,19 @@ view->initCameraParameters ();
 					Eigen::MatrixXd residuals;
 					switch(type) {
 						case PointToPoint:	{residuals = Xp-Qp;} 						break;
-						case PointToPlane:	{residuals = Qn.array()*(Xp-Qp).array();}	break;
+						case PointToPlane:	{
+							residuals		= Eigen::MatrixXd::Zero(1,	Xp.cols());
+							for(int i=0; i<Xp.cols(); ++i) {
+								float dx = Xp(0,i)-Qp(0,i);
+								float dy = Xp(1,i)-Qp(1,i);
+								float dz = Xp(2,i)-Qp(2,i);
+								float qx = Qn(0,i);
+								float qy = Qn(1,i);
+								float qz = Qn(2,i);
+								float di = qx*dx + qy*dy + qz*dz;
+								residuals(0,i) = di;
+							}
+						}break;
 						default:			{printf("type not set\n");}					break;
 					}
 
@@ -571,15 +425,19 @@ view->initCameraParameters ();
 				}
 			}
 
+			//printf("count1: %i\n",count);
+
 			//func->debugg_print = true;
 			switch(type) {
 				case PointToPoint:	{func->computeModel(all_residuals); 				} 	break;
-				case PointToPlane:	{func->computeModel(all_residuals.colwise().norm());}	break;
+				//case PointToPlane:	{func->computeModel(all_residuals.colwise().norm());}	break;
+				case PointToPlane:	{func->computeModel(all_residuals);}	break;
 				default:  			{printf("type not set\n");} break;
 			}
 			//func->debugg_print = false;
 
 			for(int outer=0; outer < 10; ++outer) {
+				printf("funcupdate: %i rematching: %i outer: %i\n",funcupdate,rematching,outer);
 				for(unsigned int i = 0; i < nr_frames; i++){poses2[i] = poses[i];}
 
 				//printf("funcupdate: %i rematching: %i outer: %i\n",funcupdate,rematching,outer);
@@ -593,6 +451,9 @@ view->initCameraParameters ();
 
 						for(unsigned int ki = 0; ki < matchesi; ki++){
 							int kj = matchidi[ki];
+
+							if( kj >=  matchesj){continue;}
+
 							if(matchidj[kj] == ki){nr_match++;}
 						}
 					}
@@ -625,6 +486,8 @@ view->initCameraParameters ();
 
 						for(unsigned int ki = 0; ki < matchesi; ki++){
 							int kj = matchidi[ki];
+
+							if( kj >=  matchesj){continue;}
 							if(matchidj[kj] == ki){
 								Qp.col(count) = tXj.col(kj);
 								Qn.col(count) = tXnj.col(kj);
@@ -639,11 +502,29 @@ view->initCameraParameters ();
 						}
 					}
 
+					if(count == 0){break;}
+
+					printf("count: %i\n",count);
+
 					for(int inner=0; inner < 5; ++inner) {
+						//printf("funcupdate: %i rematching: %i outer: %i inner: %i\n",funcupdate,rematching,outer,inner);
 						Eigen::MatrixXd residuals;
 						switch(type) {
 							case PointToPoint:	{residuals = Xp-Qp;} 						break;
-							case PointToPlane:	{residuals = Qn.array()*(Xp-Qp).array();}	break;
+							//case PointToPlane:	{residuals = Qn.array()*(Xp-Qp).array();}	break;
+							case PointToPlane:	{
+								residuals		= Eigen::MatrixXd::Zero(1,	Xp.cols());
+								for(int i=0; i<Xp.cols(); ++i) {
+									float dx = Xp(0,i)-Qp(0,i);
+									float dy = Xp(1,i)-Qp(1,i);
+									float dz = Xp(2,i)-Qp(2,i);
+									float qx = Qn(0,i);
+									float qy = Qn(1,i);
+									float qz = Qn(2,i);
+									float di = qx*dx + qy*dy + qz*dz;
+									residuals(0,i) = di;
+								}
+							}break;
 							default:			{printf("type not set\n");}					break;
 						}
 						for(unsigned int k=0; k < nr_match; ++k) {residuals.col(k) *= rangeW(k);}
@@ -653,7 +534,8 @@ view->initCameraParameters ();
 						switch(type) {
 							case PointToPoint:	{W = func->getProbs(residuals); } 					break;
 							case PointToPlane:	{
-								W = func->getProbs(residuals.colwise().norm());
+								//W = func->getProbs(residuals.colwise().norm());
+								W = func->getProbs(residuals);
 								for(int k=0; k<nr_match; ++k) {W(k) = W(k)*float((Xn(0,k)*Qn(0,k) + Xn(1,k)*Qn(1,k) + Xn(2,k)*Qn(2,k)) > 0.0);}
 							}	break;
 							default:			{printf("type not set\n");} break;
@@ -667,6 +549,8 @@ view->initCameraParameters ();
 							default:  			{printf("type not set\n"); } break;
 						}
 
+
+						//printf("%i %i , %i %i\n",Xp.rows(),Xp.cols(),Xo1.rows(),Xo1.cols());
                         double stop1 = (Xp-Xo1).colwise().norm().maxCoeff();
                         Xo1 = Xp;
 						if(stop1 < 0.00001) break;

@@ -148,6 +148,14 @@ target_link_libraries(	modelserver quasimodo_ModelDatabase quasimodo_ModelUpdate
 #add_dependencies(		kinect_node roscpp quasimodo_msgs_generate_messages_cpp)
 #target_link_libraries(	kinect_node quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
+add_executable(			build_dataset_node src/build_dataset_node.cpp)
+add_dependencies(		build_dataset_node roscpp quasimodo_msgs_generate_messages_cpp)
+target_link_libraries(	build_dataset_node quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(			load_dataset_node src/load_dataset_node.cpp)
+add_dependencies(		load_dataset_node roscpp quasimodo_msgs_generate_messages_cpp)
+target_link_libraries(	load_dataset_node quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+
 add_executable(			pcd_node src/pcd_node.cpp)
 add_dependencies(		pcd_node roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	pcd_node quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})

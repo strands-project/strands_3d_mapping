@@ -61,10 +61,10 @@ include_directories(/usr/local/include/)
 add_library(quasimodo_SICP src/registration/ICP.cpp)
 target_link_libraries(quasimodo_SICP ${catkin_LIBRARIES})
 
-add_library(quasimodo_weightlib src/weightfunctions/DistanceWeightFunction2.cpp src/weightfunctions/DistanceWeightFunction2PPR.cpp)
+add_library(quasimodo_weightlib src/weightfunctions/DistanceWeightFunction2.cpp src/weightfunctions/DistanceWeightFunction2PPR.cpp src/weightfunctions/DistanceWeightFunction2PPR2.cpp)
 target_link_libraries(quasimodo_weightlib quasimodo_SICP ceres glog ${catkin_LIBRARIES})
 
-add_library(quasimodo_reglib src/registration/Registration.cpp src/registration/RegistrationSICP.cpp src/registration/RegistrationPPR.cpp src/registration/RegistrationGOICP.cpp
+add_library(quasimodo_reglib src/registration/Registration.cpp src/registration/RegistrationSICP.cpp src/registration/RegistrationPPR.cpp src/registration/RegistrationGOICP.cpp src/registration/RegistrationRandom.cpp
 	#src/registration/GoICP_V1.3/src/jly_main.cpp
 	src/registration/GoICP_V1.3/src/jly_goicp.cpp
 	src/registration/GoICP_V1.3/src/jly_3ddt.cpp
