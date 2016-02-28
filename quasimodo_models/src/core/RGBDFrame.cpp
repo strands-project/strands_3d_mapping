@@ -21,12 +21,12 @@
 #include <pcl/filters/passthrough.h>
 #include <pcl/segmentation/region_growing.h>
 
-#include "seeds3.cpp"
-#include "seeds2.cpp"
+//#include "seeds3.cpp"
+//#include "seeds2.cpp"
 #include <vector>
 #include <string>
 
-#include "seeds2.h"
+//#include "seeds2.h"
 
 #include <cv.h>
 #include <highgui.h>

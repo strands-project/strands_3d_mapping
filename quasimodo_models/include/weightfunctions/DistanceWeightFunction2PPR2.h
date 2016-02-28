@@ -29,6 +29,10 @@ public:
 	double meanval;
 	double meanval2;
 
+    double maxnoise;
+
+    bool zeromean;
+
 	double costpen;
 
 	double maxp;

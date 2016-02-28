@@ -291,9 +291,15 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 			reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
 			mu->viewer							= viewer;
-			reg->visualizationLvl				= 2;
+            if(model->relativeposes.size() + model2->relativeposes.size() > 2){
+                reg->visualizationLvl				= 1;
+            }else{
+                reg->visualizationLvl				= 1;
+            }
 
 			reglib::FusionResults fr = mu->registerModel(model);
+
+            printf("score: %f\n",fr.score);
 
 			if(fr.score > 100){
 				fr.guess = fr.guess.inverse();
@@ -358,7 +364,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
     res.model_id					= newmodel->id;
     	
 	addToDB(modeldatabase, newmodel);
-	//show_sorted();
+    show_sorted();
 	return true;
 }
 

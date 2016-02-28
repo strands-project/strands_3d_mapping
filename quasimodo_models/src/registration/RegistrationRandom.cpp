@@ -6,6 +6,10 @@
 #include <iostream>
 #include <fstream>
 
+#include "myhull.h"
+
+//#include <pcl/surface/convex_hull.h>
+
 namespace reglib
 {
 
@@ -197,7 +201,7 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	double d_mean_y = 0;
 	double d_mean_z = 0;
 	for(unsigned int i = 0; i < d_nr_data; i++){
-		d_mean_x += src->data(0,i);
+        d_mean_x += dst->data(0,i);
 		d_mean_y += dst->data(1,i);
 		d_mean_z += dst->data(2,i);
 	}
@@ -227,18 +231,32 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 
 	std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > all_X;
 	std::vector< int > count_X;
+    std::vector< std::vector< Eigen::VectorXd > > all_starts;
 
 	double sumtime = 0;
-	for(int r = 0; r < 1000; r++){
+    int r = 0;
+    //for(int r = 0; r < 1000; r++){
+
+    //double stop = 0;
+    double step = 1.0;
+    for(double rx = 0; rx < 2.0*M_PI; rx += step)
+    for(double ry = 0; ry < 2.0*M_PI; ry += step)
+        for(double rz = 0; rz < 2.0*M_PI; rz += step){
+
 		double start = getTime();
 
 		double meantime = 999999999999;
 		if(r != 0){meantime = sumtime/double(r+1);}
 
+        Eigen::VectorXd startparam = Eigen::VectorXd(3);
+        startparam(0) = rx;
+        startparam(1) = ry;
+        startparam(2) = rz;
+
 		Eigen::Affine3d randomrot = Eigen::Affine3d::Identity();
-		double rx = 2.0*M_PI*0.001*double(rand()%1000);
-		double ry = 2.0*M_PI*0.001*double(rand()%1000);
-		double rz = 2.0*M_PI*0.001*double(rand()%1000);
+        //double rx = 2.0*M_PI*0.001*double(rand()%1000);
+        //double ry = 2.0*M_PI*0.001*double(rand()%1000);
+        //double rz = 2.0*M_PI*0.001*double(rand()%1000);
 		randomrot =	Eigen::AngleAxisd(rx, Eigen::Vector3d::UnitX()) *
 					Eigen::AngleAxisd(ry, Eigen::Vector3d::UnitY()) *
 					Eigen::AngleAxisd(rz, Eigen::Vector3d::UnitZ());
@@ -263,6 +281,9 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 			Xn(1,i)	= m10*xn + m11*yn + m12*zn;
 			Xn(2,i)	= m20*xn + m21*yn + m22*zn;
 		}
+
+        //printf("%f %f %f\n",rx,ry,rz);
+        //if(visualizationLvl >= 2){show(X,Y);}
 
 		func->reset();
 
@@ -429,17 +450,21 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 		for(unsigned int ax = 0; ax < all_X.size(); ax++){
 			Eigen::Matrix<double, 3, Eigen::Dynamic> axX = all_X[ax];
 			double diff = (X-axX).colwise().norm().mean();
-			if(diff < 10*stop){
+            if(diff < 20*stop){
 				count_X[ax]++;
+                all_starts[ax].push_back(startparam);
 
 				int count = count_X[ax];
+                std::vector< Eigen::VectorXd > starts = all_starts[ax];
 				for(int bx = ax-1; bx >= 0; bx--){
 					if(count_X[bx] < count_X[bx+1]){
-						count_X[bx+1]	= count_X[bx];
-						all_X[bx+1]		= all_X[bx];
+                        count_X[bx+1]	= count_X[bx];
+                        all_X[bx+1]		= all_X[bx];
+                        all_starts[bx+1]		= all_starts[bx];
 
-						all_X[bx] = axX;
-						count_X[bx] = count;
+                        all_X[bx] = axX;
+                        count_X[bx] = count;
+                        all_starts[bx] = starts;
 					}else{
 						break;
 					}
@@ -452,18 +477,34 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 		if(!exists){
 			all_X.push_back(X);
 			count_X.push_back(1);
+            all_starts.push_back(std::vector< Eigen::VectorXd >());
+            all_starts.back().push_back(startparam);
 		}
 		//for(unsigned int ax = 0; ax < all_X.size(); ax++){printf("%i -> %i\n",ax,count_X[ax]);}
 		printf("iterations: %i solutions %i\n",r+1,all_X.size());
-
-		if(sumtime > 6){break;}
-
+        r++;
+        //if(visualizationLvl >= 2){show(X,Y);}
+        //if(sumtime > 6){break;}
 	}
 	printf("sumtime: %f\n",sumtime);
 
-	for(unsigned int ax = 0; ax < all_X.size() && ax < 10; ax++){
+    for(unsigned int ax = 0; ax < all_X.size() && ax < 10000; ax++){
+
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_hull (new pcl::PointCloud<pcl::PointXYZ>);
+        cloud->points.resize(all_starts[ax].size());
+        for(unsigned int i = 0; i < all_starts[ax].size(); i++){
+            cloud->points[i].x = all_starts[ax].at(i)(0);
+            cloud->points[i].y = all_starts[ax].at(i)(1);
+            cloud->points[i].z = all_starts[ax].at(i)(2);
+        }
+
+        //pcl::ConvexHull<pcl::PointXYZ> chull;
+        //chull.setInputCloud (cloud);
+        //chull.reconstruct (*cloud_hull);
+
 		printf("%i -> %i\n",ax,count_X[ax]);
-		if(visualizationLvl >= 2){show(all_X[ax],Y);}
+        if(visualizationLvl >= 2){show(all_X[ax],Y);}
 	}
 
 	FusionResults fr = FusionResults();

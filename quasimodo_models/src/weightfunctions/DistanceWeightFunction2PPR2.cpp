@@ -11,6 +11,7 @@ DistanceWeightFunction2PPR2::DistanceWeightFunction2PPR2(	double maxd_, int hist
 	stdval				= blurval;
 	stdgrow				= 1.1;
 
+    maxnoise = 99999999999999;
 	noiseval = 100.0;
 	
 	prob.resize(histogram_size+1);
@@ -53,6 +54,8 @@ DistanceWeightFunction2PPR2::DistanceWeightFunction2PPR2(	double maxd_, int hist
 	interp = true;
 
 	first = true;
+
+    zeromean = false;
 
 	costpen = 3.0;
 
@@ -367,17 +370,18 @@ double fitMul2(double bias, double mul, double mean, double std_mid, std::vector
 	return mul;
 }
 
-Gaussian3 getModel(double & stdval,std::vector<float> & hist, bool uniform_bias, bool refine_mean, bool refine_mul, bool refine_std, int nr_refineiters, double costpen){
+Gaussian3 getModel(double & stdval,std::vector<float> & hist, bool uniform_bias, bool refine_mean, bool refine_mul, bool refine_std, int nr_refineiters, double costpen, bool zeromean){
 	double mul = hist[0];
 	double mean = 0;
 	unsigned int nr_bins = hist.size();
-	
-	for(unsigned int k = 1; k < nr_bins; k++){
-		if(hist[k] > mul){
-			mul = hist[k];
-			mean = k;
-		}
-	}
+    if(!zeromean){
+        for(unsigned int k = 1; k < nr_bins; k++){
+            if(hist[k] > mul){
+                mul = hist[k];
+                mean = k;
+            }
+        }
+    }
 
 	std::vector<float> X;
 	std::vector<float> Y;
@@ -471,13 +475,15 @@ void DistanceWeightFunction2PPR2::computeModel(MatrixXd mat){
 	start_time = getCurrentTime3();
 	blurHistogram2(blur_histogram,histogram,blurval,false);
 
-	Gaussian3 g = getModel(stdval,blur_histogram,uniform_bias,refine_mean,refine_mul,refine_std,nr_refineiters,costpen);
+    Gaussian3 g = getModel(stdval,blur_histogram,uniform_bias,refine_mean,refine_mul,refine_std,nr_refineiters,costpen,zeromean);
 
 	//printf("found stdval: %f\n",stdval);
 	stdval2 = 0;
-	Gaussian3 g2 = getModel(stdval2,histogram,uniform_bias,refine_mean,refine_mul,refine_std,nr_refineiters,costpen);
+    Gaussian3 g2 = getModel(stdval2,histogram,uniform_bias,refine_mean,refine_mul,refine_std,nr_refineiters,costpen,zeromean);
 	stdval2 = std::max(1.0,stdval2);
 	stdval2 = maxd*stdval2/float(histogram_size);
+
+    g.stdval = std::min(g.stdval,maxnoise*double(histogram_size)/maxd);
 
 	noiseval = maxd*g.stdval/float(histogram_size);
 
@@ -615,7 +621,7 @@ bool DistanceWeightFunction2PPR2::update(){
 		Gaussian3 g = Gaussian3(mulval,meanval,stdval);//getModel(stdval,blur_histogram,uniform_bias);
 
 		int iteration = 0;
-		while(true){
+        for(int i = 0; i < 100; i++){
 			iteration++;
 			regularization *= 0.5;
 			double change = histogram_size*regularization/maxd;
@@ -635,6 +641,7 @@ bool DistanceWeightFunction2PPR2::update(){
 			g.stdval -= change;
 			g.update();
 		}
+        return true;
 	}else{
 		regularization *= 0.5;
 	}

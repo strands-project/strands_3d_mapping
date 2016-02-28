@@ -36,6 +36,79 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 		registration->setSrc(cd2);
 		FusionResults fr = registration->getTransform(guess);
 
+        double best = -99999999999999;
+        int best_id = -1;
+        for(unsigned int ca = 0; ca < fr.candidates.size(); ca++){
+            Eigen::Matrix4d pose = fr.candidates[ca];
+            std::vector<Eigen::Matrix4d>	current_poses;
+            std::vector<RGBDFrame*>			current_frames;
+            std::vector<cv::Mat>			current_masks;
+
+            for(int i = 0; i < model->frames.size(); i++){
+                current_poses.push_back(	model->relativeposes[i]);
+                current_frames.push_back(	model->frames[i]);
+                current_masks.push_back(	model->masks[i]);
+            }
+
+            for(int i = 0; i < model2->frames.size(); i++){
+                current_poses.push_back(	pose	*	model2->relativeposes[i]);
+                current_frames.push_back(				model2->frames[i]);
+                current_masks.push_back(				model2->masks[i]);
+            }
+
+            std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_masks);
+            std::vector<std::vector < float > > scores = getScores(ocs,10);
+            std::vector<int> partition = getPartition(scores,2,5,2);
+
+            double sumscore1 = 0;
+            for(int i = 0; i < scores.size(); i++){
+                for(int j = 0; j < scores.size(); j++){
+                    if(i < model->frames.size() && j < model->frames.size()){sumscore1 += scores[i][j];}
+                    if(i >= model->frames.size() && j >= model->frames.size()){sumscore1 += scores[i][j];}
+                }
+            }
+
+            double sumscore2 = 0;
+            for(int i = 0; i < scores.size(); i++){
+                for(int j = 0; j < scores.size(); j++){
+                    if(partition[i] == partition[j]){sumscore2 += scores[i][j];}
+                }
+            }
+
+            double improvement = sumscore2-sumscore1;
+
+            if(improvement > best){
+                best = improvement;
+                best_id = ca;
+            }
+
+            //printf("sumscore before: %f\n",sumscore1);
+            //printf("sumscore after: %f\n",sumscore2);
+            //printf("%i improvement: %f\n",ca,improvement);
+
+            if(improvement > 0){
+                printf("%i improvement: %f\n",ca,improvement);
+                getOcclusionScores(current_poses, current_frames,current_masks,true);
+            }
+
+            //std::vector<int> count;
+            //for(unsigned int i = 0; i < partition.size(); i++){
+            //    if(count.size() <= partition[i]){count.resize(partition[i]+1);}
+            //    count[partition[i]]++;
+            //}
+
+            //int minpart = count[0];
+            //for(unsigned int i = 1; i < count.size(); i++){minpart = std::min(minpart,count[i]);}
+
+            //printf("----------------------------\n");
+            //printf("partition: ");for(unsigned int i = 0; i < partition.size(); i++){printf("%i ",partition[i]);}printf("\n");
+            //for(unsigned int i = 0; i < count.size(); i++){printf("count %i -> %i\n",i,count[i]);}
+        }
+        if(best_id != -1){
+            fr.score = 9999999;
+            fr.guess = fr.candidates[best_id];
+        }
+
 		
 		printf("score: %6.6f\n",fr.score);
 		delete cd1;
@@ -158,25 +231,7 @@ void ModelUpdaterBasicFuse::fuse(Model * model2, Eigen::Matrix4d guess, double u
 
 UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1, Model * model2){
 	UpdatedModels retval = UpdatedModels();
-	Eigen::Matrix4d pose;
-
-	printf("void ModelUpdaterBasicFuse::fuseData\n");
-/*
-	registration->only_initial_guess = true;
-
-	int step1 = std::max(int(model->frames.size())/2,5);
-	CloudData * cd1 = model ->getCD(model->points.size()/step1);
-	registration->setDst(cd1);
-	int step2 = 5;
-	CloudData * cd2	= model2->getCD(model2->points.size()/step2);
-	registration->setSrc(cd2);
-
-	Eigen::Matrix4d pose = f->guess;
-	FusionResults fr = registration->getTransform(pose);
-
-	registration->only_initial_guess = false;
-*/
-	pose = f->guess;
+    Eigen::Matrix4d pose = f->guess;
 
 	std::vector<Eigen::Matrix4d>	current_poses;
 	std::vector<RGBDFrame*>			current_frames;
@@ -226,6 +281,7 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 	for(unsigned int i = 0; i < count.size(); i++){printf("count %i -> %i\n",i,count[i]);}
 
 	if(count.size() == 1){
+        model1->score = sumscore;
 		for(unsigned int i = 0; i < model2->frames.size();i++){model1->addFrameToModel(model2->frames[i], model2->masks[i],pose*model2->relativeposes[i]);}
 /*
 		if(current_poses.size() > 2){

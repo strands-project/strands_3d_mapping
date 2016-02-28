@@ -13,7 +13,7 @@ using namespace Eigen;
 
 Model::Model(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d pose){
 //printf("start Model::Model(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d pose)\n");
-
+    score = 0;
     id = model_id_counter++;
 
 //	addFrameToModel(frame, mask, pose);

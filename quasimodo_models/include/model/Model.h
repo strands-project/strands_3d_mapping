@@ -56,6 +56,8 @@ class superpoint{
 
 	class Model{
 		public:
+
+        double score;
 		unsigned long id;
 
 		std::vector<superpoint> points;

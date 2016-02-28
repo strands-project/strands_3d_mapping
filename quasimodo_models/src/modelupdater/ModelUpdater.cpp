@@ -390,6 +390,39 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 	scloud->points.resize(src_width*src_height);
 	dcloud->points.resize(dst_width*dst_height);
 
+    double sum = 0;
+    double count = 0;
+    for(unsigned int src_w = 0; src_w < src_width-1; src_w++){
+        for(unsigned int src_h = 0; src_h < src_height;src_h++){
+            int src_ind0 = src_h*src_width+src_w-1;
+            int src_ind1 = src_h*src_width+src_w;
+            int src_ind2 = src_h*src_width+src_w+1;
+            if(src_maskdata[src_ind0] == 255 && src_maskdata[src_ind1] == 255 && src_maskdata[src_ind2] == 255){// && p.z > 0 && !isnan(p.normal_x)){
+                float z0 = src_idepth*float(src_depthdata[src_ind0]);
+                float z1 = src_idepth*float(src_depthdata[src_ind1]);
+                float z2 = src_idepth*float(src_depthdata[src_ind2]);
+
+                double diff0 = (z0-z1)/(z0*z0+z1*z1);
+                double diff1 = (z2-z1)/(z2*z2+z1*z1);
+                if( fabs(diff0) < fabs(diff1)){
+                    if(diff0 != 0){
+                        sum += diff0*diff0;
+                        count++;
+                    }
+                }else{
+                    if(diff1 != 0){
+                        sum += diff1*diff1;
+                        count++;
+                    }
+                }
+
+            }
+        }
+    }
+    double me = sqrt(sum/(count+1));
+    double pred = 2.0*sqrt(2)*me;
+    //printf("pred error: %f -> %f \n",me,sqrt(2)*me);
+
 	for(unsigned int src_w = 0; src_w < src_width; src_w++){
 		for(unsigned int src_h = 0; src_h < src_height;src_h++){
 			int src_ind = src_h*src_width+src_w;
@@ -407,9 +440,6 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 					float tx	= m00*x + m01*y + m02*z + m03;
 					float ty	= m10*x + m11*y + m12*z + m13;
 					float tz	= m20*x + m21*y + m22*z + m23;
-					if(debugg){
-
-					}
 					float tnx	= m00*nx + m01*ny + m02*nz;
 					float tny	= m10*nx + m11*ny + m12*nz;
 					float tnz	= m20*nx + m21*ny + m22*nz;
@@ -491,14 +521,18 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 	DistanceWeightFunction2PPR2 * func = new DistanceWeightFunction2PPR2();
 	func->maxp			= 1.0;
 	func->update_size	= true;
-	func->startreg		= 0.0001;
-	func->debugg_print	= true;
+    func->zeromean      = true;
+    func->startreg		= 0.0001;
+    func->debugg_print	= debugg;
 	func->bidir			= true;
+    func->maxnoise      = pred;
 	func->reset();
 
 	Eigen::MatrixXd X = Eigen::MatrixXd::Zero(1,residuals.size());
 	for(int i = 0; i < residuals.size(); i++){X(0,i) = residuals[i];}
 	func->computeModel(X);
+
+    //printf("predicted: %f found: %f\n",pred,func->getNoise()-func->startreg);
 
 	Eigen::VectorXd  W = func->getProbs(X);
 /*
@@ -873,7 +907,7 @@ vector<vector< OcclusionScore > > ModelUpdater::computeAllOcclusionScores(RGBDFr
 
 	DistanceWeightFunction2PPR * func = new DistanceWeightFunction2PPR();
 	func->update_size = true;
-	func->startreg = 0.0001;
+    func->startreg = 0.00001;
 	func->debugg_print = true;
 	func->reset();
 
@@ -902,17 +936,15 @@ vector<vector< OcclusionScore > > ModelUpdater::computeAllOcclusionScores(RGBDFr
 }
 
 
-vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(vector<Matrix4d> current_poses, vector<RGBDFrame*> current_frames,vector<cv::Mat> current_masks){
+vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(vector<Matrix4d> current_poses, vector<RGBDFrame*> current_frames,vector<cv::Mat> current_masks, bool debugg_scores){
 	vector<vector < OcclusionScore > > scores;
 	scores.resize(current_frames.size());
 	for(int i = 0; i < current_frames.size(); i++){scores[i].resize(current_frames.size());}
 
-	bool debugg_scores = false;
-
 	for(int i = 0; i < current_frames.size(); i++){
 		for(int j = i+1; j < current_frames.size(); j++){
 			Eigen::Matrix4d relative_pose = current_poses[i].inverse() * current_poses[j];
-			scores[j][i]		= computeOcclusionScore(current_frames[j], current_masks[j], current_frames[i], current_masks[i],relative_pose,debugg_scores);
+            scores[j][i]		= computeOcclusionScore(current_frames[j], current_masks[j], current_frames[i], current_masks[i],relative_pose,debugg_scores);
 			scores[i][j]		= computeOcclusionScore(current_frames[i], current_masks[i], current_frames[j], current_masks[j],relative_pose.inverse(),debugg_scores);
 		}
 	}
@@ -925,7 +957,7 @@ vector< vector< vector< vector< OcclusionScore > > > > ModelUpdater::getAllOcclu
 	vector< vector< vector< vector< OcclusionScore > > > > scores;
 	scores.resize(current_frames.size());
 	for(int i = 0; i < current_frames.size(); i++){scores[i].resize(current_frames.size());}
-
+1
 	bool debugg_scores = false;
 
 	for(int i = 0; i < current_frames.size(); i++){
@@ -993,7 +1025,7 @@ CloudData * ModelUpdater::getCD(std::vector<Eigen::Matrix4d> current_poses, std:
 					Vector3f	pxyz	(px	,py	,pz );
 					Vector3f	pnxyz	(pnx,pny,pnz);
 					Vector3f	prgb	(pr	,pg	,pb );
-					float		weight	= 1.0/(z*z);
+                    float	Villa_i_Sollentuna_65057392.htm?ca=11	weight	= 1.0/(z*z);
 					points.push_back(superpoint(pxyz,pnxyz,prgb, weight, weight, frameid));
 				}
 			}
@@ -1017,7 +1049,7 @@ std::vector<std::vector < float > > ModelUpdater::getScores(std::vector<std::vec
 			scores[j][i] = scores[i][j];
 		}
 	}
-
+/*
 	printf("=======================================================\n");
 	for(int i = 0; i < scores.size(); i++){
 		for(int j = 0; j < scores.size(); j++){
@@ -1026,6 +1058,7 @@ std::vector<std::vector < float > > ModelUpdater::getScores(std::vector<std::vec
 		printf("\n");
 	}
 	printf("=======================================================\n");
+*/
 	return scores;
 }
 /*

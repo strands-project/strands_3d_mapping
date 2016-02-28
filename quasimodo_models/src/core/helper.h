@@ -1,6 +1,6 @@
 // Helper functions taken from SLIC superpixels source code
 // http://ivrg.epfl.ch/supplementary_material/RK_SLICSuperpixels/index.html
-
+/*
 void DrawContoursAroundSegments(UINT* img, UINT* labels, const int& width, const int& height, const UINT& color, bool internal)
 {
   const int dx8[8] = {-1, -1,  0,  1, 1, 1, 0, -1};
@@ -102,3 +102,4 @@ void SaveImage_bw(
 
 
 #endif
+*/
