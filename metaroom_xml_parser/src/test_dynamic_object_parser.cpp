@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 
 
                 imshow( "Display window2", object.objectDepthImage );                   // Show our image inside it.
-                imshow( "Display window1", object.objectRGBImage );                   // Show our image inside it.1
+                imshow( "Display window1", object.objectRGBImage );                   // Show our image inside it.
                 waitKey(0);                                          // Wait for a keystroke in the window
 
                 pcl::visualization::PointCloudColorHandlerCustom<PointType> cloud_handler (object.objectCloud, 255, 0, 0);

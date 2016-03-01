@@ -87,7 +87,7 @@ public:
         std::pair<cv::Mat, cv::Mat> toRet;
         toRet.first = cv::Mat::zeros(480, 640, CV_8UC3); // RGB image
         toRet.second = cv::Mat::zeros(480, 640, CV_16UC1); // Depth image
-        pcl::PointXYZRGB point;
+        PointType point;
         for (size_t y = 0; y < toRet.first.rows; ++y) {
             for (size_t x = 0; x < toRet.first.cols; ++x) {
                 point = cloud->points[y*toRet.first.cols + x];
