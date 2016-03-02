@@ -54,6 +54,7 @@ set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../../catkin_ws)
 set(parser_include_dir ${parser_workspace}/src/strands_3d_mapping/metaroom_xml_parser/include)
 set(parser_library_dir ${parser_workspace}/devel/lib)
 
+include_directories(${parser_workspace}/src/strands_3d_mapping/object_manager/include)
 include_directories(${parser_include_dir})
 link_directories(${parser_library_dir})
 
@@ -165,6 +166,9 @@ target_link_libraries(test_segmentation supervoxel_segmentation dynamic_visualiz
 
 add_executable(test_surfel_segmentation test/test_surfel_segmentation.cpp)
 target_link_libraries(test_surfel_segmentation supervoxel_segmentation dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(test_gt_labelled_data test/test_gt_labelled_data.cpp)
+target_link_libraries(test_gt_labelled_data supervoxel_segmentation dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_supervoxel_keypoints test/test_supervoxel_keypoints.cpp)
 target_link_libraries(test_supervoxel_keypoints dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
