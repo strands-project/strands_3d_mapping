@@ -54,6 +54,8 @@ public:
    std::vector<CloudPtr> getAdditionalViews();
    void addAdditionalView(CloudPtr view);
 
+   void clearAdditionalViews();
+
    void updateAllData();
    void computeCentroid();
    void computeBbox();

@@ -262,3 +262,9 @@ void DynamicObject::addObjectTrack(tf::Transform pose, CloudPtr cloud)
         cout<<"Added new object track. Total tracks "<<m_vObjectTracks.size()<<endl;
     }
 }
+
+void DynamicObject::clearAdditionalViews(){
+    m_vAdditionalViewsTransforms.clear();
+    m_vAdditionalViews.clear();
+    m_noAdditionalViews = 0;
+}
