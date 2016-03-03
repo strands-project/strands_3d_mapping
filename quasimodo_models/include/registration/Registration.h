@@ -71,8 +71,8 @@ namespace reglib
 		Registration();
 		~Registration();
 		
-		void setSrc(CloudData * src_);
-		void setDst(CloudData * dst_);
+		virtual void setSrc(CloudData * src_);
+		virtual void setDst(CloudData * dst_);
 		void setVisualizationLvl(unsigned int lvl);
 
 		virtual FusionResults getTransform(Eigen::MatrixXd guess);
@@ -87,5 +87,6 @@ namespace reglib
 #include "RegistrationSICP.h"
 #include "RegistrationPPR.h"
 #include "RegistrationGOICP.h"
+#include "RegistrationRefinement.h"
 #include "RegistrationRandom.h"
 #endif // Registration_H

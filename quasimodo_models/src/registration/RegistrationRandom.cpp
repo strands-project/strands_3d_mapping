@@ -37,8 +37,21 @@ RegistrationRandom::RegistrationRandom(){
 		f->histogram_size	= 255;
 		feature_func.push_back(f);
 	}
+
+	refinement = new RegistrationRefinement();
 }
 RegistrationRandom::~RegistrationRandom(){}
+
+
+void RegistrationRandom::setSrc(CloudData * src_){
+	src = src_;
+	refinement->setSrc(src_);
+}
+void RegistrationRandom::setDst(CloudData * dst_){
+	dst = dst_;
+	refinement->setDst(dst_);
+}
+
 
 namespace RigidMotionEstimatorRand {
 	/// @param Source (one 3D point per column)
@@ -146,23 +159,29 @@ double getTime(){
 	return double(start1.tv_sec+(start1.tv_usec/1000000.0));
 }
 
+double transformationdiff(Eigen::Affine3d & A, Eigen::Affine3d & B, double rotationweight){
+	Eigen::Affine3d C = A.inverse()*B;
+	double r = fabs(1-C(0,0))+fabs(C(0,1))+fabs(C(0,2))  +  fabs(C(1,0))+fabs(1-C(1,1))+fabs(C(1,2))  +  fabs(C(2,0))+fabs(C(2,1))+fabs(1-C(2,2));
+	double t = sqrt(C(0,3)*C(0,3)+C(1,3)*C(1,3)+C(2,3)*C(2,3));
+	return r*rotationweight+t;
+}
+
 FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 
-	unsigned int s_nr_data = std::min(int(src->data.cols()),int(500000));
+	unsigned int s_nr_data = src->data.cols();//std::min(int(src->data.cols()),int(500000));
 	unsigned int d_nr_data = dst->data.cols();
-	
-	int stepx = std::max(1,int(s_nr_data)/500);
-	int stepy = std::max(1,int(d_nr_data)/10000);
 
-	Eigen::Matrix<double, 3, Eigen::Dynamic> X;
-	Eigen::Matrix<double, 3, Eigen::Dynamic> Xn;
+	printf("s_nr_data: %i d_nr_data: %i\n",s_nr_data,d_nr_data);
 
-	X.resize(Eigen::NoChange,s_nr_data/stepx);
-	Xn.resize(Eigen::NoChange,s_nr_data/stepx);
-	unsigned int xcols = X.cols();
+	int stepy = std::max(1,int(d_nr_data)/100000);
 
-
-	Eigen::VectorXd SRC_INORMATION = Eigen::VectorXd::Zero(xcols);
+	std::vector< int > points;
+	points.push_back(250);
+	while(points.back() < 1000){
+		points.push_back(points.back() * 2);
+		int stepx2 = std::max(1,int(s_nr_data)/points.back());
+		if(stepx2 == 1){break;}
+	}
 
 	Eigen::Matrix<double, 3, Eigen::Dynamic> Y;
 	Eigen::Matrix<double, 3, Eigen::Dynamic> N;
@@ -209,6 +228,7 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	d_mean_y /= double(d_nr_data);
 	d_mean_z /= double(d_nr_data);
 
+	printf("%f %f %f\n",d_mean_x,d_mean_y,d_mean_z);
 
 	double stop		= 0.00001;
 
@@ -222,26 +242,28 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	Xmean(1,3) = s_mean_y;
 	Xmean(2,3) = s_mean_z;
 
-	/// Buffers
-	Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	X.cols());
-	Eigen::Matrix3Xd Qn		= Eigen::Matrix3Xd::Zero(3,	X.cols());
-	Eigen::VectorXd  W		= Eigen::VectorXd::Zero(	X.cols());
-	Eigen::VectorXd  Wold	= Eigen::VectorXd::Zero(	X.cols());
-	Eigen::VectorXd  rangeW	= Eigen::VectorXd::Zero(	X.cols());
-
 	std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > all_X;
+	std::vector< Eigen::Affine3d > all_res;
 	std::vector< int > count_X;
     std::vector< std::vector< Eigen::VectorXd > > all_starts;
+	int stepxsmall = std::max(1,int(s_nr_data)/250);
+	Eigen::VectorXd Wsmall (s_nr_data/stepxsmall);
+	for(unsigned int i = 0; i < s_nr_data/stepxsmall; i++){Wsmall(i) = src->information(0,i*stepxsmall);}
+
 
 	double sumtime = 0;
-    int r = 0;
-    //for(int r = 0; r < 1000; r++){
-
+	int r = 0;
+	//for(int r = 0; r < 1000; r++){
+//	while(true){
+//		double rx = 2.0*M_PI*0.0001*double(rand()%10000);
+//		double ry = 2.0*M_PI*0.0001*double(rand()%10000);
+//		double rz = 2.0*M_PI*0.0001*double(rand()%10000);
     //double stop = 0;
-    double step = 1.0;
-    for(double rx = 0; rx < 2.0*M_PI; rx += step)
-    for(double ry = 0; ry < 2.0*M_PI; ry += step)
-        for(double rz = 0; rz < 2.0*M_PI; rz += step){
+	double step = 2.0;
+	for(double rx = 0; rx < 2.0*M_PI; rx += step){
+	for(double ry = 0; ry < 2.0*M_PI; ry += step)
+	for(double rz = 0; rz < 2.0*M_PI; rz += step){
+		//printf("rx: %f\n",rx);
 
 		double start = getTime();
 
@@ -254,18 +276,38 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
         startparam(2) = rz;
 
 		Eigen::Affine3d randomrot = Eigen::Affine3d::Identity();
-        //double rx = 2.0*M_PI*0.001*double(rand()%1000);
-        //double ry = 2.0*M_PI*0.001*double(rand()%1000);
-        //double rz = 2.0*M_PI*0.001*double(rand()%1000);
+
 		randomrot =	Eigen::AngleAxisd(rx, Eigen::Vector3d::UnitX()) *
 					Eigen::AngleAxisd(ry, Eigen::Vector3d::UnitY()) *
 					Eigen::AngleAxisd(rz, Eigen::Vector3d::UnitZ());
-		Eigen::Affine3d current_guess = Ymean*randomrot*Xmean.inverse();//*Ymean;
 
+		func->reset();
+		for(unsigned int f = 0; f < feature_func.size(); f++){feature_func[f]->regularization = 15;}
+
+		Eigen::Affine3d current_guess = Ymean*randomrot*Xmean.inverse();//*Ymean;
 		float m00 = current_guess(0,0); float m01 = current_guess(0,1); float m02 = current_guess(0,2); float m03 = current_guess(0,3);
 		float m10 = current_guess(1,0); float m11 = current_guess(1,1); float m12 = current_guess(1,2); float m13 = current_guess(1,3);
 		float m20 = current_guess(2,0); float m21 = current_guess(2,1); float m22 = current_guess(2,2); float m23 = current_guess(2,3);
 
+for(unsigned int p = 0; p < points.size(); p++){
+	int stepx = std::max(1,int(s_nr_data)/points[p]);
+
+		Eigen::Matrix<double, 3, Eigen::Dynamic> X;
+		Eigen::Matrix<double, 3, Eigen::Dynamic> Xn;
+		X.resize(Eigen::NoChange,s_nr_data/stepx);
+		Xn.resize(Eigen::NoChange,s_nr_data/stepx);
+		unsigned int xcols = X.cols();
+
+		printf("xcols: %i\n",xcols);
+
+		/// Buffers
+		Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	X.cols());
+		Eigen::Matrix3Xd Qn		= Eigen::Matrix3Xd::Zero(3,	X.cols());
+		Eigen::VectorXd  W		= Eigen::VectorXd::Zero(	X.cols());
+		Eigen::VectorXd  Wold	= Eigen::VectorXd::Zero(	X.cols());
+		Eigen::VectorXd  rangeW	= Eigen::VectorXd::Zero(	X.cols());
+
+		Eigen::VectorXd SRC_INORMATION = Eigen::VectorXd::Zero(xcols);
 		for(unsigned int i = 0; i < s_nr_data/stepx; i++){
 			SRC_INORMATION(i) = src->information(0,i*stepx);
 			float x		= src->data(0,i*stepx);
@@ -281,13 +323,6 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 			Xn(1,i)	= m10*xn + m11*yn + m12*zn;
 			Xn(2,i)	= m20*xn + m21*yn + m22*zn;
 		}
-
-        //printf("%f %f %f\n",rx,ry,rz);
-        //if(visualizationLvl >= 2){show(X,Y);}
-
-		func->reset();
-
-		for(unsigned int f = 0; f < feature_func.size(); f++){feature_func[f]->regularization = 15;}
 
 		Eigen::Matrix3Xd Xo1 = X;
 		Eigen::Matrix3Xd Xo2 = X;
@@ -321,8 +356,6 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 					Qp.col(i) = Y.col(id);
 					rangeW(i) = 1.0/(1.0/SRC_INORMATION(i)+1.0/DST_INORMATION(id));
 				}
-
-
 
 				for(int outer=0; outer< 1; ++outer) {
 					if( (getTime()-start) > (3*meantime) ){break;}
@@ -444,74 +477,159 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 		}
 		double stoptime = getTime();
 		sumtime += stoptime-start;
-		printf("score: %5.5f time to align: %5.5fs meantime: %5.5fs\n",score,stoptime-start,sumtime/double(r+1));
+		//printf("score: %5.5f time to align: %5.5fs meantime: %5.5fs\n",score,stoptime-start,sumtime/double(r+1));
+
+		show(X,Y);//if(visualizationLvl >= 2){show(all_X[ax],Y);}
+
+		pcl::TransformationFromCorrespondences tfc;
+		tfc.reset();
+		for(unsigned int i = 0; i < xcols; i++){
+			Eigen::Vector3f a (X(0,i),						X(1,i),					X(2,i));
+			Eigen::Vector3f b (src->data(0,i*stepx),		src->data(1,i*stepx),	src->data(2,i*stepx));
+			tfc.add(b,a);
+		}
+		current_guess = tfc.getTransformation().cast<double>();
+
+		m00 = current_guess(0,0); m01 = current_guess(0,1); m02 = current_guess(0,2); m03 = current_guess(0,3);
+		m10 = current_guess(1,0); m11 = current_guess(1,1); m12 = current_guess(1,2); m13 = current_guess(1,3);
+		m20 = current_guess(2,0); m21 = current_guess(2,1); m22 = current_guess(2,2); m23 = current_guess(2,3);
+
+		Eigen::Matrix<double, 3, Eigen::Dynamic> Xsmall;
+		Xsmall.resize(Eigen::NoChange,s_nr_data/stepxsmall);
+		for(unsigned int i = 0; i < s_nr_data/stepxsmall; i++){
+			float x		= src->data(0,i*stepxsmall);
+			float y		= src->data(1,i*stepxsmall);
+			float z		= src->data(2,i*stepxsmall);
+			Xsmall(0,i)	= m00*x + m01*y + m02*z + m03;
+			Xsmall(1,i)	= m10*x + m11*y + m12*z + m13;
+			Xsmall(2,i)	= m20*x + m21*y + m22*z + m23;
+		}
 
 		bool exists = false;
 		for(unsigned int ax = 0; ax < all_X.size(); ax++){
 			Eigen::Matrix<double, 3, Eigen::Dynamic> axX = all_X[ax];
-			double diff = (X-axX).colwise().norm().mean();
-            if(diff < 20*stop){
+			Eigen::Affine3d axT = all_res[ax];
+			double diff = (Xsmall-axX).colwise().norm().mean();
+			if(diff < 20*stop){
 				count_X[ax]++;
                 all_starts[ax].push_back(startparam);
-
 				int count = count_X[ax];
                 std::vector< Eigen::VectorXd > starts = all_starts[ax];
 				for(int bx = ax-1; bx >= 0; bx--){
 					if(count_X[bx] < count_X[bx+1]){
-                        count_X[bx+1]	= count_X[bx];
-                        all_X[bx+1]		= all_X[bx];
-                        all_starts[bx+1]		= all_starts[bx];
+						count_X[bx+1]		= count_X[bx];
+						all_X[bx+1]			= all_X[bx];
+						all_starts[bx+1]	= all_starts[bx];
+						all_res[bx+1]		= all_res[bx];
 
                         all_X[bx] = axX;
                         count_X[bx] = count;
                         all_starts[bx] = starts;
-					}else{
-						break;
-					}
+						all_res[bx] = axT;
+					}else{break;}
 				}
 				exists = true;
 				break;
 			}
 		}
 
+
+
 		if(!exists){
-			all_X.push_back(X);
+			all_X.push_back(Xsmall);
 			count_X.push_back(1);
             all_starts.push_back(std::vector< Eigen::VectorXd >());
             all_starts.back().push_back(startparam);
+			all_res.push_back(current_guess);
 		}
-		//for(unsigned int ax = 0; ax < all_X.size(); ax++){printf("%i -> %i\n",ax,count_X[ax]);}
-		printf("iterations: %i solutions %i\n",r+1,all_X.size());
+}
         r++;
-        //if(visualizationLvl >= 2){show(X,Y);}
-        //if(sumtime > 6){break;}
+		//if(sumtime > 3){break;}
+
 	}
+}
 	printf("sumtime: %f\n",sumtime);
 
-    for(unsigned int ax = 0; ax < all_X.size() && ax < 10000; ax++){
-
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_hull (new pcl::PointCloud<pcl::PointXYZ>);
-        cloud->points.resize(all_starts[ax].size());
-        for(unsigned int i = 0; i < all_starts[ax].size(); i++){
-            cloud->points[i].x = all_starts[ax].at(i)(0);
-            cloud->points[i].y = all_starts[ax].at(i)(1);
-            cloud->points[i].z = all_starts[ax].at(i)(2);
-        }
-
-        //pcl::ConvexHull<pcl::PointXYZ> chull;
-        //chull.setInputCloud (cloud);
-        //chull.reconstruct (*cloud_hull);
-
+	for(unsigned int ax = 0; ax < all_X.size() && ax < 5; ax++){
 		printf("%i -> %i\n",ax,count_X[ax]);
+		if(visualizationLvl >= 2){show(all_X[ax],Y);}
+	}
+
+/*
+	for(unsigned int ax = 0; ax < all_X.size(); ax++){
+		printf("%i -> %i\n",ax,count_X[ax]);
+
+		show(all_X[ax],Y);
+
+		std::vector< Eigen::VectorXd > axstarts = all_starts[ax];
+
+		myhull * mh = new myhull();
+		//for(double alpha = 0.1; alpha <= 300; alpha += 0.1){
+			double alpha = 0.5;
+			mh->compute(axstarts,alpha);
+
+
+			viewer->removeAllPointClouds();
+			pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+			for(unsigned int bx = 0; bx < all_X.size(); bx++){
+				std::vector< Eigen::VectorXd > bxstarts = all_starts[bx];
+				for(unsigned int i = 0; i < bxstarts.size(); i++){
+					Eigen::VectorXd p2 = bxstarts[i];
+					pcl::PointXYZRGBNormal p;
+					p.x = p2(0);
+					p.y = p2(1);
+					p.z = p2(2);
+					if(ax == bx){
+						p.b = 0;
+						p.g = 0;
+						p.r = 255;
+					}else{
+						p.b = 0;
+						p.g = 255;
+						p.r = 0;
+					}
+					scloud->points.push_back(p);
+				}
+			}
+			viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
+			viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "scloud");
+			viewer->spin();
+			viewer->removeAllPointClouds();
+
+			viewer->addPolygonMesh<pcl::PointXYZ> (mh->cloud_hull, mh->polygons);
+			viewer->spin();
+			viewer->removeAllShapes();
+
+			int inliers = 0;
+			int outliers = 0;
+			for(unsigned int bx = 0; bx < all_X.size(); bx++){
+				if(bx == ax){continue;}
+
+				std::vector< Eigen::VectorXd > bxstarts = all_starts[bx];
+
+				for(unsigned int cx = 0; cx < bxstarts.size(); cx++){
+					Eigen::VectorXd p = bxstarts[cx];
+					bool inlier = mh->isInlier( p );
+					inliers += inlier;
+					outliers += !inlier;
+				}
+				//mh->inside(all_starts[ax]);
+			}
+			printf("hull: %i alpha: %f -> inliers: %i outliers: %i\n",ax,alpha,inliers,outliers);
+
+		//}
         if(visualizationLvl >= 2){show(all_X[ax],Y);}
 	}
+*/
 
 	FusionResults fr = FusionResults();
 
 	pcl::TransformationFromCorrespondences tfc;
 	for(unsigned int ax = 0; ax < all_X.size(); ax++){
 		Eigen::Matrix<double, 3, Eigen::Dynamic> X = all_X[ax];
+		int xcols = X.cols();
+		//int stepx = std::max(1,int(s_nr_data)/points.back());
+		int stepx = int(s_nr_data)/xcols;
 		tfc.reset();
 		for(unsigned int i = 0; i < xcols; i++){
 			Eigen::Vector3f a (X(0,i),						X(1,i),					X(2,i));

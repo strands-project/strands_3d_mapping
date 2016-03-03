@@ -16,6 +16,8 @@
 #include "../core/RGBDFrame.h"
 #include "../registration/Registration.h"
 
+#include "ModelMask.h"
+
 namespace reglib
 {
 
@@ -65,6 +67,9 @@ class superpoint{
 		std::vector<Eigen::Matrix4d> relativeposes;
 		std::vector<RGBDFrame*> frames;
 		std::vector<cv::Mat> masks;
+		std::vector<ModelMask*> modelmasks;
+		//std::vector<std::vector< int > > masks_testw;
+		//std::vector<std::vector< int > > masks_testh;
 		std::vector<std::vector < float > > scores;
 		//OcclusionScore oc1;
 
@@ -72,6 +77,8 @@ class superpoint{
 		Model(RGBDFrame * frame_, cv::Mat mask, Eigen::Matrix4d pose = Eigen::Matrix4d::Identity());
 		~Model();
 		
+		void merge(Model * model, Eigen::Matrix4d p);
+
 		void recomputeModelPoints();
 		void addPointsToModel(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d p);
 

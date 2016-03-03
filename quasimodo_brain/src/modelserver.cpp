@@ -50,12 +50,7 @@ bool myfunction (reglib::Model * i,reglib::Model * j) { return i->frames.size() 
 int savecounter = 0;
 void show_sorted(){
 	std::vector<reglib::Model *> results;
-	for(unsigned int i = 0; i < modeldatabase->models.size(); i++){
-		results.push_back(modeldatabase->models[i]);
-	}
-	//for (std::map<int,reglib::Model *>::iterator it=models.begin(); it!=models.end(); ++it){
-	//	results.push_back(it->second);
-	//}
+	for(unsigned int i = 0; i < modeldatabase->models.size(); i++){results.push_back(modeldatabase->models[i]);}
 
 	std::sort (results.begin(), results.end(), myfunction);
 
@@ -63,7 +58,6 @@ void show_sorted(){
 	printf("number of models: %i\n",results.size());
 
 	float maxx = 0;
-
 	for(unsigned int i = 0; i < results.size(); i++){
 		printf("results %i -> %i\n",i,results[i]->frames.size());
 
@@ -187,25 +181,6 @@ class SearchResult{
 	~SearchResult(){}
 };
 
-std::vector<SearchResult *> getSearchResult(reglib::Model * model){
-	std::vector<SearchResult *> results;
-	//printf("---getSearchResult---\n");
-	//reglib::Model * model2 = 0;
-	for (std::map<int,reglib::Model *>::iterator it=models.begin(); it!=models.end(); ++it){
-		//std::cout << it->first << '\n';
-		//printf("key: %i\n",it->first);
-		//model2 = it->second;
-		//break;
-		if((it->second != 0) && (model->id != it->second->id)){
-			//printf("found Model2->id %ld to match to\n",it->second->id);
-			results.push_back(new SearchResult(1,it->second, Eigen::Affine3d::Identity()));
-		}
-	}
-	//send model to NILS
-	//printf("---getSearchResult---\n");
-	return results;
-}
-
 bool removeModel(int id){
 	printf("removeModel: %i\n",id);
 	delete models[id];
@@ -228,9 +203,7 @@ void call_from_thread(int i) {
 	reg->visualizationLvl				= 1;
 
 	reglib::FusionResults fr = mu->registerModel(mod);
-
 	fr_res[i] = fr;
-
 
 	delete mu;
 	delete reg;
@@ -238,26 +211,13 @@ void call_from_thread(int i) {
 
 void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 	if(add){database->add(model);}
-	
-	printf("added to database");
-
-	//printf("new model created, time to run quasimodo algorithm\n");
-	//New data in:
-		//while true
-		//Search for more of the same <-- Nils stuff, Rares stuff, other?
-		//if the same is found
-			//Register
-			//Fuse
-		//else
-			//Break
 
 	mod = model;
 	res = modeldatabase->search(model,15);
 	fr_res.resize(res.size());
-	printf("nr_matches: %i\n",res.size());
 
 	if(res.size() == 0){return;}
-	
+
 	std::vector<reglib::Model * > models2merge;
 	std::vector<reglib::FusionResults > fr2merge;
 
@@ -265,19 +225,13 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 	if(multi_thread){
 		const int num_threads = res.size();
 		std::thread t[num_threads];
-
 		for (int i = 0; i < num_threads; ++i) {t[i] = std::thread(call_from_thread,i);}
-
-		std::cout << "Launched from the main\n";
-
 		for (int i = 0; i < num_threads; ++i) {t[i].join();}
-
 		for (int i = 0; i < num_threads; ++i) {
 			reglib::Model * model2 = res[i];
 			reglib::FusionResults fr = fr_res[i];
 			if(fr.score > 100){
 				fr.guess = fr.guess.inverse();
-
 				fr2merge.push_back(fr);
 				models2merge.push_back(model2);
 				printf("%i could be registered\n",i);
@@ -286,28 +240,23 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 	}else{
 		for(unsigned int i = 0; i < res.size(); i++){
 			reglib::Model * model2 = res[i];
-
-			printf("testreg %i to %i\n",model->id,model2->id);
 			reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
+
 			mu->viewer							= viewer;
-            if(model->relativeposes.size() + model2->relativeposes.size() > 2){
-                reg->visualizationLvl				= 1;
-            }else{
-                reg->visualizationLvl				= 1;
-            }
+			//if(model->relativeposes.size() + model2->relativeposes.size() > 2){
+				reg->visualizationLvl				= 2;
+			//}else{
+			//    reg->visualizationLvl				= 1;
+			//}
 
 			reglib::FusionResults fr = mu->registerModel(model);
-
-            printf("score: %f\n",fr.score);
 
 			if(fr.score > 100){
 				fr.guess = fr.guess.inverse();
 				fr2merge.push_back(fr);
 				models2merge.push_back(model2);
-				printf("could be registered\n");
 			}
-
 			delete mu;
 			delete reg;
 		}
@@ -319,7 +268,6 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 	for(unsigned int i = 0; i < models2merge.size(); i++){
 		reglib::Model * model2 = models2merge[i];
 
-		//reglib::RegistrationGOICP *	reg		= new reglib::RegistrationGOICP();
 		reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
 		mu->viewer							= viewer;
@@ -371,6 +319,8 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 bool fuseModels(quasimodo_msgs::fuse_models::Request  & req, quasimodo_msgs::fuse_models::Response & res){}
 
 int main(int argc, char **argv){
+
+
 	ros::init(argc, argv, "quasimodo_model_server");
 	ros::NodeHandle n;
 

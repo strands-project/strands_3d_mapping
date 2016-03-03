@@ -67,7 +67,7 @@ target_link_libraries(quasimodo_weightlib quasimodo_SICP ceres glog ${catkin_LIB
 add_library(quasimodo_myhull src/registration/myhull.cpp)
 target_link_libraries(quasimodo_myhull ${catkin_LIBRARIES})
 
-add_library(quasimodo_reglib src/registration/Registration.cpp src/registration/RegistrationSICP.cpp src/registration/RegistrationPPR.cpp src/registration/RegistrationGOICP.cpp src/registration/RegistrationRandom.cpp
+add_library(quasimodo_reglib src/registration/Registration.cpp src/registration/RegistrationSICP.cpp src/registration/RegistrationPPR.cpp src/registration/RegistrationGOICP.cpp src/registration/RegistrationRandom.cpp src/registration/RegistrationRefinement.cpp
 	#src/registration/GoICP_V1.3/src/jly_main.cpp
 	src/registration/GoICP_V1.3/src/jly_goicp.cpp
 	src/registration/GoICP_V1.3/src/jly_3ddt.cpp
@@ -86,8 +86,11 @@ target_link_libraries(quasimodo_core  ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 add_library(quasimodo_massreglib src/registration/MassRegistration.cpp src/registration/MassRegistrationPPR.cpp)
 target_link_libraries(quasimodo_massreglib quasimodo_reglib quasimodo_core)# g2o_cli g2o_interactive g2o_solver_cholmod g2o_solver_slam2d_linear g2o_types_sba g2o_types_slam3d_addons g2o_core g2o_interface g2o_solver_csparse g2o_solver_structure_only g2o_types_sclam2d g2o_types_slam3d g2o_csparse_extension g2o_opengl_helper g2o_solver_dense g2o_stuff g2o_types_sim3 g2o_viewer g2o_ext_freeglut_minimal g2o_parser g2o_solver_eigen g2o_types_data g2o_types_slam2d_addons g2o_incremental g2o_simulator g2o_solver_pcg g2o_types_icp g2o_types_slam2d)
 
+add_library(quasimodo_modelmask src/model/ModelMask.cpp)
+target_link_libraries(quasimodo_modelmask quasimodo_core quasimodo_reglib ${catkin_LIBRARIES})
+
 add_library(quasimodo_model src/model/Model.cpp)
-target_link_libraries(quasimodo_model quasimodo_core quasimodo_reglib ${catkin_LIBRARIES})
+target_link_libraries(quasimodo_model quasimodo_modelmask quasimodo_core quasimodo_reglib ${catkin_LIBRARIES})
 
 add_library(quasimodo_ModelUpdater src/modelupdater/ModelUpdater.cpp src/modelupdater/ModelUpdaterBasic.cpp src/modelupdater/ModelUpdaterBasicFuse.cpp)
 target_link_libraries(quasimodo_ModelUpdater quasimodo_model quasimodo_reglib quasimodo_massreglib ${catkin_LIBRARIES})

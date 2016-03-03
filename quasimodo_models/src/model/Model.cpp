@@ -71,6 +71,7 @@ Model::Model(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d pose){
 	relativeposes.push_back(pose);
 	frames.push_back(frame);
 	masks.push_back(mask);
+	modelmasks.push_back(new ModelMask(mask));
 	
 	char buf [1024];
 //	sprintf(buf,"Frame %i maskimage",frame->id);
@@ -165,6 +166,16 @@ void Model::addFrameToModel(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d p){
 	masks.push_back(mask);
 }
 
+void Model::merge(Model * model, Eigen::Matrix4d p){
+	for(int i = 0; i < model->frames.size(); i++){
+		relativeposes.push_back(p * model->relativeposes[i]);
+		frames.push_back(model->frames[i]);
+		masks.push_back(model->masks[i]);
+		modelmasks.push_back(model->modelmasks[i]);
+	}
+	recomputeModelPoints();
+}
+
 CloudData * Model::getCD(unsigned int target_points){
 	std::vector<unsigned int> ro;
 	unsigned int nc = points.size();
@@ -232,59 +243,8 @@ pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr Model::getPCLnormalcloud(int step, 
 			p.g = sp.feature(1);
 			p.b = sp.feature(2);
 		}
-
 		cloud_ptr->points.push_back(p);
 	}
-/*
-	for(unsigned int i = 0; i < frames.size(); i++){
-		cv::Mat rgb = frames[i]->rgb;
-		unsigned char * rgbdata = (unsigned char *)rgb.data;
-
-		cv::Mat depth = frames[i]->depth;
-		unsigned short * depthdata = (unsigned short *)depth.data;
-
-		Camera * camera = frames[i]->camera;
-		const unsigned int width = camera->width;
-		const unsigned int height = camera->height;
-		const double idepth = camera->idepth_scale;
-		const double cx		= camera->cx;
-		const double cy		= camera->cy;
-		const double ifx	= 1.0/camera->fx;
-		const double ify	= 1.0/camera->fy;
-
-		Eigen::Matrix4d pose = relativeposes[i];
-		const double m00 = pose(0,0); const double m01 = pose(0,1); const double m02 = pose(0,2); const double m03 = pose(0,3);
-		const double m10 = pose(1,0); const double m11 = pose(1,1); const double m12 = pose(1,2); const double m13 = pose(1,3);
-		const double m20 = pose(2,0); const double m21 = pose(2,1); const double m22 = pose(2,2); const double m23 = pose(2,3);
-
-		int r = (rand()%4)*255/4; int g = (rand()%4)*255/4; int b = (rand()%4)*255/4;
-
-		for(unsigned int w = 0; w < width; w+=step){
-			for(unsigned int h = 0; h < height;h+=step){
-				int ind = h*width+w;
-				double z = idepth*double(depthdata[ind]);
-				if(z > 0){
-					pcl::PointXYZRGB p;
-					double x = (double(w) - cx) * z * ifx;
-					double y = (double(h) - cy) * z * ify;
-					p.x = m00*x + m01*y + m02*z + m03;
-					p.y = m10*x + m11*y + m12*z + m13;
-					p.z = m20*x + m21*y + m22*z + m23;
-					if(color){
-						p.b = rgbdata[3*ind+0];
-						p.g = rgbdata[3*ind+1];
-						p.r = rgbdata[3*ind+2];
-					}else{
-						p.b = r;
-						p.g = g;
-						p.r = b;
-					}
-					cloud_ptr->points.push_back(p);
-				}
-			}
-		}
-	}
-*/
 	return cloud_ptr;
 }
 
@@ -307,56 +267,6 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Model::getPCLcloud(int step, bool color){
 		}
 		cloud_ptr->points.push_back(p);
 	}
-/*
-	for(unsigned int i = 0; i < frames.size(); i++){
-		cv::Mat rgb = frames[i]->rgb;
-		unsigned char * rgbdata = (unsigned char *)rgb.data;
-
-		cv::Mat depth = frames[i]->depth;
-		unsigned short * depthdata = (unsigned short *)depth.data;
-
-		Camera * camera = frames[i]->camera;
-		const unsigned int width = camera->width;
-		const unsigned int height = camera->height;
-		const double idepth = camera->idepth_scale;
-		const double cx		= camera->cx;
-		const double cy		= camera->cy;
-		const double ifx	= 1.0/camera->fx;
-		const double ify	= 1.0/camera->fy;
-
-		Eigen::Matrix4d pose = relativeposes[i];
-		const double m00 = pose(0,0); const double m01 = pose(0,1); const double m02 = pose(0,2); const double m03 = pose(0,3);
-		const double m10 = pose(1,0); const double m11 = pose(1,1); const double m12 = pose(1,2); const double m13 = pose(1,3);
-		const double m20 = pose(2,0); const double m21 = pose(2,1); const double m22 = pose(2,2); const double m23 = pose(2,3);
-
-		int r = (rand()%4)*255/4; int g = (rand()%4)*255/4; int b = (rand()%4)*255/4;
-
-		for(unsigned int w = 0; w < width; w+=step){
-			for(unsigned int h = 0; h < height;h+=step){
-				int ind = h*width+w;
-				double z = idepth*double(depthdata[ind]);
-				if(z > 0){
-					pcl::PointXYZRGB p;
-					double x = (double(w) - cx) * z * ifx;
-					double y = (double(h) - cy) * z * ify;
-					p.x = m00*x + m01*y + m02*z + m03;
-					p.y = m10*x + m11*y + m12*z + m13;
-					p.z = m20*x + m21*y + m22*z + m23;
-					if(color){
-						p.b = rgbdata[3*ind+0];
-						p.g = rgbdata[3*ind+1];
-						p.r = rgbdata[3*ind+2];
-					}else{
-						p.b = r;
-						p.g = g;
-						p.r = b;
-					}
-					cloud_ptr->points.push_back(p);
-				}
-			}
-		}
-	}
-*/
 	return cloud_ptr;
 }
 

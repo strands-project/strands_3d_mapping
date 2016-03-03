@@ -21,6 +21,7 @@
 
 using namespace std;
 
+int objcounter = 0;
 int counter = 0;
 int savecounter = 0;
 std::string path = "./dataset";
@@ -80,9 +81,10 @@ void  cloud_cb(const sensor_msgs::PointCloud2ConstPtr& input){
 			savecounter = 0;
 
 			char str [80];
-
-			printf ("Enter object name: ");
-			scanf ("%79s",str);
+			sprintf(str,"object%i",objcounter);
+			objcounter++;
+			//printf ("Enter object name: ");
+			//scanf ("%79s",str);
 			printf ("current object: %s\n",str);
 			object = string(str);
 
