@@ -67,6 +67,9 @@ namespace reglib
 		CloudData * dst;
 
 		unsigned int visualizationLvl;
+        int target_points;
+        bool allow_regularization;
+        double maxtime;
 
 		Registration();
 		~Registration();
@@ -88,5 +91,6 @@ namespace reglib
 #include "RegistrationPPR.h"
 #include "RegistrationGOICP.h"
 #include "RegistrationRefinement.h"
+#include "RegistrationRefinementColor.h"
 #include "RegistrationRandom.h"
 #endif // Registration_H

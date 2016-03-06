@@ -1,4 +1,4 @@
-#include "RegistrationRefinement.h"
+#include "RegistrationRefinementColor.h"
 #include <iostream>
 #include <fstream>
 
@@ -9,7 +9,7 @@
 namespace reglib
 {
 
-RegistrationRefinement::RegistrationRefinement(){
+RegistrationRefinementColor::RegistrationRefinementColor(){
 	only_initial_guess		= false;
 
 	type					= PointToPlane;
@@ -21,6 +21,27 @@ RegistrationRefinement::RegistrationRefinement(){
 	fu->startreg			= 0.001;
 	fu->debugg_print		= false;
 	func					= fu;
+
+    funcR = new DistanceWeightFunction2PPR2();
+    funcR->fixed_histogram_size = true;
+    funcR->maxd                 = 255;
+    funcR->histogram_size       = 255;
+    funcR->startreg             = 30.0;
+    funcR->debugg_print         = false;
+
+    funcG = new DistanceWeightFunction2PPR2();
+    funcG->fixed_histogram_size     = true;
+    funcG->maxd                     = 255;
+    funcG->histogram_size           = 255;
+    funcG->startreg                 = 30.0;
+    funcG->debugg_print             = false;
+
+    funcB = new DistanceWeightFunction2PPR2();
+    funcB->fixed_histogram_size     = true;
+    funcB->maxd                     = 255;
+    funcB->histogram_size           = 255;
+    funcB->startreg                 = 30.0;
+    funcB->debugg_print             = false;
 
 	visualizationLvl = 1;
 
@@ -38,9 +59,9 @@ RegistrationRefinement::RegistrationRefinement(){
     allow_regularization = true;
     maxtime = 9999999;
 }
-RegistrationRefinement::~RegistrationRefinement(){}
+RegistrationRefinementColor::~RegistrationRefinementColor(){}
 
-namespace RigidMotionEstimatorRefinement {
+namespace RigidMotionEstimatorRefinementColor {
 /// @param Source (one 3D point per column)
 /// @param Target (one 3D point per column)
 /// @param Target normals (one 3D normal per column)
@@ -73,7 +94,7 @@ Eigen::Affine3d point_to_plane(Eigen::MatrixBase<Derived1>& X,
 	Vector6 RHS = Vector6::Zero();
 	Block33 TL = LHS.topLeftCorner<3,3>();
 	Block33 TR = LHS.topRightCorner<3,3>();
-	Block33 BR = LHS.bottomRightCorner<3,3>();
+    Block33 BR = LHS.bottomRightCorner<3,3>();
 	Eigen::MatrixXd C = Eigen::MatrixXd::Zero(3,X.cols());
 #pragma omp parallel
 	{
@@ -114,7 +135,6 @@ Eigen::Affine3d point_to_plane(Eigen::MatrixBase<Derived1>& X,
 	/// Re-apply mean
 	X.colwise() += X_mean;
 	Y.colwise() += X_mean;
-
 	//Eigen::Vector3d mean_diff;
 	//for(int i=0; i<3; ++i){mean_diff(i) = ((X-Y).row(i).array()*w_normalized.transpose().array()).sum();}
 
@@ -140,25 +160,29 @@ inline Eigen::Affine3d point_to_plane(Eigen::MatrixBase<Derived1>& X,
 }
 }
 
-double getTimeRefinement(){
+double getTimeRefinementColor(){
 	struct timeval start1;
 	gettimeofday(&start1, NULL);
 	return double(start1.tv_sec+(start1.tv_usec/1000000.0));
 }
 
-void RegistrationRefinement::setDst(CloudData * dst_){
+void RegistrationRefinementColor::setDst(CloudData * dst_){
 	dst = dst_;
 	unsigned int d_nr_data = dst->data.cols();
 	int stepy = std::max(1,int(d_nr_data)/100000);
 	Y.resize(Eigen::NoChange,d_nr_data/stepy);
+    C.resize(Eigen::NoChange,d_nr_data/stepy);
 	N.resize(Eigen::NoChange,d_nr_data/stepy);
 	ycols = Y.cols();
 	total_dweight.resize(ycols);
 
-	for(unsigned int i = 0; i < d_nr_data/stepy; i++){
-		Y(0,i)	= dst->data(0,i*stepy);
-		Y(1,i)	= dst->data(1,i*stepy);
-		Y(2,i)	= dst->data(2,i*stepy);
+    for(unsigned int i = 0; i < d_nr_data/stepy; i++){
+        Y(0,i)	= dst->data(0,i*stepy);
+        Y(1,i)	= dst->data(1,i*stepy);
+        Y(2,i)	= dst->data(2,i*stepy);
+        C(0,i)	= dst->data(3,i*stepy);
+        C(1,i)	= dst->data(4,i*stepy);
+        C(2,i)	= dst->data(5,i*stepy);
 		N(0,i)	= dst->normals(0,i*stepy);
 		N(1,i)	= dst->normals(1,i*stepy);
 		N(2,i)	= dst->normals(2,i*stepy);
@@ -171,7 +195,7 @@ void RegistrationRefinement::setDst(CloudData * dst_){
 	for(unsigned int i = 0; i < d_nr_data/stepy; i++){DST_INORMATION(i) = dst->information(0,i*stepy);}
 }
 
-FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
+FusionResults RegistrationRefinementColor::getTransform(Eigen::MatrixXd guess){
 
 	unsigned int s_nr_data = src->data.cols();
     int stepx = std::max(1,int(s_nr_data)/target_points);
@@ -186,14 +210,18 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 	float m20 = guess(2,0); float m21 = guess(2,1); float m22 = guess(2,2); float m23 = guess(2,3);
 
 	Eigen::Matrix<double, 3, Eigen::Dynamic> X;
+    Eigen::Matrix<double, 3, Eigen::Dynamic> Xc;
 	Eigen::Matrix<double, 3, Eigen::Dynamic> Xn;
 	X.resize(Eigen::NoChange,s_nr_data/stepx);
+    Xc.resize(Eigen::NoChange,s_nr_data/stepx);
 	Xn.resize(Eigen::NoChange,s_nr_data/stepx);
 	unsigned int xcols = X.cols();
-	printf("xcols: %i\n",xcols);
+
+    Eigen::MatrixXd colorTransform;
 
 	/// Buffers
 	Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	xcols);
+    Eigen::Matrix3Xd Qc		= Eigen::Matrix3Xd::Zero(3,	xcols);
 	Eigen::Matrix3Xd Qn		= Eigen::Matrix3Xd::Zero(3,	xcols);
 	Eigen::VectorXd  W		= Eigen::VectorXd::Zero(	xcols);
 	Eigen::VectorXd  Wold	= Eigen::VectorXd::Zero(	xcols);
@@ -205,22 +233,36 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 		float x		= src->data(0,i*stepx);
 		float y		= src->data(1,i*stepx);
 		float z		= src->data(2,i*stepx);
+
+        float r		= src->data(3,i*stepx);
+        float g		= src->data(4,i*stepx);
+        float b		= src->data(5,i*stepx);
+
 		float xn	= src->normals(0,i*stepx);
 		float yn	= src->normals(1,i*stepx);
 		float zn	= src->normals(2,i*stepx);
 		X(0,i)	= m00*x + m01*y + m02*z + m03;
 		X(1,i)	= m10*x + m11*y + m12*z + m13;
 		X(2,i)	= m20*x + m21*y + m22*z + m23;
+
+        Xc(0,i)	= r;
+        Xc(1,i)	= g;
+        Xc(2,i)	= b;
+
 		Xn(0,i)	= m00*xn + m01*yn + m02*zn;
 		Xn(1,i)	= m10*xn + m11*yn + m12*zn;
 		Xn(2,i)	= m20*xn + m21*yn + m22*zn;
 	}
 
-	Eigen::Matrix3Xd Xo1 = X;
+    Eigen::Matrix3Xd Xo1 = X;
 	Eigen::Matrix3Xd Xo2 = X;
 	Eigen::Matrix3Xd Xo3 = X;
 	Eigen::Matrix3Xd Xo4 = X;
 	Eigen::MatrixXd residuals;
+    Eigen::MatrixXd residualsR;
+    Eigen::MatrixXd residualsG;
+    Eigen::MatrixXd residualsB;
+
 
 	std::vector<int> matchid;
 	matchid.resize(xcols);
@@ -228,13 +270,13 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 	double score = 0;
 	stop = 99999;
 
-    double start = getTimeRefinement();
+    double start = getTimeRefinementColor();
 
 	/// ICP
 	for(int funcupdate=0; funcupdate < 10; ++funcupdate) {
-        if( (getTimeRefinement()-start) > maxtime ){break;}
+        if( (getTimeRefinementColor()-start) > maxtime ){break;}
 		for(int rematching=0; rematching < 10; ++rematching) {
-            if( (getTimeRefinement()-start) > maxtime ){break;}
+            if( (getTimeRefinementColor()-start) > maxtime ){break;}
 
 #pragma omp parallel for
 			for(unsigned int i=0; i< xcols; ++i) {matchid[i] = tree->closest(X.col(i).data());}
@@ -244,12 +286,24 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 			for(unsigned int i=0; i< xcols; ++i) {
 				int id = matchid[i];
 				Qn.col(i) = N.col(id);
+                Qc.col(i) = C.col(id);
 				Qp.col(i) = Y.col(id);
 				rangeW(i) = 1.0/(1.0/SRC_INORMATION(i)+1.0/DST_INORMATION(id));
 			}
 
 			for(int outer=0; outer< 1; ++outer) {
-                if( (getTimeRefinement()-start) > maxtime ){break;}
+                if( (getTimeRefinementColor()-start) > maxtime ){break;}
+
+                residualsR		= Eigen::MatrixXd::Zero(1,	xcols);
+                residualsG		= Eigen::MatrixXd::Zero(1,	xcols);
+                residualsB		= Eigen::MatrixXd::Zero(1,	xcols);
+
+                for(int i=0; i<xcols; ++i) {
+                    residualsR(0,i) = Xc(0,i)-Qc(0,i);
+                    residualsG(0,i) = Xc(1,i)-Qc(1,i);
+                    residualsB(0,i) = Xc(2,i)-Qc(2,i);
+                }
+
 				/// Compute weights
 				switch(type) {
 					case PointToPoint:	{residuals = X-Qp;} 						break;
@@ -277,11 +331,10 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 				}
 
 				for(int rematching2=0; rematching2 < 3; ++rematching2) {
-                    if( (getTimeRefinement()-start) > maxtime ){break;}
+                    if( (getTimeRefinementColor()-start) > maxtime ){break;}
 					if(rematching2 != 0){
 #pragma omp parallel for
 						for(unsigned int i=0; i< xcols; ++i) {matchid[i] = tree->closest(X.col(i).data());}
-
 						/// Find closest point
 #pragma omp parallel for
 						for(unsigned int i=0; i< xcols; ++i) {
@@ -293,7 +346,7 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 					}
 
 					for(int inner=0; inner< 40; ++inner) {
-                        if( (getTimeRefinement()-start) > maxtime ){break;}
+                        if( (getTimeRefinementColor()-start) > maxtime ){break;}
 						if(inner != 0){
 							switch(type) {
 								case PointToPoint:	{residuals = X-Qp;} 						break;
@@ -305,7 +358,7 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 										float dz = X(2,i)-Qp(2,i);
 										float qx = Qn(0,i);
 										float qy = Qn(1,i);
-										float qz = Qn(2,i);
+                                        float qz = Qn(2,i);
 										float di = qx*dx + qy*dy + qz*dz;
 										residuals(0,i) = di;
 									}
@@ -337,7 +390,7 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 						Eigen::Affine3d change;
 						switch(type) {
 							case PointToPoint:	{RigidMotionEstimator::point_to_point(X, Qp, W);}		break;
-							case PointToPlane:	{change = RigidMotionEstimatorRefinement::point_to_plane(X, Xn, Qp, Qn, W);}	break;
+                            case PointToPlane:	{change = RigidMotionEstimatorRefinementColor::point_to_plane(X, Xn, Qp, Qn, W);}	break;
 							default:  			{printf("type not set\n"); } break;
 						}
 

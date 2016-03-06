@@ -60,7 +60,7 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
             }
 
 			std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_masks,current_modelmasks);
-            std::vector<std::vector < float > > scores = getScores(ocs,10);
+            std::vector<std::vector < float > > scores = getScores(ocs);
             std::vector<int> partition = getPartition(scores,2,5,2);
 
             double sumscore1 = 0;
@@ -225,7 +225,7 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 	}
 
 	std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_masks,current_modelmasks,true);
-	std::vector<std::vector < float > > scores = getScores(ocs,10);
+    std::vector<std::vector < float > > scores = getScores(ocs);
 	std::vector<int> partition = getPartition(scores,2,5,2);
 
 	double sumscore = 0;
@@ -286,7 +286,7 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 		current_poses = mfr.poses;
 		
 		std::vector<std::vector < OcclusionScore > > ocs2 = getOcclusionScores(current_poses, current_frames,current_masks,current_modelmasks);
-		std::vector<std::vector < float > > scores2 = getScores(ocs2,10);
+        std::vector<std::vector < float > > scores2 = getScores(ocs2);
 		std::vector<int> partition2 = getPartition(scores2,2,5,2);
 
 		double sumscore_after = 0;

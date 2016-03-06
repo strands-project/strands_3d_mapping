@@ -172,6 +172,93 @@ void ModelUpdater::show(bool stop){
 //Backproject and prune occlusions
 void ModelUpdater::pruneOcclusions(){}
 
+void ModelUpdater::computeResiduals(std::vector<float> & residuals, std::vector<float> & weights,
+                                    RGBDFrame * src, cv::Mat src_mask, ModelMask * src_modelmask,
+                                    RGBDFrame * dst, cv::Mat dst_mask, ModelMask * dst_modelmask,
+                                    Eigen::Matrix4d p, bool debugg){
+
+    unsigned char  * src_maskdata		= (unsigned char	*)(src_modelmask->mask.data);
+    unsigned char  * src_rgbdata		= (unsigned char	*)(src->rgb.data);
+    unsigned short * src_depthdata		= (unsigned short	*)(src->depth.data);
+    float		   * src_normalsdata	= (float			*)(src->normals.data);
+
+    unsigned char  * dst_maskdata		= (unsigned char	*)(dst_modelmask->mask.data);
+    unsigned char  * dst_rgbdata		= (unsigned char	*)(dst->rgb.data);
+    unsigned short * dst_depthdata		= (unsigned short	*)(dst->depth.data);
+    float		   * dst_normalsdata	= (float			*)(dst->normals.data);
+
+    float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
+    float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
+    float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
+
+    Camera * src_camera				= src->camera;
+    const unsigned int src_width	= src_camera->width;
+    const unsigned int src_height	= src_camera->height;
+    const float src_idepth			= src_camera->idepth_scale;
+    const float src_cx				= src_camera->cx;
+    const float src_cy				= src_camera->cy;
+    const float src_ifx				= 1.0/src_camera->fx;
+    const float src_ify				= 1.0/src_camera->fy;
+
+    Camera * dst_camera				= dst->camera;
+    const unsigned int dst_width	= dst_camera->width;
+    const unsigned int dst_height	= dst_camera->height;
+    const float dst_idepth			= dst_camera->idepth_scale;
+    const float dst_cx				= dst_camera->cx;
+    const float dst_cy				= dst_camera->cy;
+    const float dst_fx				= dst_camera->fx;
+    const float dst_fy				= dst_camera->fy;
+
+    const unsigned int dst_width2	= dst_camera->width  - 2;
+    const unsigned int dst_height2	= dst_camera->height - 2;
+
+    std::vector<int> & testw = src_modelmask->testw;
+    std::vector<int> & testh = src_modelmask->testh;
+
+    unsigned int test_nrdata = testw.size();
+    for(unsigned int ind = 0; ind < test_nrdata;ind++){
+        unsigned int src_w = testw[ind];
+        unsigned int src_h = testh[ind];
+
+        int src_ind = src_h*src_width+src_w;
+        if(src_maskdata[src_ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
+            float z = src_idepth*float(src_depthdata[src_ind]);
+            float nx = src_normalsdata[3*src_ind+0];
+
+            if(z > 0 && nx != 2){
+                float ny = src_normalsdata[3*src_ind+1];
+                float nz = src_normalsdata[3*src_ind+2];
+
+                float x = (float(src_w) - src_cx) * z * src_ifx;
+                float y = (float(src_h) - src_cy) * z * src_ify;
+
+                float tx	= m00*x + m01*y + m02*z + m03;
+                float ty	= m10*x + m11*y + m12*z + m13;
+                float tz	= m20*x + m21*y + m22*z + m23;
+                //float tnx	= m00*nx + m01*ny + m02*nz;
+                //float tny	= m10*nx + m11*ny + m12*nz;
+                float tnz	= m20*nx + m21*ny + m22*nz;
+
+                float itz	= 1.0/tz;
+                float dst_w	= dst_fx*tx*itz + dst_cx;
+                float dst_h	= dst_fy*ty*itz + dst_cy;
+
+                if((dst_w > 0) && (dst_h > 0) && (dst_w < dst_width2) && (dst_h < dst_height2)){
+                    unsigned int dst_ind = unsigned(dst_h+0.5) * dst_width + unsigned(dst_w+0.5);
+
+                    float dst_z = dst_idepth*float(dst_depthdata[dst_ind]);
+                    if(dst_z > 0){
+                        float diff_z = (dst_z-tz)/(z*z+dst_z*dst_z);//if tz < dst_z then tz infront and diff_z > 0
+                        residuals.push_back(diff_z);
+                        weights.push_back(1.0);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_mask, ModelMask * src_modelmask, RGBDFrame * dst, cv::Mat dst_mask, ModelMask * dst_modelmask, Eigen::Matrix4d p, bool debugg){
 	OcclusionScore oc;
 
@@ -220,9 +307,11 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 	}
 
 	std::vector<float> residuals;
+    std::vector<float> weights;
 	std::vector<int> ws;
 	std::vector<int> hs;
 	residuals.reserve(src_width*src_height);
+    weights.reserve(src_width*src_height);
 	if(debugg){
 		ws.reserve(src_width*src_height);
 		hs.reserve(src_width*src_height);
@@ -272,7 +361,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 
 
     double me = sqrt(sum/(count+1));
-    double pred = 2.0*sqrt(2)*me;
+    double pred = 1.3*sqrt(2)*me;
 
 	for(unsigned int ind = 0; ind < test_nrdata;ind++){
 	//for(unsigned int src_w = 0; src_w < src_width-1; src_w++){
@@ -283,11 +372,11 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 		int src_ind = src_h*src_width+src_w;
 		if(src_maskdata[src_ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
 			float z = src_idepth*float(src_depthdata[src_ind]);
-			float nx = 0;//src_normalsdata[3*src_ind+0];
+            float nx = src_normalsdata[3*src_ind+0];
 
 			if(z > 0 && nx != 2){
-				//float ny = src_normalsdata[3*src_ind+1];
-				//float nz = src_normalsdata[3*src_ind+2];
+                float ny = src_normalsdata[3*src_ind+1];
+                float nz = src_normalsdata[3*src_ind+2];
 
 				float x = (float(src_w) - src_cx) * z * src_ifx;
 				float y = (float(src_h) - src_cy) * z * src_ify;
@@ -295,9 +384,9 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 				float tx	= m00*x + m01*y + m02*z + m03;
 				float ty	= m10*x + m11*y + m12*z + m13;
 				float tz	= m20*x + m21*y + m22*z + m23;
-				//float tnx	= m00*nx + m01*ny + m02*nz;
+                //float tnx	= m00*nx + m01*ny + m02*nz;
 				//float tny	= m10*nx + m11*ny + m12*nz;
-				//float tnz	= m20*nx + m21*ny + m22*nz;
+                float tnz	= m20*nx + m21*ny + m22*nz;
 
 				float itz	= 1.0/tz;
 				float dst_w	= dst_fx*tx*itz + dst_cx;
@@ -319,6 +408,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 						diff_z2 /= (z*z+dst_z*dst_z);//if tz < dst_z then tz infront and diff_z > 0
 
 						residuals.push_back(diff_z);
+                        weights.push_back(tnz);
 
 						if(debugg){
 							scloud->points[src_ind].x = tx;
@@ -358,7 +448,6 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 		}
 	}
 
-	//DistanceWeightFunction2PPR * func = new DistanceWeightFunction2PPR(100);
 	DistanceWeightFunction2PPR2 * func = new DistanceWeightFunction2PPR2();
 	func->maxp			= 1.0;
 	func->update_size	= true;
@@ -372,76 +461,35 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 	Eigen::MatrixXd X = Eigen::MatrixXd::Zero(1,residuals.size());
 	for(int i = 0; i < residuals.size(); i++){X(0,i) = residuals[i];}
 	func->computeModel(X);
+    printf("found: %f max: %f\n",func->getNoise(),pred);
 
 	Eigen::VectorXd  W = func->getProbs(X);
-/*
-	int dbres = 500;
-	Eigen::MatrixXd X2 = Eigen::MatrixXd::Zero(1,dbres);
-	for(int i = 0; i < dbres; i++){X2(0,i) = func->maxd*double(i-dbres/2)/double(dbres/2);}
 
-	//func->computeModel(X2);
-	Eigen::VectorXd  W2 = func->getProbs(X2);
-	//printf("rscore = [");			for(unsigned int k = 0; k < dbres; k++){printf("%i ",int(W2(k)));}		printf("];\n");
-
-	printf("rscore = [");
-	for(unsigned int i = 0; i < dbres; i++){
-		float r = X2(0,i);
-		float weight = W2(i);
-		float ocl = 0;
-		if(r > 0){ocl += 1-weight;}
-		double score = weight-5.0*ocl;
-		printf("%5.5f ",score);
-
-	}
-	printf("];\n");
-*/
 	delete func;
-/*
-	for(unsigned int i = 0; i < dbres; i++){
-		float r = X2(0,i);
-		float weight = W2(i);
-		printf("i:%5.5i r:%10.10f weight:%10.10f\n",i,r,weight);
-	}
-	*/
-	//printf("rscore = [");			for(unsigned int k = 0; k < dbres; k++){printf("%i ",int(W2(k)));}		printf("];\n");
-	//delete func;
-/*
-	for(unsigned int i = 0; i < 100; i++){
-		int ind = rand()%residuals.size();
-		float r = residuals[ind];
-		float weight = W(ind);
-		printf("%5.5i %5.5i -> %10.10f %10.10f\n",i,ind,r,weight);
-	}
-*/
+
 	for(unsigned int i = 0; i < residuals.size(); i++){
 		float r = residuals[i];
 		float weight = W(i);
-		//if(fabs(r) > 0.0005){weight = 0;}//Replace with PPR
-
 		float ocl = 0;
 		if(r > 0){ocl += 1-weight;}
-
-		oc.score		+= weight;
-		oc.occlusions	+= ocl;
-
+        oc.score		+= weight;
+        oc.occlusions	+= ocl;
 		if(debugg){
 			int w = ws[i];
 			int h = hs[i];
 			unsigned int src_ind = h * src_width + w;
-
-
 			if(ocl > 0.01 || weight > 0.01){
-				scloud->points[src_ind].r = 255.0*ocl;
-				scloud->points[src_ind].g = 255.0*weight;
-				scloud->points[src_ind].b = 0;
+                scloud->points[src_ind].r = 255.0*ocl;
+                scloud->points[src_ind].g = 255.0*weight;
+                scloud->points[src_ind].b = 0;
 			}else{
 				scloud->points[src_ind].x = 0;
 				scloud->points[src_ind].y = 0;
-				scloud->points[src_ind].z = 0;
+                scloud->points[src_ind].z = 0;
 			}
 			debugg_img_data[3*src_ind+0] = 0;
-			debugg_img_data[3*src_ind+1] = 255.0*weight;
-			debugg_img_data[3*src_ind+2] = 255.0*ocl;
+            debugg_img_data[3*src_ind+1] = 255.0*weight;
+            debugg_img_data[3*src_ind+2] = 255.0*ocl;
 		}
 	}
 
@@ -606,7 +654,34 @@ vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(std::vector<
 			scores[i][j]		= computeOcclusionScore(current_frames[i], current_masks[i], current_modelmasks[i],current_frames[j], current_masks[j], current_modelmasks[j], relative_pose.inverse(),debugg_scores);
 		}
 	}
+/*
+    vector<vector < vector < float > > > residuals;
+    residuals.resize(residuals.size());
+    for(int i = 0; i < current_frames.size(); i++){residuals[i].resize(current_frames.size());}
 
+    vector<vector < vector < float > > > weights;
+    weights.resize(weights.size());
+    for(int i = 0; i < current_frames.size(); i++){weights[i].resize(current_frames.size());}
+
+    int total_residuals = 0;
+    for(int i = 0; i < current_frames.size(); i++){
+        for(int j = i+1; j < current_frames.size(); j++){
+            Eigen::Matrix4d relative_pose = current_poses[i].inverse() * current_poses[j];
+            vector < float > resji;
+            vector < float > weiji;
+            computeResiduals(resji,weiji,current_frames[j], current_masks[j], current_modelmasks[j],current_frames[i], current_masks[i], current_modelmasks[i], relative_pose,debugg_scores);
+            vector < float > resij;
+            vector < float > weiij;
+            computeResiduals(resij,weiij,current_frames[i], current_masks[i], current_modelmasks[i],current_frames[j], current_masks[j], current_modelmasks[j], relative_pose.inverse(),debugg_scores);
+            residuals[j][i] = resji;
+            weights[j][i]   = weiji;
+            residuals[i][j] = resij;
+            weights[i][j]   = weiij;
+            total_residuals += resji.size()+resij.size();
+        }
+    }
+    printf("total_residuals: %i\n",total_residuals);
+*/
 	return scores;
 }
 

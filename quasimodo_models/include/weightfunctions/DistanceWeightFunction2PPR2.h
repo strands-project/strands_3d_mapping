@@ -23,6 +23,8 @@ using ceres::Solve;
 class DistanceWeightFunction2PPR2 : public DistanceWeightFunction2
 {
 public:
+    bool fixed_histogram_size;
+
 	double stdval;
 	double stdval2;
 	double mulval;

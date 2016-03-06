@@ -67,7 +67,7 @@ target_link_libraries(quasimodo_weightlib quasimodo_SICP ceres glog ${catkin_LIB
 add_library(quasimodo_myhull src/registration/myhull.cpp)
 target_link_libraries(quasimodo_myhull ${catkin_LIBRARIES})
 
-add_library(quasimodo_reglib src/registration/Registration.cpp src/registration/RegistrationSICP.cpp src/registration/RegistrationPPR.cpp src/registration/RegistrationGOICP.cpp src/registration/RegistrationRandom.cpp src/registration/RegistrationRefinement.cpp
+add_library(quasimodo_reglib src/registration/Registration.cpp src/registration/RegistrationSICP.cpp src/registration/RegistrationPPR.cpp src/registration/RegistrationGOICP.cpp src/registration/RegistrationRandom.cpp src/registration/RegistrationRefinement.cpp src/registration/RegistrationRefinementColor.cpp
 	#src/registration/GoICP_V1.3/src/jly_main.cpp
 	src/registration/GoICP_V1.3/src/jly_goicp.cpp
 	src/registration/GoICP_V1.3/src/jly_3ddt.cpp

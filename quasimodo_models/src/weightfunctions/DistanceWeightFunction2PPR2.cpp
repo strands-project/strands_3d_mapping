@@ -3,6 +3,9 @@
 namespace reglib{
 
 DistanceWeightFunction2PPR2::DistanceWeightFunction2PPR2(	double maxd_, int histogram_size_){
+
+    fixed_histogram_size = false;
+
 	regularization		= 0.1;
 	maxd 				= maxd_;
 	histogram_size		= histogram_size_;
@@ -114,7 +117,7 @@ class gaussian2 {
 			residuals[0]  = 0;
 			residuals[0] += mul_*exp(-0.5*dx*dx/(stddiv*stddiv));
 			residuals[0] -= y_;
-			if(residuals[0] > 0){	residuals[0] =  sqrt( 5.0*residuals[0]);}
+            if(residuals[0] > 0){	residuals[0] =  sqrt( 5.0*residuals[0]);}
 			else{					residuals[0] = -sqrt(-residuals[0]);}
 		}else{residuals[0] = 99999999999999999999999.0;}
 		return true;
@@ -424,7 +427,7 @@ void DistanceWeightFunction2PPR2::computeModel(MatrixXd mat){
 
 	const unsigned int nr_data = mat.cols();
 	const int nr_dim = mat.rows();
-
+if(!fixed_histogram_size){
 	if(first){
 		first = false;
 		double sum = 0;
@@ -435,7 +438,7 @@ void DistanceWeightFunction2PPR2::computeModel(MatrixXd mat){
 		if(debugg_print){printf("stdval2: %f\n",stdval2);}
 	}
 
-	if(update_size){
+    if(update_size){
 		if(debugg_print){printf("\n################################################### ITER:%i ############################################################\n",iter);}
 		maxd  = fabs(meanval2) + (stdval2 + regularization)*target_length;
 		if(debugg_print){printf("maxd: %f\n",maxd);}
@@ -455,6 +458,7 @@ void DistanceWeightFunction2PPR2::computeModel(MatrixXd mat){
 
 		if(debugg_print){printf("nr_inside: %f histogram_size: %i blurval: %f\n",nr_inside,histogram_size,blurval);}
 	}
+}
 
 	const double histogram_mul = double(histogram_size)/maxd;
 	double start_time = getCurrentTime3();

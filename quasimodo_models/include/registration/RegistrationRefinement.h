@@ -32,7 +32,7 @@ namespace reglib
 		std::vector<int> feature_end;//Dimension of data a specific feature ends, if the feature is RGB this should be 5
 		std::vector< DistanceWeightFunction2 * > feature_func;
 
-		DistanceWeightFunction2 * func;
+        DistanceWeightFunction2PPR2 * func;
 
 		RegistrationRefinement();
 		~RegistrationRefinement();
