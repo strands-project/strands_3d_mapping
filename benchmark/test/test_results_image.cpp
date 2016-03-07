@@ -52,6 +52,8 @@ cv::Mat query_make_image(VocabularyT& vt, CloudT::Ptr& original_cloud, CloudT::P
     }
 
     //auto results = dynamic_object_retrieval::query_reweight_vocabulary<vocabulary_tree<HistT, 8> >(query_cloud, K, 50, vocabulary_path, summary, true);
+    //auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth, K, 15,
+    //                                                                   vocabulary_path, summary, surfel_map, false);
     auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth, K, 15,
                                                                        vocabulary_path, summary, surfel_map, false);
     std::remove_if(results.first.begin(), results.first.end(), [&](const result_type& r) {
@@ -220,10 +222,10 @@ void visualize_query_sweep(VocabularyT& vt, const string& sweep_xml, const boost
             cv::vconcat(visualization, standard_visualization, visualization);
         }
 
-        cv::imwrite("results_image.png", visualization);
+        cv::imwrite(string("results_image") + to_string(object_counter) + ".png", visualization);
 
-        cv::imshow("Retrieved clouds", visualization);
-        cv::waitKey();
+        //cv::imshow("Retrieved clouds", visualization);
+        //cv::waitKey();
 
         ++object_counter;
     }
@@ -251,7 +253,7 @@ int main(int argc, char** argv)
     vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
 
     // KTH Data:
-    vector<string> objects_to_check = {"chair2"};//{"backpack", "trash_bin", "lamp", "chair", "desktop", "pillow", "hanger_jacket", "water_boiler"};
+    vector<string> objects_to_check = {"chair1"};//{"backpack", "trash_bin", "lamp", "chair", "desktop", "pillow", "hanger_jacket", "water_boiler"};
     // G4S Data:
     //vector<string> objects_to_check = {"chair"}; //{"jacket", "chair", "plant", "printer", "bin"};
     //{"backpack", "trash", "desktop", "helmet", "chair", "pillow"};
