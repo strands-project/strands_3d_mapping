@@ -211,6 +211,7 @@ void call_from_thread(int i) {
 
 void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 	if(add){database->add(model);}
+	printf("add to db\n");
 
 	mod = model;
 	res = modeldatabase->search(model,15);

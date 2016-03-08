@@ -11,8 +11,8 @@ ModelMask::ModelMask(cv::Mat mask_){
 	mask = mask_;
 
 	using namespace cv;
-
-	int erosion_size = 4;
+/*
+	int erosion_size = 1;
 	int erosion_type = MORPH_RECT;
 	Mat element = getStructuringElement( erosion_type, Size( 2*erosion_size + 1, 2*erosion_size+1 ), Point( erosion_size, erosion_size ) );
 
@@ -30,7 +30,18 @@ ModelMask::ModelMask(cv::Mat mask_){
 		}
 	}
 
+*/
 
+
+	unsigned char * maskdata = (unsigned char *)mask.data;
+	for(unsigned int w = 1; w < 639; w++){
+		for(unsigned int h = 1; h < 479; h++){
+			if(maskdata[h*640+w] != 0){
+				testw.push_back(w);
+				testh.push_back(h);
+			}
+		}
+	}
 	//cv::imshow("ModelMask",	mask);
 	//cv::imshow("erosion_mask",	erosion_mask);
 	//cv::waitKey(0);

@@ -119,6 +119,7 @@ add_dependencies(		preload_chair_data roscpp quasimodo_msgs_generate_messages_cp
 target_link_libraries(	preload_chair_data quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(			preload_object_data src/preload_object_data.cpp)
+target_link_libraries(	preload_object_data ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${QT_LIBRARIES} metaroom_xml_parser)
 add_dependencies(		preload_object_data roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	preload_object_data quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 

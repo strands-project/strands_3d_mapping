@@ -93,19 +93,6 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
                 printf("%i improvement: %f\n",ca,improvement);
 				//getOcclusionScores(current_poses, current_frames,current_masks,true);
             }
-
-            //std::vector<int> count;
-            //for(unsigned int i = 0; i < partition.size(); i++){
-            //    if(count.size() <= partition[i]){count.resize(partition[i]+1);}
-            //    count[partition[i]]++;
-            //}
-
-            //int minpart = count[0];
-            //for(unsigned int i = 1; i < count.size(); i++){minpart = std::min(minpart,count[i]);}
-
-            //printf("----------------------------\n");
-            //printf("partition: ");for(unsigned int i = 0; i < partition.size(); i++){printf("%i ",partition[i]);}printf("\n");
-            //for(unsigned int i = 0; i < count.size(); i++){printf("count %i -> %i\n",i,count[i]);}
         }
         if(best_id != -1){
             fr.score = 9999999;
@@ -116,83 +103,6 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 		printf("score: %6.6f\n",fr.score);
 		delete cd1;
 		delete cd2;
-/*
-		if(fr.score < 100){return fr;}
-
-		step1 = std::max(int(model->frames.size())/1,1);
-		step2 = std::max(int(model2->frames.size())/1,1);//int step2 = 5;//std::min(int(model2->frames.size()),5);
-
-		cd1 = model ->getCD(model->points.size()/step1);
-		registration->setDst(cd1);
-
-		cd2	= model2->getCD(model2->points.size()/step2);
-		registration->setSrc(cd2);
-
-
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-		printf("REFINE\n");
-
-		registration->only_initial_guess = true;
-		fr = registration->getTransform(fr.guess);
-		registration->only_initial_guess = false;
-
-		delete cd1;
-		delete cd2;
-		exit(0);
-*/
-/*
-		if(fr.score > 2000){
-			Eigen::Matrix4d pose = fr.guess;
-
-			std::vector<Eigen::Matrix4d>	current_poses;
-			std::vector<RGBDFrame*>			current_frames;
-			std::vector<cv::Mat>			current_masks;
-
-			for(int i = 0; i < model->frames.size(); i++){
-				current_poses.push_back(	model->relativeposes[i]);
-				current_frames.push_back(	model->frames[i]);
-				current_masks.push_back(	model->masks[i]);
-			}
-
-			for(int i = 0; i < model2->frames.size(); i++){
-				current_poses.push_back(	pose*model2->relativeposes[i]);
-				current_frames.push_back(	model2->frames[i]);
-				current_masks.push_back(	model2->masks[i]);
-			}
-			
-			std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_masks);
-			std::vector<std::vector < float > > scores = getScores(ocs,10);
-			std::vector<int> partition = getPartition(scores,3,5,2);
-			
-			std::vector<int> count;
-			for(unsigned int i = 0; i < partition.size(); i++){
-				if(count.size() <= partition[i]){count.resize(partition[i]+1);}
-				count[partition[i]]++;
-			}
-
-			int minpart = count[0];
-			for(unsigned int i = 1; i < count.size(); i++){minpart = std::min(minpart,count[i]);}
-
-			printf("----------------------------\n");
-			printf("partition: ");for(unsigned int i = 0; i < partition.size(); i++){printf("%i ",partition[i]);}printf("\n");
-			for(unsigned int i = 0; i < count.size(); i++){printf("count %i -> %i\n",i,count[i]);}
-
-			exit(0);
-		}else{fr.score = -1;}
-*/
 
 		return fr;
 	}

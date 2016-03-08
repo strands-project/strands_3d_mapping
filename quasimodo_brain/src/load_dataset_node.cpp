@@ -294,7 +294,7 @@ int main(int argc, char **argv){
 				double zi	= z*z;
 				double dz = (z - bgz)/(bgzi + zi);
 				//if(j % 100 == 0){printf("%i -> %i %i -> %f\n",j,bgs, ds,dz);}
-				if(dz < -0.005){
+				if(dz < -0.015 && z < 1){
 					maskdata[j] = 255;
 				}else{
 					maskdata[j] = 0;
@@ -303,14 +303,14 @@ int main(int argc, char **argv){
 			}
 
 
-			int filter_size = 3;
+			int filter_size = 2;
 
 			cv::Mat erosion_mask;
 			cv::Mat dilation_mask;
 			cv::Mat element = getStructuringElement( MORPH_RECT, Size( 2*filter_size + 1, 2*filter_size+1 ), Point( filter_size, filter_size ) );
 			erode( mask, erosion_mask, element );
 
-			filter_size = 5;
+			filter_size = 8;
 			element = getStructuringElement( MORPH_RECT, Size( 2*filter_size + 1, 2*filter_size+1 ), Point( filter_size, filter_size ) );
 			dilate( erosion_mask, dilation_mask, element );
 
@@ -323,7 +323,7 @@ int main(int argc, char **argv){
 			rgbs.push_back(rgb);
 			depths.push_back(depth);
 			inds.push_back(r);
-/*
+
 			cv::namedWindow(	"mask", cv::WINDOW_AUTOSIZE );
 			cv::imshow(			"mask", mask);
 			cv::namedWindow(	"rgb", cv::WINDOW_AUTOSIZE );
@@ -331,8 +331,28 @@ int main(int argc, char **argv){
 			cv::namedWindow(	"depth", cv::WINDOW_AUTOSIZE );
 			cv::imshow(			"depth", depth );
 			int res = cv::waitKey(0);
-*/
+
 		}
+	}
+
+	for (unsigned int i = 0; i < rgbs.size(); i++){
+		int r = rand()%rgbs.size();
+
+		cv::Mat mask = masks[i];
+		cv::Mat rgb = rgbs[i];
+		cv::Mat depth = depths[i];
+		int ind = inds[i];
+
+
+		masks[i]	= masks[r];
+		rgbs[i]		= rgbs[r];
+		depths[i]	= depths[r];
+		inds[i]		= inds[r];
+
+		masks[r]	= mask;
+		rgbs[r]		= rgb;
+		depths[r]	= depth;
+		inds[r]		= ind;
 	}
 
 	ros::init(argc, argv, "use_rares_client");

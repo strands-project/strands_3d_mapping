@@ -342,8 +342,8 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 						}
 
 						stop = 100*func->getConvergenceThreshold();
-						//score = Wold.sum()/(pow(func->getNoise(),2)*float(xcols));
-						score = Wold.sum()/float(xcols);
+						score = Wold.sum()/(pow(func->getNoise(),2)*float(xcols));
+						//score = Wold.sum()/float(xcols);
 						double stop1 = (X-Xo1).colwise().norm().mean();
 						Xo1 = X;
 						if(stop1 < stop) break;

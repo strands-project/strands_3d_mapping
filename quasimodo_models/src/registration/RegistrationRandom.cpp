@@ -237,6 +237,7 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > all_X;
 	std::vector< Eigen::Affine3d > all_res;
 	std::vector< int > count_X;
+	std::vector< float > score_X;
     std::vector< std::vector< Eigen::VectorXd > > all_starts;
 	int stepxsmall = std::max(1,int(s_nr_data)/250);
 	Eigen::VectorXd Wsmall (s_nr_data/stepxsmall);
@@ -310,16 +311,20 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 				count_X[ax]++;
                 all_starts[ax].push_back(startparam);
 				int count = count_X[ax];
+				float score = score_X[ax];
                 std::vector< Eigen::VectorXd > starts = all_starts[ax];
 				for(int bx = ax-1; bx >= 0; bx--){
 					if(count_X[bx] < count_X[bx+1]){
 						count_X[bx+1]		= count_X[bx];
+						score_X[bx+1]		= score_X[bx];
 						all_X[bx+1]			= all_X[bx];
 						all_starts[bx+1]	= all_starts[bx];
 						all_res[bx+1]		= all_res[bx];
 
-                        all_X[bx] = axX;
-                        count_X[bx] = count;
+
+						all_X[bx] = axX;
+						count_X[bx] = count;
+						score_X[bx] = score;
                         all_starts[bx] = starts;
 						all_res[bx] = axT;
 					}else{break;}
@@ -334,6 +339,7 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 		if(!exists){
 			all_X.push_back(Xsmall);
 			count_X.push_back(1);
+			score_X.push_back(stop);
             all_starts.push_back(std::vector< Eigen::VectorXd >());
             all_starts.back().push_back(startparam);
 			all_res.push_back(current_guess);
@@ -426,6 +432,7 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 
 	for(unsigned int ax = 0; ax < all_X.size(); ax++){
         Eigen::Matrix4d np = all_res[ax].matrix();
+		printf("%i -> %i(%f)\n",ax,count_X[ax],1.0/score_X[ax]);
 /*
         int tp = 250;
         while(tp < s_nr_data){
@@ -443,7 +450,8 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 
         fr.candidates.push_back(np);
 		fr.counts.push_back(count_X[ax]);
-		fr.scores.push_back(0);
+		fr.scores.push_back(1.0/score_X[ax]);
+
 	}
 	return fr;
 /*

@@ -397,29 +397,15 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 
 					float dst_z = dst_idepth*float(dst_depthdata[dst_ind]);
 					if(dst_z > 0){
-						//float dst_x = (float(dst_w) - dst_cx) * dst_z * dst_ifx;
-						//float dst_y = (float(dst_h) - dst_cy) * dst_z * dst_ify;
-						//float diff_z2 = tnx*(dst_x-tx)+tny*(dst_y-ty)+tnz*(dst_z-tz);
-						float diff_z2 = (dst_z-tz)/(z*z+dst_z*dst_z);
-
 						float diff_z = (dst_z-tz)/(z*z+dst_z*dst_z);//if tz < dst_z then tz infront and diff_z > 0
-						if(diff_z < 0 && diff_z2 > 0){diff_z2 *= -1;}
-						if(diff_z > 0 && diff_z2 < 0){diff_z2 *= -1;}
-						diff_z2 /= (z*z+dst_z*dst_z);//if tz < dst_z then tz infront and diff_z > 0
-
 						residuals.push_back(diff_z);
                         weights.push_back(tnz);
 
 						if(debugg){
-							scloud->points[src_ind].x = tx;
-							scloud->points[src_ind].y = ty;
-							scloud->points[src_ind].z = tz+2;
-							scloud->points[src_ind].r = 0;
-							scloud->points[src_ind].g = 0;
-							scloud->points[src_ind].b = 255;
 							ws.push_back(src_w);
 							hs.push_back(src_h);
 						}
+
 					}
 				}
 			}
@@ -427,26 +413,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 	}
 
 
-	if(debugg){
-		for(unsigned int dst_w = 0; dst_w < dst_width; dst_w++){
-			for(unsigned int dst_h = 0; dst_h < dst_height;dst_h++){
-				int dst_ind = dst_h*dst_width+dst_w;
-				if(true || dst_maskdata[dst_ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
-					float z = dst_idepth*float(dst_depthdata[dst_ind]);
-					if(z > 0){// && (dst_w%3 == 0) && (dst_h%3 == 0)){
-						float x = (float(dst_w) - dst_cx) * z * dst_ifx;
-						float y = (float(dst_h) - dst_cy) * z * dst_ify;
-						dcloud->points[dst_ind].x = x;
-						dcloud->points[dst_ind].y = y;
-						dcloud->points[dst_ind].z = z+2;
-						dcloud->points[dst_ind].r = dst_rgbdata[3*dst_ind+2];
-						dcloud->points[dst_ind].g = dst_rgbdata[3*dst_ind+1];
-						dcloud->points[dst_ind].b = dst_rgbdata[3*dst_ind+0];
-					}
-				}
-			}
-		}
-	}
+
 
 	DistanceWeightFunction2PPR2 * func = new DistanceWeightFunction2PPR2();
 	func->maxp			= 1.0;
@@ -474,25 +441,87 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 		if(r > 0){ocl += 1-weight;}
         oc.score		+= weight;
         oc.occlusions	+= ocl;
-		if(debugg){
-			int w = ws[i];
-			int h = hs[i];
-			unsigned int src_ind = h * src_width + w;
-			if(ocl > 0.01 || weight > 0.01){
-                scloud->points[src_ind].r = 255.0*ocl;
-                scloud->points[src_ind].g = 255.0*weight;
-                scloud->points[src_ind].b = 0;
-			}else{
-				scloud->points[src_ind].x = 0;
-				scloud->points[src_ind].y = 0;
-                scloud->points[src_ind].z = 0;
-			}
-			debugg_img_data[3*src_ind+0] = 0;
-            debugg_img_data[3*src_ind+1] = 255.0*weight;
-            debugg_img_data[3*src_ind+2] = 255.0*ocl;
-		}
 	}
 
+	if(debugg){
+		for(unsigned int src_w = 0; src_w < src_width-1; src_w++){
+			for(unsigned int src_h = 0; src_h < src_height;src_h++){
+				int src_ind = src_h*src_width+src_w;
+				if(src_maskdata[src_ind] != 255){continue;}
+				float z = src_idepth*float(src_depthdata[src_ind]);
+				if(z > 0){
+					float x = (float(src_w) - src_cx) * z * src_ifx;
+					float y = (float(src_h) - src_cy) * z * src_ify;
+					float tx	= m00*x + m01*y + m02*z + m03;
+					float ty	= m10*x + m11*y + m12*z + m13;
+					float tz	= m20*x + m21*y + m22*z + m23;
+					scloud->points[src_ind].x = tx;
+					scloud->points[src_ind].y = ty;
+					scloud->points[src_ind].z = tz+2;
+					scloud->points[src_ind].r = 0;
+					scloud->points[src_ind].g = 0;
+					scloud->points[src_ind].b = 255;
+				}
+			}
+		}
+		for(unsigned int dst_w = 0; dst_w < dst_width; dst_w++){
+			for(unsigned int dst_h = 0; dst_h < dst_height;dst_h++){
+				int dst_ind = dst_h*dst_width+dst_w;
+				if(true || dst_maskdata[dst_ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
+					float z = dst_idepth*float(dst_depthdata[dst_ind]);
+					if(z > 0){// && (dst_w%3 == 0) && (dst_h%3 == 0)){
+						float x = (float(dst_w) - dst_cx) * z * dst_ifx;
+						float y = (float(dst_h) - dst_cy) * z * dst_ify;
+						dcloud->points[dst_ind].x = x;
+						dcloud->points[dst_ind].y = y;
+						dcloud->points[dst_ind].z = z+2;
+						dcloud->points[dst_ind].r = dst_rgbdata[3*dst_ind+2];
+						dcloud->points[dst_ind].g = dst_rgbdata[3*dst_ind+1];
+						dcloud->points[dst_ind].b = dst_rgbdata[3*dst_ind+0];
+						if(dst_maskdata[dst_ind] == 255){
+							dcloud->points[dst_ind].r = 255;
+							dcloud->points[dst_ind].g = 000;
+							dcloud->points[dst_ind].b = 255;
+						}
+					}
+				}
+			}
+		}
+		viewer->removeAllPointClouds();
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
+		viewer->spin();
+		viewer->removeAllPointClouds();
+
+
+		for(unsigned int i = 0; i < residuals.size(); i++){
+			float r = residuals[i];
+			float weight = W(i);
+			float ocl = 0;
+			if(r > 0){ocl += 1-weight;}
+			if(debugg){
+				int w = ws[i];
+				int h = hs[i];
+				unsigned int src_ind = h * src_width + w;
+				if(ocl > 0.01 || weight > 0.01){
+					scloud->points[src_ind].r = 255.0*ocl;
+					scloud->points[src_ind].g = 255.0*weight;
+					scloud->points[src_ind].b = 0;
+				}else{
+					scloud->points[src_ind].x = 0;
+					scloud->points[src_ind].y = 0;
+					scloud->points[src_ind].z = 0;
+				}
+			}
+		}
+
+		viewer->removeAllPointClouds();
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
+		viewer->spin();
+		viewer->removeAllPointClouds();
+	}
+/*
 	if(debugg){
 		viewer->removeAllPointClouds();
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
@@ -503,6 +532,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 		viewer->spin();
 		viewer->removeAllPointClouds();
 	}
+	*/
 	return oc;
 }
 using namespace std;
