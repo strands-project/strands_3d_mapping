@@ -85,6 +85,7 @@ include(${QT_USE_FILE})
 if (catkin_FOUND)
     catkin_package(
         LIBRARIES sift register_objects supervoxel_segmentation pfhrgb_estimation shot_estimation
+                  dynamic_visualize extract_sift dynamic_retrieval extract_surfel_features
         INCLUDE_DIRS include ${stopwatch_include_dir}
     )
 endif()
