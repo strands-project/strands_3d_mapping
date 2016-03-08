@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(object_3d_benchmark)
 
+find_package(catkin QUIET)
+
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 
@@ -12,41 +14,51 @@ set(retrieval_dir ${CMAKE_CURRENT_SOURCE_DIR}/../dynamic_object_retrieval)
 list(APPEND CMAKE_MODULE_PATH "${retrieval_dir}/cmake")
 
 # Define the locations of the k_means_tree project
-set(k_means_tree_dir ${CMAKE_CURRENT_SOURCE_DIR}/../k_means_tree)
-set(k_means_tree_library_dir ${k_means_tree_dir}/build)
-include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
-link_directories(${k_means_tree_library_dir})
+# If using catkin, including it using catkin instead
+if (catkin_FOUND)
+    find_package(catkin REQUIRED COMPONENTS roscpp tf tf_conversions pcl_ros
+                        metaroom_xml_parser object_manager k_means_tree
+                        dynamic_object_retrieval)
+    set(ROS_LIBRARIES ${catkin_LIBRARIES})
+    include_directories(${catkin_INCLUDE_DIRS})
+else()
+    # Define the locations of the k_means_tree project
+    set(k_means_tree_dir ${CMAKE_CURRENT_SOURCE_DIR}/../k_means_tree)
+    set(k_means_tree_library_dir ${k_means_tree_dir}/build)
+    include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
+    link_directories(${k_means_tree_library_dir})
 
-# The main header location
-include_directories(${retrieval_dir}/include)
-link_directories(${retrieval_dir}/build)
+    # The main header location
+    include_directories(${retrieval_dir}/include)
+    link_directories(${retrieval_dir}/build)
 
-set(stopwatch_dir ${retrieval_dir}/stopwatch)
-set(stopwatch_include_dir ${stopwatch_dir}/src)
-include_directories(${stopwatch_include_dir})
+    set(stopwatch_dir ${retrieval_dir}/stopwatch)
+    set(stopwatch_include_dir ${stopwatch_dir}/src)
+    include_directories(${stopwatch_include_dir})
 
-# Define the locations of cereal serialization header files
-set(cereal_include_dir ${k_means_tree_dir}/cereal/include)
-include_directories(${cereal_include_dir})
+    # Define the locations of cereal serialization header files
+    set(cereal_include_dir ${k_means_tree_dir}/cereal/include)
+    include_directories(${cereal_include_dir})
+
+    # Be sure to set this to YOUR workspace, use custom version of metaroom_xml_parser for labeled data,
+    # https://github.com/RaresAmbrus/strands_3d_mapping, branch hydro-devel
+    set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../../catkin_ws)
+    set(parser_include_dir ${parser_workspace}/src/strands_3d_mapping/metaroom_xml_parser/include)
+    set(parser_library_dir ${parser_workspace}/devel/lib)
+    include_directories(${parser_include_dir})
+    link_directories(${parser_library_dir})
+
+    # Find ROS
+    find_package(ROS REQUIRED)
+    include_directories(${ROS_INCLUDE_DIR})
+    link_directories(${ROS_LIBRARY_DIR})
+endif()
 
 # Find PCL
 find_package(PCL 1.6 REQUIRED COMPONENTS common io search visualization surface kdtree features surface segmentation octree filter keypoints)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
-
-# Be sure to set this to YOUR workspace, use custom version of metaroom_xml_parser for labeled data,
-# https://github.com/RaresAmbrus/strands_3d_mapping, branch hydro-devel
-set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../../catkin_ws)
-set(parser_include_dir ${parser_workspace}/src/strands_3d_mapping/metaroom_xml_parser/include)
-set(parser_library_dir ${parser_workspace}/devel/lib)
-include_directories(${parser_include_dir})
-link_directories(${parser_library_dir})
-
-# Find ROS
-find_package(ROS REQUIRED)
-include_directories(${ROS_INCLUDE_DIR})
-link_directories(${ROS_LIBRARY_DIR})
 
 # Find QT
 find_package(OpenCV REQUIRED)
@@ -60,9 +72,16 @@ find_package(PNG)
 #${AQSIS_OPENEXR_INCLUDE_DIR}
 include_directories(${QT_INCLUDES} ${OPENGL_INCLUDE_DIR})
 
+if (catkin_FOUND)
+    catkin_package(
+        LIBRARIES benchmark_overlap benchmark_retrieval benchmark_result
+                  surfel_renderer benchmark_visualization benchmark_segmentation
+        INCLUDE_DIRS include
+    )
+endif()
+
 # The main header location
 include_directories(include)
-#link_directories(/usr/lib/x86_64-linux-gnu)
 
 # DEMO: add_library
 add_library(benchmark_overlap src/benchmark_overlap include/${PROJECT_NAME}/benchmark_overlap.h)
@@ -133,3 +152,8 @@ target_link_libraries(test_renderer surfel_renderer benchmark_retrieval
 
 add_executable(test_summarize_benchmark test/test_summarize_benchmark)
 target_link_libraries(test_summarize_benchmark benchmark_result ${PCL_LIBRARIES})
+
+if (catkin_FOUND)
+    #install(FILES include/serial/serial.h include/serial/v8stdint.h
+    #  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/serial)
+endif()

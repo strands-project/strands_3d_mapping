@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
-project(object_3d_retrieval)
+project(dynamic_object_retrieval)
 
 include(ExternalProject)
+
+find_package(catkin QUIET)
 
 add_definitions(-std=c++11 -O3)
 
@@ -9,28 +11,50 @@ add_definitions(-std=c++11 -O3)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 # Define the locations of the k_means_tree project
-set(k_means_tree_dir ${CMAKE_CURRENT_SOURCE_DIR}/../k_means_tree)
-set(k_means_tree_library_dir ${k_means_tree_dir}/build)
-include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
-link_directories(${k_means_tree_library_dir})
+# If using catkin, including it using catkin instead
+if (catkin_FOUND)
+    find_package(catkin REQUIRED COMPONENTS roscpp tf tf_conversions pcl_ros
+                        metaroom_xml_parser object_manager k_means_tree)
+    set(ROS_LIBRARIES ${catkin_LIBRARIES})
+    include_directories(${catkin_INCLUDE_DIRS})
+else()
+    set(k_means_tree_dir ${CMAKE_CURRENT_SOURCE_DIR}/../k_means_tree)
+    set(k_means_tree_library_dir ${k_means_tree_dir}/build)
+    include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
+    link_directories(${k_means_tree_library_dir})
+    # Compile the k_means_tree project, needed for this
+    ExternalProject_Add(k_means_tree_project
+        DOWNLOAD_COMMAND ""
+        SOURCE_DIR ${k_means_tree_dir}
+        BINARY_DIR ${k_means_tree_library_dir}
+        BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
+        INSTALL_COMMAND ""
+    )
 
+    # Be sure to set this to YOUR workspace, use custom version of metaroom_xml_parser for labeled data,
+    # https://github.com/RaresAmbrus/strands_3d_mapping, branch hydro-devel
+    set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../../catkin_ws)
+    set(parser_include_dir ${parser_workspace}/src/strands_3d_mapping/metaroom_xml_parser/include)
+    set(parser_library_dir ${parser_workspace}/devel/lib)
+    include_directories(${parser_workspace}/src/strands_3d_mapping/object_manager/include)
+    include_directories(${parser_include_dir})
+    link_directories(${parser_library_dir})
+
+    # Find ROS
+    find_package(ROS REQUIRED)
+    include_directories(${ROS_INCLUDE_DIR})
+    link_directories(${ROS_LIBRARY_DIR})
+
+    # Define the locations of cereal serialization header files
+    set(cereal_include_dir ${CMAKE_CURRENT_SOURCE_DIR}/../k_means_tree/cereal/include)
+    include_directories(${cereal_include_dir})
+endif()
+
+# Eh, we need to somehow build this maybe?
 set(stopwatch_dir ${CMAKE_CURRENT_SOURCE_DIR}/stopwatch)
 set(stopwatch_include_dir ${stopwatch_dir}/src)
 set(stopwatch_library_dir ${stopwatch_dir}/build)
 include_directories(${stopwatch_include_dir})
-
-# Define the locations of cereal serialization header files
-set(cereal_include_dir ${k_means_tree_dir}/cereal/include)
-include_directories(${cereal_include_dir})
-
-# Compile the k_means_tree project, needed for this
-ExternalProject_Add(k_means_tree_project
-  DOWNLOAD_COMMAND ""
-  SOURCE_DIR ${k_means_tree_dir}
-  BINARY_DIR ${k_means_tree_library_dir}
-  BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
-  INSTALL_COMMAND ""
-)
 
 # Compile the stopwatch project, needed for this
 ExternalProject_Add(stopwatch_project
@@ -47,30 +71,21 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-# Be sure to set this to YOUR workspace, use custom version of metaroom_xml_parser for labeled data,
-# https://github.com/RaresAmbrus/strands_3d_mapping, branch hydro-devel
-set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../../catkin_ws)
-
-set(parser_include_dir ${parser_workspace}/src/strands_3d_mapping/metaroom_xml_parser/include)
-set(parser_library_dir ${parser_workspace}/devel/lib)
-
-include_directories(${parser_workspace}/src/strands_3d_mapping/object_manager/include)
-include_directories(${parser_include_dir})
-link_directories(${parser_library_dir})
-
-# Find ROS
-find_package(ROS REQUIRED)
-include_directories(${ROS_INCLUDE_DIR})
-link_directories(${ROS_LIBRARY_DIR})
-
 # Find QT
 find_package(OpenCV REQUIRED)
 find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
 
+if (catkin_FOUND)
+    catkin_package(
+        LIBRARIES sift register_objects supervoxel_segmentation pfhrgb_estimation shot_estimation
+        INCLUDE_DIRS include ${stopwatch_include_dir}
+    )
+endif()
+
 # The main header location
 include_directories(include)
-set(include_dir include/${PROJECT_NAME})
+set(include_dir include/object_3d_retrieval)
 
 # This library includes the old OpenCV SIFT library
 add_library(sift include/sift/sift.cpp include/sift/sift.h)
@@ -190,3 +205,7 @@ target_link_libraries(test_top_match_one_map extract_sift register_objects pfhrg
                       k_means_tree vocabulary_tree grouped_vocabulary_tree dynamic_visualize
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
+if (catkin_FOUND)
+    #install(FILES include/serial/serial.h include/serial/v8stdint.h
+    #  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/serial)
+endif()
