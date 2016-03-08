@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(object_3d_benchmark)
 
-find_package(catkin QUIET)
+OPTION(NOCATKIN "Disable CATKIN compilation" OFF)
+
+if (NOT NOCATKIN) # double negation, hell yeah
+    find_package(catkin QUIET)
+else()
+    message("NOT USING CATKIN!")
+endif()
 
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
@@ -42,7 +48,7 @@ else()
 
     # Be sure to set this to YOUR workspace, use custom version of metaroom_xml_parser for labeled data,
     # https://github.com/RaresAmbrus/strands_3d_mapping, branch hydro-devel
-    set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../../catkin_ws)
+    set(parser_workspace ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
     set(parser_include_dir ${parser_workspace}/src/strands_3d_mapping/metaroom_xml_parser/include)
     set(parser_library_dir ${parser_workspace}/devel/lib)
     include_directories(${parser_include_dir})

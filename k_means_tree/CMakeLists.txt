@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(k_means_tree)
 
-find_package(catkin QUIET)
+OPTION(NOCATKIN "Disable CATKIN compilation" OFF)
+
+if (NOT NOCATKIN) # double negation, hell yeah
+    find_package(catkin QUIET)
+else()
+    message("NOT USING CATKIN!")
+endif()
 
 add_definitions(-std=c++11 -O3)
 
