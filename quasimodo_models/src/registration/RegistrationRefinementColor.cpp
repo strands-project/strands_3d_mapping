@@ -27,7 +27,7 @@ RegistrationRefinementColor::RegistrationRefinementColor(){
     funcR->maxd                 = 255;
     funcR->histogram_size       = 255;
     funcR->startreg             = 30.0;
-    funcR->debugg_print         = false;
+    funcR->debugg_print         = true;
 
     funcG = new DistanceWeightFunction2PPR2();
     funcG->fixed_histogram_size     = true;
@@ -275,11 +275,12 @@ FusionResults RegistrationRefinementColor::getTransform(Eigen::MatrixXd guess){
 	/// ICP
 	for(int funcupdate=0; funcupdate < 10; ++funcupdate) {
         if( (getTimeRefinementColor()-start) > maxtime ){break;}
+
 		for(int rematching=0; rematching < 10; ++rematching) {
             if( (getTimeRefinementColor()-start) > maxtime ){break;}
-
 #pragma omp parallel for
 			for(unsigned int i=0; i< xcols; ++i) {matchid[i] = tree->closest(X.col(i).data());}
+            printf("%i %i\n",funcupdate,rematching);
 
 			/// Find closest point
 #pragma omp parallel for
@@ -303,7 +304,7 @@ FusionResults RegistrationRefinementColor::getTransform(Eigen::MatrixXd guess){
                     residualsG(0,i) = Xc(1,i)-Qc(1,i);
                     residualsB(0,i) = Xc(2,i)-Qc(2,i);
                 }
-
+/*
 				/// Compute weights
 				switch(type) {
 					case PointToPoint:	{residuals = X-Qp;} 						break;
@@ -407,19 +408,23 @@ FusionResults RegistrationRefinementColor::getTransform(Eigen::MatrixXd guess){
 				}
 				double stop3 = (X-Xo3).colwise().norm().mean();
 				Xo3 = X;
-				if(stop3 < stop) break;
+                if(stop3 < stop) break;*/
 			}
+            /*
 			double stop4 = (X-Xo4).colwise().norm().mean();
 			Xo4 = X;
 			if(stop4 < stop) break;
+            */
 		}
+        /*
 		double noise_before = func->getNoise();
 		func->update();
 		double noise_after = func->getNoise();
 		if(fabs(1.0 - noise_after/noise_before) < 0.01){break;}
+*/
 	}
 
-    if(visualizationLvl >= 2){show(X,Y);}
+   // if(visualizationLvl >= 2){show(X,Y);}
 
 	pcl::TransformationFromCorrespondences tfc;
 	tfc.reset();

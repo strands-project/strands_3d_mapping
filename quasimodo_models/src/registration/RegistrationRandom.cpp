@@ -39,6 +39,7 @@ RegistrationRandom::RegistrationRandom(){
 	}
 
 	refinement = new RegistrationRefinement();
+    refinementColor = new RegistrationRefinementColor();
 }
 RegistrationRandom::~RegistrationRandom(){}
 
@@ -46,10 +47,12 @@ RegistrationRandom::~RegistrationRandom(){}
 void RegistrationRandom::setSrc(CloudData * src_){
 	src = src_;
 	refinement->setSrc(src_);
+    refinementColor->setSrc(src_);
 }
 void RegistrationRandom::setDst(CloudData * dst_){
 	dst = dst_;
 	refinement->setDst(dst_);
+    refinementColor->setDst(dst_);
 }
 
 
@@ -433,6 +436,11 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	for(unsigned int ax = 0; ax < all_X.size(); ax++){
         Eigen::Matrix4d np = all_res[ax].matrix();
 		printf("%i -> %i(%f)\n",ax,count_X[ax],1.0/score_X[ax]);
+
+        refinementColor->target_points = 500;
+        refinementColor->visualizationLvl = 2;
+        FusionResults fr = refinementColor->getTransform(np);
+        exit(0);
 /*
         int tp = 250;
         while(tp < s_nr_data){
