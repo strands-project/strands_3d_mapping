@@ -26,6 +26,7 @@ namespace reglib
 		unsigned long id;
 		double capturetime;
 		Eigen::Matrix4d pose;
+		int sweepid;
 
 		cv::Mat rgb;
 		cv::Mat depth;

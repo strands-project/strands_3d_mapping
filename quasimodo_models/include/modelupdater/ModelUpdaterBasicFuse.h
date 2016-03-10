@@ -24,7 +24,7 @@ namespace reglib
 		virtual void setRegistration( Registration * registration_);
 		virtual void fuse(Model * model2, Eigen::Matrix4d guess = Eigen::Matrix4d::Identity(), double uncertanity = -1);
 		virtual UpdatedModels fuseData(FusionResults * f, Model * model1, Model * model2);
-		virtual void refine();
+		//virtual void refine();
 		virtual	void computeMassRegistration(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames,std::vector<cv::Mat> current_masks);
 	};
 

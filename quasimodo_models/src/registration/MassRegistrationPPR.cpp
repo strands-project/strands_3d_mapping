@@ -13,6 +13,7 @@ namespace reglib
 
 MassRegistrationPPR::MassRegistrationPPR(double startreg, bool visualize){
 	type					= PointToPlane;
+	//type					= PointToPoint;
 	use_PPR_weight			= true;
 	use_features			= true;
 	normalize_matchweights	= true;
@@ -22,6 +23,9 @@ MassRegistrationPPR::MassRegistrationPPR(double startreg, bool visualize){
 	dwf->startreg			= startreg;
 	dwf->debugg_print		= false;
 	func					= dwf;
+
+	stopval = 0.001;
+	steps = 4;
 
 	if(visualize){
 		visualizationLvl = 1;
@@ -170,7 +174,11 @@ namespace RigidMotionEstimator3 {
 	}
 }
 
-//using namespace g2o;
+double getTime(){
+	struct timeval start1;
+	gettimeofday(&start1, NULL);
+	return double(start1.tv_sec+(start1.tv_usec/1000000.0));
+}
 
 MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses){
 	printf("start MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses)\n");
@@ -183,6 +191,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 
 	std::vector<Eigen::Matrix4d> poses1; poses1.resize(poses.size());
 	std::vector<Eigen::Matrix4d> poses2; poses2.resize(poses.size());
+	std::vector<Eigen::Matrix4d> poses2b; poses2b.resize(poses.size());
 	std::vector<Eigen::Matrix4d> poses3; poses3.resize(poses.size());
 	std::vector<Eigen::Matrix4d> poses4; poses4.resize(poses.size());
 
@@ -194,12 +203,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 	normals.resize(nr_frames);
 	transformed_points.resize(nr_frames);
 	transformed_normals.resize(nr_frames);
-/*
-boost::shared_ptr<pcl::visualization::PCLVisualizer> view (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-view->setBackgroundColor (255, 255, 255);
-view->addCoordinateSystem (1.0);
-view->initCameraParameters ();
-*/
+
 	for(unsigned int i = 0; i < nr_frames; i++){
 		//printf("start local : data loaded successfully\n");
 		printf("loading data for %i\n",i);
@@ -226,7 +230,7 @@ view->initCameraParameters ();
 		int count = 0;
 
 		//for(unsigned int ind = 0; ind < width*height; ind++){count += (maskdata[ind] == 255);}
-		const unsigned steps = 4;
+
 		for(unsigned int w = 0; w < width; w+=steps){
 			for(unsigned int h = 0; h < height;h+=steps){
 				int ind = h*width+w;
@@ -260,6 +264,7 @@ view->initCameraParameters ();
 		int c = 0;
 		for(unsigned int w = 0; w < width; w+=steps){
 			for(unsigned int h = 0; h < height;h+=steps){
+				if(c == count){continue;}
 				int ind = h*width+w;
 				if(maskdata[ind] == 255){
 					float z = idepth*float(depthdata[ind]);
@@ -286,9 +291,8 @@ view->initCameraParameters ();
 						tXn(1,c)	= m10*xn + m11*yn + m12*zn;
 						tXn(2,c)	= m20*xn + m21*yn + m22*zn;
 
+						//printf("c: %i count: %i ",c,count);
 						information(c) = 1.0/(z*z);
-
-						//if(c%100 == 0){printf("information(i): %15.15f\n",information(c));}
 
 						C(0,c) = rgbdata[3*ind+0];
 						C(1,c) = rgbdata[3*ind+1];
@@ -302,30 +306,48 @@ view->initCameraParameters ();
 		trees.push_back(new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X));
 
 	}
-	//printf("data loaded successfully\n");
 	func->reset();
-	//printf("func->reset()\n");
-	//func->regularization = 0.01;
+
 
     Eigen::MatrixXd Xo1;
 
 	int imgcount = 0;
 
-	for(int funcupdate=0; funcupdate < 50; ++funcupdate) {
+	double good_rematches = 0;
+	double total_rematches = 0;
+
+	double rematch_time = 0;
+	double residuals_time = 0;
+	double computeModel_time = 0;
+	double total_time_start = getTime();
+
+
+
+	for(int funcupdate=0; funcupdate < 100; ++funcupdate) {
+		if(visualizationLvl == 2){
+			std::vector<Eigen::MatrixXd> Xv;
+			for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
+			char buf [1024];
+			sprintf(buf,"image%5.5i.png",imgcount++);
+			show(Xv,true,std::string(buf),imgcount);
+		}
+
 		printf("funcupdate: %i\n",funcupdate);
-		for(int rematching=0; rematching < 5; ++rematching) {
+		for(int rematching=0; rematching < 40; ++rematching) {
 			printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
 
-			if(visualizationLvl > 0){
+			if(visualizationLvl == 3){
+				printf("visualize\n");
 				std::vector<Eigen::MatrixXd> Xv;
 				for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
 				char buf [1024];
 				sprintf(buf,"image%5.5i.png",imgcount++);
 				show(Xv,true,std::string(buf),imgcount);
 			}
-
+//exit(0);
 			for(unsigned int i = 0; i < nr_frames; i++){poses1[i] = poses[i];}
 
+			double rematch_time_start = getTime();
 			for(unsigned int i = 0; i < nr_frames; i++){
 				nr_matches[i] = 0;
 				for(unsigned int j = 0; j < nr_frames; j++){
@@ -339,11 +361,20 @@ view->initCameraParameters ();
 					std::vector<int> & matchid = matchids[i][j];
 					matchid.resize(nr_data);
 					for(unsigned int k = 0; k < nr_data; ++k) {
-						matchid[k] = tree->closest(tX.col(k).data());
+						int prev = matchid[k];
+						int current =  tree->closest(tX.col(k).data());
+						good_rematches += prev != current;
+						total_rematches++;
+						matchid[k] = current;
+						//printf("%i -> %i\n",k,matchid[k]);
 					}
+					//exit(0);
 					nr_matches[i] += matchid.size();
 				}
 			}
+			rematch_time += getTime()-rematch_time_start;
+
+printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_rematches/total_rematches,good_rematches,total_rematches);
 
 			for(unsigned int i = 0; i < nr_frames; i++){
 				nr_matches[i] = 0;
@@ -360,158 +391,68 @@ view->initCameraParameters ();
 			}
 
 			//printf("total_matches: %i\n",total_matches);
-
-			Eigen::MatrixXd all_residuals = Eigen::Matrix3Xd::Zero(3,total_matches);
-			int count = 0;
-
-			for(unsigned int i = 0; i < nr_frames; i++){
-				Eigen::Matrix<double, 3, Eigen::Dynamic> & tXi	= transformed_points[i];
-				Eigen::Matrix<double, 3, Eigen::Dynamic> & tXni	= transformed_normals[i];
-				Eigen::VectorXd & informationi					= informations[i];
-
-				for(unsigned int j = 0; j < nr_frames; j++){
-					if(i == j){continue;}
-					std::vector<int> & matchidi = matchids[i][j];
-					unsigned int matchesi = matchidi.size();
-
-					Eigen::Matrix<double, 3, Eigen::Dynamic> & tXj	= transformed_points[j];
-					Eigen::Matrix<double, 3, Eigen::Dynamic> & tXnj	= transformed_normals[j];
-					Eigen::VectorXd & informationj					= informations[j];
-
-					Eigen::Matrix3Xd Xp		= Eigen::Matrix3Xd::Zero(3,	matchesi);
-					Eigen::Matrix3Xd Xn		= Eigen::Matrix3Xd::Zero(3,	matchesi);
-
-					Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	matchesi);
-					Eigen::Matrix3Xd Qn		= Eigen::Matrix3Xd::Zero(3,	matchesi);
-					Eigen::VectorXd  rangeW	= Eigen::VectorXd::Zero(	matchesi);
-
-					for(unsigned int ki = 0; ki < matchesi; ki++){
-						int kj = matchidi[ki];
-						if( ki >= Qp.cols() || kj < 0 || kj >= tXj.cols() ){continue;}
-
-						//printf("%i %i / %i %i\n",ki,kj,Qp.cols(),tXj.cols());
-
-						Qp.col(ki) = tXj.col(kj);
-						Qn.col(ki) = tXnj.col(kj);
-
-						Xp.col(ki) = tXi.col(ki);
-						Xn.col(ki) = tXni.col(ki);
-						rangeW(ki) = 1.0/(1.0/informationi(ki)+1.0/informationj(kj));
-					}
-
-					Eigen::MatrixXd residuals;
-					switch(type) {
-						case PointToPoint:	{residuals = Xp-Qp;} 						break;
-						case PointToPlane:	{
-							residuals		= Eigen::MatrixXd::Zero(1,	Xp.cols());
-							for(int i=0; i<Xp.cols(); ++i) {
-								float dx = Xp(0,i)-Qp(0,i);
-								float dy = Xp(1,i)-Qp(1,i);
-								float dz = Xp(2,i)-Qp(2,i);
-								float qx = Qn(0,i);
-								float qy = Qn(1,i);
-								float qz = Qn(2,i);
-								float di = qx*dx + qy*dy + qz*dz;
-								residuals(0,i) = di;
-							}
-						}break;
-						default:			{printf("type not set\n");}					break;
-					}
-
-					for(unsigned int k=0; k < matchesi; ++k) {residuals.col(k) *= rangeW(k);}
-
-					all_residuals.block(0,count,residuals.rows(),residuals.cols()) = residuals;
-					count += residuals.cols();
+			for(int lala = 0; lala < 1; lala++){
+				if(visualizationLvl == 4){
+					printf("visualize\n");
+					std::vector<Eigen::MatrixXd> Xv;
+					for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
+					char buf [1024];
+					sprintf(buf,"image%5.5i.png",imgcount++);
+					show(Xv,true,std::string(buf),imgcount);
 				}
-			}
 
-			//printf("count1: %i\n",count);
+				for(unsigned int i = 0; i < nr_frames; i++){poses2b[i] = poses[i];}
 
-			//func->debugg_print = true;
-			switch(type) {
-				case PointToPoint:	{func->computeModel(all_residuals); 				} 	break;
-				//case PointToPlane:	{func->computeModel(all_residuals.colwise().norm());}	break;
-				case PointToPlane:	{func->computeModel(all_residuals);}	break;
-				default:  			{printf("type not set\n");} break;
-			}
-			//func->debugg_print = false;
 
-			for(int outer=0; outer < 10; ++outer) {
-				printf("funcupdate: %i rematching: %i outer: %i\n",funcupdate,rematching,outer);
-				for(unsigned int i = 0; i < nr_frames; i++){poses2[i] = poses[i];}
+				double residuals_time_start = getTime();
 
-				//printf("funcupdate: %i rematching: %i outer: %i\n",funcupdate,rematching,outer);
+				Eigen::MatrixXd all_residuals;
+				switch(type) {
+					case PointToPoint:	{all_residuals = Eigen::Matrix3Xd::Zero(3,total_matches);}break;
+					case PointToPlane:	{all_residuals = Eigen::MatrixXd::Zero(1,total_matches);}break;
+					default:			{printf("type not set\n");}					break;
+				}
+
+				int count = 0;
+
 				for(unsigned int i = 0; i < nr_frames; i++){
-					unsigned int nr_match = 0;
-					for(unsigned int j = 0; j < nr_frames; j++){
-						std::vector<int> & matchidj = matchids[j][i];
-						unsigned int matchesj = matchidj.size();
-						std::vector<int> & matchidi = matchids[i][j];
-						unsigned int matchesi = matchidi.size();
-
-						for(unsigned int ki = 0; ki < matchesi; ki++){
-							int kj = matchidi[ki];
-
-							if( kj >=  matchesj){continue;}
-
-							if(matchidj[kj] == ki){nr_match++;}
-						}
-					}
-
-					Eigen::Matrix3Xd Xp		= Eigen::Matrix3Xd::Zero(3,	nr_match);
-					Eigen::Matrix3Xd Xp_ori	= Eigen::Matrix3Xd::Zero(3,	nr_match);
-					Eigen::Matrix3Xd Xn		= Eigen::Matrix3Xd::Zero(3,	nr_match);
-
-					Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	nr_match);
-					Eigen::Matrix3Xd Qn		= Eigen::Matrix3Xd::Zero(3,	nr_match);
-					Eigen::VectorXd  rangeW	= Eigen::VectorXd::Zero(	nr_match);
-
-					int count = 0;
-
 					Eigen::Matrix<double, 3, Eigen::Dynamic> & tXi	= transformed_points[i];
-					Eigen::Matrix<double, 3, Eigen::Dynamic> & Xi	= points[i];
 					Eigen::Matrix<double, 3, Eigen::Dynamic> & tXni	= transformed_normals[i];
-					Eigen::Matrix<double, 3, Eigen::Dynamic> & Xni	= normals[i];
 					Eigen::VectorXd & informationi					= informations[i];
 
 					for(unsigned int j = 0; j < nr_frames; j++){
+						if(i == j){continue;}
+						std::vector<int> & matchidi = matchids[i][j];
+						unsigned int matchesi = matchidi.size();
+
 						Eigen::Matrix<double, 3, Eigen::Dynamic> & tXj	= transformed_points[j];
 						Eigen::Matrix<double, 3, Eigen::Dynamic> & tXnj	= transformed_normals[j];
 						Eigen::VectorXd & informationj					= informations[j];
 
-						std::vector<int> & matchidj = matchids[j][i];
-						unsigned int matchesj = matchidj.size();
-						std::vector<int> & matchidi = matchids[i][j];
-						unsigned int matchesi = matchidi.size();
+						Eigen::Matrix3Xd Xp		= Eigen::Matrix3Xd::Zero(3,	matchesi);
+						Eigen::Matrix3Xd Xn		= Eigen::Matrix3Xd::Zero(3,	matchesi);
+
+						Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	matchesi);
+						Eigen::Matrix3Xd Qn		= Eigen::Matrix3Xd::Zero(3,	matchesi);
+						Eigen::VectorXd  rangeW	= Eigen::VectorXd::Zero(	matchesi);
 
 						for(unsigned int ki = 0; ki < matchesi; ki++){
 							int kj = matchidi[ki];
+							if( ki >= Qp.cols() || kj < 0 || kj >= tXj.cols() ){continue;}
 
-							if( kj >=  matchesj){continue;}
-							if(matchidj[kj] == ki){
-								Qp.col(count) = tXj.col(kj);
-								Qn.col(count) = tXnj.col(kj);
+							//printf("%i %i / %i %i\n",ki,kj,Qp.cols(),tXj.cols());
 
-								Xp_ori.col(count) = Xi.col(ki);
-								Xp.col(count) = tXi.col(ki);
+							Qp.col(ki) = tXj.col(kj);
+							Qn.col(ki) = tXnj.col(kj);
 
-								Xn.col(count) = tXni.col(ki);
-								rangeW(count) = 1.0/(1.0/informationi(ki)+1.0/informationj(kj));
-								count++;
-							}
+							Xp.col(ki) = tXi.col(ki);
+							Xn.col(ki) = tXni.col(ki);
+							rangeW(ki) = 1.0/(1.0/informationi(ki)+1.0/informationj(kj));
 						}
-					}
 
-					if(count == 0){break;}
-
-					printf("count: %i\n",count);
-
-					for(int inner=0; inner < 5; ++inner) {
-						//printf("funcupdate: %i rematching: %i outer: %i inner: %i\n",funcupdate,rematching,outer,inner);
 						Eigen::MatrixXd residuals;
 						switch(type) {
 							case PointToPoint:	{residuals = Xp-Qp;} 						break;
-							//case PointToPlane:	{residuals = Qn.array()*(Xp-Qp).array();}	break;
 							case PointToPlane:	{
 								residuals		= Eigen::MatrixXd::Zero(1,	Xp.cols());
 								for(int i=0; i<Xp.cols(); ++i) {
@@ -522,140 +463,233 @@ view->initCameraParameters ();
 									float qy = Qn(1,i);
 									float qz = Qn(2,i);
 									float di = qx*dx + qy*dy + qz*dz;
+
 									residuals(0,i) = di;
 								}
 							}break;
 							default:			{printf("type not set\n");}					break;
 						}
-						for(unsigned int k=0; k < nr_match; ++k) {residuals.col(k) *= rangeW(k);}
 
-						Eigen::VectorXd  W;
+						for(unsigned int k=0; k < matchesi; ++k) {residuals.col(k) *= rangeW(k);}
 
-						switch(type) {
-							case PointToPoint:	{W = func->getProbs(residuals); } 					break;
-							case PointToPlane:	{
-								//W = func->getProbs(residuals.colwise().norm());
-								W = func->getProbs(residuals);
-								for(int k=0; k<nr_match; ++k) {W(k) = W(k)*float((Xn(0,k)*Qn(0,k) + Xn(1,k)*Qn(1,k) + Xn(2,k)*Qn(2,k)) > 0.0);}
-							}	break;
-							default:			{printf("type not set\n");} break;
+						all_residuals.block(0,count,residuals.rows(),residuals.cols()) = residuals;
+						count += residuals.cols();
+					}
+				}
+
+				residuals_time += getTime()-residuals_time_start;
+
+				double computeModel_time_start = getTime();
+				switch(type) {
+					case PointToPoint:	{func->computeModel(all_residuals);} 	break;
+					case PointToPlane:	{func->computeModel(all_residuals);}	break;
+					default:  			{printf("type not set\n");} break;
+				}
+				computeModel_time += getTime()-computeModel_time_start;
+				//func->debugg_print = false;
+
+				for(int outer=0; outer < 150; ++outer) {
+					printf("funcupdate: %i rematching: %i lala: %i outer: %i\n",funcupdate,rematching,lala,outer);
+					for(unsigned int i = 0; i < nr_frames; i++){poses2[i] = poses[i];}
+
+					//printf("funcupdate: %i rematching: %i outer: %i\n",funcupdate,rematching,outer);
+					for(unsigned int i = 0; i < nr_frames; i++){
+						unsigned int nr_match = 0;
+						for(unsigned int j = 0; j < nr_frames; j++){
+							std::vector<int> & matchidj = matchids[j][i];
+							unsigned int matchesj = matchidj.size();
+							std::vector<int> & matchidi = matchids[i][j];
+							unsigned int matchesi = matchidi.size();
+
+							for(unsigned int ki = 0; ki < matchesi; ki++){
+								int kj = matchidi[ki];
+
+								if( kj >=  matchesj){continue;}
+
+								if(matchidj[kj] == ki){nr_match++;}
+							}
 						}
 
-						W = W.array()*rangeW.array()*rangeW.array();
-                        Xo1 = Xp;
-						switch(type) {
-							case PointToPoint:	{RigidMotionEstimator::point_to_point(Xp, Qp, W);}		break;
-							case PointToPlane:	{RigidMotionEstimator3::point_to_plane(Xp, Xn, Qp, Qn, W);}	break;
-							default:  			{printf("type not set\n"); } break;
+						Eigen::Matrix3Xd Xp		= Eigen::Matrix3Xd::Zero(3,	nr_match);
+						Eigen::Matrix3Xd Xp_ori	= Eigen::Matrix3Xd::Zero(3,	nr_match);
+						Eigen::Matrix3Xd Xn		= Eigen::Matrix3Xd::Zero(3,	nr_match);
+
+						Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	nr_match);
+						Eigen::Matrix3Xd Qn		= Eigen::Matrix3Xd::Zero(3,	nr_match);
+						Eigen::VectorXd  rangeW	= Eigen::VectorXd::Zero(	nr_match);
+
+						int count = 0;
+
+						Eigen::Matrix<double, 3, Eigen::Dynamic> & tXi	= transformed_points[i];
+						Eigen::Matrix<double, 3, Eigen::Dynamic> & Xi	= points[i];
+						Eigen::Matrix<double, 3, Eigen::Dynamic> & tXni	= transformed_normals[i];
+						Eigen::Matrix<double, 3, Eigen::Dynamic> & Xni	= normals[i];
+						Eigen::VectorXd & informationi					= informations[i];
+
+						for(unsigned int j = 0; j < nr_frames; j++){
+							Eigen::Matrix<double, 3, Eigen::Dynamic> & tXj	= transformed_points[j];
+							Eigen::Matrix<double, 3, Eigen::Dynamic> & tXnj	= transformed_normals[j];
+							Eigen::VectorXd & informationj					= informations[j];
+
+							std::vector<int> & matchidj = matchids[j][i];
+							unsigned int matchesj = matchidj.size();
+							std::vector<int> & matchidi = matchids[i][j];
+							unsigned int matchesi = matchidi.size();
+
+							for(unsigned int ki = 0; ki < matchesi; ki++){
+								int kj = matchidi[ki];
+
+								if( kj >=  matchesj){continue;}
+								if(matchidj[kj] == ki){
+									Qp.col(count) = tXj.col(kj);
+									Qn.col(count) = tXnj.col(kj);
+
+									Xp_ori.col(count) = Xi.col(ki);
+									Xp.col(count) = tXi.col(ki);
+
+									Xn.col(count) = tXni.col(ki);
+									rangeW(count) = 1.0/(1.0/informationi(ki)+1.0/informationj(kj));
+									count++;
+								}
+							}
 						}
 
+						if(count == 0){break;}
 
-						//printf("%i %i , %i %i\n",Xp.rows(),Xp.cols(),Xo1.rows(),Xo1.cols());
-                        double stop1 = (Xp-Xo1).colwise().norm().maxCoeff();
-                        Xo1 = Xp;
-						if(stop1 < 0.00001) break;
+						for(int inner=0; inner < 5; ++inner) {
+							Eigen::MatrixXd residuals;
+							switch(type) {
+								case PointToPoint:	{residuals = Xp-Qp;} 						break;
+								//case PointToPlane:	{residuals = Qn.array()*(Xp-Qp).array();}	break;
+								case PointToPlane:	{
+									residuals		= Eigen::MatrixXd::Zero(1,	Xp.cols());
+									for(int i=0; i<Xp.cols(); ++i) {
+										float dx = Xp(0,i)-Qp(0,i);
+										float dy = Xp(1,i)-Qp(1,i);
+										float dz = Xp(2,i)-Qp(2,i);
+										float qx = Qn(0,i);
+										float qy = Qn(1,i);
+										float qz = Qn(2,i);
+										float di = qx*dx + qy*dy + qz*dz;
+										residuals(0,i) = di;
+									}
+								}break;
+								default:			{printf("type not set\n");}					break;
+							}
+							for(unsigned int k=0; k < nr_match; ++k) {residuals.col(k) *= rangeW(k);}
+
+							Eigen::VectorXd  W;
+
+							switch(type) {
+								case PointToPoint:	{W = func->getProbs(residuals); } 					break;
+								case PointToPlane:	{
+									W = func->getProbs(residuals);
+									for(int k=0; k<nr_match; ++k) {W(k) = W(k)*float((Xn(0,k)*Qn(0,k) + Xn(1,k)*Qn(1,k) + Xn(2,k)*Qn(2,k)) > 0.0);}
+								}	break;
+								default:			{printf("type not set\n");} break;
+							}
+
+							W = W.array()*rangeW.array()*rangeW.array();
+							Xo1 = Xp;
+							switch(type) {
+								case PointToPoint:	{RigidMotionEstimator::point_to_point(Xp, Qp, W);}		break;
+								case PointToPlane:	{RigidMotionEstimator3::point_to_plane(Xp, Xn, Qp, Qn, W);}	break;
+								default:  			{printf("type not set\n"); } break;
+							}
+
+							double stop1 = (Xp-Xo1).colwise().norm().maxCoeff();
+							//printf("funcupdate: %i rematching: %i outer: %i inner: %i stop1: %5.5f\n",funcupdate,rematching,outer,inner,stop1);
+
+							Xo1 = Xp;
+							if(stop1 < 0.001){;break; }
+							else{}
+						}
+
+						pcl::TransformationFromCorrespondences tfc;
+						for(unsigned int c = 0; c < nr_match; c++){
+							Eigen::Vector3f a (Xp(0,c),				Xp(1,c),			Xp(2,c));
+							Eigen::Vector3f b (Xp_ori(0,c),         Xp_ori(1,c),        Xp_ori(2,c));
+							tfc.add(b,a);
+						}
+						poses[i] = tfc.getTransformation().cast<double>().matrix();
 					}
-
-					pcl::TransformationFromCorrespondences tfc;
-					for(unsigned int c = 0; c < nr_match; c++){
-						Eigen::Vector3f a (Xp(0,c),				Xp(1,c),			Xp(2,c));
-                        Eigen::Vector3f b (Xp_ori(0,c),         Xp_ori(1,c),        Xp_ori(2,c));
-						tfc.add(b,a);
-					}
-
-					poses[i] = tfc.getTransformation().cast<double>().matrix();
-					Eigen::Matrix4d p = poses[i];
-					float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
-					float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
-					float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
 
 					double change = 0;
-                    for(int c = 0; c < Xi.cols(); c++){
-						float x = Xi(0,c);
-						float y = Xi(1,c);
-						float z = Xi(2,c);
+					Eigen::Matrix4d p0inv = poses[0].inverse();
+					for(unsigned int j = 0; j < nr_frames; j++){
+						poses[j] = p0inv*poses[j];
 
-						float nx = Xni(0,c);
-						float ny = Xni(1,c);
-						float nz = Xni(2,c);
+						Eigen::Matrix<double, 3, Eigen::Dynamic> & tXi	= transformed_points[j];
+						Eigen::Matrix<double, 3, Eigen::Dynamic> & Xi	= points[j];
+						Eigen::Matrix<double, 3, Eigen::Dynamic> & tXni	= transformed_normals[j];
+						Eigen::Matrix<double, 3, Eigen::Dynamic> & Xni	= normals[j];
 
-						double tXi0c	= tXi(0,c);
-						double tXi1c	= tXi(1,c);
-						double tXi2c	= tXi(2,c);
+						Eigen::Matrix4d p = poses[j];
+						float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
+						float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
+						float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
 
+						for(int c = 0; c < Xi.cols(); c++){
+							float x = Xi(0,c);
+							float y = Xi(1,c);
+							float z = Xi(2,c);
 
-						tXi(0,c)		= m00*x + m01*y + m02*z + m03;
-						tXi(1,c)		= m10*x + m11*y + m12*z + m13;
-						tXi(2,c)		= m20*x + m21*y + m22*z + m23;
+							float nx = Xni(0,c);
+							float ny = Xni(1,c);
+							float nz = Xni(2,c);
 
-						tXni(0,c)		= m00*nx + m01*ny + m02*nz;
-						tXni(1,c)		= m10*nx + m11*ny + m12*nz;
-						tXni(2,c)		= m20*nx + m21*ny + m22*nz;
+							double tXi0c	= tXi(0,c);
+							double tXi1c	= tXi(1,c);
+							double tXi2c	= tXi(2,c);
 
-						double dx = tXi0c-tXi(0,c);
-						double dy = tXi1c-tXi(1,c);
-						double dz = tXi2c-tXi(2,c);
-						double d = dx*dx+dy*dy+dz*dz;
-						change = std::max(d,change);
+							tXi(0,c)		= m00*x + m01*y + m02*z + m03;
+							tXi(1,c)		= m10*x + m11*y + m12*z + m13;
+							tXi(2,c)		= m20*x + m21*y + m22*z + m23;
+
+							tXni(0,c)		= m00*nx + m01*ny + m02*nz;
+							tXni(1,c)		= m10*nx + m11*ny + m12*nz;
+							tXni(2,c)		= m20*nx + m21*ny + m22*nz;
+
+							double dx = tXi0c-tXi(0,c);
+							double dy = tXi1c-tXi(1,c);
+							double dz = tXi2c-tXi(2,c);
+							double d = dx*dx+dy*dy+dz*dz;
+							change = std::max(d,change);
+						}
 					}
 					change = sqrt(change);
-					//printf("    change: %f\n",change);
 
-					if(change < 0.00001) break;
-				}
+					double change_trans = 0;
+					double change_rot = 0;
+					for(unsigned int i = 0; i < nr_frames; i++){
+						for(unsigned int j = i+1; j < nr_frames; j++){
+							Eigen::Matrix4d diff_before = poses2[i].inverse()*poses2[j];
+							Eigen::Matrix4d diff_after	= poses[i].inverse()*poses[j];
+							Eigen::Matrix4d diff = diff_before.inverse()*diff_after;
 
-				double change = 0;
-				Eigen::Matrix4d p0inv = poses[0].inverse();
-				for(unsigned int j = 0; j < nr_frames; j++){
-					poses[j] = p0inv*poses[j];
-
-					Eigen::Matrix<double, 3, Eigen::Dynamic> & tXi	= transformed_points[j];
-					Eigen::Matrix<double, 3, Eigen::Dynamic> & Xi	= points[j];
-					Eigen::Matrix<double, 3, Eigen::Dynamic> & tXni	= transformed_normals[j];
-					Eigen::Matrix<double, 3, Eigen::Dynamic> & Xni	= normals[j];
-
-					Eigen::Matrix4d p = poses[j];
-					float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
-					float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
-					float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
-
-					for(int c = 0; c < Xi.cols(); c++){
-						float x = Xi(0,c);
-						float y = Xi(1,c);
-						float z = Xi(2,c);
-
-						float nx = Xni(0,c);
-						float ny = Xni(1,c);
-						float nz = Xni(2,c);
-
-						double tXi0c	= tXi(0,c);
-						double tXi1c	= tXi(1,c);
-						double tXi2c	= tXi(2,c);
-
-						tXi(0,c)		= m00*x + m01*y + m02*z + m03;
-						tXi(1,c)		= m10*x + m11*y + m12*z + m13;
-						tXi(2,c)		= m20*x + m21*y + m22*z + m23;
-
-						tXni(0,c)		= m00*nx + m01*ny + m02*nz;
-						tXni(1,c)		= m10*nx + m11*ny + m12*nz;
-						tXni(2,c)		= m20*nx + m21*ny + m22*nz;
-
-						double dx = tXi0c-tXi(0,c);
-						double dy = tXi1c-tXi(1,c);
-						double dz = tXi2c-tXi(2,c);
-						double d = dx*dx+dy*dy+dz*dz;
-						change = std::max(d,change);
+							double dt = 0;
+							for(unsigned int k = 0; k < 3; k++){
+								dt += diff(k,3)*diff(k,3);
+								for(unsigned int l = 0; l < 3; l++){
+									if(k == l){ change_rot += fabs(1-diff(k,l));}
+									else{		change_rot += fabs(diff(k,l));}
+								}
+							}
+							change_trans += sqrt(dt);
+						}
 					}
-				}
 
-				change = sqrt(change);
-				//if(change < 0.00001) break;
+					change_trans /= double(nr_frames*(nr_frames-1));
+					change_rot	 /= double(nr_frames*(nr_frames-1));
+
+					if(change_trans < stopval && change_rot < stopval){break;}
+				}
 
 				double change_trans = 0;
 				double change_rot = 0;
 				for(unsigned int i = 0; i < nr_frames; i++){
 					for(unsigned int j = i+1; j < nr_frames; j++){
-						Eigen::Matrix4d diff_before = poses2[i].inverse()*poses2[j];
+						Eigen::Matrix4d diff_before = poses2b[i].inverse()*poses2b[j];
 						Eigen::Matrix4d diff_after	= poses[i].inverse()*poses[j];
 						Eigen::Matrix4d diff = diff_before.inverse()*diff_after;
 
@@ -674,8 +708,7 @@ view->initCameraParameters ();
 				change_trans /= double(nr_frames*(nr_frames-1));
 				change_rot	 /= double(nr_frames*(nr_frames-1));
 
-				//printf("outer: change relative transforms: %10.10f %10.10f\n",change_trans,change_rot);
-				if(change_trans < 0.0001 && change_rot < 0.00001){/* printf("----------BREAK OUTER-----------\n"); */break;}
+				if(change_trans < stopval && change_rot < stopval){break;}
 			}
 
 			double change_trans = 0;
@@ -702,7 +735,7 @@ view->initCameraParameters ();
 			change_rot	 /= double(nr_frames*(nr_frames-1));
 
 			//printf("retmatch: change relative transforms: %10.10f %10.10f\n",change_trans,change_rot);
-			if(change_trans < 0.0001 && change_rot < 0.00001){printf("----------BREAK REMATCH-----------\n");break;}
+			if(change_trans < stopval && change_rot < stopval){break;}
 		}
 
 		//std::vector<Eigen::MatrixXd> Xv;
@@ -711,13 +744,29 @@ view->initCameraParameters ();
 		//sprintf(buf,"image%5.5i.png",imgcount++);
 		//show(Xv,true,std::string(buf),imgcount);
 
-		func->debugg_print = false;
 		double noise_before = func->getNoise();
 		func->update();
 		double noise_after = func->getNoise();
-		func->debugg_print = false;
-		//printf("before: %5.5f after: %5.5f relative size: %5.5f\n",noise_before,noise_after,noise_after/noise_before);
+		//printf("before: %f after: %f\n",noise_before,noise_after);
 		if(fabs(1.0 - noise_after/noise_before) < 0.01){break;}
+	}
+
+	printf("total_time:   %5.5f\n",getTime()-total_time_start);
+	printf("rematch_time: %5.5f\n",rematch_time);
+	printf("computeModel: %5.5f\n",computeModel_time);
+
+
+	if(visualizationLvl > 0){
+		std::vector<Eigen::MatrixXd> Xv;
+		for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
+		char buf [1024];
+		sprintf(buf,"image%5.5i.png",imgcount++);
+		show(Xv,true,std::string(buf),imgcount);
+	}
+
+	Eigen::Matrix4d firstinv = poses.front().inverse();
+	for(int i = 0; i < nr_frames; i++){
+		poses[i] = firstinv*poses[i];
 	}
 //if(nr_frames >= 3){exit(0);}
 	printf("stop MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> guess)\n");

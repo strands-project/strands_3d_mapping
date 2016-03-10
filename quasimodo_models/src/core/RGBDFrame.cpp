@@ -50,6 +50,7 @@ bool updated = true;
 void on_trackbar( int, void* ){updated = true;}
 
 RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capturetime_, Eigen::Matrix4d pose_, bool compute_normals){
+	sweepid = -1;
 	id = RGBDFrame_id_counter++;
 	camera = camera_;
 	rgb = rgb_;

@@ -466,6 +466,7 @@ if(!fixed_histogram_size){
 	for(int j = 0; j < histogram_size; j++){histogram[j] = 0;}
 	for(unsigned int j = 0; j < nr_data; j++){
 		for(int k = 0; k < nr_dim; k++){
+
 			double ind = fabs(mat(k,j))*histogram_mul;
 			double w2 = ind-int(ind);
 			double w1 = 1-w2;
@@ -566,6 +567,7 @@ if(!fixed_histogram_size){
 
 	if(update_size ){
 		double next_maxd  = meanval2 + (stdval2 + regularization)*target_length;
+		//printf("mean %f stdval %f regularization: %f\n",meanval2,stdval2,regularization);
 		double logdiff = log(next_maxd/maxd);
 		//if(debugg_print){printf("maxd: %f next_maxd: %f logdiff: %f \n",maxd,next_maxd,logdiff);}
 		//if(debugg_print){printf("meanoffset: %f stdval2: %f stdval: %f regularization: %f\n",meanval2,stdval2,noiseval,regularization);}

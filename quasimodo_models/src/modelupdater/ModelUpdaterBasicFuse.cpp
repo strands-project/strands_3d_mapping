@@ -38,7 +38,7 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 
         double best = -99999999999999;
         int best_id = -1;
-        for(unsigned int ca = 0; ca < fr.candidates.size(); ca++){
+		for(unsigned int ca = 0; ca < fr.candidates.size() && ca < 5; ca++){
             Eigen::Matrix4d pose = fr.candidates[ca];
             std::vector<Eigen::Matrix4d>	current_poses;
             std::vector<RGBDFrame*>			current_frames;
@@ -134,7 +134,7 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 		current_modelmasks.push_back(			model2->modelmasks[i]);
 	}
 
-	std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_masks,current_modelmasks,true);
+	std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_masks,current_modelmasks,false);
     std::vector<std::vector < float > > scores = getScores(ocs);
 	std::vector<int> partition = getPartition(scores,2,5,2);
 
@@ -286,7 +286,7 @@ void ModelUpdaterBasicFuse::computeMassRegistration(std::vector<Eigen::Matrix4d>
 	exit(0);
 }
 
-void ModelUpdaterBasicFuse::refine(){}//No refinement behaviour added yet
+//void ModelUpdaterBasicFuse::refine(){}//No refinement behaviour added yet
 
 void ModelUpdaterBasicFuse::setRegistration( Registration * registration_){
 	if(registration != 0){delete registration;}

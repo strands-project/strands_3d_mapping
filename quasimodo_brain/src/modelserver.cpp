@@ -45,6 +45,10 @@ ModelDatabase * 						modeldatabase;
 
 boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
 
+ros::Publisher models_new_pub;
+ros::Publisher models_updated_pub;
+ros::Publisher models_deleted_pub;
+
 bool myfunction (reglib::Model * i,reglib::Model * j) { return i->frames.size() > j->frames.size(); }
 
 int savecounter = 0;
@@ -61,7 +65,8 @@ void show_sorted(){
 	for(unsigned int i = 0; i < results.size(); i++){
 		printf("results %i -> %i\n",i,results[i]->frames.size());
 
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = results[i]->getPCLcloud(results[i]->frames.size(), false);
+		//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = results[i]->getPCLcloud(results[i]->frames.size(), false);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = results[i]->getPCLcloud(1, false);
 		float meanx = 0;
 		float meany = 0;
 		float meanz = 0;
@@ -98,6 +103,47 @@ void show_sorted(){
 
 	//viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud), buf);
 }
+
+quasimodo_msgs::model getModelMSG(reglib::Model * model){
+	quasimodo_msgs::model msg;
+
+	msg.model_id = model->id;
+	msg.local_poses.resize(model->relativeposes.size());
+	msg.frames.resize(model->frames.size());
+	msg.masks.resize(model->masks.size());
+
+	for(unsigned int i = 0; i < model->relativeposes.size(); i++){
+		geometry_msgs::Pose		pose1;
+		tf::poseEigenToMsg (Eigen::Affine3d(model->relativeposes[i]), pose1);
+
+		geometry_msgs::Pose		pose2;
+		tf::poseEigenToMsg (Eigen::Affine3d(model->frames[i]->pose), pose2);
+
+		cv_bridge::CvImage rgbBridgeImage;
+		rgbBridgeImage.image = model->frames[i]->rgb;
+		rgbBridgeImage.encoding = "bgr8";
+
+		cv_bridge::CvImage depthBridgeImage;
+		depthBridgeImage.image = model->frames[i]->depth;
+		depthBridgeImage.encoding = "mono16";
+
+
+		cv_bridge::CvImage maskBridgeImage;
+		maskBridgeImage.image			= model->masks[i];
+		maskBridgeImage.encoding		= "mono8";
+
+		msg.local_poses[i]			= pose1;
+		msg.frames[i].capture_time	= ros::Time();
+		msg.frames[i].pose			= pose2;
+		msg.frames[i].frame_id		= model->frames[i]->id;
+		msg.frames[i].rgb			= *(rgbBridgeImage.toImageMsg());
+		msg.frames[i].depth			= *(depthBridgeImage.toImageMsg());
+		msg.masks[i]				= *(maskBridgeImage.toImageMsg());
+	}
+	return msg;
+}
+
+
 
 
 bool getModel(quasimodo_msgs::get_model::Request  & req, quasimodo_msgs::get_model::Response & res){
@@ -189,6 +235,7 @@ bool removeModel(int id){
 	updaters.erase(id);
 }
 
+
 reglib::Model * mod;
 std::vector<reglib::Model * > res;
 std::vector<reglib::FusionResults > fr_res;
@@ -208,6 +255,8 @@ void call_from_thread(int i) {
 	delete mu;
 	delete reg;
 }
+
+
 
 void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 	if(add){database->add(model);}
@@ -300,20 +349,65 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 	printf("DONE WITH REGISTER\n");
 }
 
+bool nextNew = true;
+reglib::Model * newmodel = 0;
+
+int sweepid_counter = 0;
+
 bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_msgs::model_from_frame::Response & res){
 	printf("======================================\nmodelFromFrame\n======================================\n");
-    uint64 frame_id = req.frame_id;
+	uint64 frame_id = req.frame_id;
+	uint64 isnewmodel = req.isnewmodel;
+
+	printf("%i and %i\n",long(frame_id),long(isnewmodel));
     cv_bridge::CvImagePtr			mask_ptr;
 	try{							mask_ptr = cv_bridge::toCvCopy(req.mask, sensor_msgs::image_encodings::MONO8);}
 	catch (cv_bridge::Exception& e){ROS_ERROR("cv_bridge exception: %s", e.what());return false;}
 	
 	cv::Mat mask					= mask_ptr->image;
-	reglib::Model * newmodel		= new reglib::Model(frames[frame_id],mask);
-	
-    res.model_id					= newmodel->id;
-    	
-	addToDB(modeldatabase, newmodel);
-    show_sorted();
+	if(newmodel == 0){
+		newmodel					= new reglib::Model(frames[frame_id],mask);
+		modeldatabase->add(newmodel);
+	}else{//	relativeposes.push_back(p);
+
+		//Model * mod	= new reglib::Model(frames[frame_id],mask);
+
+		newmodel->frames.push_back(frames[frame_id]);
+		newmodel->masks.push_back(mask);
+		newmodel->relativeposes.push_back(newmodel->frames.front()->pose.inverse() * frames[frame_id]->pose);
+		newmodel->modelmasks.push_back(new reglib::ModelMask(mask));
+		newmodel->recomputeModelPoints();
+	}
+	newmodel->modelmasks.back()->sweepid = sweepid_counter;
+
+	res.model_id					= newmodel->id;
+
+	if(isnewmodel != 0){
+
+		newmodel->recomputeModelPoints();
+		show_sorted();
+
+		reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
+		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( newmodel, reg);
+		mu->viewer							= viewer;
+		reg->visualizationLvl				= 0;
+
+		mu->refine(0.05,true);
+
+		delete mu;
+		delete reg;
+
+		newmodel->recomputeModelPoints();
+		show_sorted();
+
+		addToDB(modeldatabase, newmodel,false);
+
+		newmodel = 0;
+		sweepid_counter++;
+	}
+
+	//
+	//
 	return true;
 }
 
@@ -332,6 +426,10 @@ int main(int argc, char **argv){
 	viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("viewer"));
 	viewer->addCoordinateSystem(0.1);
 	viewer->setBackgroundColor(0.9,0.9,0.9);
+
+	models_new_pub		= n.advertise<quasimodo_msgs::model>("/models/new",		1000);
+	models_updated_pub	= n.advertise<quasimodo_msgs::model>("/models/updated", 1000);
+	models_deleted_pub	= n.advertise<quasimodo_msgs::model>("/models/deleted", 1000);
 
 	ros::ServiceServer service1 = n.advertiseService("model_from_frame", modelFromFrame);
 	ROS_INFO("Ready to add use model_from_frame.");

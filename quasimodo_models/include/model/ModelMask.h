@@ -21,6 +21,7 @@ namespace reglib
 		cv::Mat mask;
 		std::vector<int> testw;
 		std::vector<int> testh;
+		int sweepid;
 
 		ModelMask(cv::Mat mask_);
 		~ModelMask();

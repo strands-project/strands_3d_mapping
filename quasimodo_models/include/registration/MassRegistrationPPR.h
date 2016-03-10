@@ -19,6 +19,9 @@ namespace reglib
 		bool use_features;
 		bool normalize_matchweights;
 
+		double stopval;
+		unsigned steps;
+
 		std::vector<int> nr_datas;
 
 		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > points;
@@ -37,7 +40,7 @@ namespace reglib
 //		std::vector<int> feature_end;//Dimension of data a specific feature ends, if the feature is RGB this should be 5
 //		std::vector< DistanceWeightFunction2 * > feature_func;
 
-		DistanceWeightFunction2 * func;
+		DistanceWeightFunction2PPR2 * func;
 
 		MassRegistrationPPR(double startreg = 0.05, bool visualize = false);
 		~MassRegistrationPPR();

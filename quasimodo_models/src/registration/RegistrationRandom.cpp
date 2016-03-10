@@ -354,12 +354,12 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
     refinement->maxtime = 9999999999;
 
 
-/*
+
 	for(unsigned int ax = 0; ax < all_X.size() && ax < 5; ax++){
 		printf("%i -> %i\n",ax,count_X[ax]);
 		if(visualizationLvl >= 2){show(all_X[ax],Y);}
 	}
-*/
+
 /*
 	for(unsigned int ax = 0; ax < all_X.size(); ax++){
 		printf("%i -> %i\n",ax,count_X[ax]);
