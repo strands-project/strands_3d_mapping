@@ -7,6 +7,7 @@
 #include "RegistrationPPR.h"
 
 #include "RegistrationRefinement.h"
+#include "RegistrationRefinementColor.h"
 
 //#include "DistanceWeightFunction2.h"
 //#include "ICP.h"
@@ -29,6 +30,7 @@ namespace reglib
 		virtual void setDst(CloudData * dst_);
 
 		Registration * refinement;
+        Registration * refinementColor;
 
 		DistanceWeightFunction2 * func;
 
