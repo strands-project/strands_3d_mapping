@@ -42,8 +42,10 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>quasimodo_msgs</build_depend>
   <build_depend>quasimodo_models</build_depend>
+  <build_depend>metaroom_xml_parser</build_depend>
   <run_depend>quasimodo_models</run_depend>
   <run_depend>quasimodo_msgs</run_depend>
+  <run_depend>metaroom_xml_parser</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
