@@ -58,7 +58,7 @@ public:
                 if (mask.at<uchar>(i, j) == 0) {
                     continue;
                 }
-                float d = 0.001f*float(depth.at<uint16_t>(i, j));
+                float d = 0.0002f*float(depth.at<uint16_t>(i, j));
                 Eigen::Vector3f ep(float(j), float(i), 1.0f);
                 ep = K.inverse()*ep;
                 ep = d/ep(2)*ep;
@@ -69,8 +69,9 @@ public:
                 cloud->push_back(p);
             }
         }
-        pcl::transformPointCloud(*cloud, *cloud, T);
-        return cloud;
+        CloudT::Ptr temp_cloud(new CloudT);
+        pcl::transformPointCloud(*cloud, *temp_cloud, T);
+        return temp_cloud;
     }
 
     void callback(const quasimodo_msgs::modelConstPtr& model)
@@ -88,11 +89,8 @@ public:
             //Eigen::Matrix3f K = Eigen::Map<Eigen::Matrix3d>(cvK.val).cast<float>();
 
             Eigen::Affine3d e;
-            tf::poseMsgToEigen(model->frames[i].pose, e);
+            tf::poseMsgToEigen(model->local_poses[i], e);
             Eigen::Matrix4f T = e.matrix().cast<float>();
-            //T.block<3, 1>(0,3) = T.block<3,3>(0,0).inverse()*T.block<3, 1>(0,3);
-            //T.col(3) = T.inverse()*T.col(3);
-            //T.block<3,3>(0, 0) = T.block<3,3>(0,0).inverse();
 
             cv_bridge::CvImagePtr cv_ptr;
             try {
