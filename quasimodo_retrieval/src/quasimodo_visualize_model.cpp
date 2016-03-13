@@ -76,17 +76,15 @@ public:
 
     void callback(const quasimodo_msgs::modelConstPtr& model)
     {
-        Eigen::Matrix3f K;
-        K << 525.0f, 0.0f, 319.5f, 0.0f, 525.0f, 239.5f, 0.0f, 0.0f, 1.0f;
-
         int n = model->frames.size();
         CloudT::Ptr cloud(new CloudT);
 
         for (int i = 0; i < n; ++i) {
-            //image_geometry::PinholeCameraModel cam_model;
-            //cam_model.fromCameraInfo(req.query.camera);
-            //cv::Matx33d cvK = cam_model.intrinsicMatrix();
-            //Eigen::Matrix3f K = Eigen::Map<Eigen::Matrix3d>(cvK.val).cast<float>();
+            image_geometry::PinholeCameraModel cam_model;
+            cam_model.fromCameraInfo(model->frames[i].camera);
+            cv::Matx33d cvK = cam_model.intrinsicMatrix();
+            Eigen::Matrix3f K = Eigen::Map<Eigen::Matrix3d>(cvK.val).cast<float>();
+            K << 525.0f, 0.0f, 319.5f, 0.0f, 525.0f, 239.5f, 0.0f, 0.0f, 1.0f;
 
             Eigen::Affine3d e;
             tf::poseMsgToEigen(model->local_poses[i], e);

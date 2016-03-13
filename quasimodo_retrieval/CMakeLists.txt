@@ -176,6 +176,7 @@ add_executable(quasimodo_retrieval_server src/quasimodo_retrieval_server.cpp)
 add_executable(quasimodo_retrieval_publisher src/quasimodo_retrieval_publisher.cpp)
 add_executable(quasimodo_visualization_server src/quasimodo_visualization_server.cpp)
 add_executable(quasimodo_visualize_model src/quasimodo_visualize_model.cpp)
+add_executable(quasimodo_retrieval_node src/quasimodo_retrieval_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -221,6 +222,15 @@ target_link_libraries(quasimodo_visualize_model
 #)
 
 target_link_libraries(quasimodo_visualization_server
+#  ${retrieval_libraries}
+#  ${benchmark_libraries}
+  ${OpenCV_LIBS}
+  ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(quasimodo_retrieval_node
 #  ${retrieval_libraries}
 #  ${benchmark_libraries}
   ${OpenCV_LIBS}
