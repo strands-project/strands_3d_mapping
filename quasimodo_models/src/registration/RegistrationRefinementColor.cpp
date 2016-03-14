@@ -6,6 +6,9 @@
 
 //#include <pcl/surface/convex_hull.h>
 
+using namespace std;
+using namespace nanoflann;
+
 namespace reglib
 {
 
@@ -230,6 +233,30 @@ double test(Eigen::VectorXd W, Eigen::MatrixXd X, Eigen::MatrixXd Y){
 }
 
 FusionResults RegistrationRefinementColor::getTransform(Eigen::MatrixXd guess){
+
+//	std::cout << "Generating "<< N << " point cloud...";
+//	point.pts.resize(N);
+//	for (size_t i=0;i<N;i++){
+//		point.pts[i].x = max_range * (rand() % 1000) / T(1000);
+//		point.pts[i].y = max_range * (rand() % 1000) / T(1000);
+//		point.pts[i].z = max_range * (rand() % 1000) / T(1000);
+//		point.pts[i].r = max_range * (rand() % 1000) / T(1000);
+//		point.pts[i].g = max_range * (rand() % 1000) / T(1000);
+//		point.pts[i].b = max_range * (rand() % 1000) / T(1000);
+//	}
+//		PointCloud<num_t> cloud;
+//		cloud.count = 0;
+//		cloud.w0 = 1;
+//		cloud.w1 = 1;
+//		cloud.w2 = 1;
+//		cloud.w3 = 1;
+//		cloud.w4 = 1;
+//		cloud.w5 = 1;
+//	generateRandomPointCloud(cloud, N, max_range);
+//	typedef KDTreeSingleIndexAdaptor< L2_Simple_Adaptor<num_t, PointCloud<num_t> > , PointCloud<num_t>, 6 > my_kd_tree_t;
+//	index(6 /*dim*/, cloud, KDTreeSingleIndexAdaptorParams(10 /* max leaf */) );
+//	index.buildIndex();
+//	dump_mem_usage();
 
 	unsigned int s_nr_data = src->data.cols();
     int stepx = std::max(1,int(s_nr_data)/target_points);
