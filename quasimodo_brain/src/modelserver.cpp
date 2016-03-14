@@ -473,7 +473,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								cv::imshow(		"rgbimage",		rgbimage );
 								cv::namedWindow("depthimage",	cv::WINDOW_AUTOSIZE );
 								cv::imshow(		"depthimage",	depthimage );
-								cv::waitKey(0);
+								cv::waitKey(30);
 
 								printf("indexFrame\n");
 								//sensor_msgs::CameraInfo		camera			= req.frame.camera;
@@ -493,10 +493,38 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								reg->visualizationLvl					= 3;
 
 								reglib::FusionResults fr = mu->registerModel(currentTest);
+								reglib::UpdatedModels ud = mu->fuseData(&(fr), currentTest, searchmodel);
+
+								printf("merge %i to %i\n",		currentTest->id,searchmodel->id);
+								printf("new_models:     %i\n",ud.new_models.size());
+								printf("updated_models: %i\n",ud.updated_models.size());
+								printf("deleted_models: %i\n",ud.deleted_models.size());
+
+								for(unsigned int j = 0; j < ud.new_models.size(); j++){
+									modeldatabase->add(ud.new_models[j]);
+								}
+
+								for(unsigned int j = 0; j < ud.updated_models.size(); j++){
+									modeldatabase->remove(ud.updated_models[j]);
+									modeldatabase->add(ud.updated_models[j]);
+								}
+
+								bool searchmodel_merged = false;
+								for(unsigned int j = 0; j < ud.deleted_models.size(); j++){
+									if(ud.deleted_models[j] == searchmodel){
+										searchmodel_merged = true;
+									}else{
+										modeldatabase->remove(ud.deleted_models[j]);
+									}
+									delete ud.deleted_models[j];
+								}
+
+								if(searchmodel_merged){
+									frames[frame->id] = frame;
+								}
+
 								delete mu;
 								delete reg;
-
-								//currentTest
 							}
 						}
 
@@ -508,7 +536,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 				}
 			}
 		}
-		exit(0);
+//		exit(0);
 
 		newmodel = 0;
 		sweepid_counter++;
