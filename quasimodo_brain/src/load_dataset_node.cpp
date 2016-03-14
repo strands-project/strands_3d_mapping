@@ -206,7 +206,78 @@ void Dilation( int, void* )
   imshow( "Dilation Demo", dilation_dst );
 }
 
+vector<cv::Mat> masks;
+vector<cv::Mat> rgbs;
+vector<cv::Mat> depths;
+vector<int> inds;
+
+ros::ServiceClient model_from_frame_client;
+ros::ServiceClient fuse_models_client;
+ros::ServiceClient get_model_client;
+ros::ServiceClient index_frame_client;
+
+void chatterCallback(const std_msgs::String::ConstPtr& msg)
+{
+  ROS_INFO("I heard: [%s]", msg->data.c_str());
+
+  for (unsigned int i = 0; i < rgbs.size(); i++){
+      printf("start adding frame %i\n",i);
+
+      cv::Mat maskimage	= masks[i];
+      cv::Mat rgbimage	= rgbs[i];
+      cv::Mat depthimage	= depths[i];
+
+      geometry_msgs::Pose		pose;
+      tf::poseEigenToMsg (Eigen::Affine3d::Identity(), pose);
+
+      cv_bridge::CvImage rgbBridgeImage;
+      rgbBridgeImage.image = rgbimage;
+      rgbBridgeImage.encoding = "bgr8";
+
+      cv_bridge::CvImage depthBridgeImage;
+      depthBridgeImage.image = depthimage;
+      depthBridgeImage.encoding = "mono16";
+
+      quasimodo_msgs::index_frame ifsrv;
+      ifsrv.request.frame.capture_time = ros::Time();
+      ifsrv.request.frame.pose		= pose;
+      ifsrv.request.frame.frame_id	= -1;
+      ifsrv.request.frame.rgb			= *(rgbBridgeImage.toImageMsg());
+      ifsrv.request.frame.depth		= *(depthBridgeImage.toImageMsg());
+
+      if (index_frame_client.call(ifsrv)){//Add frame to model server
+          int frame_id = ifsrv.response.frame_id;
+          ROS_INFO("frame_id%i", frame_id );
+       }else{ROS_ERROR("Failed to call service index_frame");}
+
+      printf("stop adding frame %i\n",i);
+  }
+
+  for (unsigned int i = 0; i < rgbs.size(); i++){
+      printf("start adding mask %i\n",i);
+      cv::Mat mask	= masks[i];
+
+      cv_bridge::CvImage maskBridgeImage;
+      maskBridgeImage.image = mask;
+      maskBridgeImage.encoding = "mono8";
+
+      quasimodo_msgs::model_from_frame mff;
+      mff.request.mask = *(maskBridgeImage.toImageMsg());
+      mff.request.frame_id = i;
+
+      if (model_from_frame_client.call(mff)){//Build model from frame
+          int model_id = mff.response.model_id;
+          if(model_id > 0){
+              ROS_INFO("model_id%i", model_id );
+          }
+      }else{ROS_ERROR("Failed to call service index_frame");}
+      printf("stop adding mask %i\n",i);
+  }
+
+}
+
 int main(int argc, char **argv){
+
 	if(argc > 1){	path = string(argv[1]);}
 
 	char buf[1024];
@@ -229,7 +300,7 @@ int main(int argc, char **argv){
 		if(i == 0){bg = depth;}
 		else{
 			unsigned short * bgdata = (unsigned short *)bg.data;
-			unsigned short * depthdata = (unsigned short *)depth.data;
+            unsigned short * depthdata = (unsigned short *)depth.data;
 
 			unsigned int nr_data = 640*480;
 			for(unsigned int i = 0; i < nr_data; i++){
@@ -254,10 +325,7 @@ int main(int argc, char **argv){
 
 	vector<string> ret = do_path(path);
 
-	vector<cv::Mat> masks;
-	vector<cv::Mat> rgbs;
-	vector<cv::Mat> depths;
-	vector<int> inds;
+
 
 	for(int r = 0; r < ret.size() ; r++){
 		object = ret[r];
@@ -330,7 +398,7 @@ int main(int argc, char **argv){
 			cv::imshow(			"rgb", rgb);
 			cv::namedWindow(	"depth", cv::WINDOW_AUTOSIZE );
 			cv::imshow(			"depth", depth );
-			int res = cv::waitKey(0);
+            int res = cv::waitKey(30);
 
 		}
 	}
@@ -357,72 +425,22 @@ int main(int argc, char **argv){
 
 	ros::init(argc, argv, "use_rares_client");
 	ros::NodeHandle n;
-	ros::ServiceClient model_from_frame_client	= n.serviceClient<quasimodo_msgs::model_from_frame>("model_from_frame");
-	ros::ServiceClient fuse_models_client		= n.serviceClient<quasimodo_msgs::fuse_models>(		"fuse_models");
-	ros::ServiceClient get_model_client			= n.serviceClient<quasimodo_msgs::get_model>(		"get_model");
-	ros::ServiceClient index_frame_client		= n.serviceClient<quasimodo_msgs::index_frame>(		"index_frame");
 
+    model_from_frame_client	= n.serviceClient<quasimodo_msgs::model_from_frame>("model_from_frame");
+    fuse_models_client		= n.serviceClient<quasimodo_msgs::fuse_models>(		"fuse_models");
+    get_model_client			= n.serviceClient<quasimodo_msgs::get_model>(		"get_model");
+    index_frame_client		= n.serviceClient<quasimodo_msgs::index_frame>(		"index_frame");
 
+    ros::Subscriber sub = n.subscribe("modelserver", 1000, chatterCallback);
+    ros::spin();
+    /*
 	while(true){
 		char str [80];
 		printf ("build model?");
 		scanf ("%79s",str);
 		int nr_todo = atoi(str);
 		if(str[0] == 'q'){exit(0);}
-
-		for (unsigned int i = 0; i < rgbs.size(); i++){
-			printf("start adding frame %i\n",i);
-
-			cv::Mat maskimage	= masks[i];
-			cv::Mat rgbimage	= rgbs[i];
-			cv::Mat depthimage	= depths[i];
-
-			geometry_msgs::Pose		pose;
-			tf::poseEigenToMsg (Eigen::Affine3d::Identity(), pose);
-
-			cv_bridge::CvImage rgbBridgeImage;
-			rgbBridgeImage.image = rgbimage;
-			rgbBridgeImage.encoding = "bgr8";
-
-			cv_bridge::CvImage depthBridgeImage;
-			depthBridgeImage.image = depthimage;
-			depthBridgeImage.encoding = "mono16";
-
-			quasimodo_msgs::index_frame ifsrv;
-			ifsrv.request.frame.capture_time = ros::Time();
-			ifsrv.request.frame.pose		= pose;
-			ifsrv.request.frame.frame_id	= -1;
-			ifsrv.request.frame.rgb			= *(rgbBridgeImage.toImageMsg());
-			ifsrv.request.frame.depth		= *(depthBridgeImage.toImageMsg());
-
-			if (index_frame_client.call(ifsrv)){//Add frame to model server
-				int frame_id = ifsrv.response.frame_id;
-				ROS_INFO("frame_id%i", frame_id );
-			 }else{ROS_ERROR("Failed to call service index_frame");}
-
-			printf("stop adding frame %i\n",i);
-		}
-
-		for (unsigned int i = 0; i < rgbs.size(); i++){
-			printf("start adding mask %i\n",i);
-			cv::Mat mask	= masks[i];
-
-			cv_bridge::CvImage maskBridgeImage;
-			maskBridgeImage.image = mask;
-			maskBridgeImage.encoding = "mono8";
-
-			quasimodo_msgs::model_from_frame mff;
-			mff.request.mask = *(maskBridgeImage.toImageMsg());
-			mff.request.frame_id = i;
-
-			if (model_from_frame_client.call(mff)){//Build model from frame
-				int model_id = mff.response.model_id;
-				if(model_id > 0){
-					ROS_INFO("model_id%i", model_id );
-				}
-			}else{ROS_ERROR("Failed to call service index_frame");}
-			printf("stop adding mask %i\n",i);
-		}
 	}
+    */
 	return 0;
 }

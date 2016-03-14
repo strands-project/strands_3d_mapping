@@ -313,7 +313,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
     res.model_id					= newmodel->id;
     	
 	addToDB(modeldatabase, newmodel);
-    show_sorted();
+    //show_sorted();
 	return true;
 }
 
@@ -344,7 +344,15 @@ int main(int argc, char **argv){
 
 	ros::ServiceServer service4 = n.advertiseService("get_model", getModel);
 	ROS_INFO("Ready to add use get_model.");
-	ros::spin();
 
+   ros::Publisher chatter_pub = n.advertise<std_msgs::String>("modelserver", 1000);
+sleep(1);
+    std_msgs::String msg;
+    msg.data = "starting";
+    chatter_pub.publish(msg);
+    ros::spinOnce();
+    sleep(1);
+
+    ros::spin();
 	return 0;
 }
