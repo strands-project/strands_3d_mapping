@@ -247,7 +247,7 @@ void call_from_thread(int i) {
 	reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 	reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
 	mu->viewer							= viewer;
-	reg->visualizationLvl				= 1;
+	reg->visualizationLvl				= 0;
 
 	reglib::FusionResults fr = mu->registerModel(mod);
 	fr_res[i] = fr;
@@ -259,7 +259,10 @@ void call_from_thread(int i) {
 
 
 void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
-	if(add){database->add(model);}
+	if(add){
+		database->add(model);
+		models_new_pub.publish(getModelMSG(model));
+	}
 	printf("add to db\n");
 
 	mod = model;
@@ -295,7 +298,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 
 			mu->viewer							= viewer;
 			//if(model->relativeposes.size() + model2->relativeposes.size() > 2){
-				reg->visualizationLvl				= 2;
+				reg->visualizationLvl				= 0;
 			//}else{
 			//    reg->visualizationLvl				= 1;
 			//}
@@ -321,7 +324,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 		reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
 		mu->viewer							= viewer;
-		reg->visualizationLvl				= 1;
+		reg->visualizationLvl				= 0;
 
 		reglib::UpdatedModels ud = mu->fuseData(&(fr2merge[i]), model, model2);
 
@@ -342,7 +345,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 		}		
 	}
 	
-	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end();	++it){	database->remove(it->second);}
+	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end();	++it){	database->remove(it->second); 		models_deleted_pub.publish(getModelMSG(it->second));}
 	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end();	++it){	addToDB(database, it->second);}
 	for (std::map<int,reglib::Model *>::iterator it=new_models.begin();		it!=new_models.end();		++it){	addToDB(database, it->second);}
 
@@ -385,7 +388,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 	if(isnewmodel != 0){
 
 		newmodel->recomputeModelPoints();
-		show_sorted();
+		//show_sorted();
 
 		reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( newmodel, reg);
