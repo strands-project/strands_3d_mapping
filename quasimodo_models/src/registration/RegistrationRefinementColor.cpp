@@ -194,6 +194,40 @@ void RegistrationRefinementColor::setDst(CloudData * dst_){
 	DST_INORMATION = Eigen::VectorXd::Zero(ycols);
 	for(unsigned int i = 0; i < d_nr_data/stepy; i++){DST_INORMATION(i) = dst->information(0,i*stepy);}
 }
+using namespace Eigen;
+using namespace std;
+Eigen::MatrixXd align(Eigen::VectorXd W, Eigen::MatrixXd X, Eigen::MatrixXd Y, Eigen::MatrixXd bias){
+    Eigen::MatrixXd WX = X;
+    for(int i = 0; i < WX.rows(); i++){
+        for(int j = 0; j < WX.cols(); j++){
+             WX(i,j) = W(j)*X(i,j);
+        }
+    }
+    Eigen::MatrixXd ret =   (WX.transpose()*X + bias).ldlt().solve(WX.transpose() * Y);
+    return ret;
+}
+
+double test(Eigen::VectorXd W, Eigen::MatrixXd X, Eigen::MatrixXd Y){
+    printf("X %i %i\n",X.rows(),X.cols());
+    printf("Y %i %i\n",Y.rows(),Y.cols());
+
+   Eigen::MatrixXd err = X-Y;
+   double sum = 0;
+   double sumWi = 0;
+
+   printf("%i %i\n",err.rows(),err.cols());
+   for(int j = 0; j < err.cols(); j++){
+       for(int i = 0; i < err.rows(); i++){
+           double Wi = W(i);
+           sumWi += Wi;
+           sum += Wi*err(i,j)*err(i,j);
+       }
+   }
+   sum = sqrt(sum/sumWi);
+
+   printf("sum: %f sumWi %f \n",sum,sumWi);
+    return sum;
+}
 
 FusionResults RegistrationRefinementColor::getTransform(Eigen::MatrixXd guess){
 
@@ -227,6 +261,18 @@ FusionResults RegistrationRefinementColor::getTransform(Eigen::MatrixXd guess){
 	Eigen::VectorXd  Wold	= Eigen::VectorXd::Zero(	xcols);
 	Eigen::VectorXd  rangeW	= Eigen::VectorXd::Zero(	xcols);
 
+    Eigen::MatrixXd bias = Eigen::MatrixXd::Zero(7,7);
+    for(unsigned int i = 0; i < 7; i++){bias(i,i) = 1;}
+    Eigen::MatrixXd Xfull = Eigen::MatrixXd::Zero(xcols,7);
+
+    Eigen::MatrixXd ct = Eigen::MatrixXd::Zero(7,3);
+    ct(3,0) = 1;
+    ct(4,1) = 1;
+    ct(5,2) = 1;
+
+    Eigen::MatrixXd Xcol = Eigen::MatrixXd::Zero(xcols,3);
+    Eigen::MatrixXd Xcol2 = Eigen::MatrixXd::Zero(xcols,3);
+
 	Eigen::VectorXd SRC_INORMATION = Eigen::VectorXd::Zero(xcols);
 	for(unsigned int i = 0; i < s_nr_data/stepx; i++){
 		SRC_INORMATION(i) = src->information(0,i*stepx);
@@ -241,13 +287,30 @@ FusionResults RegistrationRefinementColor::getTransform(Eigen::MatrixXd guess){
 		float xn	= src->normals(0,i*stepx);
 		float yn	= src->normals(1,i*stepx);
 		float zn	= src->normals(2,i*stepx);
-		X(0,i)	= m00*x + m01*y + m02*z + m03;
+        X(0,i)	= m00*x + m01*y + m02*z + m03;
 		X(1,i)	= m10*x + m11*y + m12*z + m13;
 		X(2,i)	= m20*x + m21*y + m22*z + m23;
 
         Xc(0,i)	= r;
         Xc(1,i)	= g;
         Xc(2,i)	= b;
+
+
+        Xcol2(i,0)	= r;
+        Xcol2(i,1)	= g;
+        Xcol2(i,2)	= b;
+
+
+
+        Xfull(i,0) = X(0,i);
+        Xfull(i,1) = X(1,i);
+        Xfull(i,2) = X(2,i);
+        Xfull(i,3) = r;
+        Xfull(i,4) = g;
+        Xfull(i,5) = b;
+        Xfull(i,6) = 1;
+        W(i) = 1;
+
 
 		Xn(0,i)	= m00*xn + m01*yn + m02*zn;
 		Xn(1,i)	= m10*xn + m11*yn + m12*zn;
@@ -286,6 +349,11 @@ FusionResults RegistrationRefinementColor::getTransform(Eigen::MatrixXd guess){
 #pragma omp parallel for
 			for(unsigned int i=0; i< xcols; ++i) {
 				int id = matchid[i];
+
+                Xcol(i,0)	= C(0,id);
+                Xcol(i,1)	= C(1,id);
+                Xcol(i,2)	= C(2,id);
+
 				Qn.col(i) = N.col(id);
                 Qc.col(i) = C.col(id);
 				Qp.col(i) = Y.col(id);
@@ -299,12 +367,25 @@ FusionResults RegistrationRefinementColor::getTransform(Eigen::MatrixXd guess){
                 residualsG		= Eigen::MatrixXd::Zero(1,	xcols);
                 residualsB		= Eigen::MatrixXd::Zero(1,	xcols);
 
+                Eigen::MatrixXd  transformed_colors = Xfull*ct;
+
                 for(int i=0; i<xcols; ++i) {
-                    residualsR(0,i) = Xc(0,i)-Qc(0,i);
-                    residualsG(0,i) = Xc(1,i)-Qc(1,i);
-                    residualsB(0,i) = Xc(2,i)-Qc(2,i);
+                    residualsR(0,i) = transformed_colors(i,0)-Qc(0,i);
+                    residualsG(0,i) = transformed_colors(i,1)-Qc(1,i);
+                    residualsB(0,i) = transformed_colors(i,2)-Qc(2,i);
                 }
-/*
+
+                //test(W, transformed_colors, Xcol);
+
+
+                //ct = align(W, Xfull, Xcol-Xcol2, xcols*xcols*bias);
+                //ct(3,0) += 1;
+                //ct(4,1) += 1;
+                //ct(5,2) += 1;
+                //cout << "The solution using normal equations is:\n" <<  ct << endl;
+                //test(W, Xfull*ct, Xcol);
+                //test(W, Xcol2, Xcol);
+                //exit(0);
 				/// Compute weights
 				switch(type) {
 					case PointToPoint:	{residuals = X-Qp;} 						break;
@@ -324,13 +405,78 @@ FusionResults RegistrationRefinementColor::getTransform(Eigen::MatrixXd guess){
 					default:			{printf("type not set\n");}					break;
 				}
 				for(int i=0; i<xcols; ++i) {residuals.col(i) *= rangeW(i);}
+func->computeModel(residuals);
+funcR->computeModel(residualsR);
+funcG->computeModel(residualsG);
+funcB->computeModel(residualsB);
 
-				switch(type) {
-					case PointToPoint:	{func->computeModel(residuals);} 	break;
-					case PointToPlane:	{func->computeModel(residuals);}	break;
-					default:  			{printf("type not set\n");} break;
-				}
+for(int inner=0; inner< 10; ++inner) {
+    if( (getTimeRefinementColor()-start) > maxtime ){break;}
 
+    transformed_colors = Xfull*ct;
+
+    if(inner != 0){
+        for(int i=0; i<xcols; ++i) {
+            residualsR(0,i) = transformed_colors(i,0)-Qc(0,i);
+            residualsG(0,i) = transformed_colors(i,1)-Qc(1,i);
+            residualsB(0,i) = transformed_colors(i,2)-Qc(2,i);
+        }
+
+        switch(type) {
+            case PointToPoint:	{residuals = X-Qp;} 						break;
+            case PointToPlane:	{
+                residuals		= Eigen::MatrixXd::Zero(1,	xcols);
+                for(int i=0; i< xcols; ++i) {
+                    float dx = X(0,i)-Qp(0,i);
+                    float dy = X(1,i)-Qp(1,i);
+                    float dz = X(2,i)-Qp(2,i);
+                    float qx = Qn(0,i);
+                    float qy = Qn(1,i);
+                    float qz = Qn(2,i);
+                    float di = qx*dx + qy*dy + qz*dz;
+                    residuals(0,i) = di;
+                }
+            }break;
+            default:			{printf("type not set\n");}					break;
+        }
+        for(int i=0; i<xcols; ++i) {residuals.col(i) *= rangeW(i);}
+
+        switch(type) {
+            case PointToPoint:	{W = func->getProbs(residuals); } 					break;
+            case PointToPlane:	{
+                W = func->getProbs(residuals);
+                for(int i=0; i<xcols; ++i) {W(i) = W(i)*float((Xn(0,i)*Qn(0,i) + Xn(1,i)*Qn(1,i) + Xn(2,i)*Qn(2,i)) > 0.0);}
+            }	break;
+            default:			{printf("type not set\n");} break;
+        }
+        Wold = W;
+
+        //Normalizing weights has an effect simmilar to one to one matching
+        //in that it reduces the effect of border points
+        if(normalize_matchweights){
+            for(unsigned int i=0; i < ycols; ++i)	{	total_dweight[i] = 0.0000001;}//Reset to small number to avoid division by zero
+            for(unsigned int i=0; i< xcols; ++i)	{	total_dweight[matchid[i]] += W(i);}
+            for(unsigned int i=0; i< xcols; ++i)	{	W(i) = W(i)*(W(i)/total_dweight[matchid[i]]);}
+        }
+
+        printf("-----------\n");
+        test(W, transformed_colors, Xcol);
+
+        ct = align(W, Xfull, Xcol-Xcol2, 5.0*xcols*xcols*bias);
+        ct(3,0) += 1;
+        ct(4,1) += 1;
+        ct(5,2) += 1;
+        transformed_colors = Xfull*ct;
+
+        test(W, transformed_colors, Xcol);
+
+        //cout << "The solution using normal equations is:\n" <<  ct << endl;
+    }
+}
+exit(0);
+
+
+/*
 				for(int rematching2=0; rematching2 < 3; ++rematching2) {
                     if( (getTimeRefinementColor()-start) > maxtime ){break;}
 					if(rematching2 != 0){
