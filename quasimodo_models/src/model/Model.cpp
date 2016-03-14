@@ -16,6 +16,8 @@ Model::Model(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d pose){
     score = 0;
     id = model_id_counter++;
 
+	last_changed = -1;
+
 //	addFrameToModel(frame, mask, pose);
 	unsigned char  * maskdata		= (unsigned char	*)(mask.data);
 	unsigned char  * rgbdata		= (unsigned char	*)(frame->rgb.data);

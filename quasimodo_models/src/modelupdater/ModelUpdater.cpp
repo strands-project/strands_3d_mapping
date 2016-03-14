@@ -186,6 +186,7 @@ void ModelUpdater::refine(double reg,bool useFullMask){
 		massreg->steps = 8;
 		mfr = massreg->getTransforms(model->relativeposes);
 		model->relativeposes = mfr.poses;
+
 	}else{
 		massreg->steps = 4;
 		massreg->stopval = 0.001;

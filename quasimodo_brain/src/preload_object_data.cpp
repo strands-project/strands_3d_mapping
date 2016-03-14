@@ -88,6 +88,11 @@ typedef semantic_map_load_utilties::DynamicObjectData<PointType> ObjectData;
 
 using pcl::visualization::PointCloudColorHandlerCustom;
 
+void chatterCallback(const std_msgs::String::ConstPtr& msg)
+{
+  ROS_INFO("I heard: [%s]", msg->data.c_str());
+}
+
 int main(int argc, char** argv){
 	string overall_folder = "/media/johane/SSDstorage/icra_data_surfels/controlled_experiments/object_7_microwave/";
 	//string overall_folder = "/media/johane/SSDstorage/icra_data_surfels/controlled_experiments/object_2_fire_extinguisher/";
@@ -124,7 +129,7 @@ int main(int argc, char** argv){
 			std::vector<tf::StampedTransform > viewtfs;
 			// view AV clouds and masks
 
-			for (unsigned int i=0; i<object.vAdditionalViews.size(); i+=1){
+			for (unsigned int i=0; i<object.vAdditionalViews.size(); i+=3){
 				CloudPtr cloud = object.vAdditionalViews[i];
 
 				cv::Mat mask;
@@ -207,7 +212,7 @@ int main(int argc, char** argv){
 		int nr_todo = atoi(str);
 		if(str[0] == 'q'){exit(0);}
 
-		for(int i = 1; i < rgbs.size(); i++){
+		for(int i = 0; i < rgbs.size(); i++){
 			std::vector<int> fid;
 			std::vector<int> fadded;
 			for(int j = 0; j < rgbs[i].size(); j++){
