@@ -62,6 +62,8 @@ class superpoint{
         double score;
 		unsigned long id;
 
+		int last_changed;
+
 		std::vector<superpoint> points;
 
 		std::vector<Eigen::Matrix4d> relativeposes;
