@@ -94,8 +94,16 @@ void chatterCallback(const std_msgs::String::ConstPtr& msg)
 }
 
 int main(int argc, char** argv){
-	string overall_folder = "/media/johane/SSDstorage/icra_data_surfels/controlled_experiments/object_7_microwave/";
+
+    ros::init(argc, argv, "use_rares_client");
+    ros::NodeHandle n;
+
+    ros::NodeHandle pn("~");
+    string overall_folder;
+    //string overall_folder = "/media/nbore/My Passport/icra_data_surfels/controlled_experiments/object_2_fire_extinguisher";
 	//string overall_folder = "/media/johane/SSDstorage/icra_data_surfels/controlled_experiments/object_2_fire_extinguisher/";
+    pn.param<string>("folder", overall_folder, "");
+
 	vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(overall_folder);
 
 	std::vector< std::vector<cv::Mat> > rgbs;
@@ -198,8 +206,6 @@ int main(int argc, char** argv){
 		}
 	}
 
-	ros::init(argc, argv, "use_rares_client");
-	ros::NodeHandle n;
 	ros::ServiceClient model_from_frame_client	= n.serviceClient<quasimodo_msgs::model_from_frame>("model_from_frame");
 	ros::ServiceClient fuse_models_client		= n.serviceClient<quasimodo_msgs::fuse_models>(		"fuse_models");
 	ros::ServiceClient get_model_client			= n.serviceClient<quasimodo_msgs::get_model>(		"get_model");
@@ -208,9 +214,9 @@ int main(int argc, char** argv){
     while(true){
         char str [80];
         printf ("build model?");
-        scanf ("%79s",str);
-		int nr_todo = atoi(str);
-		if(str[0] == 'q'){exit(0);}
+        //scanf ("%79s",str);
+        //int nr_todo = atoi(str);
+        //if(str[0] == 'q'){exit(0);}
 
 		for(int i = 0; i < rgbs.size(); i++){
 			std::vector<int> fid;
