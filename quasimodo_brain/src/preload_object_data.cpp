@@ -88,15 +88,103 @@ typedef semantic_map_load_utilties::DynamicObjectData<PointType> ObjectData;
 
 using pcl::visualization::PointCloudColorHandlerCustom;
 
+ros::ServiceClient model_from_frame_client;
+ros::ServiceClient fuse_models_client;
+ros::ServiceClient get_model_client;
+ros::ServiceClient index_frame_client;
+
+std::vector< std::vector<cv::Mat> > rgbs;
+std::vector< std::vector<cv::Mat> > depths;
+std::vector< std::vector<cv::Mat> > masks;
+std::vector< std::vector<tf::StampedTransform > >tfs;
+
+
 void chatterCallback(const std_msgs::String::ConstPtr& msg)
 {
   ROS_INFO("I heard: [%s]", msg->data.c_str());
+
+  for(int i = 0; i < rgbs.size(); i++){
+      std::vector<int> fid;
+      std::vector<int> fadded;
+      for(int j = 0; j < rgbs[i].size(); j++){
+          printf("%i %i\n",i,j);
+
+          //cv::Mat maskimage		= masks[i][j];
+          cv::Mat rgbimage		= rgbs[i][j];
+          cv::Mat depthimage		= depths[i][j];
+          tf::StampedTransform tf	= tfs[i][j];
+
+          geometry_msgs::TransformStamped tfstmsg;
+          tf::transformStampedTFToMsg (tf, tfstmsg);
+
+          geometry_msgs::Transform tfmsg = tfstmsg.transform;
+
+          printf("start adding frame %i\n",i);
+
+
+          geometry_msgs::Pose		pose;
+          pose.orientation	= tfmsg.rotation;
+          pose.position.x		= tfmsg.translation.x;
+          pose.position.y		= tfmsg.translation.y;
+          pose.position.z		= tfmsg.translation.z;
+
+
+          cv_bridge::CvImage rgbBridgeImage;
+          rgbBridgeImage.image = rgbimage;
+          rgbBridgeImage.encoding = "bgr8";
+
+          cv_bridge::CvImage depthBridgeImage;
+          depthBridgeImage.image = depthimage;
+          depthBridgeImage.encoding = "mono16";
+
+          quasimodo_msgs::index_frame ifsrv;
+          ifsrv.request.frame.capture_time = ros::Time();
+          ifsrv.request.frame.pose		= pose;
+          ifsrv.request.frame.frame_id	= -1;
+          ifsrv.request.frame.rgb			= *(rgbBridgeImage.toImageMsg());
+          ifsrv.request.frame.depth		= *(depthBridgeImage.toImageMsg());
+
+          if (index_frame_client.call(ifsrv)){//Add frame to model server
+              int frame_id = ifsrv.response.frame_id;
+              fadded.push_back(j);
+              fid.push_back(frame_id);
+              ROS_INFO("frame_id%i", frame_id );
+           }else{ROS_ERROR("Failed to call service index_frame");}
+
+          printf("stop adding frame %i\n",i);
+      }
+
+      for(int j = 0; j < fadded.size(); j++){
+          printf("start adding mask %i\n",i);
+          cv::Mat mask	= masks[i][fadded[j]];
+
+          cv_bridge::CvImage maskBridgeImage;
+          maskBridgeImage.image = mask;
+          maskBridgeImage.encoding = "mono8";
+
+          quasimodo_msgs::model_from_frame mff;
+          mff.request.mask		= *(maskBridgeImage.toImageMsg());
+          mff.request.isnewmodel	= (j == (fadded.size()-1));
+          mff.request.frame_id	= fid[j];
+
+          if (model_from_frame_client.call(mff)){//Build model from frame
+              int model_id = mff.response.model_id;
+              if(model_id > 0){
+                  ROS_INFO("model_id%i", model_id );
+              }
+          }else{ROS_ERROR("Failed to call service index_frame");}
+
+          printf("stop adding mask %i\n",i);
+
+      }
+  }
 }
 
 int main(int argc, char** argv){
 
     ros::init(argc, argv, "use_rares_client");
     ros::NodeHandle n;
+    ros::Subscriber sub = n.subscribe("modelserver", 1000, chatterCallback);
 
     ros::NodeHandle pn("~");
     string overall_folder;
@@ -105,11 +193,6 @@ int main(int argc, char** argv){
     pn.param<string>("folder", overall_folder, "");
 
 	vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(overall_folder);
-
-	std::vector< std::vector<cv::Mat> > rgbs;
-	std::vector< std::vector<cv::Mat> > depths;
-	std::vector< std::vector<cv::Mat> > masks;
-	std::vector< std::vector<tf::StampedTransform > >tfs;
 
 	for (auto sweep_xml : sweep_xmls) {
 		//if(rgbs.size() > 0){break;}
@@ -206,93 +289,10 @@ int main(int argc, char** argv){
 		}
 	}
 
-	ros::ServiceClient model_from_frame_client	= n.serviceClient<quasimodo_msgs::model_from_frame>("model_from_frame");
-	ros::ServiceClient fuse_models_client		= n.serviceClient<quasimodo_msgs::fuse_models>(		"fuse_models");
-	ros::ServiceClient get_model_client			= n.serviceClient<quasimodo_msgs::get_model>(		"get_model");
-	ros::ServiceClient index_frame_client		= n.serviceClient<quasimodo_msgs::index_frame>(		"index_frame");
+    model_from_frame_client	= n.serviceClient<quasimodo_msgs::model_from_frame>("model_from_frame");
+    fuse_models_client		= n.serviceClient<quasimodo_msgs::fuse_models>(		"fuse_models");
+    get_model_client			= n.serviceClient<quasimodo_msgs::get_model>(		"get_model");
+    index_frame_client		= n.serviceClient<quasimodo_msgs::index_frame>(		"index_frame");
 
-    while(true){
-        char str [80];
-        printf ("build model?");
-        //scanf ("%79s",str);
-        //int nr_todo = atoi(str);
-        //if(str[0] == 'q'){exit(0);}
-
-		for(int i = 0; i < rgbs.size(); i++){
-			std::vector<int> fid;
-			std::vector<int> fadded;
-			for(int j = 0; j < rgbs[i].size(); j++){
-				printf("%i %i\n",i,j);
-
-				//cv::Mat maskimage		= masks[i][j];
-				cv::Mat rgbimage		= rgbs[i][j];
-				cv::Mat depthimage		= depths[i][j];
-				tf::StampedTransform tf	= tfs[i][j];
-
-				geometry_msgs::TransformStamped tfstmsg;
-				tf::transformStampedTFToMsg (tf, tfstmsg);
-
-				geometry_msgs::Transform tfmsg = tfstmsg.transform;
-
-				printf("start adding frame %i\n",i);
-
-
-				geometry_msgs::Pose		pose;
-				pose.orientation	= tfmsg.rotation;
-				pose.position.x		= tfmsg.translation.x;
-				pose.position.y		= tfmsg.translation.y;
-				pose.position.z		= tfmsg.translation.z;
-
-
-				cv_bridge::CvImage rgbBridgeImage;
-				rgbBridgeImage.image = rgbimage;
-				rgbBridgeImage.encoding = "bgr8";
-
-				cv_bridge::CvImage depthBridgeImage;
-				depthBridgeImage.image = depthimage;
-				depthBridgeImage.encoding = "mono16";
-
-				quasimodo_msgs::index_frame ifsrv;
-				ifsrv.request.frame.capture_time = ros::Time();
-				ifsrv.request.frame.pose		= pose;
-				ifsrv.request.frame.frame_id	= -1;
-				ifsrv.request.frame.rgb			= *(rgbBridgeImage.toImageMsg());
-				ifsrv.request.frame.depth		= *(depthBridgeImage.toImageMsg());
-
-				if (index_frame_client.call(ifsrv)){//Add frame to model server
-					int frame_id = ifsrv.response.frame_id;
-					fadded.push_back(j);
-					fid.push_back(frame_id);
-					ROS_INFO("frame_id%i", frame_id );
-				 }else{ROS_ERROR("Failed to call service index_frame");}
-
-				printf("stop adding frame %i\n",i);
-			}
-
-			for(int j = 0; j < fadded.size(); j++){
-				printf("start adding mask %i\n",i);
-				cv::Mat mask	= masks[i][fadded[j]];
-
-				cv_bridge::CvImage maskBridgeImage;
-				maskBridgeImage.image = mask;
-				maskBridgeImage.encoding = "mono8";
-
-				quasimodo_msgs::model_from_frame mff;
-				mff.request.mask		= *(maskBridgeImage.toImageMsg());
-				mff.request.isnewmodel	= (j == (fadded.size()-1));
-				mff.request.frame_id	= fid[j];
-
-				if (model_from_frame_client.call(mff)){//Build model from frame
-					int model_id = mff.response.model_id;
-					if(model_id > 0){
-						ROS_INFO("model_id%i", model_id );
-					}
-				}else{ROS_ERROR("Failed to call service index_frame");}
-
-				printf("stop adding mask %i\n",i);
-
-			}
-		}
-    }
-
+    ros::spin();
 }
