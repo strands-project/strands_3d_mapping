@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(k_means_tree)
 
+OPTION(NOCATKIN "Disable CATKIN compilation" OFF)
+
+if (NOT NOCATKIN) # double negation, hell yeah
+    find_package(catkin QUIET)
+else()
+    message("NOT USING CATKIN!")
+endif()
+
 add_definitions(-std=c++11 -O3)
 
 find_package(PCL 1.7 REQUIRED)
@@ -9,6 +17,13 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 find_package(OpenCV REQUIRED)
+
+if (catkin_FOUND)
+    catkin_package(
+        LIBRARIES k_means_tree vocabulary_tree grouped_vocabulary_tree
+        INCLUDE_DIRS impl include cereal/include
+    )
+endif()
 
 include_directories(include impl cereal/include)
 
@@ -26,3 +41,8 @@ target_link_libraries(vocabulary_tree k_means_tree ${PCL_LIBRARIES})
 target_link_libraries(grouped_vocabulary_tree vocabulary_tree k_means_tree ${PCL_LIBRARIES})
 target_link_libraries(test k_means_tree vocabulary_tree grouped_vocabulary_tree)
 target_link_libraries(test_vocabulary_tree k_means_tree vocabulary_tree)
+
+if (catkin_FOUND)
+    #install(FILES include/serial/serial.h include/serial/v8stdint.h
+    #  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/serial)
+endif()
