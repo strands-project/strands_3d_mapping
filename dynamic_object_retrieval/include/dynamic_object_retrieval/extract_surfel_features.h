@@ -22,6 +22,7 @@ void compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints,
                       CloudT::Ptr& cloud, SurfelCloudT::Ptr& surfel_map, bool visualize_features = false);
 void compute_query_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints,
                             CloudT::Ptr& cloud, SurfelCloudT::Ptr& surfel_map, bool visualize_features = false);
+float compute_cloud_volume_features(CloudT::Ptr& cloud);
 NormalCloudT::Ptr compute_surfel_normals(SurfelCloudT::Ptr& surfel_cloud, CloudT::Ptr& segment);
 /*
 std::pair<CloudT::Ptr, NormalCloudT::Ptr>
