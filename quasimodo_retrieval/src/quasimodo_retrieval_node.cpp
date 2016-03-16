@@ -11,6 +11,10 @@
 #include <vocabulary_tree/vocabulary_tree.h>
 #include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
 
+#include <pcl/keypoints/iss_3d.h>
+#include <pcl/keypoints/uniform_sampling.h>
+#include <pcl/features/pfhrgb.h>
+
 #include "ros/ros.h"
 #include "quasimodo_msgs/retrieval_query_result.h"
 #include "quasimodo_msgs/retrieval_query.h"
@@ -36,6 +40,7 @@ class retrieval_node {
 public:
     ros::NodeHandle n;
     ros::Publisher pub;
+    ros::Publisher keypoint_pub;
     ros::Subscriber sub;
 
     boost::filesystem::path vocabulary_path;
@@ -75,6 +80,7 @@ public:
         }
 
         pub = n.advertise<quasimodo_msgs::retrieval_query_result>(retrieval_output, 1);
+        keypoint_pub = n.advertise<sensor_msgs::PointCloud2>("/models/keypoints", 1);
         sub = n.subscribe(retrieval_input, 1, &retrieval_node::run_retrieval, this);
         /*
         vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
@@ -141,6 +147,116 @@ public:
         return images;
     }
 
+    void test_compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT::Ptr& cloud,
+                               NormalCloudT::Ptr& normals, bool do_visualize = false, bool is_query = false)
+    {
+        pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
+
+        double saliency_threshold = 0.975;
+        double density_threshold_volume = 0.0405;
+
+        //  ISS3D parameters
+        double iss_salient_radius_;
+        double iss_non_max_radius_;
+        double iss_normal_radius_;
+        double iss_border_radius_;
+        double iss_gamma_21_ (saliency_threshold); // 0.975 orig
+        double iss_gamma_32_ (saliency_threshold); // 0.975 orig
+        double iss_min_neighbors_ (5);
+        int iss_threads_ (3);
+
+        pcl::IndicesPtr indices(new std::vector<int>);
+
+        double volume = dynamic_object_retrieval::compute_cloud_volume_features(cloud);
+
+        if (is_query || volume < density_threshold_volume) {
+
+            // Fill in the model cloud
+            double model_resolution = 0.005;
+
+            // Compute model_resolution
+            iss_salient_radius_ = 6 * model_resolution;
+            iss_non_max_radius_ = 4 * model_resolution;
+            iss_normal_radius_ = 4 * model_resolution;
+            iss_border_radius_ = 0.5 * model_resolution; // 1
+
+            //
+            // Compute keypoints
+            //
+            pcl::ISSKeypoint3D<PointT, PointT> iss_detector;
+            iss_detector.setSearchMethod(tree);
+            iss_detector.setSalientRadius(iss_salient_radius_);
+            iss_detector.setNonMaxRadius(iss_non_max_radius_);
+
+            iss_detector.setNormalRadius(iss_normal_radius_); // comment these two if not to use border removal
+            iss_detector.setBorderRadius(iss_border_radius_); // comment these two if not to use border removal
+
+            iss_detector.setThreshold21(iss_gamma_21_);
+            iss_detector.setThreshold32(iss_gamma_32_);
+            iss_detector.setMinNeighbors(iss_min_neighbors_);
+            iss_detector.setNumberOfThreads(iss_threads_);
+            iss_detector.setInputCloud(cloud);
+            iss_detector.setNormals(normals);
+            iss_detector.compute(*keypoints);
+
+            pcl::KdTreeFLANN<PointT> kdtree; // might be possible to just use the other tree here
+            kdtree.setInputCloud(cloud);
+            for (const PointT& k : keypoints->points) {
+                std::vector<int> ind;
+                std::vector<float> dist;
+                kdtree.nearestKSearchT(k, 1, ind, dist);
+                //cout << "Keypoint threshold: " << k.rgb << endl;
+                indices->push_back(ind[0]);
+            }
+        }
+        else {
+            pcl::PointCloud<int>::Ptr keypoints_ind(new pcl::PointCloud<int>);
+            pcl::UniformSampling<PointT> us_detector;
+            us_detector.setRadiusSearch(0.07);
+            us_detector.setSearchMethod(tree);
+            us_detector.setInputCloud(cloud);
+            us_detector.compute(*keypoints_ind);
+
+            for (int ind : keypoints_ind->points) {
+                keypoints->push_back(cloud->at(ind));
+                indices->push_back(ind);
+            }
+        }
+
+        /*
+        if (do_visualize) {
+            CloudT::Ptr vis_cloud(new CloudT());
+            *vis_cloud += *cloud;
+            for (PointT p : keypoints->points) {
+                p.r = 255; p.g = 0; p.b = 0;
+                vis_cloud->push_back(p);
+            }
+            visualize_features(vis_cloud);
+        }
+        */
+        // ISS3D
+
+        // PFHRGB
+        pcl::PFHRGBEstimation<PointT, NormalT> se;
+        se.setSearchMethod(tree);
+        //se.setKSearch(100);
+        se.setIndices(indices); //keypoints
+        se.setInputCloud(cloud);
+        se.setInputNormals(normals);
+        se.setRadiusSearch(0.06); //support 0.06 orig, 0.04 still seems too big, takes time
+
+        pcl::PointCloud<pcl::PFHRGBSignature250> pfhrgb_cloud;
+        se.compute(pfhrgb_cloud); //descriptors
+
+        const int N = 250;
+        features->resize(pfhrgb_cloud.size());
+        for (size_t i = 0; i < pfhrgb_cloud.size(); ++i) {
+            std::copy(pfhrgb_cloud.at(i).histogram, pfhrgb_cloud.at(i).histogram+N, features->at(i).histogram);
+        }
+
+        std::cout << "Number of features: " << pfhrgb_cloud.size() << std::endl;
+    }
+
     void run_retrieval(const quasimodo_msgs::retrieval_query::ConstPtr& query_msg) //const string& sweep_xml)
     {
         pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr normal_cloud(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
@@ -162,13 +278,20 @@ public:
 
         HistCloudT::Ptr features(new HistCloudT);
         CloudT::Ptr keypoints(new CloudT);
-        dynamic_object_retrieval::compute_features(features, keypoints, cloud, normals, false, true);
+        //dynamic_object_retrieval::compute_features(features, keypoints, cloud, normals, false, true);
+        test_compute_features(features, keypoints, cloud, normals, false, true);
+
+        sensor_msgs::PointCloud2 keypoint_msg;
+        pcl::toROSMsg(*keypoints, keypoint_msg);
+        keypoint_msg.header.frame_id = "/map";
+        keypoint_msg.header.stamp = ros::Time::now();
+        keypoint_pub.publish(keypoint_msg);
 
         vector<CloudT::Ptr> retrieved_clouds;
         vector<boost::filesystem::path> sweep_paths;
         //auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth,
         //                                                                   K, number_query, vocabulary_path, summary, false);
-        auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, features, number_query, vocabulary_path, summary);
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, number_query, vocabulary_path, summary);
         tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
         vector<float> scores;
