@@ -172,7 +172,7 @@ public:
         if (is_query || volume < density_threshold_volume) {
 
             // Fill in the model cloud
-            double model_resolution = 0.005;
+            double model_resolution = 0.01;
 
             // Compute model_resolution
             iss_salient_radius_ = 6 * model_resolution;
