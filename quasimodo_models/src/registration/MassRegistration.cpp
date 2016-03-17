@@ -49,13 +49,24 @@ viewer->removeAllPointClouds();
 viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
 viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
 viewer->spin();
-viewer->removeAllPointClouds();
+
+//viewer->removeAllPointClouds();
 
 //	viewer->removeAllPointClouds();
 //	viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
 //	viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
 //	viewer->spin();
 //	viewer->removeAllPointClouds();
+}
+
+Eigen::MatrixXd MassRegistration::getMat(int rows, int cols, double * datas){
+	Eigen::MatrixXd mat (rows,cols);
+	for(int i = 0; i < rows; i++){
+		for(int j = 0; j < cols; j++){
+			mat(i,j) = i;//datas[cols*i+j];
+		}
+	}
+	return mat;
 }
 
 
@@ -86,7 +97,7 @@ void MassRegistration::show(std::vector<Eigen::MatrixXd> Xv, bool save, std::str
 		sprintf(buf,"cloud%i",xi);
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud), buf);
 	}
-	if(stop){
+	if(!save){
 		viewer->spin();
 	}else{
 		viewer->spinOnce();

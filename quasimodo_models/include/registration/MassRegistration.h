@@ -67,13 +67,17 @@ namespace reglib
 		MassRegistration();
 		~MassRegistration();
 
-		void setData(std::vector<RGBDFrame*> frames_,std::vector<cv::Mat> masks_);
+		virtual void setData(std::vector<RGBDFrame*> frames_,std::vector<cv::Mat> masks_);
 		void setVisualizationLvl(unsigned int lvl);
 		virtual MassFusionResults getTransforms(std::vector<Eigen::Matrix4d> guess);
 
 		virtual void show(Eigen::MatrixXd X, Eigen::MatrixXd Y);
 
+		//virtual void show(Eigen::MatrixXd X, Eigen::MatrixXd Y, std::vector< std::pair <int,int> > matches);
+
 		virtual void show(std::vector<Eigen::MatrixXd> Xv, bool save = false, std::string filename = "", bool stop = true);
+
+		Eigen::MatrixXd getMat(int rows, int cols, double * datas);
 		//std::vector<Eigen::Matrix4d> current_poses,
 /*
 		CloudData * src;
@@ -98,5 +102,6 @@ namespace reglib
 
 //#include "RegistrationSICP.h"
 #include "MassRegistrationPPR.h"
+#include "MassRegistrationPPRColor.h"
 //#include "RegistrationGOICP.h"
 #endif // MassRegistration_H

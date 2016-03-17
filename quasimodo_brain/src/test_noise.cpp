@@ -6,6 +6,7 @@
 
 #include "../../quasimodo_models/include/modelupdater/ModelUpdater.h"
 #include "core/RGBDFrame.h"
+#include "core/Util.h"
 #include <random>
 
 #include <omp.h>
@@ -156,13 +157,13 @@ void align(DistanceWeightFunction2 * func, Eigen::Matrix3Xd & X, Eigen::Matrix3X
 	}
 	//printf("stop align\n");
 }
-
+/*
 double getTime(){
 	struct timeval start1;
 	gettimeofday(&start1, NULL);
 	return double(start1.tv_sec+(start1.tv_usec/1000000.0));
 }
-
+*/
 double phi(double x)
 {
 	// constants

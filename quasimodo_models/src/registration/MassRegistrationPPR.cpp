@@ -321,7 +321,15 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 	double computeModel_time = 0;
 	double total_time_start = getTime();
 
+	int savecounter = 0;
 
+	if(visualizationLvl > 0){
+		std::vector<Eigen::MatrixXd> Xv;
+		for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
+		char buf [1024];
+		sprintf(buf,"image%5.5i.png",imgcount++);
+		show(Xv,false,std::string(buf),imgcount);
+	}
 
 	for(int funcupdate=0; funcupdate < 100; ++funcupdate) {
 		if(visualizationLvl == 2){
@@ -343,6 +351,8 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				char buf [1024];
 				sprintf(buf,"image%5.5i.png",imgcount++);
 				show(Xv,true,std::string(buf),imgcount);
+
+
 			}
 //exit(0);
 			for(unsigned int i = 0; i < nr_frames; i++){poses1[i] = poses[i];}
@@ -373,6 +383,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				}
 			}
 			rematch_time += getTime()-rematch_time_start;
+			printf("rematch_time: %f\n",rematch_time);
 
 printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_rematches/total_rematches,good_rematches,total_rematches);
 
@@ -399,6 +410,7 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 					char buf [1024];
 					sprintf(buf,"image%5.5i.png",imgcount++);
 					show(Xv,true,std::string(buf),imgcount);
+
 				}
 
 				for(unsigned int i = 0; i < nr_frames; i++){poses2b[i] = poses[i];}

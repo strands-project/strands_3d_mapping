@@ -159,36 +159,50 @@ UpdatedModels ModelUpdater::fuseData(FusionResults * f, Model * model1,Model * m
 
 void ModelUpdater::refine(double reg,bool useFullMask){
 	printf("void ModelUpdater::refine()\n");
-	MassRegistrationPPR * massreg = new MassRegistrationPPR(reg);
-	massreg->viewer = viewer;
-	massreg->visualizationLvl = 0;
 
 	MassFusionResults mfr;
 
-	if(useFullMask){
+
+	MassRegistrationPPRColor * massregC = new MassRegistrationPPRColor(reg);
+	massregC->viewer = viewer;
+	massregC->visualizationLvl = 3;
+
+	massregC->visualizationLvl = 4;
+	massregC->steps = 1;
+	massregC->stopval = 0.001;
+	massregC->setData(model->frames,model->masks);
+	mfr = massregC->getTransforms(model->relativeposes);
+	model->relativeposes = mfr.poses;
+exit(0);
+MassRegistrationPPR * massreg = new MassRegistrationPPR(reg);
+massreg->viewer = viewer;
+massreg->visualizationLvl = 3;
+
+	if(false && useFullMask){
 		cv::Mat fullmask;
 		fullmask.create(480,640,CV_8UC1);
 		unsigned char * maskdata = (unsigned char *)fullmask.data;
 		for(unsigned int j = 0; j < 640*480; j++){maskdata[j] = 255;}
 
-		massreg->visualizationLvl = 0;
+		massreg->visualizationLvl = 3;
 		std::vector<cv::Mat> masks;
 		for(int i = 0; i < model->masks.size(); i++){masks.push_back(fullmask);}
 		massreg->setData(model->frames,masks);
 
 
 		massreg->stopval = 0.005;
-		massreg->steps = 8;
+		massreg->steps = 1;
 		mfr = massreg->getTransforms(model->relativeposes);
 		model->relativeposes = mfr.poses;
 
 		massreg->stopval = 0.0005;
-		massreg->steps = 8;
+		massreg->steps = 1;
 		mfr = massreg->getTransforms(model->relativeposes);
 		model->relativeposes = mfr.poses;
 
 	}else{
-		massreg->steps = 4;
+		massreg->visualizationLvl = 4;
+		massreg->steps = 1;
 		massreg->stopval = 0.001;
 		massreg->setData(model->frames,model->masks);
 		mfr = massreg->getTransforms(model->relativeposes);

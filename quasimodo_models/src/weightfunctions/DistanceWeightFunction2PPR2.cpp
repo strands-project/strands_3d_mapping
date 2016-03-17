@@ -461,6 +461,9 @@ if(!fixed_histogram_size){
 }
 
 	const double histogram_mul = double(histogram_size)/maxd;
+
+	if(debugg_print){printf("histogram_mul: %f histogram_size: %f maxd: %f\n",histogram_mul,double(histogram_size),maxd);}
+
 	double start_time = getCurrentTime3();
 
 	for(int j = 0; j < histogram_size; j++){histogram[j] = 0;}
@@ -473,10 +476,14 @@ if(!fixed_histogram_size){
 			if(ind >= 0 && (ind+0.5) < histogram_size){
 				histogram[int(ind+0.5)]++;
 			}
+
+			//printf("%i %i -> r:%f ind: %f \n",j,k,mat(k,j),ind);
 		}
 	}
-	histogram[0]*=2;
 
+if(!fixed_histogram_size){
+	histogram[0]*=2;
+}
 	start_time = getCurrentTime3();
 	blurHistogram2(blur_histogram,histogram,blurval,false);
 
@@ -564,14 +571,14 @@ if(!fixed_histogram_size){
 	if(debugg_print){printf("noise = [");				for(int k = 0; k < 300 && k < noise.size(); k++){printf("%i ",int(noise[k]));}			printf("];\n");}
 	if(debugg_print){printf("hist_smooth = [");			for(int k = 0; k < 300 && k < blur_histogram.size(); k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
 	if(debugg_print){printf("new_histogram = [");		for(int k = 0; k < 300 && k < new_histogram.size(); k++){printf("%i ",int(new_histogram[k]));}	printf("];\n");}
-
-	if(update_size ){
+	if(true){printf("meanoffset: %f stdval2: %f stdval: %f regularization: %f\n",meanval2,stdval2,noiseval,regularization);}
+	if(!fixed_histogram_size && update_size ){
 		double next_maxd  = meanval2 + (stdval2 + regularization)*target_length;
 		//printf("mean %f stdval %f regularization: %f\n",meanval2,stdval2,regularization);
 		double logdiff = log(next_maxd/maxd);
 		//if(debugg_print){printf("maxd: %f next_maxd: %f logdiff: %f \n",maxd,next_maxd,logdiff);}
 		//if(debugg_print){printf("meanoffset: %f stdval2: %f stdval: %f regularization: %f\n",meanval2,stdval2,noiseval,regularization);}
-		//if(true){printf("meanoffset: %f stdval2: %f stdval: %f regularization: %f\n",meanval2,stdval2,noiseval,regularization);}
+		//
 		if(fabs(logdiff) > 0.2 && iter < 30){
 			iter++;
 			computeModel(mat);

@@ -179,7 +179,7 @@ add_dependencies(		make_ply2pcd roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	make_ply2pcd quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 
-#add_executable(			fb_node src/fb_node.cpp)
+#add_executable(		fb_node src/fb_node.cpp)
 #add_dependencies(		fb_node roscpp quasimodo_msgs_generate_messages_cpp)
 #target_link_libraries(	fb_node quasimodo_ModelUpdater2 image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
