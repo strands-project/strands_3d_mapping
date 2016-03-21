@@ -34,12 +34,12 @@
  *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: lum.h 5663 2012-05-02 13:49:39Z florentinus $
+ * $Id: LUM2.h 5663 2012-05-02 13:49:39Z florentinus $
  *
  */
 
-#ifndef PCL_REGISTRATION_LUM_H_
-#define PCL_REGISTRATION_LUM_H_
+#ifndef PCL_REGISTRATION_LUM2_H_
+#define PCL_REGISTRATION_LUM2_H_
 
 #include <pcl/pcl_base.h>
 #include <pcl/registration/eigen.h>
@@ -77,41 +77,41 @@ namespace pcl
       * </li></ul>
       * Usage example:
       * \code
-      * pcl::registration::LUM<pcl::PointXYZ> lum;
+      * pcl::registration::LUM2<pcl::PointXYZ> LUM2;
       * // Add point clouds as vertices to the SLAM graph
-      * lum.addPointCloud (cloud_0);
-      * lum.addPointCloud (cloud_1);
-      * lum.addPointCloud (cloud_2);
+      * LUM2.addPointCloud (cloud_0);
+      * LUM2.addPointCloud (cloud_1);
+      * LUM2.addPointCloud (cloud_2);
       * // Use your favorite pairwise correspondence estimation algorithm(s)
       * corrs_0_to_1 = someAlgo (cloud_0, cloud_1);
       * corrs_1_to_2 = someAlgo (cloud_1, cloud_2);
-      * corrs_2_to_0 = someAlgo (lum.getPointCloud (2), lum.getPointCloud (0));
+      * corrs_2_to_0 = someAlgo (LUM2.getPointCloud (2), LUM2.getPointCloud (0));
       * // Add the correspondence results as edges to the SLAM graph
-      * lum.setCorrespondences (0, 1, corrs_0_to_1);
-      * lum.setCorrespondences (1, 2, corrs_1_to_2);
-      * lum.setCorrespondences (2, 0, corrs_2_to_0);
+      * LUM2.setCorrespondences (0, 1, corrs_0_to_1);
+      * LUM2.setCorrespondences (1, 2, corrs_1_to_2);
+      * LUM2.setCorrespondences (2, 0, corrs_2_to_0);
       * // Change the computation parameters
-      * lum.setMaxIterations (5);
-      * lum.setConvergenceThreshold (0.0);
-      * // Perform the actual LUM computation
-      * lum.compute ();
+      * LUM2.setMaxIterations (5);
+      * LUM2.setConvergenceThreshold (0.0);
+      * // Perform the actual LUM2 computation
+      * LUM2.compute ();
       * // Return the concatenated point cloud result
-      * cloud_out = lum.getConcatenatedCloud ();
+      * cloud_out = LUM2.getConcatenatedCloud ();
       * // Return the separate point cloud transformations
-      * for(int i = 0; i < lum.getNumVertices (); i++)
+      * for(int i = 0; i < LUM2.getNumVertices (); i++)
       * {
-      *   transforms_out[i] = lum.getTransformation (i);
+      *   transforms_out[i] = LUM2.getTransformation (i);
       * }
       * \endcode
       * \author Frits Florentinus, Jochen Sprickerhof
       * \ingroup registration
       */
     template<typename PointT>
-    class LUM
+    class LUM2
     {
       public:
-        typedef boost::shared_ptr<LUM<PointT> > Ptr;
-        typedef boost::shared_ptr<const LUM<PointT> > ConstPtr;
+        typedef boost::shared_ptr<LUM2<PointT> > Ptr;
+        typedef boost::shared_ptr<const LUM2<PointT> > ConstPtr;
 
         typedef pcl::PointCloud<PointT> PointCloud;
         typedef typename PointCloud::Ptr PointCloudPtr;
@@ -138,7 +138,7 @@ namespace pcl
 
         /** \brief Empty constructor.
           */
-        LUM () 
+        LUM2 ()
           : slam_graph_ (new SLAMGraph)
           , max_iterations_ (5)
           , convergence_threshold_ (0.0)
@@ -146,18 +146,18 @@ namespace pcl
         }
 
         /** \brief Set the internal SLAM graph structure.
-          * \details All data used and produced by LUM is stored in this boost::adjacency_list.
-          * It is recommended to use the LUM class itself to build the graph.
-          * This method could otherwise be useful for managing several SLAM graphs in one instance of LUM.
+          * \details All data used and produced by LUM2 is stored in this boost::adjacency_list.
+          * It is recommended to use the LUM2 class itself to build the graph.
+          * This method could otherwise be useful for managing several SLAM graphs in one instance of LUM2.
           * \param[in] slam_graph The new SLAM graph.
           */
         inline void
         setLoopGraph (const SLAMGraphPtr &slam_graph);
 
         /** \brief Get the internal SLAM graph structure.
-          * \details All data used and produced by LUM is stored in this boost::adjacency_list.
-          * It is recommended to use the LUM class itself to build the graph.
-          * This method could otherwise be useful for managing several SLAM graphs in one instance of LUM.
+          * \details All data used and produced by LUM2 is stored in this boost::adjacency_list.
+          * It is recommended to use the LUM2 class itself to build the graph.
+          * This method could otherwise be useful for managing several SLAM graphs in one instance of LUM2.
           * \return The current SLAM graph.
           */
         inline SLAMGraphPtr
@@ -204,7 +204,7 @@ namespace pcl
           * Optionally you can specify a pose estimate for this point cloud.
           * A vertex' pose is always relative to the first vertex in the SLAM graph, i.e. the first point cloud that was added.
           * Because this first vertex is the reference, you can not set a pose estimate for this vertex.
-          * Providing pose estimates to the vertices in the SLAM graph will reduce overall computation time of LUM.
+          * Providing pose estimates to the vertices in the SLAM graph will reduce overall computation time of LUM2.
           * \note Vertex descriptors are typecastable to int.
           * \param[in] cloud The new point cloud.
           * \param[in] pose (optional) The pose estimate relative to the reference pose (first point cloud that was added).
@@ -234,7 +234,7 @@ namespace pcl
         /** \brief Change a pose estimate on one of the SLAM graph's vertices.
           * \details A vertex' pose is always relative to the first vertex in the SLAM graph, i.e. the first point cloud that was added.
           * Because this first vertex is the reference, you can not set a pose estimate for this vertex.
-          * Providing pose estimates to the vertices in the SLAM graph will reduce overall computation time of LUM.
+          * Providing pose estimates to the vertices in the SLAM graph will reduce overall computation time of LUM2.
           * \note Vertex descriptors are typecastable to int.
           * \param[in] vertex The vertex descriptor of which to set the pose estimate.
           * \param[in] pose The new pose estimate for that vertex.
@@ -283,7 +283,7 @@ namespace pcl
         inline pcl::CorrespondencesPtr
         getCorrespondences (const Vertex &source_vertex, const Vertex &target_vertex) const;
 
-        /** \brief Perform LUM's globally consistent scan matching.
+        /** \brief Perform LUM2's globally consistent scan matching.
           * \details Computation uses the first point cloud in the SLAM graph as a reference pose and attempts to align all other point clouds to it simultaneously.
           * <br>
           * Things to keep in mind:
@@ -338,10 +338,10 @@ namespace pcl
     };
   }
 }
-
+/*
 #ifdef PCL_NO_PRECOMPILE
-#include <pcl/registration/impl/lum.hpp>
+#include <pcl/registration/impl/LUM2.hpp>
 #endif
-
-#endif  // PCL_REGISTRATION_LUM_H_
+*/
+#endif  // PCL_REGISTRATION_LUM2_H_
 

@@ -38,7 +38,7 @@ namespace reglib
 		nanoflann2::SearchParams sp;
 		std::vector< Eigen::MatrixXd > clouds;
 		std::vector< Eigen::MatrixXd > noises;
-		std::vector< KDTree * > trees;
+        //std::vector< KDTree * > trees;
 
 		std::vector< int > nrdatas;
 		std::vector< double* > clouddatas;
@@ -52,16 +52,17 @@ namespace reglib
 
 
 
-//		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > points;
-//		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > colors;
-//		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > normals;
-//		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > transformed_points;
-//		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > transformed_normals;
-//		//std::vector< Eigen::VectorXd > informations;
-//		//std::vector< nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * > trees;
-
-//		std::vector<int> nr_matches;
-//		std::vector< std::vector< std::vector<int> > > matchids;
+        std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > points;
+        std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > colors;
+        std::vector< Eigen::Matrix<double, 7, Eigen::Dynamic> > pointscolors;
+        std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > normals;
+        std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > transformed_points;
+        std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > transformed_normals;
+        std::vector< Eigen::VectorXd > informations;
+        std::vector< nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * > trees;
+        std::vector< nanoflann::KDTreeAdaptor<Eigen::Matrix<double, 6, Eigen::Dynamic>, 6, nanoflann::metric_L2_Simple> * > trees6d;
+        std::vector<int> nr_matches;
+        std::vector< std::vector< std::vector<int> > > matchids;
 
 
 //		std::vector<int> feature_start;//Dimension of data a specific feature starts, if the feature is RGB this should be 3

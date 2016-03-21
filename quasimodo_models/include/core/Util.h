@@ -15,7 +15,7 @@
 
 namespace reglib
 {
-namespace RigidMotionEstimator3 {
+namespace RigidMotionEstimator5 {
 	/// @param Source (one 3D point per column)
 	/// @param Target (one 3D point per column)
 	/// @param Target normals (one 3D normal per column)
@@ -43,7 +43,19 @@ namespace RigidMotionEstimator3 {
 										  const Eigen::MatrixBase<Derived5>& w,
 										  bool dox = true,
 										  bool doy = false);
+
+    /// @param Source (one 3D point per column)
+    /// @param Target (one 3D point per column)
+    /// @param Confidence weights
+    template <typename Derived1, typename Derived2, typename Derived3>
+    Eigen::Affine3d point_to_point(Eigen::MatrixBase<Derived1>& X, Eigen::MatrixBase<Derived2>& Y, const Eigen::MatrixBase<Derived3>& w);
+    /// @param Source (one 3D point per column)
+    /// @param Target (one 3D point per column)
+    template <typename Derived1, typename Derived2>
+    inline Eigen::Affine3d point_to_point(Eigen::MatrixBase<Derived1>& X, Eigen::MatrixBase<Derived2>& Y);
 }
+
+
 
 	template <typename T> struct ArrayData {
 		int rows;
@@ -56,13 +68,19 @@ namespace RigidMotionEstimator3 {
 			T sum = 0;
 			for(int i = 0; i < cols; i++){
 				const T d0=p1[i]-data[cols*idx+i];
-				sum += w1[i]*d0*d0;
+                //sum += w1[i]*d0*d0;
+                sum += d0*d0;
 			}
 			return sum;
 		}
 
 		inline T kdtree_get_pt(const size_t idx, int dim) const {return data[cols*idx+dim];}
 		template <class BBOX> bool kdtree_get_bbox(BBOX& /* bb */) const { return false; }
+
+        template <typename X, typename U, typename V> inline T accum_dist(const X w, const U a, const V b, int ) const{
+            //return w * (a-b) * (a-b);
+            return (a-b) * (a-b);
+        }
 	};
 	//typedef nanoflann2::KDTreeEigenMatrixAdaptor< Eigen::Matrix<double,-1,-1>, SAMPLES_DIM,nanoflann2::metric_L2_Simple> KDTreed;
 	//typedef nanoflann2::KDTreeEigenMatrixAdaptor< Eigen::Matrix<float,-1,-1>, SAMPLES_DIM,nanoflann2::metric_L2_Simple> KDTreef;

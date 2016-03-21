@@ -1,7 +1,7 @@
 #include "Util.h"
 namespace reglib{
 
-	namespace RigidMotionEstimator3 {
+    namespace RigidMotionEstimator5 {
 		/// @param Source (one 3D point per column)
 		/// @param Target (one 3D point per column)
 		/// @param Target normals (one 3D normal per column)
@@ -132,6 +132,47 @@ namespace reglib{
 											  bool doy) {
 			return point_to_plane(X,Xn,Yp, Yn, w, Eigen::VectorXd::Zero(X.cols()),dox,doy);
 		}
+
+        /// @param Source (one 3D point per column)
+        /// @param Target (one 3D point per column)
+        /// @param Confidence weights
+        template <typename Derived1, typename Derived2, typename Derived3>
+        Eigen::Affine3d point_to_point(Eigen::MatrixBase<Derived1>& X, Eigen::MatrixBase<Derived2>& Y, const Eigen::MatrixBase<Derived3>& w) {
+            /// Normalize weight vector
+            Eigen::VectorXd w_normalized = w/w.sum();
+            /// De-mean
+            Eigen::Vector3d X_mean, Y_mean;
+            for(int i=0; i<3; ++i) {
+                X_mean(i) = (X.row(i).array()*w_normalized.transpose().array()).sum();
+                Y_mean(i) = (Y.row(i).array()*w_normalized.transpose().array()).sum();
+            }
+            X.colwise() -= X_mean;
+            Y.colwise() -= Y_mean;
+            /// Compute transformation
+            Eigen::Affine3d transformation;
+            Eigen::Matrix3d sigma = X * w_normalized.asDiagonal() * Y.transpose();
+            Eigen::JacobiSVD<Eigen::Matrix3d> svd(sigma, Eigen::ComputeFullU | Eigen::ComputeFullV);
+            if(svd.matrixU().determinant()*svd.matrixV().determinant() < 0.0) {
+                Eigen::Vector3d S = Eigen::Vector3d::Ones(); S(2) = -1.0;
+                transformation.linear().noalias() = svd.matrixV()*S.asDiagonal()*svd.matrixU().transpose();
+            } else {
+                transformation.linear().noalias() = svd.matrixV()*svd.matrixU().transpose();
+            }
+            transformation.translation().noalias() = Y_mean - transformation.linear()*X_mean;
+            /// Apply transformation
+            X = transformation*X;
+            /// Re-apply mean
+            X.colwise() += X_mean;
+            Y.colwise() += Y_mean;
+            /// Return transformation
+            return transformation;
+        }
+        /// @param Source (one 3D point per column)
+        /// @param Target (one 3D point per column)
+        template <typename Derived1, typename Derived2>
+        inline Eigen::Affine3d point_to_point(Eigen::MatrixBase<Derived1>& X, Eigen::MatrixBase<Derived2>& Y) {
+            return point_to_point(X, Y, Eigen::VectorXd::Ones(X.cols()));
+        }
 	}
 
 	double getTime(){

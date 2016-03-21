@@ -25,6 +25,8 @@
 #include "RegistrationSICP.h"
 #include "../core/RGBDFrame.h"
 
+#include "lum2.h"
+
 namespace reglib
 {
 /*
