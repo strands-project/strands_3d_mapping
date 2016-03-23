@@ -192,16 +192,17 @@ massreg->visualizationLvl = 0;
 		massreg->setData(model->frames,masks);
 
 
-		massreg->stopval = 0.005;
+		massreg->stopval = 0.001;
         massreg->steps = 8;
 
 		mfr = massreg->getTransforms(model->relativeposes);
 		model->relativeposes = mfr.poses;
 
-		massreg->stopval = 0.0005;
-        massreg->steps = 4;
-		mfr = massreg->getTransforms(model->relativeposes);
-		model->relativeposes = mfr.poses;
+//		massreg->visualizationLvl = 2;
+//		massreg->stopval = 0.002;
+//        massreg->steps = 4;
+//		mfr = massreg->getTransforms(model->relativeposes);
+//		model->relativeposes = mfr.poses;
 
 	}else{
 		massreg->visualizationLvl = 0;

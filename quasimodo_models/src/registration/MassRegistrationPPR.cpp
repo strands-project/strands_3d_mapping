@@ -203,6 +203,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 	normals.resize(nr_frames);
 	transformed_points.resize(nr_frames);
 	transformed_normals.resize(nr_frames);
+	informations.resize(nr_frames);
 
 	for(unsigned int i = 0; i < nr_frames; i++){
 		//printf("start local : data loaded successfully\n");
@@ -291,7 +292,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 						tXn(1,c)	= m10*xn + m11*yn + m12*zn;
 						tXn(2,c)	= m20*xn + m21*yn + m22*zn;
 
-						//printf("c: %i count: %i ",c,count);
+						//printf("c: %i count: %i\n",c,count);
 						information(c) = 1.0/(z*z);
 
 						C(0,c) = rgbdata[3*ind+0];
@@ -302,7 +303,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				}
 			}
 		}
-		informations.push_back(information);
+		informations[i] = information;
 		trees.push_back(new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X));
 
 	}
@@ -337,20 +338,20 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 			for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
 			char buf [1024];
 			sprintf(buf,"image%5.5i.png",imgcount++);
-			show(Xv,true,std::string(buf),imgcount);
+			show(Xv,false,std::string(buf),imgcount);
 		}
 
-		printf("funcupdate: %i\n",funcupdate);
+		//printf("funcupdate: %i\n",funcupdate);
 		for(int rematching=0; rematching < 40; ++rematching) {
-			printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
+			//printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
 
 			if(visualizationLvl == 3){
-				printf("visualize\n");
+				//printf("visualize\n");
 				std::vector<Eigen::MatrixXd> Xv;
 				for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
 				char buf [1024];
 				sprintf(buf,"image%5.5i.png",imgcount++);
-				show(Xv,true,std::string(buf),imgcount);
+				show(Xv,false,std::string(buf),imgcount);
 
 
 			}
@@ -409,10 +410,10 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 					for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
 					char buf [1024];
 					sprintf(buf,"image%5.5i.png",imgcount++);
-					show(Xv,true,std::string(buf),imgcount);
+					show(Xv,false,std::string(buf),imgcount);
 
 				}
-
+//printf("LINE: %i\n",__LINE__);
 				for(unsigned int i = 0; i < nr_frames; i++){poses2b[i] = poses[i];}
 
 
@@ -424,18 +425,20 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 					case PointToPlane:	{all_residuals = Eigen::MatrixXd::Zero(1,total_matches);}break;
 					default:			{printf("type not set\n");}					break;
 				}
-
+//printf("LINE: %i\n",__LINE__);
 				int count = 0;
 
 				for(unsigned int i = 0; i < nr_frames; i++){
 					Eigen::Matrix<double, 3, Eigen::Dynamic> & tXi	= transformed_points[i];
 					Eigen::Matrix<double, 3, Eigen::Dynamic> & tXni	= transformed_normals[i];
 					Eigen::VectorXd & informationi					= informations[i];
-
+//printf("LINE: %i\n",__LINE__);
 					for(unsigned int j = 0; j < nr_frames; j++){
 						if(i == j){continue;}
 						std::vector<int> & matchidi = matchids[i][j];
 						unsigned int matchesi = matchidi.size();
+
+						//if(matchesi > informationi.rows()){printf("WTF %i > %i \n",matchesi,informationi.rows());exit(0);}
 
 						Eigen::Matrix<double, 3, Eigen::Dynamic> & tXj	= transformed_points[j];
 						Eigen::Matrix<double, 3, Eigen::Dynamic> & tXnj	= transformed_normals[j];
@@ -459,6 +462,8 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 
 							Xp.col(ki) = tXi.col(ki);
 							Xn.col(ki) = tXni.col(ki);
+
+							//printf("%i %i / %i %i\n",ki,kj,informationi.rows(),informationj.rows());
 							rangeW(ki) = 1.0/(1.0/informationi(ki)+1.0/informationj(kj));
 						}
 
@@ -488,7 +493,7 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 						count += residuals.cols();
 					}
 				}
-
+//printf("LINE: %i\n",__LINE__);
 				residuals_time += getTime()-residuals_time_start;
 
 				double computeModel_time_start = getTime();
@@ -499,7 +504,7 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 				}
 				computeModel_time += getTime()-computeModel_time_start;
 				//func->debugg_print = false;
-
+//printf("LINE: %i\n",__LINE__);
 				for(int outer=0; outer < 150; ++outer) {
 					printf("funcupdate: %i rematching: %i lala: %i outer: %i\n",funcupdate,rematching,lala,outer);
 					for(unsigned int i = 0; i < nr_frames; i++){poses2[i] = poses[i];}
@@ -754,7 +759,7 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 		//for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
 		//char buf [1024];
 		//sprintf(buf,"image%5.5i.png",imgcount++);
-		//show(Xv,true,std::string(buf),imgcount);
+		//show(Xv,false,std::string(buf),imgcount);
 
 		double noise_before = func->getNoise();
 		func->update();
@@ -773,7 +778,7 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 		for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
 		char buf [1024];
 		sprintf(buf,"image%5.5i.png",imgcount++);
-		show(Xv,true,std::string(buf),imgcount);
+		show(Xv,false,std::string(buf),imgcount);
 	}
 
 	Eigen::Matrix4d firstinv = poses.front().inverse();
