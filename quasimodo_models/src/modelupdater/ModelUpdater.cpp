@@ -185,19 +185,21 @@ massreg->visualizationLvl = 0;
 		unsigned char * maskdata = (unsigned char *)fullmask.data;
 		for(unsigned int j = 0; j < 640*480; j++){maskdata[j] = 255;}
 
-		massreg->visualizationLvl = 0;
+
+        massreg->visualizationLvl = 0;
 		std::vector<cv::Mat> masks;
 		for(int i = 0; i < model->masks.size(); i++){masks.push_back(fullmask);}
 		massreg->setData(model->frames,masks);
 
 
 		massreg->stopval = 0.005;
-		massreg->steps = 8;
+        massreg->steps = 8;
+
 		mfr = massreg->getTransforms(model->relativeposes);
 		model->relativeposes = mfr.poses;
 
 		massreg->stopval = 0.0005;
-		massreg->steps = 4;
+        massreg->steps = 4;
 		mfr = massreg->getTransforms(model->relativeposes);
 		model->relativeposes = mfr.poses;
 
