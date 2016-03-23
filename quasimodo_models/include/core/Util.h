@@ -57,6 +57,27 @@ namespace RigidMotionEstimator5 {
 
 
 
+template <typename T> struct ArrayData3D {
+	int rows;
+	T * data;
+
+	inline size_t kdtree_get_point_count() const { return rows; }
+
+	inline T kdtree_distance(const T *p1, const size_t idx,size_t /*size*/) const {
+		const T d0=p1[0]-data[3*idx+0];
+		const T d1=p1[1]-data[3*idx+1];
+		const T d2=p1[2]-data[3*idx+2];
+		return d0*d0 + d1*d1 + d2*d2;
+	}
+
+	inline T kdtree_get_pt(const size_t idx, int dim) const {return data[3*idx+dim];}
+	template <class BBOX> bool kdtree_get_bbox(BBOX& /* bb */) const { return false; }
+
+	template <typename U, typename V> inline T accum_dist(const U a, const V b, int ) const{
+		return (a-b) * (a-b);
+	}
+};
+
 	template <typename T> struct ArrayData {
 		int rows;
 		int cols;
@@ -68,8 +89,8 @@ namespace RigidMotionEstimator5 {
 			T sum = 0;
 			for(int i = 0; i < cols; i++){
 				const T d0=p1[i]-data[cols*idx+i];
-                //sum += w1[i]*d0*d0;
-                sum += d0*d0;
+				//sum += w1[i]*d0*d0;
+				sum += d0*d0;
 			}
 			return sum;
 		}

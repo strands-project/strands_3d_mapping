@@ -10,6 +10,21 @@
 
 namespace reglib
 {
+
+Eigen::Matrix4d getPoseTransform(Eigen::MatrixXd t){
+	Eigen::Matrix4d m = Eigen::Matrix4d::Identity();
+	m.block(0,0,3,3) = t.block(0,0,3,3);
+	m.block(0,3,3,1) = t.block(0,6,3,1);
+	return m;
+}
+
+
+PointMatch::PointMatch(size_t src_, std::vector<size_t> & dst_){
+	src = src_;
+	dst = dst_;
+}
+PointMatch::~PointMatch(){}
+
 typedef Eigen::Matrix< double,6, Eigen::Dynamic > Matrix6Xd;
 
 namespace RigidMotionEstimator4 {
@@ -189,12 +204,12 @@ inline Eigen::Affine3d point_to_point(Eigen::MatrixBase<Derived1>& X, Eigen::Mat
 }
 
 MassRegistrationPPRColor::MassRegistrationPPRColor(double startreg, bool visualize){
-	type					= PointToPlane;
-	//type					= PointToPoint;
+	//type					= PointToPlane;
+	type					= PointToPoint;
 	use_PPR_weight			= true;
 	use_features			= true;
 	normalize_matchweights	= true;
-    max_matches				= 1000000;
+	max_matches				= 100;
 
 	func = new DistanceWeightFunction2PPR2();
 	func->update_size		= true;
@@ -203,22 +218,22 @@ MassRegistrationPPRColor::MassRegistrationPPRColor(double startreg, bool visuali
 
 	funcR = new DistanceWeightFunction2PPR2();
 	funcR->fixed_histogram_size = true;
-	funcR->startmaxd            = 255;
-	funcR->starthistogram_size  = 255;
+	funcR->startmaxd            = 2*255;
+	funcR->starthistogram_size  = 2*255;
 	funcR->startreg             = 60.0;
-	funcR->debugg_print         = true;
+	funcR->debugg_print         = false;
 
 	funcG = new DistanceWeightFunction2PPR2();
 	funcG->fixed_histogram_size     = true;
-	funcG->startmaxd                = 255;
-	funcG->starthistogram_size      = 255;
+	funcG->startmaxd                = 2*255;
+	funcG->starthistogram_size      = 2*255;
 	funcG->startreg                 = 60.0;
 	funcG->debugg_print             = false;
 
 	funcB = new DistanceWeightFunction2PPR2();
 	funcB->fixed_histogram_size     = true;
-	funcB->startmaxd                = 255;
-	funcB->starthistogram_size      = 255;
+	funcB->startmaxd                = 2*255;
+	funcB->starthistogram_size      = 2*255;
 	funcB->startreg                 = 60.0;
 	funcB->debugg_print             = false;
 
@@ -245,6 +260,7 @@ MassRegistrationPPRColor::~MassRegistrationPPRColor(){}
 void MassRegistrationPPRColor::setData(std::vector<RGBDFrame*> frames_,std::vector<cv::Mat> masks_){
 	frames = frames_;
 	masks = masks_;
+
 	all_matches.resize(frames.size());
 	for(unsigned int i = 0; i < frames.size(); i++){
 		preprocessData(i);
@@ -257,8 +273,9 @@ void MassRegistrationPPRColor::setData(std::vector<RGBDFrame*> frames_,std::vect
 void MassRegistrationPPRColor::preprocessData(int index){
 	printf("preprocessData %i\n",index);
 double startTime = getTime();
+
 	unsigned char  * maskdata		= (unsigned char	*)(masks[index].data);
-	unsigned char  * rgbdata		= (unsigned char	*)(frames[index]->rgb.data);
+	unsigned char  * imgrgbdata		= (unsigned char	*)(frames[index]->rgb.data);
 	unsigned short * depthdata		= (unsigned short	*)(frames[index]->depth.data);
 	float		   * normalsdata	= (float			*)(frames[index]->normals.data);
 
@@ -286,7 +303,8 @@ double startTime = getTime();
 		}
 	}
 
-	double * data = new double[6*count];
+	double * data = new double[3*count];
+	unsigned char * rgbdata = new unsigned char[3*count];
 	Eigen::MatrixXd noise (count,6);
 	int c = 0;
 	for(unsigned int w = 0; w < width; w+=steps){
@@ -297,12 +315,14 @@ double startTime = getTime();
 				float z = idepth*float(depthdata[ind]);
 				float xn = normalsdata[3*ind+0];
 				if(z > 0.2 && xn != 2){
-					data[6*c+0] = (w - cx) * z * ifx;
-					data[6*c+1] = (h - cy) * z * ify;
-					data[6*c+2] = z;
-					data[6*c+3] = rgbdata[3*ind+2];
-					data[6*c+4] = rgbdata[3*ind+1];
-					data[6*c+5] = rgbdata[3*ind+0];
+					data[3*c+0] = (w - cx) * z * ifx;
+					data[3*c+1] = (h - cy) * z * ify;
+					data[3*c+2] = z;
+
+
+					rgbdata[3*c+0] = imgrgbdata[3*ind+0];
+					rgbdata[3*c+1] = imgrgbdata[3*ind+1];
+					rgbdata[3*c+2] = imgrgbdata[3*ind+2];
 
 					noise(c,0) = z*z;
 					noise(c,1) = noise(c,0);
@@ -317,79 +337,80 @@ double startTime = getTime();
 	}
 
 		//clouds.push_back(cloud);
-	ArrayData<double> * ad = new ArrayData<double>();
+	ArrayData3D<double> * ad = new ArrayData3D<double>();
 	ad->rows = count;
-	ad->cols = 6;
 	ad->data = data;
 
-	KDTree2 * index2 = new KDTree2(6, *ad, nanoflann2::KDTreeSingleIndexAdaptorParams(10) );
+	KDTree2 * index2 = new KDTree2(3, *ad, nanoflann::KDTreeSingleIndexAdaptorParams(10) );
 	index2->buildIndex();
 
 	ads.push_back(ad);
 	nrdatas.push_back(count);
 	clouddatas.push_back(data);
+	rgbdatas.push_back(rgbdata);
+//std::vector< double* > clouddatas;
 	treedatas.push_back(index2);
 
 	noises.push_back(noise);
+
 	printf("constructing the kdtree took %5.5fs\n",getTime()-startTime);
 }
 
-void MassRegistrationPPRColor::showMatches(int ii, int jj, Eigen::MatrixXd pose){
-	printf("showMatches\n");
-viewer->removeAllPointClouds();
+void MassRegistrationPPRColor::showMatches(int to, int from, Eigen::MatrixXd pose){
+	double *			to_cloud		= clouddatas[to];
+	int					to_nr_points	= nrdatas[to];
+	Eigen::MatrixXd &	to_noise		= noises[to];
+
+	double *			from_cloud		= clouddatas[from];
+	int					from_nr_points	= nrdatas[from];
+	Eigen::MatrixXd &	from_noise		= noises[from];
+
+	const int step = std::max(1.0,double(from_nr_points)/double(max_matches));
+
 	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-	double * cloudi = clouddatas[ii];
-	int nr_pointsi = nrdatas[ii];
-	Eigen::VectorXd p	(7); p(6) = 1;
-	Eigen::VectorXd tp	(7); tp(6) = 1;
-	for(unsigned int i = 0; i < nr_pointsi; i++){
 
-		p(0) = cloudi[6*i+0];
-		p(1) = cloudi[6*i+1];
-		p(2) = cloudi[6*i+2];
-		p(3) = cloudi[6*i+3];
-		p(4) = cloudi[6*i+4];
-		p(5) = cloudi[6*i+5];
-
+	for(unsigned int i = 0; i < to_nr_points; i++){
 		pcl::PointXYZRGBNormal pi;
-		pi.x = p(0);
-		pi.y = p(1);
-		pi.z = p(2);
-		pi.b = 0;
-		pi.g = 255;
-		pi.r = 0;
-		scloud->points.push_back(pi);
-	}
-
-	double * cloudj = clouddatas[jj];
-	int nr_pointsj = nrdatas[jj];
-	for(unsigned int i = 0; i < nr_pointsj; i++){
-
-		p(0) = cloudj[6*i+0];
-		p(1) = cloudj[6*i+1];
-		p(2) = cloudj[6*i+2];
-		p(3) = cloudj[6*i+3];
-		p(4) = cloudj[6*i+4];
-		p(5) = cloudj[6*i+5];
-
-		tp = pose*p;
-
-		pcl::PointXYZRGBNormal pi;
-		pi.x = tp(0);
-		pi.y = tp(1);
-		pi.z = tp(2);
+		pi.x = to_cloud[3*i+0];
+		pi.y = to_cloud[3*i+1];
+		pi.z = to_cloud[3*i+2];
 		pi.b = 0;
 		pi.g = 0;
 		pi.r = 255;
 		dcloud->points.push_back(pi);
 	}
 
-	std::vector< std::pair <int,int> > matches = all_matches[ii][jj];
-	for(unsigned int m = 0; m < matches.size(); m++){
+	Eigen::Matrix4d po = getPoseTransform(pose);
+	float m00 = po(0,0); float m01 = po(0,1); float m02 = po(0,2); float m03 = po(0,3);
+	float m10 = po(1,0); float m11 = po(1,1); float m12 = po(1,2); float m13 = po(1,3);
+	float m20 = po(2,0); float m21 = po(2,1); float m22 = po(2,2); float m23 = po(2,3);
+
+	for(size_t ii = 0; ii < from_nr_points; ii+=1){
+		double x = from_cloud[3*ii+0];
+		double y = from_cloud[3*ii+1];
+		double z = from_cloud[3*ii+2];
+
+		double tx	= m00*x + m01*y + m02*z + m03;
+		double ty	= m10*x + m11*y + m12*z + m13;
+		double tz	= m20*x + m21*y + m22*z + m23;
+		pcl::PointXYZRGBNormal pi;
+		pi.x = tx;
+		pi.y = ty;
+		pi.z = tz;
+		pi.b = 0;
+		pi.g = 255;
+		pi.r = 0;
+		scloud->points.push_back(pi);
+	}
+
+	std::vector< PointMatch > & matches = all_matches[to][from];
+	for(int m = 0; m < matches.size(); m++){
 		char buf [1024];
-		sprintf(buf,"line%i",m);
-		viewer->addLine<pcl::PointXYZRGBNormal>(scloud->points[matches[m].first],dcloud->points[matches[m].second],buf);
+		for(int k = 0; k < matches[m].dst.size(); k++){
+			sprintf(buf,"line%i_%i",m,k);
+			viewer->addLine<pcl::PointXYZRGBNormal>(dcloud->points[matches[m].dst[k]],scloud->points[matches[m].src],buf);
+		}
 	}
 
 
@@ -399,106 +420,133 @@ viewer->removeAllPointClouds();
 	viewer->removeAllPointClouds();
 	viewer->removeAllShapes();
 
+
+	//exit(0);
+//    printf("rematch %i %i took %5.5fs\n",from,to,getTime()-startTime);
 }
 
-
 void MassRegistrationPPRColor::rematchAll(std::vector<Eigen::MatrixXd> poses){
-
-    int nr_matches = 0;
+	show(poses, true);
+	int nr_matches = 0;
 	double sumtime = 0;
 	#pragma omp parallel for
 	const int nr_conns  = connections.size();
 	for(int c = 0; c < nr_conns; c++){
 		double startTime = getTime();
-		int i = connections[c].first;
-		int j = connections[c].second;
+		int to = connections[c].first;
+		int from = connections[c].second;
 
-		Eigen::MatrixXd posei = poses.at(i);
-		Eigen::MatrixXd posej = poses.at(j);
-		Eigen::MatrixXd relativePose = posei.inverse()*posej;
+		Eigen::MatrixXd poseto = poses.at(to);
+		Eigen::MatrixXd posefrom = poses.at(from);
+		Eigen::MatrixXd relativePose = poseto.inverse()*posefrom;
 
-		all_matches[i][j] = rematch(i,j,relativePose);
-		all_matches[j][i] = rematch(j,i,relativePose.inverse());
+		all_matches[to][from] = rematch(to,from,relativePose);
+		showMatches(to, from,relativePose);
+		//all_matches[j][i] = rematch(j,i,relativePose.inverse());
 
-        nr_matches += all_matches[i][j].size() + all_matches[j][i].size();
+		//nr_matches += all_matches[to][from].size() + all_matches[from][to].size();
 		sumtime += getTime()-startTime;
-        printf("rematchAll took %5.5fs averaging %10.10f matches per second\n",sumtime, double(nr_matches)/sumtime);
+		printf("rematchAll took %5.5fs averaging %10.10f matches per second\n",sumtime, double(nr_matches)/sumtime);
 	}
 
 printf("rematchAll took %5.5fs averaging %10.10f matches per second\n",sumtime, double(nr_matches)/sumtime);
 }
 
-std::vector< std::pair <int,int> > MassRegistrationPPRColor::rematch(int from, int to, Eigen::MatrixXd pose){
+std::vector< PointMatch > MassRegistrationPPRColor::rematch(int to, int from, Eigen::MatrixXd pose){
 double startTime = getTime();
 
-	std::vector< std::pair <int,int> > matches;
-	KDTree2 * tree = treedatas[from];
+	std::vector< PointMatch > matches;
+
+	KDTree2 * tree = treedatas[to];
 
 	double *			to_cloud		= clouddatas[to];
 	int					to_nr_points	= nrdatas[to];
 	Eigen::MatrixXd &	to_noise		= noises[to];
 
-	const int step = std::max(1.0,double(to_nr_points)/double(max_matches));
+	double *			from_cloud		= clouddatas[from];
+	int					from_nr_points	= nrdatas[from];
+	Eigen::MatrixXd &	from_noise		= noises[from];
 
-	double xyznoise = func ->getNoise();
-	double rnoise	= funcR->getNoise();
-	double gnoise	= funcG->getNoise();
-	double bnoise	= funcB->getNoise();
+	const int step = std::max(1.0,double(from_nr_points)/double(max_matches));
 
-	std::vector<size_t>   ret_indexes(1);
-	std::vector<double> out_dists_sqr(1);
+	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+
+	for(unsigned int i = 0; i < to_nr_points; i++){
+		pcl::PointXYZRGBNormal pi;
+		pi.x = to_cloud[3*i+0];
+		pi.y = to_cloud[3*i+1];
+		pi.z = to_cloud[3*i+2];
+		pi.b = 0;
+		pi.g = 0;
+		pi.r = 255;
+		dcloud->points.push_back(pi);
+	}
+
+	Eigen::Matrix4d po = getPoseTransform(pose);
+	float m00 = po(0,0); float m01 = po(0,1); float m02 = po(0,2); float m03 = po(0,3);
+	float m10 = po(1,0); float m11 = po(1,1); float m12 = po(1,2); float m13 = po(1,3);
+	float m20 = po(2,0); float m21 = po(2,1); float m22 = po(2,2); float m23 = po(2,3);
 
 	matches.reserve(max_matches);
-	Eigen::VectorXd p	(7); p(6) = 1;
-	Eigen::VectorXd tp	(7); tp(6) = 1;
+	double sum = 0;
+	for(size_t ii = 0; ii < from_nr_points; ii+=step){
+		double x = from_cloud[3*ii+0];
+		double y = from_cloud[3*ii+1];
+		double z = from_cloud[3*ii+2];
 
+		double tx	= m00*x + m01*y + m02*z + m03;
+		double ty	= m10*x + m11*y + m12*z + m13;
+		double tz	= m20*x + m21*y + m22*z + m23;
+		double qp[3] = {tx,ty,tz};
 
-	for(unsigned int i = 0; i < to_nr_points; i+=step){
-		p(0) = to_cloud[6*i+0];
-		p(1) = to_cloud[6*i+1];
-		p(2) = to_cloud[6*i+2];
-		p(3) = to_cloud[6*i+3];
-		p(4) = to_cloud[6*i+4];
-		p(5) = to_cloud[6*i+5];
-		tp = pose*p;
-
-		double qp[6] = {tp(0), tp(1), tp(2), tp(3), tp(4), tp(5)};
-		double qw[6];
-		qw[0] = 1.0/(to_noise(i,0)*to_noise(i,0)*xyznoise*xyznoise);
-		qw[1] = 1.0/(to_noise(i,1)*to_noise(i,1)*xyznoise*xyznoise);
-		qw[2] = 1.0/(to_noise(i,2)*to_noise(i,2)*xyznoise*xyznoise);
-		qw[3] = 1.0/(to_noise(i,3)*to_noise(i,3)*rnoise*rnoise);
-		qw[4] = 1.0/(to_noise(i,4)*to_noise(i,4)*gnoise*gnoise);
-		qw[5] = 1.0/(to_noise(i,5)*to_noise(i,5)*bnoise*bnoise);
-
+		std::vector<double> out_dists_sqr(1);
+		std::vector<size_t>   ret_indexes(1);
 		nanoflann2::KNNResultSet<double> resultSet(1);
 		resultSet.init(&ret_indexes[0], &out_dists_sqr[0] );
-		tree->findNeighbors(resultSet, qw, qp, nanoflann2::SearchParams(10));
-		matches.push_back(std::make_pair(ret_indexes[0],i));
-	}
-    printf("rematch %i %i took %5.5fs\n",from,to,getTime()-startTime);
-	return matches;
-}
+		tree->findNeighbors(resultSet, qp, nanoflann::SearchParams(10));
+		printf("%i -> %f %f %f -> %f %f %f -> %f\n",ii,tx,ty,tz,to_cloud[3*ret_indexes[0]+0],to_cloud[3*ret_indexes[0]+1],to_cloud[3*ret_indexes[0]+2],sqrt(out_dists_sqr[0]));
+		matches.push_back(PointMatch(ii,ret_indexes));
+		sum +=sqrt(out_dists_sqr[0]);
 
-Eigen::Matrix4d getPoseTransform(Eigen::MatrixXd t){
-    Eigen::Matrix4d m = Eigen::Matrix4d::Identity();
-    m.block(0,0,3,3) = t.block(0,0,3,3);
-    //m(0,3) = t(0,t.cols()-1);
-    //m(1,3) = t(1,t.cols()-1);
-    //m(2,3) = t(2,t.cols()-1);
-    m.block(0,3,3,1) = t.block(0,6,3,1);
-    return m;
+		pcl::PointXYZRGBNormal pi;
+		pi.x = tx;
+		pi.y = ty;
+		pi.z = tz;
+		pi.b = 0;
+		pi.g = 255;
+		pi.r = 0;
+		scloud->points.push_back(pi);
+
+		char buf [1024];
+
+		for(int k = 0; k < ret_indexes.size(); k++){
+			sprintf(buf,"line%i_%i",ii,k);
+			viewer->addLine<pcl::PointXYZRGBNormal>(dcloud->points[ret_indexes[k]],pi,buf);
+		}
+
+		//sprintf(buf,"line%i",ii);
+		//viewer->addLine<pcl::PointXYZRGBNormal>(dcloud->points[ret_indexes[0]],scloud->points.back(),buf);
+	}
+	printf("sum: %f\n",sum);
+
+	viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
+	viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
+	viewer->spin();
+	viewer->removeAllPointClouds();
+	viewer->removeAllShapes();
+
+
+	//exit(0);
+//    printf("rematch %i %i took %5.5fs\n",from,to,getTime()-startTime);
+	return matches;
 }
 
 void MassRegistrationPPRColor::recomputeFunctions(std::vector<Eigen::MatrixXd> poses){
 	double startTime = getTime();
-
+/*
 	int count = 0;
-	Eigen::VectorXd p	(7); p(6) = 1;
-	Eigen::VectorXd tp	(7); tp(6) = 1;
-
 	for(int c = 0; c < connections.size(); c++){
-		double startTime = getTime();
 		int i = connections[c].first;
 		int j = connections[c].second;
 		count += all_matches[i][j].size();
@@ -510,6 +558,7 @@ void MassRegistrationPPRColor::recomputeFunctions(std::vector<Eigen::MatrixXd> p
 	Eigen::MatrixXd residualsB = Eigen::MatrixXd::Zero(1,count);
 	Eigen::MatrixXd residualsP;
 
+	printf("count %i\n",count);
 	switch(type) {
 		case PointToPoint:	{residualsP = Eigen::MatrixXd(3,count);}break;
 		case PointToPlane:	{residualsP = Eigen::MatrixXd(1,count);}break;
@@ -523,94 +572,349 @@ void MassRegistrationPPRColor::recomputeFunctions(std::vector<Eigen::MatrixXd> p
 
 		Eigen::MatrixXd posei = poses.at(i);
 		Eigen::MatrixXd posej = poses.at(j);
+
 		Eigen::MatrixXd rp = posei.inverse()*posej;
 		Eigen::MatrixXd irp = rp.inverse();
 
-		std::vector< std::pair <int,int> > matches;
+		std::vector< PointMatch > matches;
 		matches = all_matches[i][j];
 
 		double *			cloudi		= clouddatas[i];
+		unsigned char *		rgbi		= rgbdatas[i];
 		Eigen::MatrixXd &	noisei		= noises[i];
 
 		double *			cloudj		= clouddatas[j];
+		unsigned char *		rgbj		= rgbdatas[j];
 		Eigen::MatrixXd &	noisej		= noises[j];
 
+
+		Eigen::Matrix4d po = getPoseTransform(rp);
+		float m00 = po(0,0); float m01 = po(0,1); float m02 = po(0,2); float m03 = po(0,3);
+		float m10 = po(1,0); float m11 = po(1,1); float m12 = po(1,2); float m13 = po(1,3);
+		float m20 = po(2,0); float m21 = po(2,1); float m22 = po(2,2); float m23 = po(2,3);
+
+
 		for(unsigned int m = 0; m < matches.size(); m++){
-			std::pair <int,int> & match = matches[m];
-			int a = match.first;
-			int b = match.second;
+			PointMatch & match = matches[m];
 
-			p(0) = cloudi[6*i+0];
-			p(1) = cloudi[6*i+1];
-			p(2) = cloudi[6*i+2];
-			p(3) = cloudi[6*i+3];
-			p(4) = cloudi[6*i+4];
-			p(5) = cloudi[6*i+5];
-			tp = rp*p;
+			size_t src = match.src;
+			size_t dst = match.dst.front();
 
+			double sx = cloudi[3*dst+0];
+			double sy = cloudi[3*dst+1];
+			double sz = cloudi[3*dst+2];
 
-			//qw[3] = 1.0/(to_noise(i,3)*to_noise(i,3)*rnoise*rnoise);
-			//qw[4] = 1.0/(to_noise(i,4)*to_noise(i,4)*gnoise*gnoise);
-			//qw[5] = 1.0/(to_noise(i,5)*to_noise(i,5)*bnoise*bnoise);
+			double dx = cloudj[3*src+0];
+			double dy = cloudj[3*src+1];
+			double dz = cloudj[3*src+2];
+			double tx	= m00*dx + m01*dy + m02*dz + m03;
+			double ty	= m10*dx + m11*dy + m12*dz + m13;
+			double tz	= m20*dx + m21*dy + m22*dz + m23;
 
-			residualsR(0,current) = (tp[3]-cloudj[6*b+3]);
-			residualsG(0,current) = (tp[4]-cloudj[6*b+4]);
-			residualsB(0,current) = (tp[5]-cloudj[6*b+5]);
+			double ni = noisei(dst,0);
+			double nj = noisej(src,0);
 
-			//printf("%5.5i -> %3.3f %3.3f %3.3f\n",current,residualsR(0,current),residualsG(0,current),residualsB(0,current));
-			//Compute residualsP
+			double var = ni*ni+nj*nj;
+			double nij = sqrt(var);
+			switch(type) {
+				case PointToPoint:	{
+					residualsP(0,current) = (sx-tx)/nij;
+					residualsP(1,current) = (sy-ty)/nij;
+					residualsP(2,current) = (sz-tz)/nij;
+				}break;
+				case PointToPlane:	{}break;
+				default:			{printf("type not set\n");}					break;
+			}
+
+			residualsR(0,current) = rgbi[3*dst+0]-rgbj[3*src+0];
+			residualsG(0,current) = rgbi[3*dst+1]-rgbj[3*src+1];
+			residualsB(0,current) = rgbi[3*dst+2]-rgbj[3*src+2];
+
 			current++;
 		}
 
 		matches = all_matches[j][i];
 
+		po = getPoseTransform(irp);
+		m00 = po(0,0); m01 = po(0,1); m02 = po(0,2); m03 = po(0,3);
+		m10 = po(1,0); m11 = po(1,1); m12 = po(1,2); m13 = po(1,3);
+		m20 = po(2,0); m21 = po(2,1); m22 = po(2,2); m23 = po(2,3);
+
+
 		for(unsigned int m = 0; m < matches.size(); m++){
-			std::pair <int,int> & match = matches[m];
-			int a = match.second;
-			int b = match.first;
+			PointMatch & match = matches[m];
 
-			residualsR(0,current) = cloudi[6*a+3]-cloudj[6*b+3];
-			residualsG(0,current) = cloudi[6*a+4]-cloudj[6*b+4];
-			residualsB(0,current) = cloudi[6*a+5]-cloudj[6*b+5];
+			size_t src = match.src;
+			size_t dst = match.dst.front();
 
-			//printf("%5.5i -> %3.3f %3.3f %3.3f\n",current,residualsR(0,current),residualsG(0,current),residualsB(0,current));
-			//Compute residualsP
+			double sx = cloudj[3*dst+0];
+			double sy = cloudj[3*dst+1];
+			double sz = cloudj[3*dst+2];
+
+			double dx = cloudi[3*src+0];
+			double dy = cloudi[3*src+1];
+			double dz = cloudi[3*src+2];
+			double tx	= m00*dx + m01*dy + m02*dz + m03;
+			double ty	= m10*dx + m11*dy + m12*dz + m13;
+			double tz	= m20*dx + m21*dy + m22*dz + m23;
+
+			double ni = noisej(dst,0);
+			double nj = noisei(src,0);
+
+			double var = ni*ni+nj*nj;
+			double nij = sqrt(var);
+			switch(type) {
+				case PointToPoint:	{
+					residualsP(0,current) = (sx-tx)/nij;
+					residualsP(1,current) = (sy-ty)/nij;
+					residualsP(2,current) = (sz-tz)/nij;
+				}break;
+				case PointToPlane:	{}break;
+				default:			{printf("type not set\n");}					break;
+			}
+
+			residualsR(0,current) = rgbj[3*dst+0]-rgbi[3*src+0];
+			residualsG(0,current) = rgbj[3*dst+1]-rgbi[3*src+1];
+			residualsB(0,current) = rgbj[3*dst+2]-rgbi[3*src+2];
+
 			current++;
 		}
 	}
-	//printf("funcR\n");
+	func->computeModel(residualsP);
 	funcR->computeModel(residualsR);
-	//exit(0);
 	funcG->computeModel(residualsG);
 	funcB->computeModel(residualsB);
 	printf("total matches: %i\n",count);
-
+*/
 	printf("recomputeFunctions took %5.5fs\n",getTime()-startTime);
 }
 
-//		for(unsigned int i = 0; i < to_nr_points; i+=step){
-//			p(0) = to_cloud[6*i+0];
-//			p(1) = to_cloud[6*i+1];
-//			p(2) = to_cloud[6*i+2];
-//			p(3) = to_cloud[6*i+3];
-//			p(4) = to_cloud[6*i+4];
-//			p(5) = to_cloud[6*i+5];
-//			tp = rp*p;
+bool isConverged(double stop_trans, double stop_rot, std::vector<Eigen::MatrixXd> poses1, std::vector<Eigen::MatrixXd> poses2){
+	double change_trans = 0;
+	double change_rot = 0;
+	for(unsigned int i = 0; i < poses1.size(); i++){
+		for(unsigned int j = i+1; j < poses1.size(); j++){
+			Eigen::MatrixXd diff_before = poses1[i].inverse()*poses1[j];
+			Eigen::MatrixXd diff_after	= poses2[i].inverse()*poses2[j];
+			Eigen::Matrix4d diff		= getPoseTransform(diff_before.inverse()*diff_after);
 
-//			double qp[6] = {tp(0), tp(1), tp(2), tp(3), tp(4), tp(5)};
-//			double qw[6];
-//			qw[0] = 1.0/(to_noise(i,0)*to_noise(i,0)*xyznoise*xyznoise);
-//			qw[1] = 1.0/(to_noise(i,1)*to_noise(i,1)*xyznoise*xyznoise);
-//			qw[2] = 1.0/(to_noise(i,2)*to_noise(i,2)*xyznoise*xyznoise);
-//			qw[3] = 1.0/(to_noise(i,3)*to_noise(i,3)*rnoise*rnoise);
-//			qw[4] = 1.0/(to_noise(i,4)*to_noise(i,4)*gnoise*gnoise);
-//			qw[5] = 1.0/(to_noise(i,5)*to_noise(i,5)*bnoise*bnoise);
+			double dt = 0;
+			for(unsigned int k = 0; k < 3; k++){
+				dt += diff(k,3)*diff(k,3);
+				for(unsigned int l = 0; l < 3; l++){
+					if(k == l){ change_rot += fabs(1-diff(k,l));}
+					else{		change_rot += fabs(diff(k,l));}
+				}
+			}
+			change_trans += sqrt(dt);
+		}
+	}
 
-//			nanoflann2::KNNResultSet<double> resultSet(1);
-//			resultSet.init(&ret_indexes[0], &out_dists_sqr[0] );
-//			tree->findNeighbors(resultSet, qw, qp, nanoflann2::SearchParams(10));
-//			matches.push_back(std::make_pair(ret_indexes[0],i));
-//		}
+	change_trans /= double(poses1.size()*(poses1.size()-1));
+	change_rot	 /= double(poses1.size()*(poses1.size()-1));
+	return change_trans < stop_trans && change_rot < stop_rot;
+}
+
+std::vector<Eigen::MatrixXd> MassRegistrationPPRColor::refinePoses(std::vector<Eigen::MatrixXd> poses){
+
+	for(int outer=0; outer < 15; ++outer) {
+		printf("outer: %i\n",outer);
+		std::vector<Eigen::MatrixXd> posesOuter = poses;
+		for(unsigned int i = 0; i < poses.size(); i++){
+			unsigned int nr_match = 0;
+/*
+			for(unsigned int j = 0; j < poses.size(); j++){
+				std::vector<PointMatch> & matchidj = matchids[j][i];
+				unsigned int matchesj = matchidj.size();
+
+				double * cloudj = clouddatas[j];
+				for(unsigned int kj = 0; kj < matchesj; kj++){
+					//nr_match++;
+				}
+			}
+*/
+				/*
+				for(unsigned int i = 0; i < nr_pointsj; i++){
+					double dx = cloudj[3*i+0];
+					double dy = cloudj[3*i+1];
+					double dz = cloudj[3*i+2];
+					double tx	= m00*dx + m01*dy + m02*dz + m03;
+					double ty	= m10*dx + m11*dy + m12*dz + m13;
+					double tz	= m20*dx + m21*dy + m22*dz + m23;
+
+					dcloud->points.push_back(pi);
+				}
+
+				std::vector< PointMatch > matches = all_matches[ii][jj];
+				for(unsigned int m = 0; m < matches.size(); m++){
+					char buf [1024];
+					sprintf(buf,"line%i",m);
+					viewer->addLine<pcl::PointXYZRGBNormal>(dcloud->points[matches[m].src],scloud->points[matches[m].dst.front()],buf);
+				}
+				*/
+/*
+				for(unsigned int ki = 0; ki < matchesi; ki++){
+					int kj = matchidi[ki];
+
+					if( kj >=  matchesj){continue;}
+
+					if(matchidj[kj] == ki){nr_match++;}
+				}
+*/
+/*
+			Eigen::Matrix3Xd Xp		= Eigen::Matrix3Xd::Zero(3,	nr_match);
+			Eigen::Matrix3Xd Xp_ori	= Eigen::Matrix3Xd::Zero(3,	nr_match);
+			Eigen::Matrix3Xd Xn		= Eigen::Matrix3Xd::Zero(3,	nr_match);
+
+			Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	nr_match);
+			Eigen::Matrix3Xd Qn		= Eigen::Matrix3Xd::Zero(3,	nr_match);
+			Eigen::VectorXd  rangeW	= Eigen::VectorXd::Zero(	nr_match);
+
+			int count = 0;
+
+			Eigen::Matrix<double, 3, Eigen::Dynamic> & tXi	= transformed_points[i];
+			Eigen::Matrix<double, 3, Eigen::Dynamic> & Xi	= points[i];
+			Eigen::Matrix<double, 3, Eigen::Dynamic> & tXni	= transformed_normals[i];
+			Eigen::Matrix<double, 3, Eigen::Dynamic> & Xni	= normals[i];
+			Eigen::VectorXd & informationi					= informations[i];
+
+			for(unsigned int j = 0; j < nr_frames; j++){
+				Eigen::Matrix<double, 3, Eigen::Dynamic> & tXj	= transformed_points[j];
+				Eigen::Matrix<double, 3, Eigen::Dynamic> & tXnj	= transformed_normals[j];
+				Eigen::VectorXd & informationj					= informations[j];
+
+				std::vector<int> & matchidj = matchids[j][i];
+				unsigned int matchesj = matchidj.size();
+				std::vector<int> & matchidi = matchids[i][j];
+				unsigned int matchesi = matchidi.size();
+
+				for(unsigned int ki = 0; ki < matchesi; ki++){
+					int kj = matchidi[ki];
+
+					if( kj >=  matchesj){continue;}
+					if(matchidj[kj] == ki){
+						Qp.col(count) = tXj.col(kj);
+						Qn.col(count) = tXnj.col(kj);
+
+						Xp_ori.col(count) = Xi.col(ki);
+						Xp.col(count) = tXi.col(ki);
+
+						Xn.col(count) = tXni.col(ki);
+						rangeW(count) = 1.0/(1.0/informationi(ki)+1.0/informationj(kj));
+						count++;
+					}
+				}
+			}printf("rematch_time: %5.5f\n",rematch_time);
+
+			if(count == 0){break;}
+
+			for(int inner=0; inner < 5; ++inner) {
+				Eigen::MatrixXd residuals;
+				switch(type) {
+					case PointToPoint:	{residuals = Xp-Qp;} 						break;
+					//case PointToPlane:	{residuals = Qn.array()*(Xp-Qp).array();}	break;
+					case PointToPlane:	{
+						residuals		= Eigen::MatrixXd::Zero(1,	Xp.cols());
+						for(int i=0; i<Xp.cols(); ++i) {
+							float dx = Xp(0,i)-Qp(0,i);
+							float dy = Xp(1,i)-Qp(1,i);
+							float dz = Xp(2,i)-Qp(2,i);
+							float qx = Qn(0,i);
+							float qy = Qn(1,i);
+							float qz = Qn(2,i);
+							float di = qx*dx + qy*dy + qz*dz;
+							residuals(0,i) = di;
+						}
+					}break;
+					default:			{printf("type not set\n");}					break;
+				}
+				for(unsigned int k=0; k < nr_match; ++k) {residuals.col(k) *= rangeW(k);}
+
+				Eigen::VectorXd  W;
+
+				switch(type) {
+					case PointToPoint:	{W = func->getProbs(residuals); } 					break;
+					case PointToPlane:	{
+						W = func->getProbs(residuals);
+						for(int k=0; k<nr_match; ++k) {W(k) = W(k)*float((Xn(0,k)*Qn(0,k) + Xn(1,k)*Qn(1,k) + Xn(2,k)*Qn(2,k)) > 0.0);}
+					}	break;
+					default:			{printf("type not set\n");} break;
+				}
+
+				W = W.array()*rangeW.array()*rangeW.array();
+				Xo1 = Xp;
+				switch(type) {
+					case PointToPoint:	{RigidMotionEstimator4::point_to_point(Xp, Qp, W);}		break;
+					case PointToPlane:	{RigidMotionEstimator4::point_to_plane(Xp, Xn, Qp, Qn, W);}	break;
+					default:  			{printf("type not set\n"); } break;
+				}
+
+				double stop1 = (Xp-Xo1).colwise().norm().maxCoeff();
+				//printf("funcupdate: %i rematching: %i outer: %i inner: %i stop1: %5.5f\n",funcupdate,rematching,outer,inner,stop1);
+
+				Xo1 = Xp;
+				if(stop1 < 0.001){;break; }
+				else{}
+			}
+
+			pcl::TransformationFromCorrespondences tfc;
+			for(unsigned int c = 0; c < nr_match; c++){
+				Eigen::Vector3f a (Xp(0,c),				Xp(1,c),			Xp(2,c));
+				Eigen::Vector3f b (Xp_ori(0,c),         Xp_ori(1,c),        Xp_ori(2,c));
+				tfc.add(b,a);
+			}
+			poses[i] = tfc.getTransformation().cast<double>().matrix();
+			*/
+		}
+		if(isConverged(0.001, 0.001, poses, posesOuter)){break;}
+	}
+
+	return poses;
+}
+
+void MassRegistrationPPRColor::show(std::vector<Eigen::MatrixXd> guess, bool color){
+	printf("show\n");
+	viewer->removeAllPointClouds();
+	for(int ii = 0; ii < guess.size(); ii++){
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+
+		Eigen::Matrix4d po = getPoseTransform(guess[ii]);
+		float m00 = po(0,0); float m01 = po(0,1); float m02 = po(0,2); float m03 = po(0,3);
+		float m10 = po(1,0); float m11 = po(1,1); float m12 = po(1,2); float m13 = po(1,3);
+		float m20 = po(2,0); float m21 = po(2,1); float m22 = po(2,2); float m23 = po(2,3);
+
+		int r = 256*(1+(rand()%4))/4 - 1;//255*((xi+1) & 1);
+		int g = 256*(1+(rand()%4))/4 - 1;//255*((xi+1) & 1);
+		int b = 256*(1+(rand()%4))/4 - 1;//255*(xi & 1);
+
+		double * datas = clouddatas[ii];
+		int nr_points = nrdatas[ii];
+		for(unsigned int i = 0; i < nr_points; i++){
+			double dx = datas[3*i+0];
+			double dy = datas[3*i+1];
+			double dz = datas[3*i+2];
+			double tx	= m00*dx + m01*dy + m02*dz + m03;
+			double ty	= m10*dx + m11*dy + m12*dz + m13;
+			double tz	= m20*dx + m21*dy + m22*dz + m23;
+
+			pcl::PointXYZRGBNormal pi;
+			pi.x = tx;
+			pi.y = ty;
+			pi.z = tz;
+			pi.b = b;
+			pi.g = g;
+			pi.r = r;
+			cloud->points.push_back(pi);
+		}
+
+		char buf [1024];
+		sprintf(buf,"cloud%i",ii);
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud), buf);
+	}
+	viewer->spin();
+	viewer->removeAllPointClouds();
+	viewer->removeAllShapes();
+}
 
 MassFusionResults MassRegistrationPPRColor::getTransforms(std::vector<Eigen::Matrix4d> guess){
 	printf("start MassRegistrationPPRColor::getTransforms(std::vector<Eigen::Matrix4d> poses)\n");
@@ -644,13 +948,59 @@ MassFusionResults MassRegistrationPPRColor::getTransforms(std::vector<Eigen::Mat
 	funcB->noiseval = 0;
 
 	//Update functions regularizations
-    for(int funcupdate=0; funcupdate < 1; ++funcupdate) {
+	steps = 4;
+
+	for(int funcupdate=0; funcupdate < 30; ++funcupdate) {
 		printf("funcupdate: %i\n",funcupdate);
-        //rematchAll(fullposes);
-        //recomputeFunctions(fullposes);
+		for(int rematching=0; rematching < 1; ++rematching) {
+			printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
+			rematchAll(fullposes);
+			recomputeFunctions(fullposes);
+			fullposes = refinePoses(fullposes);
+		}
 
+
+		double noise_before  = func->getNoise();
+		double noise_beforeR = funcR->getNoise();
+		double noise_beforeG = funcG->getNoise();
+		double noise_beforeB = funcB->getNoise();
+		func->update();
+		funcR->update();
+		funcG->update();
+		funcB->update();
+		double noise_after  = func->getNoise();
+		double noise_afterR = funcR->getNoise();
+		double noise_afterG = funcG->getNoise();
+		double noise_afterB = funcB->getNoise();
+
+		double logdiff = log2(noise_after/noise_before);
+		double logdiffR = log2(noise_afterR/noise_beforeR);
+		double logdiffG = log2(noise_afterG/noise_beforeG);
+		double logdiffB = log2(noise_afterB/noise_beforeB);
+		printf("P before:  %f after:  %f logdiff: %f\n",noise_before, noise_after,  logdiff);
+		printf("R before:  %f after:  %f logdiff: %f\n",noise_beforeR, noise_afterR,  logdiffR);
+		printf("G before:  %f after:  %f logdiff: %f\n",noise_beforeG, noise_afterG,  logdiffG);
+		printf("B before:  %f after:  %f logdiff: %f\n",noise_beforeB, noise_afterB,  logdiffB);
+		//printf("beforeR: %f afterR: %f diff: %f\n",noise_beforeR,noise_afterR, fabs(1.0 - noise_afterR/noise_beforeR));
+		//printf("beforeG: %f afterG: %f diff: %f\n",noise_beforeG,noise_afterG, fabs(1.0 - noise_afterG/noise_beforeG));
+		//printf("beforeB: %f afterB: %f diff: %f\n",noise_beforeB,noise_afterB, fabs(1.0 - noise_afterB/noise_beforeB));
+
+		double tresh = 0.1;
+		if(fabs(logdiff) < tresh && fabs(logdiffR) < tresh && fabs(logdiffG) < tresh && fabs(logdiffB) < tresh){break;}
 	}
+/*
+	double noise_before = func->getNoise();
+	func->update();
+	double noise_after = func->getNoise();
+	//printf("before: %f after: %f\n",noise_before,noise_after);
+	if(fabs(1.0 - noise_after/noise_before) < 0.01){break;}
+}
 
+printf("total_time:   %5.5f\n",getTime()-total_time_start);
+printf("rematch_time: %5.5f\n",rematch_time);
+printf("computeModel: %5.5f\n",computeModel_time);
+*/
+/*
 
     std::vector<Eigen::Matrix4d> poses = guess;
     std::vector<Eigen::Matrix4d> poses1; poses1.resize(poses.size());
@@ -668,8 +1018,6 @@ MassFusionResults MassRegistrationPPRColor::getTransforms(std::vector<Eigen::Mat
     normals.resize(nr_frames);
     transformed_points.resize(nr_frames);
     transformed_normals.resize(nr_frames);
-
-    steps = 4;
 
     for(unsigned int i = 0; i < nr_frames; i++){
         //printf("start local : data loaded successfully\n");
@@ -958,6 +1306,11 @@ exit(0);
                         Eigen::Matrix<double, 3, Eigen::Dynamic> & tXnj	= transformed_normals[j];
                         Eigen::VectorXd & informationj					= informations[j];
 
+		double noise_before = func->getNoise();
+		func->update();
+		double noise_after = func->getNoise();
+		//printf("before: %f after: %f\n",noise_before,noise_after);
+		if(fabs(1.0 - noise_after/noise_before) < 0.01){break;}
                         Eigen::Matrix3Xd Xp		= Eigen::Matrix3Xd::Zero(3,	matchesi);
                         Eigen::Matrix3Xd Xn		= Eigen::Matrix3Xd::Zero(3,	matchesi);
 
@@ -1283,7 +1636,7 @@ exit(0);
     printf("total_time:   %5.5f\n",getTime()-total_time_start);
     printf("rematch_time: %5.5f\n",rematch_time);
     printf("computeModel: %5.5f\n",computeModel_time);
-
+*/
 
 //	if(visualizationLvl > 0){
 //		std::vector<Eigen::MatrixXd> Xv;

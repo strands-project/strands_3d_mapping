@@ -10,7 +10,16 @@ namespace reglib
 {
 //	typedef nanoflann2::KDTreeEigenMatrixAdaptor< Eigen::MatrixXd,6,nanoflann2::metric_L2_Simple> KDTree;
 	typedef nanoflann2::KDTreeEigenMatrixAdaptor< Eigen::Matrix<double,Dynamic,Dynamic>, 6,nanoflann2::metric_L2_Simple>  KDTree;
-	typedef nanoflann2::KDTreeSingleIndexAdaptor< nanoflann2::L2_Simple_Adaptor<double, ArrayData<double> > , ArrayData<double>, 6 > KDTree2;
+	typedef nanoflann::KDTreeSingleIndexAdaptor< nanoflann::L2_Simple_Adaptor<double, ArrayData3D<double> > , ArrayData3D<double>, 3 > KDTree2;
+
+	class PointMatch
+	{
+		public:
+		size_t src;
+		std::vector<size_t> dst;
+		PointMatch(size_t src_, std::vector<size_t> & dst_);
+		~PointMatch();
+	};
 
 	class MassRegistrationPPRColor : public MassRegistration
 	{
@@ -36,21 +45,20 @@ namespace reglib
 		std::vector<int> nr_datas;
 
 		nanoflann2::SearchParams sp;
-		std::vector< Eigen::MatrixXd > clouds;
+
+//		std::vector< Eigen::MatrixXd > clouds;
 		std::vector< Eigen::MatrixXd > noises;
         //std::vector< KDTree * > trees;
 
 		std::vector< int > nrdatas;
 		std::vector< double* > clouddatas;
-		std::vector< ArrayData<double> * > ads;
+		std::vector< unsigned char * > rgbdatas;
+		std::vector< ArrayData3D<double> * > ads;
 		std::vector< KDTree2 * > treedatas;
 
 		std::vector<std::pair <int,int> > connections;
 
-		std::vector< std::vector< std::vector< std::pair <int,int> > > > all_matches;
-
-
-
+		std::vector< std::vector< std::vector< PointMatch > > > all_matches;
 
         std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > points;
         std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > colors;
@@ -63,7 +71,6 @@ namespace reglib
         std::vector< nanoflann::KDTreeAdaptor<Eigen::Matrix<double, 6, Eigen::Dynamic>, 6, nanoflann::metric_L2_Simple> * > trees6d;
         std::vector<int> nr_matches;
         std::vector< std::vector< std::vector<int> > > matchids;
-
 
 //		std::vector<int> feature_start;//Dimension of data a specific feature starts, if the feature is RGB this should be 3
 //		std::vector<int> feature_end;//Dimension of data a specific feature ends, if the feature is RGB this should be 5
@@ -78,10 +85,11 @@ namespace reglib
 		void preprocessData(int index);
 		void rematchAll(std::vector<Eigen::MatrixXd> poses);
 		void recomputeFunctions(std::vector<Eigen::MatrixXd> poses);
-		std::vector< std::pair <int,int> > rematch(int i, int j, Eigen::MatrixXd pose);
+		std::vector<Eigen::MatrixXd> refinePoses(std::vector<Eigen::MatrixXd> poses);
+		std::vector< PointMatch > rematch(int i, int j, Eigen::MatrixXd pose);
 		MassFusionResults getTransforms(std::vector<Eigen::Matrix4d> guess);
 		void showMatches(int i, int j, Eigen::MatrixXd pose);
-
+		void show(std::vector<Eigen::MatrixXd> guess, bool color = false);
 	};
 
 }
