@@ -1,4 +1,5 @@
 #include "Model.h"
+#include <map>
 
 namespace reglib
 {
@@ -252,22 +253,94 @@ pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr Model::getPCLnormalcloud(int step, 
 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr Model::getPCLcloud(int step, bool color){
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
-	for(unsigned int i = 0; i < points.size(); i+=step){
-		superpoint & sp = points[i];
-		pcl::PointXYZRGB p;
-		p.x = sp.point(0);
-		p.y = sp.point(1);
-		p.z = sp.point(2);
-		if(color){
-			p.b =   0;
-			p.g = 255;
-			p.r =   0;
-		}else{
-			p.r = sp.feature(0);
-			p.g = sp.feature(1);
-			p.b = sp.feature(2);
+	if(color){
+		for(unsigned int i = 0; i < points.size(); i+=step){
+			superpoint & sp = points[i];
+			pcl::PointXYZRGB p;
+			p.x = sp.point(0);
+			p.y = sp.point(1);
+			p.z = sp.point(2);
+			if(color){
+				p.b =   0;
+				p.g = 255;
+				p.r =   0;
+			}else{
+				p.r = sp.feature(0);
+				p.g = sp.feature(1);
+				p.b = sp.feature(2);
+			}
+			cloud_ptr->points.push_back(p);
 		}
-		cloud_ptr->points.push_back(p);
+	}else{
+		std::map<int,int> mymapR;
+		std::map<int,int> mymapG;
+		std::map<int,int> mymapB;
+		for(int f = 0; f < frames.size(); f++){
+			unsigned char  * maskdata		= (unsigned char	*)(masks[f].data);
+			unsigned char  * rgbdata		= (unsigned char	*)(frames[f]->rgb.data);
+			unsigned short * depthdata		= (unsigned short	*)(frames[f]->depth.data);
+			float		   * normalsdata	= (float			*)(frames[f]->normals.data);
+
+			Eigen::Matrix4d p = relativeposes[f];
+
+			unsigned int sweepid = modelmasks[f]->sweepid;
+
+			int pr,pg,pb;
+			if(sweepid == -1){
+				pr = rand()%256;
+				pg = rand()%256;
+				pb = rand()%256;
+			}else{
+				if (mymapR.count(sweepid)==0){
+					mymapR[sweepid] = rand()%256;
+					mymapG[sweepid] = rand()%256;
+					mymapB[sweepid] = rand()%256;
+				}
+				pr = mymapR[sweepid];
+				pg = mymapG[sweepid];
+				pb = mymapB[sweepid];
+			}
+
+			float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
+			float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
+			float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
+
+			Camera * camera				= frames[f]->camera;
+			const unsigned int width	= camera->width;
+			const unsigned int height	= camera->height;
+			const float idepth			= camera->idepth_scale;
+			const float cx				= camera->cx;
+			const float cy				= camera->cy;
+			const float ifx				= 1.0/camera->fx;
+			const float ify				= 1.0/camera->fy;
+
+
+			for(unsigned int w = 0; w < width; w++){
+				for(unsigned int h = 0; h < height;h++){
+					int ind = h*width+w;
+					if(maskdata[ind] == 255){
+						float z = idepth*float(depthdata[ind]);
+						if(z > 0){
+							float x = (w - cx) * z * ifx;
+							float y = (h - cy) * z * ify;
+
+							float px	= m00*x + m01*y + m02*z + m03;
+							float py	= m10*x + m11*y + m12*z + m13;
+							float pz	= m20*x + m21*y + m22*z + m23;
+
+							pcl::PointXYZRGB p;
+							p.x = px;
+							p.y = py;
+							p.z = pz;
+							p.b = pb;
+							p.g = pg;
+							p.r = pr;
+							cloud_ptr->points.push_back(p);
+						}
+					}
+				}
+			}
+		}
 	}
 	return cloud_ptr;
 }
