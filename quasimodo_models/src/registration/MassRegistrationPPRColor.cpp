@@ -209,7 +209,7 @@ MassRegistrationPPRColor::MassRegistrationPPRColor(double startreg, bool visuali
 	use_PPR_weight			= true;
 	use_features			= true;
 	normalize_matchweights	= true;
-	max_matches				= 100;
+	max_matches				= 500;
 
 	func = new DistanceWeightFunction2PPR2();
 	func->update_size		= true;
@@ -441,10 +441,10 @@ void MassRegistrationPPRColor::rematchAll(std::vector<Eigen::MatrixXd> poses){
 		Eigen::MatrixXd relativePose = poseto.inverse()*posefrom;
 
 		all_matches[to][from] = rematch(to,from,relativePose);
-		showMatches(to, from,relativePose);
-		//all_matches[j][i] = rematch(j,i,relativePose.inverse());
+		//showMatches(to, from,relativePose);
+		all_matches[from][to] = rematch(from,to,relativePose.inverse());
 
-		//nr_matches += all_matches[to][from].size() + all_matches[from][to].size();
+		nr_matches += all_matches[to][from].size() + all_matches[from][to].size();
 		sumtime += getTime()-startTime;
 		printf("rematchAll took %5.5fs averaging %10.10f matches per second\n",sumtime, double(nr_matches)/sumtime);
 	}
@@ -472,15 +472,18 @@ double startTime = getTime();
 	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 
-	for(unsigned int i = 0; i < to_nr_points; i++){
-		pcl::PointXYZRGBNormal pi;
-		pi.x = to_cloud[3*i+0];
-		pi.y = to_cloud[3*i+1];
-		pi.z = to_cloud[3*i+2];
-		pi.b = 0;
-		pi.g = 0;
-		pi.r = 255;
-		dcloud->points.push_back(pi);
+	const bool debugg_matches = false;
+	if(debugg_matches){
+		for(unsigned int i = 0; i < to_nr_points; i++){
+			pcl::PointXYZRGBNormal pi;
+			pi.x = to_cloud[3*i+0];
+			pi.y = to_cloud[3*i+1];
+			pi.z = to_cloud[3*i+2];
+			pi.b = 0;
+			pi.g = 0;
+			pi.r = 255;
+			dcloud->points.push_back(pi);
+		}
 	}
 
 	Eigen::Matrix4d po = getPoseTransform(pose);
@@ -489,7 +492,8 @@ double startTime = getTime();
 	float m20 = po(2,0); float m21 = po(2,1); float m22 = po(2,2); float m23 = po(2,3);
 
 	matches.reserve(max_matches);
-	double sum = 0;
+
+	const size_t num_results = 1;
 	for(size_t ii = 0; ii < from_nr_points; ii+=step){
 		double x = from_cloud[3*ii+0];
 		double y = from_cloud[3*ii+1];
@@ -500,51 +504,48 @@ double startTime = getTime();
 		double tz	= m20*x + m21*y + m22*z + m23;
 		double qp[3] = {tx,ty,tz};
 
-		std::vector<double> out_dists_sqr(1);
-		std::vector<size_t>   ret_indexes(1);
-		nanoflann2::KNNResultSet<double> resultSet(1);
+
+		std::vector<double> out_dists_sqr(num_results);
+		std::vector<size_t>   ret_indexes(num_results);
+		nanoflann2::KNNResultSet<double> resultSet(num_results);
 		resultSet.init(&ret_indexes[0], &out_dists_sqr[0] );
 		tree->findNeighbors(resultSet, qp, nanoflann::SearchParams(10));
-		printf("%i -> %f %f %f -> %f %f %f -> %f\n",ii,tx,ty,tz,to_cloud[3*ret_indexes[0]+0],to_cloud[3*ret_indexes[0]+1],to_cloud[3*ret_indexes[0]+2],sqrt(out_dists_sqr[0]));
 		matches.push_back(PointMatch(ii,ret_indexes));
-		sum +=sqrt(out_dists_sqr[0]);
 
-		pcl::PointXYZRGBNormal pi;
-		pi.x = tx;
-		pi.y = ty;
-		pi.z = tz;
-		pi.b = 0;
-		pi.g = 255;
-		pi.r = 0;
-		scloud->points.push_back(pi);
+		if(debugg_matches){
+			pcl::PointXYZRGBNormal pi;
+			pi.x = tx;
+			pi.y = ty;
+			pi.z = tz;
+			pi.b = 0;
+			pi.g = 255;
+			pi.r = 0;
+			scloud->points.push_back(pi);
 
-		char buf [1024];
-
-		for(int k = 0; k < ret_indexes.size(); k++){
-			sprintf(buf,"line%i_%i",ii,k);
-			viewer->addLine<pcl::PointXYZRGBNormal>(dcloud->points[ret_indexes[k]],pi,buf);
+			char buf [1024];
+			//printf("%i -> %f %f %f -> %f %f %f -> %f\n",ii,tx,ty,tz,to_cloud[3*ret_indexes[0]+0],to_cloud[3*ret_indexes[0]+1],to_cloud[3*ret_indexes[0]+2],sqrt(out_dists_sqr[0]));
+			for(int k = 0; k < ret_indexes.size(); k++){
+				sprintf(buf,"line%i_%i",ii,k);
+				viewer->addLine<pcl::PointXYZRGBNormal>(dcloud->points[ret_indexes[k]],pi,buf);
+			}
 		}
-
-		//sprintf(buf,"line%i",ii);
-		//viewer->addLine<pcl::PointXYZRGBNormal>(dcloud->points[ret_indexes[0]],scloud->points.back(),buf);
 	}
-	printf("sum: %f\n",sum);
 
-	viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
-	viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
-	viewer->spin();
-	viewer->removeAllPointClouds();
-	viewer->removeAllShapes();
+	if(debugg_matches){
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
+		viewer->spin();
+		viewer->removeAllPointClouds();
+		viewer->removeAllShapes();
+	}
 
-
-	//exit(0);
-//    printf("rematch %i %i took %5.5fs\n",from,to,getTime()-startTime);
+	printf("rematch %i %i took %5.5fs\n",from,to,getTime()-startTime);
 	return matches;
 }
 
 void MassRegistrationPPRColor::recomputeFunctions(std::vector<Eigen::MatrixXd> poses){
 	double startTime = getTime();
-/*
+
 	int count = 0;
 	for(int c = 0; c < connections.size(); c++){
 		int i = connections[c].first;
@@ -685,8 +686,9 @@ void MassRegistrationPPRColor::recomputeFunctions(std::vector<Eigen::MatrixXd> p
 	funcG->computeModel(residualsG);
 	funcB->computeModel(residualsB);
 	printf("total matches: %i\n",count);
-*/
+
 	printf("recomputeFunctions took %5.5fs\n",getTime()-startTime);
+	exit(0);
 }
 
 bool isConverged(double stop_trans, double stop_rot, std::vector<Eigen::MatrixXd> poses1, std::vector<Eigen::MatrixXd> poses2){
