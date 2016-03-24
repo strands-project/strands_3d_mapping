@@ -431,7 +431,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 
 		addToDB(modeldatabase, newmodel,false);
 
-		for(unsigned int m = 0; false && m < modeldatabase->models.size(); m++){
+        for(unsigned int m = 0; m < modeldatabase->models.size(); m++){
 			printf("looking at: %i\n",modeldatabase->models[m]->last_changed);
 			reglib::Model * currentTest = modeldatabase->models[m];
 			if(currentTest->last_changed > current_model_update_before){
