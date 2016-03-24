@@ -444,6 +444,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 				models_new_pub.publish(getModelMSG(currentTest));
 
 				while(getTime()-start < timelimit){
+                    ros::spinOnce();
 					if(new_search_result){
 
 						for(int i = 0; i < sresult.retrieved_images.size(); i++){
@@ -467,12 +468,21 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								cv::Mat maskimage	= ret_mask_ptr->image;
 								cv::Mat depthimage	= ret_depth_ptr->image;
 
+                                printf("res rgb: %i %i\n",rgbimage.rows, rgbimage.cols);
+                                printf("res mask: %i %i\n",maskimage.rows, maskimage.cols);
+                                printf("res depth: %i %i\n",depthimage.rows, depthimage.cols);
+
+                                // Remove this when this is correct:
+                                cv::Mat masked_rgb = rgbimage.clone();
+                                masked_rgb.setTo(cv::Scalar(0, 0, 0), maskimage == 0);
 								cv::namedWindow("maskimage",	cv::WINDOW_AUTOSIZE);
 								cv::imshow(		"maskimage",	maskimage);
 								cv::namedWindow("rgbimage",		cv::WINDOW_AUTOSIZE );
 								cv::imshow(		"rgbimage",		rgbimage );
 								cv::namedWindow("depthimage",	cv::WINDOW_AUTOSIZE );
 								cv::imshow(		"depthimage",	depthimage );
+                                cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
+                                cv::imshow(		"mask",	masked_rgb);
 								cv::waitKey(30);
 
 								printf("indexFrame\n");
@@ -490,7 +500,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 								reglib::ModelUpdaterBasicFuse * mu		= new reglib::ModelUpdaterBasicFuse( searchmodel, reg);
 								mu->viewer								= viewer;
-								reg->visualizationLvl					= 3;
+                                reg->visualizationLvl					= 0;
 
 								reglib::FusionResults fr = mu->registerModel(currentTest);
 								reglib::UpdatedModels ud = mu->fuseData(&(fr), currentTest, searchmodel);
