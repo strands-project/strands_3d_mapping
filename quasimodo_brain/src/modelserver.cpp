@@ -325,7 +325,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
 
 			mu->viewer							= viewer;
-			reg->visualizationLvl				= 0;
+			reg->visualizationLvl				= 2;
 			reglib::FusionResults fr = mu->registerModel(model);
 
 			if(fr.score > 100){
@@ -431,7 +431,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 
 		addToDB(modeldatabase, newmodel,false);
 
-		for(unsigned int m = 0; m < modeldatabase->models.size(); m++){
+		for(unsigned int m = 0; false && m < modeldatabase->models.size(); m++){
 			printf("looking at: %i\n",modeldatabase->models[m]->last_changed);
 			reglib::Model * currentTest = modeldatabase->models[m];
 			if(currentTest->last_changed > current_model_update_before){
