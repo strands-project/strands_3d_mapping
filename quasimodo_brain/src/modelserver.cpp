@@ -473,7 +473,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
                                 printf("res depth: %i %i\n",depthimage.rows, depthimage.cols);
 
                                 // Remove this when this is correct:
-                                cv::Mat masked_rgb = rgbimage.clone();
+                                cv::Mat masked_rgb = depthimage.clone();
                                 masked_rgb.setTo(cv::Scalar(0, 0, 0), maskimage == 0);
 								cv::namedWindow("maskimage",	cv::WINDOW_AUTOSIZE);
 								cv::imshow(		"maskimage",	maskimage);
@@ -483,7 +483,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								cv::imshow(		"depthimage",	depthimage );
                                 cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
                                 cv::imshow(		"mask",	masked_rgb);
-								cv::waitKey(30);
+                                cv::waitKey(0);
 
 								printf("indexFrame\n");
 								//sensor_msgs::CameraInfo		camera			= req.frame.camera;
