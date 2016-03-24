@@ -497,6 +497,12 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								reglib::Model * searchmodel = new reglib::Model(frame,mask);
 
 
+
+								pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = searchmodel->getPCLcloud(1, false);
+								viewer->removeAllPointClouds();
+								viewer->addPointCloud<pcl::PointXYZRGB> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cloud), "cloud");
+								viewer->spin();
+
 								reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 								reglib::ModelUpdaterBasicFuse * mu		= new reglib::ModelUpdaterBasicFuse( searchmodel, reg);
 								mu->viewer								= viewer;
