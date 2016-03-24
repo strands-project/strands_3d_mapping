@@ -325,7 +325,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
 
 			mu->viewer							= viewer;
-			reg->visualizationLvl				= 2;
+			reg->visualizationLvl				= 0;
 			reglib::FusionResults fr = mu->registerModel(model);
 
 			if(fr.score > 100){
