@@ -494,7 +494,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								//tf::poseMsgToEigen(pose, epose);
 
 								reglib::RGBDFrame * frame = new reglib::RGBDFrame(cameras[0],rgbimage, depthimage, 0, epose.matrix());
-								reglib::Model * searchmodel = new reglib::Model(frame,mask);
+								reglib::Model * searchmodel = new reglib::Model(frame,maskimage);
 
 
 
