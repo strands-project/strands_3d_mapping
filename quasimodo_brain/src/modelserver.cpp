@@ -465,14 +465,20 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								catch (cv_bridge::Exception& e) {ROS_ERROR("cv_bridge exception: %s", e.what());exit(-1);}
 
 								cv::Mat rgbimage	= ret_image_ptr->image;
-								cv::Mat maskimage	= ret_mask_ptr->image;
-								cv::Mat depthimage	= ret_depth_ptr->image;
+                                cv::Mat maskimage	= ret_mask_ptr->image;
+                                cv::Mat depthimage	= ret_depth_ptr->image;
+                                for (int ii = 0; ii < depthimage.rows; ++ii) {
+                                    for (int jj = 0; jj < depthimage.cols; ++jj) {
+                                        depthimage.at<uint16_t>(ii, jj) /= 2;
+                                    }
+                                }
 
                                 printf("res rgb: %i %i\n",rgbimage.rows, rgbimage.cols);
                                 printf("res mask: %i %i\n",maskimage.rows, maskimage.cols);
                                 printf("res depth: %i %i\n",depthimage.rows, depthimage.cols);
 
                                 // Remove this when this is correct:
+                                /*
                                 cv::Mat masked_rgb = depthimage.clone();
                                 masked_rgb.setTo(cv::Scalar(0, 0, 0), maskimage == 0);
 								cv::namedWindow("maskimage",	cv::WINDOW_AUTOSIZE);
@@ -484,6 +490,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
                                 cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
                                 cv::imshow(		"mask",	masked_rgb);
                                 cv::waitKey(0);
+                                */
 
 								printf("indexFrame\n");
 								//sensor_msgs::CameraInfo		camera			= req.frame.camera;
