@@ -224,7 +224,7 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 
 	std::vector<int> matchid;
 	matchid.resize(xcols);
-
+printf("LINE: %i\n",__LINE__);
 	double score = 0;
 	stop = 99999;
 
@@ -365,7 +365,7 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 		double noise_after = func->getNoise();
 		if(fabs(1.0 - noise_after/noise_before) < 0.01){break;}
 	}
-
+printf("LINE: %i\n",__LINE__);
     if(visualizationLvl >= 2){show(X,Y);}
 
 	pcl::TransformationFromCorrespondences tfc;
@@ -377,6 +377,7 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 	}
 	guess = tfc.getTransformation().matrix().cast<double>();
     FusionResults fr = FusionResults(guess,stop);
+printf("LINE: %i\n",__LINE__);
 	return fr;
 
 }

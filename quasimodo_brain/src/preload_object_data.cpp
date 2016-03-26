@@ -103,7 +103,7 @@ void chatterCallback(const std_msgs::String::ConstPtr& msg)
 {
   ROS_INFO("I heard: [%s]", msg->data.c_str());
 
-  for(int i = 0; i < rgbs.size(); i++){
+  for(int i = 4; i < rgbs.size(); i++){
       std::vector<int> fid;
       std::vector<int> fadded;
       for(int j = 0; j < rgbs[i].size(); j++){
@@ -189,8 +189,8 @@ int main(int argc, char** argv){
     ros::NodeHandle pn("~");
     string overall_folder;
     //string overall_folder = "/media/nbore/My Passport/icra_data_surfels/controlled_experiments/object_2_fire_extinguisher";
-	//string overall_folder = "/media/johane/SSDstorage/icra_data_surfels/controlled_experiments/object_2_fire_extinguisher/";
-    pn.param<string>("folder", overall_folder, "");
+	overall_folder = "/media/johane/SSDstorage/icra_data_surfels/controlled_experiments/object_7_microwave/";
+	//pn.param<string>("folder", overall_folder, "");
 
 	vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(overall_folder);
 
@@ -220,7 +220,7 @@ int main(int argc, char** argv){
 			std::vector<tf::StampedTransform > viewtfs;
 			// view AV clouds and masks
 
-			for (unsigned int i=0; i<object.vAdditionalViews.size(); i+=3){
+			for (unsigned int i=0; i < 4 && i<object.vAdditionalViews.size(); i+=1){
 				CloudPtr cloud = object.vAdditionalViews[i];
 
 				cv::Mat mask;

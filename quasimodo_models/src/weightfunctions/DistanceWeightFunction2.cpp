@@ -52,6 +52,12 @@ VectorXd DistanceWeightFunction2::getProbs(MatrixXd mat){
 	return W;//VectorXf(mat.rows());
 }
 
+double DistanceWeightFunction2::getProb(double d){
+	printf("double DistanceWeightFunction2::getProbs(double d){ not implemented\n");
+	exit(0);
+	return 0;
+}
+
 double DistanceWeightFunction2::getNoise(){return 1;}
 bool DistanceWeightFunction2::update(){return true;}
 void DistanceWeightFunction2::reset(){}

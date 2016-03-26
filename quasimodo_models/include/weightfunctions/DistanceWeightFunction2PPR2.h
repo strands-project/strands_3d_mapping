@@ -85,6 +85,7 @@ public:
 	~DistanceWeightFunction2PPR2();
 	virtual void computeModel(MatrixXd mat);
 	virtual VectorXd getProbs(MatrixXd mat);
+	virtual double getProb(double d);
 	virtual double getNoise();
 	virtual double getConvergenceThreshold();
 	virtual bool update();

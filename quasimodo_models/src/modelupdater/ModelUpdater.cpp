@@ -162,7 +162,7 @@ void ModelUpdater::refine(double reg,bool useFullMask){
 
 	MassFusionResults mfr;
 
-/*
+
 	MassRegistrationPPRColor * massregC = new MassRegistrationPPRColor(reg);
 	massregC->viewer = viewer;
 	massregC->visualizationLvl = 3;
@@ -174,7 +174,7 @@ void ModelUpdater::refine(double reg,bool useFullMask){
 	mfr = massregC->getTransforms(model->relativeposes);
 	model->relativeposes = mfr.poses;
 exit(0);
-*/
+
 MassRegistrationPPR * massreg = new MassRegistrationPPR(reg);
 massreg->viewer = viewer;
 massreg->visualizationLvl = 0;
@@ -494,7 +494,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 		}
 	}
 */
-	for(unsigned int ind = 0; ind < test_nrdata;ind++){
+	for(unsigned int ind = 0; ind < test_nrdata;ind+=4){
 		unsigned int src_w = testw[ind];
 		unsigned int src_h = testh[ind];
 

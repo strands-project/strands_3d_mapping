@@ -110,6 +110,8 @@ namespace pcl
     class LUM2
     {
       public:
+		double wscale;
+
         typedef boost::shared_ptr<LUM2<PointT> > Ptr;
         typedef boost::shared_ptr<const LUM2<PointT> > ConstPtr;
 
@@ -143,6 +145,7 @@ namespace pcl
           , max_iterations_ (5)
           , convergence_threshold_ (0.0)
         {
+			wscale = 1;
         }
 
         /** \brief Set the internal SLAM graph structure.

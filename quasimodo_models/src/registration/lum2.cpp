@@ -173,7 +173,7 @@ pcl::registration::LUM2<PointT>::getTransformation (const Vertex &vertex) const
 template<typename PointT> void
 pcl::registration::LUM2<PointT>::setCorrespondences (const Vertex &source_vertex, const Vertex &target_vertex, const pcl::CorrespondencesPtr &corrs)
 {
-  if (source_vertex >= getNumVertices () || target_vertex >= getNumVertices () || source_vertex == target_vertex)
+  if (source_vertex >= getNumVertices () || target_vertex >= getNumVertices () || source_vertex == target_vertex || corrs->size() < 3)
   {
     PCL_ERROR("[pcl::registration::LUM2::setCorrespondences] You are attempting to set a set of correspondences between non-existing or identical graph vertices.\n");
     return;
@@ -218,6 +218,8 @@ pcl::registration::LUM2<PointT>::compute ()
   }
   for (int i = 0; i < max_iterations_; ++i)
   {
+	  printf("i: %i\n",i);
+
     // Linearized computation of C^-1 and C^-1*D and convergence checking for all edges in the graph (results stored in slam_graph_)
     typename SLAMGraph::edge_iterator e, e_end;
     for (boost::tuples::tie (e, e_end) = edges (*slam_graph_); e != e_end; ++e)
@@ -228,7 +230,8 @@ pcl::registration::LUM2<PointT>::compute ()
     Eigen::VectorXf B = Eigen::VectorXf::Zero (6 * (n - 1));
 
     // Start at 1 because 0 is the reference pose
-    for (int vi = 1; vi != n; ++vi)
+	//for (int vi = 1; vi != n; ++vi)
+	for (int vi = 1; vi != n; ++vi)
     {
       for (int vj = 0; vj != n; ++vj)
       {
@@ -243,13 +246,24 @@ pcl::registration::LUM2<PointT>::compute ()
             continue;
         }
 
+
         // Fill in elements of G and B
-        if (vj > 0)
-          G.block (6 * (vi - 1), 6 * (vj - 1), 6, 6) = -(*slam_graph_)[e].cinv_;
-        G.block (6 * (vi - 1), 6 * (vi - 1), 6, 6) += (*slam_graph_)[e].cinv_;
+		if (vj > 0){G.block (6 * (vi - 1), 6 * (vj - 1), 6, 6) = -(*slam_graph_)[e].cinv_;}
+		//G.block (6 * (vi - 1), 6 * (vi - 1), 6, 6) += (*slam_graph_)[e].cinv_;
+		G.block (6 * (vi - 1), 6 * (vi - 1), 6, 6) += (*slam_graph_)[e].cinv_;
         B.segment (6 * (vi - 1), 6) += (present1 ? 1 : -1) * (*slam_graph_)[e].cinvd_;
+
+		printf("%i %i\n",vi,vj);
+		std::cout << G << std::endl << std::endl;
       }
     }
+
+	std::cout << G << std::endl << std::endl;
+	std::cout << B << std::endl << std::endl;
+exit(0);
+	Eigen::MatrixXf GI = Eigen::MatrixXf::Identity(6 * (n - 1), 6 * (n - 1));
+
+	G+=n*n*1000*GI;
 
     // Computation of the linear equation system: GX = B
     // TODO investigate accuracy vs. speed tradeoff and find the best solving method for our type of linear equation (sparse)
@@ -264,6 +278,49 @@ pcl::registration::LUM2<PointT>::compute ()
       setPose (vi, getPose (vi) + difference_pose);
     }
 
+/*
+	// Declare matrices G and B
+	Eigen::MatrixXf G = Eigen::MatrixXf::Zero (6 * n, 6 * n);
+	Eigen::VectorXf B = Eigen::VectorXf::Zero (6 * n);
+
+	// Start at 1 because 0 is the reference pose
+	for (int vi = 0; vi != n; ++vi){
+	  for (int vj = 0; vj != n; ++vj){
+		// Attempt to use the forward edge, otherwise use backward edge, otherwise there was no edge
+		Edge e;
+		bool present1, present2;
+		boost::tuples::tie (e, present1) = edge (vi, vj, *slam_graph_);
+		if (!present1)
+		{
+		  boost::tuples::tie (e, present2) = edge (vj, vi, *slam_graph_);
+		  if (!present2)
+			continue;
+		}
+
+
+		G.block (6 * vi, 6 * vj, 6, 6) = -(*slam_graph_)[e].cinv_;
+		G.block (6 * vi, 6 * vi, 6, 6) += (*slam_graph_)[e].cinv_;
+		B.segment (6 * vi, 6) += (present1 ? 1 : -1) * (*slam_graph_)[e].cinvd_;
+	  }
+	}
+
+	Eigen::MatrixXf GI = Eigen::MatrixXf::Identity(6 * (n - 1), 6 * (n - 1));
+
+	G+=n*n*1000*GI;
+
+	// Computation of the linear equation system: GX = B
+	// TODO investigate accuracy vs. speed tradeoff and find the best solving method for our type of linear equation (sparse)
+	Eigen::VectorXf X = G.colPivHouseholderQr ().solve (B);
+
+	// Update the poses
+	float sum = 0.0;
+	for (int vi = 1; vi != n; ++vi)
+	{
+	  Eigen::Vector6f difference_pose = static_cast<Eigen::Vector6f> (-incidenceCorrection (getPose (vi)).inverse () * X.segment (6 * vi, 6));
+	  sum += difference_pose.norm ();
+	  setPose (vi, getPose (vi) + difference_pose);
+	}
+	*/
     // Convergence check
     if (sum <= convergence_threshold_ * static_cast<float> (n - 1))
       return;
@@ -308,6 +365,8 @@ pcl::registration::LUM2<PointT>::computeEdge (const Edge &e)
   // Build the average and difference vectors for all correspondences
   std::vector <Eigen::Vector3f> corrs_aver (corrs->size ());
   std::vector <Eigen::Vector3f> corrs_diff (corrs->size ());
+  std::vector <float> W (corrs->size ());
+  double wsum = 0;
   int oci = 0;  // oci = output correspondence iterator
   for (int ici = 0; ici != static_cast<int> (corrs->size ()); ++ici)  // ici = input correspondence iterator
   {
@@ -322,15 +381,18 @@ pcl::registration::LUM2<PointT>::computeEdge (const Edge &e)
     // Compute the point pair average and difference and store for later use
     corrs_aver[oci] = 0.5 * (source_compounded + target_compounded);
     corrs_diff[oci] = source_compounded - target_compounded;
+	W[oci] = (*corrs)[ici].weight;
+	wsum += W[oci];
     oci++;
   }
   corrs_aver.resize (oci);
   corrs_diff.resize (oci);
+  W.resize (oci);
 
   // Need enough valid correspondences to get a good triangulation
   if (oci < 3)
   {
-    PCL_WARN("[pcl::registration::LUM2::compute] The correspondences between vertex %d and %d do not contain enough valid correspondences to be considered for computation.\n", source (e, *slam_graph_), target (e, *slam_graph_));
+	//PCL_WARN("[pcl::registration::LUM2::compute] The correspondences between vertex %d and %d do not contain enough valid correspondences to be considered for computation.\n", source (e, *slam_graph_), target (e, *slam_graph_));
     (*slam_graph_)[e].cinv_ = Eigen::Matrix6f::Zero ();
     (*slam_graph_)[e].cinvd_ = Eigen::Vector6f::Zero ();
     return;
@@ -341,30 +403,31 @@ pcl::registration::LUM2<PointT>::computeEdge (const Edge &e)
   Eigen::Vector6f MZ = Eigen::Vector6f::Zero ();
   for (int ci = 0; ci != oci; ++ci)  // ci = correspondence iterator
   {
+	double w = W[ci];
     // Fast computation of summation elements of M'M
-    MM (0, 4) -= corrs_aver[ci] (1);
-    MM (0, 5) += corrs_aver[ci] (2);
-    MM (1, 3) -= corrs_aver[ci] (2);
-    MM (1, 4) += corrs_aver[ci] (0);
-    MM (2, 3) += corrs_aver[ci] (1);
-    MM (2, 5) -= corrs_aver[ci] (0);
-    MM (3, 4) -= corrs_aver[ci] (0) * corrs_aver[ci] (2);
-    MM (3, 5) -= corrs_aver[ci] (0) * corrs_aver[ci] (1);
-    MM (4, 5) -= corrs_aver[ci] (1) * corrs_aver[ci] (2);
-    MM (3, 3) += corrs_aver[ci] (1) * corrs_aver[ci] (1) + corrs_aver[ci] (2) * corrs_aver[ci] (2);
-    MM (4, 4) += corrs_aver[ci] (0) * corrs_aver[ci] (0) + corrs_aver[ci] (1) * corrs_aver[ci] (1);
-    MM (5, 5) += corrs_aver[ci] (0) * corrs_aver[ci] (0) + corrs_aver[ci] (2) * corrs_aver[ci] (2);
+	MM (0, 4) -= w*(corrs_aver[ci] (1));
+	MM (0, 5) += w*(corrs_aver[ci] (2));
+	MM (1, 3) -= w*(corrs_aver[ci] (2));
+	MM (1, 4) += w*(corrs_aver[ci] (0));
+	MM (2, 3) += w*(corrs_aver[ci] (1));
+	MM (2, 5) -= w*(corrs_aver[ci] (0));
+	MM (3, 4) -= w*(corrs_aver[ci] (0) * corrs_aver[ci] (2));
+	MM (3, 5) -= w*(corrs_aver[ci] (0) * corrs_aver[ci] (1));
+	MM (4, 5) -= w*(corrs_aver[ci] (1) * corrs_aver[ci] (2));
+	MM (3, 3) += w*(corrs_aver[ci] (1) * corrs_aver[ci] (1) + corrs_aver[ci] (2) * corrs_aver[ci] (2));
+	MM (4, 4) += w*(corrs_aver[ci] (0) * corrs_aver[ci] (0) + corrs_aver[ci] (1) * corrs_aver[ci] (1));
+	MM (5, 5) += w*(corrs_aver[ci] (0) * corrs_aver[ci] (0) + corrs_aver[ci] (2) * corrs_aver[ci] (2));
 
     // Fast computation of M'Z
-    MZ (0) += corrs_diff[ci] (0);
-    MZ (1) += corrs_diff[ci] (1);
-    MZ (2) += corrs_diff[ci] (2);
-    MZ (3) += corrs_aver[ci] (1) * corrs_diff[ci] (2) - corrs_aver[ci] (2) * corrs_diff[ci] (1);
-    MZ (4) += corrs_aver[ci] (0) * corrs_diff[ci] (1) - corrs_aver[ci] (1) * corrs_diff[ci] (0);
-    MZ (5) += corrs_aver[ci] (2) * corrs_diff[ci] (0) - corrs_aver[ci] (0) * corrs_diff[ci] (2);
+	MZ (0) += w*(corrs_diff[ci] (0));
+	MZ (1) += w*(corrs_diff[ci] (1));
+	MZ (2) += w*(corrs_diff[ci] (2));
+	MZ (3) += w*(corrs_aver[ci] (1) * corrs_diff[ci] (2) - corrs_aver[ci] (2) * corrs_diff[ci] (1));
+	MZ (4) += w*(corrs_aver[ci] (0) * corrs_diff[ci] (1) - corrs_aver[ci] (1) * corrs_diff[ci] (0));
+	MZ (5) += w*(corrs_aver[ci] (2) * corrs_diff[ci] (0) - corrs_aver[ci] (0) * corrs_diff[ci] (2));
   }
   // Remaining elements of M'M
-  MM (0, 0) = MM (1, 1) = MM (2, 2) = static_cast<float> (oci);
+  MM (0, 0) = MM (1, 1) = MM (2, 2) = wsum;//static_cast<float> (oci);
   MM (4, 0) = MM (0, 4);
   MM (5, 0) = MM (0, 5);
   MM (3, 1) = MM (1, 3);
@@ -381,7 +444,7 @@ pcl::registration::LUM2<PointT>::computeEdge (const Edge &e)
   // Compute s^2
   float ss = 0.0f;
   for (int ci = 0; ci != oci; ++ci)  // ci = correspondence iterator
-    ss += static_cast<float> (pow (corrs_diff[ci] (0) - (D (0) + corrs_aver[ci] (2) * D (5) - corrs_aver[ci] (1) * D (4)), 2.0f)
+	ss += W[ci] * static_cast<float> (pow (corrs_diff[ci] (0) - (D (0) + corrs_aver[ci] (2) * D (5) - corrs_aver[ci] (1) * D (4)), 2.0f)
                             + pow (corrs_diff[ci] (1) - (D (1) + corrs_aver[ci] (0) * D (4) - corrs_aver[ci] (2) * D (3)), 2.0f)
                             + pow (corrs_diff[ci] (2) - (D (2) + corrs_aver[ci] (1) * D (3) - corrs_aver[ci] (0) * D (5)), 2.0f));
 

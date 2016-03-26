@@ -571,7 +571,7 @@ if(!fixed_histogram_size){
 	if(debugg_print){printf("noise = [");				for(int k = 0; k < 300 && k < noise.size(); k++){printf("%i ",int(noise[k]));}			printf("];\n");}
 	if(debugg_print){printf("hist_smooth = [");			for(int k = 0; k < 300 && k < blur_histogram.size(); k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
 	if(debugg_print){printf("new_histogram = [");		for(int k = 0; k < 300 && k < new_histogram.size(); k++){printf("%i ",int(new_histogram[k]));}	printf("];\n");}
-	if(false){printf("meanoffset: %f stdval2: %f stdval: %f regularization: %f\n",meanval2,stdval2,noiseval,regularization);}
+	if(true){printf("meanoffset: %f stdval2: %f stdval: %f regularization: %f\n",meanval2,stdval2,noiseval,regularization);}
 	if(!fixed_histogram_size && update_size ){
 		double next_maxd  = meanval2 + (stdval2 + regularization)*target_length;
 		//printf("mean %f stdval %f regularization: %f\n",meanval2,stdval2,regularization);
@@ -621,6 +621,20 @@ VectorXd DistanceWeightFunction2PPR2::getProbs(MatrixXd mat){
 		for(unsigned int j = 0; j < nr_data; j++){weights(j) = weights(j) > 0.5;}
 	}
 	return weights;
+}
+
+double DistanceWeightFunction2PPR2::getProb(double d){
+	const float histogram_mul = float(histogram_size)/maxd;
+	double ind = fabs(d)*histogram_mul;
+
+	double w2 = ind-int(ind);
+	double w1 = 1-w2;
+	float p = 0;
+	if(ind >= 0 && (ind+0.5) < histogram_size){
+		if(interp){	p = prob[int(ind)]*w1 + prob[int(ind+1)]*w2;
+		}else{		p = prob[int(ind+0.5)];}
+	}
+	return p;
 }
 
 bool DistanceWeightFunction2PPR2::update(){

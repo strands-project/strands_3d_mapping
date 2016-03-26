@@ -4,6 +4,8 @@
 #include "MassRegistration.h"
 #include "../core/Util.h"
 
+#include "lum2.h"
+
 //#include "DistanceWeightFunction2.h"
 //#include "ICP.h"
 namespace reglib
@@ -36,6 +38,8 @@ namespace reglib
 
 		int max_matches;
 
+		pcl::registration::LUM2<pcl::PointXYZ> * LUM2;
+		std::vector<pcl::registration::LUM2< pcl::PointXYZ >::Vertex> verts;
 
 		DistanceWeightFunction2PPR2 * func;
 		DistanceWeightFunction2PPR2 * funcR;
@@ -90,6 +94,7 @@ namespace reglib
 		MassFusionResults getTransforms(std::vector<Eigen::Matrix4d> guess);
 		void showMatches(int i, int j, Eigen::MatrixXd pose);
 		void show(std::vector<Eigen::MatrixXd> guess, bool color = false);
+		pcl::CorrespondencesPtr getCorrs(int i, int j, Eigen::MatrixXd pose);
 	};
 
 }
