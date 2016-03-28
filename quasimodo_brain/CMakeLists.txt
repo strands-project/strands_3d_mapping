@@ -79,6 +79,10 @@ INCLUDE(${QT_USE_FILE})
 include_directories(/opt/ros/indigo/include)
 link_directories(/opt/ros/indigo/lib)
 
+#Ceres
+FIND_PACKAGE(Ceres REQUIRED)
+INCLUDE_DIRECTORIES(${CERES_INCLUDE_DIRS})
+
 
 catkin_package(
 #  INCLUDE_DIRS include
@@ -186,4 +190,8 @@ target_link_libraries(	make_ply2pcd quasimodo_ModelUpdater image_geometry cpp_co
 add_executable(			test_noise src/test_noise.cpp)
 add_dependencies(		test_noise roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	test_noise quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(			test_align src/test_align.cpp)
+add_dependencies(		test_align roscpp quasimodo_msgs_generate_messages_cpp)
+target_link_libraries(	test_align  ${CERES_LIBRARIES} quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 

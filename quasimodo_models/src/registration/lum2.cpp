@@ -173,11 +173,18 @@ pcl::registration::LUM2<PointT>::getTransformation (const Vertex &vertex) const
 template<typename PointT> void
 pcl::registration::LUM2<PointT>::setCorrespondences (const Vertex &source_vertex, const Vertex &target_vertex, const pcl::CorrespondencesPtr &corrs)
 {
-  if (source_vertex >= getNumVertices () || target_vertex >= getNumVertices () || source_vertex == target_vertex || corrs->size() < 3)
+    if (source_vertex >= getNumVertices () || target_vertex >= getNumVertices () || source_vertex == target_vertex)
+    {
+      PCL_ERROR("[pcl::registration::LUM2::setCorrespondences] You are attempting to set a set of correspondences between non-existing or identical graph vertices.\n");
+      return;
+    }
+/*
+  if (corrs->size() < 3)
   {
     PCL_ERROR("[pcl::registration::LUM2::setCorrespondences] You are attempting to set a set of correspondences between non-existing or identical graph vertices.\n");
     return;
   }
+*/
   Edge e;
   bool present;
   boost::tuples::tie (e, present) = edge (source_vertex, target_vertex, *slam_graph_);
@@ -253,14 +260,14 @@ pcl::registration::LUM2<PointT>::compute ()
 		G.block (6 * (vi - 1), 6 * (vi - 1), 6, 6) += (*slam_graph_)[e].cinv_;
         B.segment (6 * (vi - 1), 6) += (present1 ? 1 : -1) * (*slam_graph_)[e].cinvd_;
 
-		printf("%i %i\n",vi,vj);
-		std::cout << G << std::endl << std::endl;
+        //printf("%i %i\n",vi,vj);
+        //std::cout << G << std::endl << std::endl;
       }
     }
 
 	std::cout << G << std::endl << std::endl;
 	std::cout << B << std::endl << std::endl;
-exit(0);
+//exit(0);
 	Eigen::MatrixXf GI = Eigen::MatrixXf::Identity(6 * (n - 1), 6 * (n - 1));
 
 	G+=n*n*1000*GI;
