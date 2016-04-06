@@ -1,0 +1,6 @@
+string source_observation_xml
+string target_observation_xml
+---
+geometry_msgs/Transform transform
+int32 total_correspondences
+
