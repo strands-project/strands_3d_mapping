@@ -2,6 +2,17 @@
 Changelog for package strands_sweep_registration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.0.12 (2015-08-21)
+-------------------
+
+0.0.11 (2015-08-21)
+-------------------
+* Fixed some dependencies
+* Moved metaroom_xml_parser headers into include/metaroom_xml_parser and adapted other projects
+* Update README.md
+* Update README.md
+* Contributors: Rares Ambrus, Rareș Ambruș
+
 0.0.10 (2015-08-13)
 -------------------
 * updated changelogs

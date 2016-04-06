@@ -1,0 +1,4 @@
+geometry_msgs/Point target_centroid
+geometry_msgs/Point target_extents
+---
+bool success

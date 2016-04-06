@@ -2,6 +2,24 @@
 Changelog for package semantic_map_publisher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.0.12 (2015-08-21)
+-------------------
+
+0.0.11 (2015-08-21)
+-------------------
+* Fixed some dependencies
+* Moved semantic_map_publisher headers into include/semantic_map_publisher
+* Moved metaroom_xml_parser headers into include/metaroom_xml_parser and adapted other projects
+* Update README.md
+  added service names
+* Update README.md
+* Added sensor origin service
+  Conflicts:
+  semantic_map_publisher/CMakeLists.txt
+  semantic_map_publisher/include/semantic_map_publisher.h
+* Added empty readmes
+* Contributors: Rares, Rares Ambrus, Rareș Ambruș
+
 0.0.10 (2015-08-13)
 -------------------
 * updated changelogs

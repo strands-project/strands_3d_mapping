@@ -2,6 +2,18 @@
 Changelog for package semantic_map_launcher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.0.12 (2015-08-21)
+-------------------
+
+0.0.11 (2015-08-21)
+-------------------
+* Update README.md
+* Added parameter for minimum clustered object size
+* Added empty readmes
+* Starting the do_sweep action server from the semantic_map launch file
+* Made NDT registration the only option available to register sweeps to each other (the feature based registration wasn't used at the moment anyway)
+* Contributors: Rares Ambrus, Rareș Ambruș
+
 0.0.10 (2015-08-13)
 -------------------
 * updated changelogs

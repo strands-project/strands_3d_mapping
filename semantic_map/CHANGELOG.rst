@@ -15,6 +15,33 @@ Changelog for package semantic_map
 * Moved headers in the include/semantic_map folder
 * Contributors: Rares Ambrus
 
+0.0.12 (2015-08-21)
+-------------------
+
+0.0.11 (2015-08-21)
+-------------------
+* Bugfix (introduced 2 commits ago ...)
+* Publishing the dynamic clusters in the same frame of ref as the sweep (before metaroom registration)
+* Moved metaroom_xml_parser headers into include/metaroom_xml_parser and adapted other projects
+* Update README.md
+* Update README.md
+* Added parameter for minimum clustered object size
+* Bugfix: publishing observations after registration (only used for visualization)
+* Removed debug prints
+* Removed some debug prints
+* Not necessary anymore, as shorter sweeps can be triggered directly
+* Made NDT registration the only option available to register sweeps to each other (the feature based registration wasn't used at the moment anyway)
+* Operator overloading
+* Loading corresponding registered transforms if the current sweep has different parameters
+* Cleanup of unused parameters
+* Methods to find the pan&tilt angles from int position and vice-versa
+* Changes to use SweepParameters class
+* Changes to use SweepParameters class
+* Added SweepParameters class
+* Added functions to save sweep parameters
+* Setting member vars pan&tilt sweep parameters
+* Contributors: Rares Ambrus, Rareș Ambruș
+
 0.0.10 (2015-08-13)
 -------------------
 * updated changelogs

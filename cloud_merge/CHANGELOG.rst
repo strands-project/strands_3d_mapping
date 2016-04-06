@@ -9,6 +9,27 @@ Changelog for package cloud_merge
 * Changed cloud_merge include statement by prefixing it with the package_name
 * Contributors: Rares Ambrus
 
+0.0.12 (2015-08-21)
+-------------------
+
+0.0.11 (2015-08-21)
+-------------------
+* Fixed some dependencies
+* Moved cloud_merge headers into include/cloud_merge
+* Update README.md
+* Update README.md
+* Update README.md
+* Subsampling bvefore publishing
+* Changed topics to work with openni2_launch
+* Bugfix: publishing observations after registration (only used for visualization)
+* Removed debug prints
+* Added new sweep action server which takes a string (sweep type) as parameter
+* Using corresponding registered transforms (if sweep parameters are different)
+* Cleanup of unused parameters
+* Added SweepParameters class
+* Seeting sweep parameters as published by the PTU action server
+* Contributors: Rares Ambrus, Rareș Ambruș
+
 0.0.10 (2015-08-13)
 -------------------
 * updated changelogs

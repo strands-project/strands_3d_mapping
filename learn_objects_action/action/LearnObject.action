@@ -1,0 +1,8 @@
+# goal definition
+string waypoint
+---
+# result definition
+int32 number_of_clusters
+string object_name
+---
+# feedback
