@@ -19,6 +19,7 @@
 
 // Services
 #include <semantic_map/ClearMetaroomService.h>
+#include <observation_registration_services/ObservationRegistrationService.h>
 //#include <semantic_map/DynamicClusterService.h>
 //#include <semantic_map/ObservationService.h>
 

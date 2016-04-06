@@ -4,7 +4,7 @@ project(semantic_map)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build image_geometry cv_bridge tf_conversions strands_sweep_registration metaroom_xml_parser)
+find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp rospy std_msgs sensor_msgs pcl_ros message_generation qt_build image_geometry cv_bridge tf_conversions strands_sweep_registration metaroom_xml_parser observation_registration_services)
 find_package(Boost REQUIRED COMPONENTS system thread program_options filesystem)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
@@ -17,7 +17,7 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 rosbuild_prepare_qt4(QtCore QtXml)
-
+  
 add_message_files(
   FILES
   RoomObservation.msg
@@ -37,7 +37,7 @@ generate_messages(
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES semantic_map
-   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge mongodb_store tf_conversions strands_sweep_registration pcl_ros image_geometry qt_build
+   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge mongodb_store tf_conversions strands_sweep_registration pcl_ros image_geometry qt_build observation_registration_services
    DEPENDS PCL qt_ros
 )
 
@@ -97,8 +97,8 @@ add_executable(semantic_map_node include/semantic_map/semantic_map_node.h src/se
 add_executable(load_from_mongo src/load_from_mongo.cpp)
 add_executable(add_to_mongo src/add_to_mongo.cpp)
 
-add_dependencies(semantic_map semantic_map_generate_messages_cpp primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
-add_dependencies(semantic_map_node semantic_map_generate_messages_cpp primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
+add_dependencies(semantic_map semantic_map_generate_messages_cpp primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp observation_registration_services_generate_messages_cpp)
+add_dependencies(semantic_map_node semantic_map_generate_messages_cpp primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp observation_registration_services_generate_messages_cpp)
 
  target_link_libraries(semantic_map
    ${catkin_LIBRARIES}
