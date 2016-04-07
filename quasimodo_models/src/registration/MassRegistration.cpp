@@ -5,12 +5,15 @@ namespace reglib
 
 MassRegistration::MassRegistration(){
 	visualizationLvl = 0;
+	nomask = true;
+	maskstep = 1;
+	nomaskstep = 100000;
 }
 MassRegistration::~MassRegistration(){}
 
-void MassRegistration::setData(std::vector<RGBDFrame*> frames_,std::vector<cv::Mat> masks_){
+void MassRegistration::setData(std::vector<RGBDFrame*> frames_,std::vector<ModelMask *> mmasks_){
 	frames = frames_;
-	masks = masks_;
+	mmasks = mmasks_;
 }
 
 void MassRegistration::setVisualizationLvl(unsigned int lvl){

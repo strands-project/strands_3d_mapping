@@ -7,8 +7,8 @@ Camera::Camera(){
 	width = 640;
 	height = 480;
 
-	fx = 540.0;
-	fy = 540.0;
+	fx = 535.0;
+	fy = 535.0;
 	cx = float(width-1)/2;
 	cy = float(height-1)/2;
 

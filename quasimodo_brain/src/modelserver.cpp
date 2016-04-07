@@ -15,6 +15,7 @@
 #include "quasimodo_msgs/retrieval_query_result.h"
 #include "quasimodo_msgs/retrieval_query.h"
 #include "quasimodo_msgs/retrieval_result.h"
+#include "quasimodo_msgs/SOMA2Object.h"
 
 //#include "modelupdater/ModelUpdater.h"
 //#include "/home/johane/catkin_ws_dyn/src/quasimodo_models/include/modelupdater/ModelUpdater.h"
@@ -86,11 +87,11 @@ void show_sorted(){
 	std::sort (results.begin(), results.end(), myfunction);
 
 	viewer->removeAllPointClouds();
-	printf("number of models: %i\n",results.size());
+	//printf("number of models: %i\n",results.size());
 
 	float maxx = 0;
 	for(unsigned int i = 0; i < results.size(); i++){
-		printf("results %i -> %i\n",i,results[i]->frames.size());
+		//printf("results %i -> %i\n",i,results[i]->frames.size());
 
 		//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = results[i]->getPCLcloud(results[i]->frames.size(), false);
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = results[i]->getPCLcloud(1, false);
@@ -115,7 +116,7 @@ void show_sorted(){
 		float minx = 100000000000;
 
 		for(unsigned int j = 0; j < cloud->points.size(); j++){minx = std::min(cloud->points[j].x , minx);}
-		for(unsigned int j = 0; j < cloud->points.size(); j++){cloud->points[j].x += maxx-minx + 1.0;}
+		for(unsigned int j = 0; j < cloud->points.size(); j++){cloud->points[j].x += maxx-minx + 0.15;}
 		for(unsigned int j = 0; j < cloud->points.size(); j++){maxx = std::max(cloud->points[j].x,maxx);}
 		char buf [1024];
 		sprintf(buf,"cloud%i",i);
@@ -132,41 +133,45 @@ void show_sorted(){
 }
 
 quasimodo_msgs::model getModelMSG(reglib::Model * model){
+//printf("LINE: %i\n",__LINE__);
 	quasimodo_msgs::model msg;
 
 	msg.model_id = model->id;
 	msg.local_poses.resize(model->relativeposes.size());
 	msg.frames.resize(model->frames.size());
-	msg.masks.resize(model->masks.size());
-
+	msg.masks.resize(model->modelmasks.size());
+//printf("LINE: %i\n",__LINE__);
 	for(unsigned int i = 0; i < model->relativeposes.size(); i++){
+//		printf("%i LINE: %i\n",i,__LINE__);
 		geometry_msgs::Pose		pose1;
 		tf::poseEigenToMsg (Eigen::Affine3d(model->relativeposes[i]), pose1);
-
+//		printf("%i LINE: %i\n",i,__LINE__);
 		geometry_msgs::Pose		pose2;
 		tf::poseEigenToMsg (Eigen::Affine3d(model->frames[i]->pose), pose2);
-
+//		printf("%i LINE: %i\n",i,__LINE__);
 		cv_bridge::CvImage rgbBridgeImage;
 		rgbBridgeImage.image = model->frames[i]->rgb;
 		rgbBridgeImage.encoding = "bgr8";
-
+//		printf("%i LINE: %i\n",i,__LINE__);
 		cv_bridge::CvImage depthBridgeImage;
 		depthBridgeImage.image = model->frames[i]->depth;
 		depthBridgeImage.encoding = "mono16";
-
+//		printf("%i LINE: %i\n",i,__LINE__);
 
 		cv_bridge::CvImage maskBridgeImage;
-		maskBridgeImage.image			= model->masks[i];
+		//maskBridgeImage.image			= model->masks[i];
+		maskBridgeImage.image			= model->modelmasks[i]->getMask();
 		maskBridgeImage.encoding		= "mono8";
-
+//		printf("%i LINE: %i\n",i,__LINE__);
 		msg.local_poses[i]			= pose1;
 		msg.frames[i].capture_time	= ros::Time();
 		msg.frames[i].pose			= pose2;
 		msg.frames[i].frame_id		= model->frames[i]->id;
 		msg.frames[i].rgb			= *(rgbBridgeImage.toImageMsg());
 		msg.frames[i].depth			= *(depthBridgeImage.toImageMsg());
-		msg.masks[i]				= *(maskBridgeImage.toImageMsg());
+		msg.masks[i]				= *(maskBridgeImage.toImageMsg());//getMask()
 	}
+//printf("LINE: %i\n",__LINE__);
 	return msg;
 }
 
@@ -178,10 +183,11 @@ bool getModel(quasimodo_msgs::get_model::Request  & req, quasimodo_msgs::get_mod
 	reglib::Model * model	= models[model_id];
 	printf("getModel\n");
 
+	res.model = getModelMSG(model);/*
 	res.model.model_id = model_id;
 	res.model.local_poses.resize(model->relativeposes.size());
 	res.model.frames.resize(model->frames.size());
-	res.model.masks.resize(model->masks.size());
+	res.model.masks.resize(model->modelmasks.size());
 
 	for(unsigned int i = 0; i < model->relativeposes.size(); i++){
 		geometry_msgs::Pose		pose1;
@@ -211,6 +217,7 @@ bool getModel(quasimodo_msgs::get_model::Request  & req, quasimodo_msgs::get_mod
 		maskBridgeImage.encoding		= "mono8";
 		res.model.masks[i]				= *(maskBridgeImage.toImageMsg());
 	}
+			*/
 	return true;
 }
 
@@ -287,22 +294,35 @@ void call_from_thread(int i) {
 int current_model_update = 0;
 void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 	if(add){
+
+		if(model->frames.size() > 2){
+			reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom();
+			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model, 0);
+			mu->viewer							= viewer;
+			reg->visualizationLvl				= 0;
+			mu->refine(0.001,true);
+			delete mu;
+			delete reg;
+		}
 		database->add(model);
 		//models_new_pub.publish(getModelMSG(model));
 		model->last_changed = ++current_model_update;
+//		show_sorted();
+
+
 	}
-	printf("add to db\n");
+//	printf("add to db\n");
 
 	mod = model;
-	res = modeldatabase->search(model,15);
+	res = modeldatabase->search(model,150);
 	fr_res.resize(res.size());
 
 	if(res.size() == 0){return;}
 
 	std::vector<reglib::Model * > models2merge;
 	std::vector<reglib::FusionResults > fr2merge;
-
-	bool multi_thread = false;
+//printf("LINE: %i\n",__LINE__);
+	bool multi_thread = true;
 	if(multi_thread){
 		const int num_threads = res.size();
 		std::thread t[num_threads];
@@ -340,7 +360,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 
 	std::map<int , reglib::Model *>	new_models;
 	std::map<int , reglib::Model *>	updated_models;
-
+//printf("LINE: %i\n",__LINE__);
 	for(unsigned int i = 0; i < models2merge.size(); i++){
 		reglib::Model * model2 = models2merge[i];
 
@@ -366,13 +386,16 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 			database->remove(ud.deleted_models[j]);
 			delete ud.deleted_models[j];
 		}
+		if(ud.deleted_models.size() > 0){
+			break;
+		}
 	}
-
+//printf("LINE: %i\n",__LINE__);
 	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end();	++it){	database->remove(it->second); 		models_deleted_pub.publish(getModelMSG(it->second));}
 	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end();	++it){	addToDB(database, it->second);}
 	for (std::map<int,reglib::Model *>::iterator it=new_models.begin();		it!=new_models.end();		++it){	addToDB(database, it->second);}
-
-	printf("DONE WITH REGISTER\n");
+//printf("LINE: %i\n",__LINE__);
+//printf("DONE WITH REGISTER\n");
 }
 
 bool nextNew = true;
@@ -380,8 +403,10 @@ reglib::Model * newmodel = 0;
 
 int sweepid_counter = 0;
 
+//std::vector<cv::Mat> newmasks;
+std::vector<cv::Mat> allmasks;
 
-
+int modaddcount = 0;
 bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_msgs::model_from_frame::Response & res){
 	printf("======================================\nmodelFromFrame\n======================================\n");
 	uint64 frame_id = req.frame_id;
@@ -393,44 +418,81 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 	catch (cv_bridge::Exception& e){ROS_ERROR("cv_bridge exception: %s", e.what());return false;}
 
 	cv::Mat mask					= mask_ptr->image;
+	allmasks.push_back(mask);
+//	newmasks.push_back(mask);
+//printf("LINE: %i\n",__LINE__);
+	std::cout << frames[frame_id]->pose << std::endl << std::endl;
+
+	cv::Mat fullmask;
+	fullmask.create(480,640,CV_8UC1);
+	unsigned char * maskdata = (unsigned char *)fullmask.data;
+	for(unsigned int j = 0; j < 640*480; j++){maskdata[j] = 255;}
 	if(newmodel == 0){
 		newmodel					= new reglib::Model(frames[frame_id],mask);
 		modeldatabase->add(newmodel);
+//		newmodel->masks.back() = fullmask;
+//		newmodel->recomputeModelPoints();
 	}else{
+//		reglib::Model * inputmodel					= new reglib::Model(frames[frame_id],mask);
+//		inputmodel->masks.back() = fullmask;
+//		inputmodel->recomputeModelPoints();
+
+//		reglib::RegistrationRefinement *	reg		= new reglib::RegistrationRefinement();
+//		//RegistrationRefinement
+//		reg->target_points							= 3000;
+//		reglib::ModelUpdaterBasicFuse * mu			= new reglib::ModelUpdaterBasicFuse( inputmodel, reg);
+//		mu->viewer									= viewer;
+//		reg->visualizationLvl						= 4;
+//		reglib::FusionResults fr = mu->registerModel(newmodel,(newmodel->frames.front()->pose.inverse() * frames[frame_id]->pose).inverse());
+//		fr.guess = fr.guess.inverse();
+//		delete inputmodel;
+//		delete mu;
+//		delete reg;
+
 		newmodel->frames.push_back(frames[frame_id]);
-		newmodel->masks.push_back(mask);
+		//newmodel->masks.push_back(mask);
 		newmodel->relativeposes.push_back(newmodel->frames.front()->pose.inverse() * frames[frame_id]->pose);
+		//newmodel->relativeposes.push_back(frames[frame_id]->pose);
+		//newmodel->relativeposes.push_back(newmodel->frames.front()->pose.inverse() * fr.guess);
 		newmodel->modelmasks.push_back(new reglib::ModelMask(mask));
 		newmodel->recomputeModelPoints();
+
 	}
 	newmodel->modelmasks.back()->sweepid = sweepid_counter;
+//printf("LINE: %i\n",__LINE__);
+
+	//show_sorted();
 
 	res.model_id					= newmodel->id;
 
 	if(isnewmodel != 0){
-
+		//newmodel->masks = newmasks;
+		//newmasks.clear();
 		newmodel->recomputeModelPoints();
 		//show_sorted();
-
+//printf("LINE: %i\n",__LINE__);
 		reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom();
 		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( newmodel, reg);
 		mu->viewer							= viewer;
-		reg->visualizationLvl				= 0;
-
-		mu->refine(0.05,true);
-
+//		reg->visualizationLvl				= 0;
+		mu->refine(0.01,true);
+		mu->recomputeScores();
 		delete mu;
 		delete reg;
-
+//printf("LINE: %i\n",__LINE__);
 		int current_model_update_before = current_model_update;
 		newmodel->recomputeModelPoints();
 		//models_new_pub.publish(getModelMSG(newmodel));
 		newmodel->last_changed = ++current_model_update;
-
-		show_sorted();
-
+//printf("LINE: %i\n",__LINE__);
+		//show_sorted();
+		newmodel->print();
 		addToDB(modeldatabase, newmodel,false);
-
+		if(modaddcount % 1 == 0){
+			show_sorted();
+		}
+		modaddcount++;
+//printf("LINE: %i\n",__LINE__);
 		for(unsigned int m = 0; false && m < modeldatabase->models.size(); m++){
 			printf("looking at: %i\n",modeldatabase->models[m]->last_changed);
 			reglib::Model * currentTest = modeldatabase->models[m];
@@ -485,7 +547,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
                                 cv::imshow(		"mask",	masked_rgb);
 								cv::waitKey(30);
 
-								printf("indexFrame\n");
+								//printf("indexFrame\n");
 								//sensor_msgs::CameraInfo		camera			= req.frame.camera;
 								//ros::Time					capture_time	= req.frame.capture_time;
 								//geometry_msgs::Pose			pose			= req.frame.pose;
@@ -553,7 +615,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 			}
 		}
 //		exit(0);
-
+//printf("LINE: %i\n",__LINE__);
 		newmodel = 0;
 		sweepid_counter++;
 

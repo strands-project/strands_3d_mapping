@@ -495,7 +495,7 @@ if(!fixed_histogram_size){
 	stdval2 = std::max(1.0,stdval2);
 	stdval2 = maxd*stdval2/float(histogram_size);
 
-    g.stdval = std::min(g.stdval,maxnoise*double(histogram_size)/maxd);
+	g.stdval = std::max(0.0001*double(histogram_size)/maxd,std::min(g.stdval,maxnoise*double(histogram_size)/maxd));
 
 	noiseval = maxd*g.stdval/float(histogram_size);
 
@@ -571,7 +571,7 @@ if(!fixed_histogram_size){
 	if(debugg_print){printf("noise = [");				for(int k = 0; k < 300 && k < noise.size(); k++){printf("%i ",int(noise[k]));}			printf("];\n");}
 	if(debugg_print){printf("hist_smooth = [");			for(int k = 0; k < 300 && k < blur_histogram.size(); k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
 	if(debugg_print){printf("new_histogram = [");		for(int k = 0; k < 300 && k < new_histogram.size(); k++){printf("%i ",int(new_histogram[k]));}	printf("];\n");}
-	if(true){printf("meanoffset: %f stdval2: %f stdval: %f regularization: %f\n",meanval2,stdval2,noiseval,regularization);}
+	if(false){printf("meanoffset: %f stdval2: %f stdval: %f regularization: %f\n",meanval2,stdval2,noiseval,regularization);}
 	if(!fixed_histogram_size && update_size ){
 		double next_maxd  = meanval2 + (stdval2 + regularization)*target_length;
 		//printf("mean %f stdval %f regularization: %f\n",meanval2,stdval2,regularization);

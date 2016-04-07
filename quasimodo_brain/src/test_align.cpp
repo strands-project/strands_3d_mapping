@@ -90,89 +90,281 @@ double get_reconst_rms(Matrix3Xd gt, Matrix3Xd points, int nr_points){
 }
 
 template <typename T> Eigen::Matrix<T,4,4> getMat(const T* const camera, int mode = 0){
-    Eigen::Matrix<T,4,4> ret = Eigen::Matrix<T,4,4>::Identity();
-    if(mode == 0){//yaw pitch roll tx ty tz
-        Eigen::AngleAxis<T> yawAngle(camera[0], Eigen::Matrix<T,3,1>::UnitY());
-        Eigen::AngleAxis<T> pitchAngle(camera[1], Eigen::Matrix<T,3,1>::UnitX());
-        Eigen::AngleAxis<T> rollAngle(camera[2], Eigen::Matrix<T,3,1>::UnitZ());
-        Eigen::Quaternion<T> q = rollAngle * yawAngle * pitchAngle;
-        Eigen::Matrix<T,3,3> rotationMatrix = q.matrix();
-        ret.block(0,0,3,3) = rotationMatrix;
-        ret(0,3) = camera[3];
-        ret(1,3) = camera[4];
-        ret(2,3) = camera[5];
-    }
-    return ret;
+	Eigen::Matrix<T,4,4> ret = Eigen::Matrix<T,4,4>::Identity();
+	if(mode == 0){//yaw pitch roll tx ty tz
+		Eigen::AngleAxis<T> yawAngle(camera[0], Eigen::Matrix<T,3,1>::UnitY());
+		Eigen::AngleAxis<T> pitchAngle(camera[1], Eigen::Matrix<T,3,1>::UnitX());
+		Eigen::AngleAxis<T> rollAngle(camera[2], Eigen::Matrix<T,3,1>::UnitZ());
+		Eigen::Quaternion<T> q = rollAngle * yawAngle * pitchAngle;
+		Eigen::Matrix<T,3,3> rotationMatrix = q.matrix();
+		ret.block(0,0,3,3) = rotationMatrix;
+		ret(0,3) = camera[3];
+		ret(1,3) = camera[4];
+		ret(2,3) = camera[5];
+	}
+	return ret;
 }
 
 struct PointError {
-    double m1 [3];
-    double m2 [3];
+	double m1 [3];
+	double m2 [3];
+	double w;
 
 
-  PointError(double m1x, float m1y, float m1z, double m2x, float m2y, float m2z){
-      m1[0] = m1x;
-      m1[1] = m1y;
-      m1[2] = m1z;
+	PointError(double m1x, double m1y, double m1z, double m2x, float m2y, double m2z, double w_){
+		m1[0] = m1x;
+		m1[1] = m1y;
+		m1[2] = m1z;
 
-      m2[0] = m2x;
-      m2[1] = m2y;
-      m2[2] = m2z;
-  }
+		m2[0] = m2x;
+		m2[1] = m2y;
+		m2[2] = m2z;
+		w = w_;
+	}
 
-  template <typename T>
-  bool operator()(const T* const pose1, const T* pose2, T* residuals) const {
- /*
-    // camera[0,1,2] are the angle-axis rotation.
-    T p[3];
-    ceres::AngleAxisRotatePoint(camera, point, p);
-    // camera[3,4,5] are the translation.
-    p[0] += camera[3]; p[1] += camera[4]; p[2] += camera[5];
+	template <typename T> bool operator()(const T* const camera1, const T* camera2, T* residuals) const {
+		T m1T[3];
+		m1T[0] = T(m1[0]);
+		m1T[1] = T(m1[1]);
+		m1T[2] = T(m1[2]);
+		T p1[3];
+		ceres::AngleAxisRotatePoint(camera1, m1T, p1);
+		p1[0] += camera1[3]; p1[1] += camera1[4]; p1[2] += camera1[5];
 
-    // Compute the center of distortion. The sign change comes from
-    // the camera model that Noah Snavely's Bundler assumes, whereby
-    // the camera coordinate system has a negative z axis.
-    T xp = - p[0] / p[2];
-    T yp = - p[1] / p[2];
+		T p2[3];
+		T m2T[3];
+		m2T[0] = T(m2[0]);
+		m2T[1] = T(m2[1]);
+		m2T[2] = T(m2[2]);
+		ceres::AngleAxisRotatePoint(camera2, m2T, p2);
+		p2[0] += camera2[3]; p2[1] += camera2[4]; p2[2] += camera2[5];
 
-    // Apply second and fourth order radial distortion.
-    const T& l1 = camera[7];
-    const T& l2 = camera[8];
-    T r2 = xp*xp + yp*yp;
-    T distortion = T(1.0) + r2  * (l1 + l2  * r2);
+		residuals[0] = T(w)*(p1[0]-p2[0]);
+		residuals[1] = T(w)*(p1[1]-p2[1]);
+		residuals[2] = T(w)*(p1[2]-p2[2]);
+		return true;
+	}
 
-    // Compute final projected point position.
-    const T& focal = camera[6];
-    T predicted_x = focal * distortion * xp;
-    T predicted_y = focal * distortion * yp;
-
-    // The error is the difference between the predicted and observed position.
-    residuals[0] = predicted_x - T(observed_x);
-    residuals[1] = predicted_y - T(observed_y);
-    */
-    return true;
-  }
-/*
-   // Factory to hide the construction of the CostFunction object from
-   // the client code.
-   static ceres::CostFunction* Create(const double observed_x,
-                                      const double observed_y) {
-     return (new ceres::AutoDiffCostFunction<SnavelyReprojectionError, 2, 9, 3>(
-                 new SnavelyReprojectionError(observed_x, observed_y)));
-   }
-
-*/
+	static ceres::CostFunction* Create(double m1x, double m1y, double m1z, double m2x, double m2y, double m2z, double w_) {
+		return (new ceres::AutoDiffCostFunction<PointError, 3, 6, 6>( new PointError(m1x,m1y,m1z,m2x,m2y,m2z,w_)));
+	}
 };
 
-void align_clouds_ceres(vector< Matrix3Xd > measurements, vector< vector< vector<int> > > src_matches, vector< vector< vector<int> > > dst_matches, vector< vector< vector<float> > > w_matches){
+struct PointErrorCostFunctor {
+	double m1 [3];
+	double m2 [3];
+	double w;
+
+	PointErrorCostFunctor(double m1x, double m1y, double m1z, double m2x, float m2y, double m2z, double w_){
+		m1[0] = m1x;
+		m1[1] = m1y;
+		m1[2] = m1z;
+		m2[0] = m2x;
+		m2[1] = m2y;
+		m2[2] = m2z;
+		w = w_;
+	}
+
+	bool operator()(const double* const camera1, const double* camera2, double* residuals) const {
+		double p1[3];
+		ceres::AngleAxisRotatePoint(camera1, m1, p1);
+		p1[0] += camera1[3]; p1[1] += camera1[4]; p1[2] += camera1[5];
+
+		double p2[3];
+		ceres::AngleAxisRotatePoint(camera2, m2, p2);
+		p2[0] += camera2[3]; p2[1] += camera2[4]; p2[2] += camera2[5];
+
+		residuals[0] = w*(p1[0]-p2[0]);
+		residuals[1] = w*(p1[1]-p2[1]);
+		residuals[2] = w*(p1[2]-p2[2]);
+		return true;
+	}
+};
+
+
+struct PointError2CostFunctor {
+	double m1 [3];
+	double m2 [3];
+	double w;
+
+	PointError2CostFunctor(double m1x, double m1y, double m1z, double m2x, float m2y, double m2z, double w_){
+		m1[0] = m1x;
+		m1[1] = m1y;
+		m1[2] = m1z;
+
+		m2[0] = m2x;
+		m2[1] = m2y;
+		m2[2] = m2z;
+		w = w_;
+	}
+
+	bool operator()(const double* const camera1, const double* camera2, double* residuals) const {
+		double p1[3];
+		ceres::AngleAxisRotatePoint(camera1, m1, p1);
+		p1[0] += camera1[3]; p1[1] += camera1[4]; p1[2] += camera1[5];
+
+		double p2[3];
+		ceres::AngleAxisRotatePoint(camera2, m2, p2);
+		p2[0] += camera2[3]; p2[1] += camera2[4]; p2[2] += camera2[5];
+
+		residuals[0] = sqrt(w*((p1[0]-p2[0])*(p1[0]-p2[0]) + (p1[1]-p2[1])*(p1[1]-p2[1]) + (p1[2]-p2[2])*(p1[2]-p2[2]))) ;
+		//residuals[0] = w*(p1[0]-p2[0]);
+		//residuals[1] = w*(p1[1]-p2[1]);
+		//residuals[2] = w*(p1[2]-p2[2]);
+		return true;
+	}
+};
+
+struct PointError3CostFunctor {
+	vector<double> m1 [3];
+	vector<double> m2 [3];
+	vector<double> w;
+
+	PointError3CostFunctor(){}
+
+	bool operator()(const double* const camera1, const double* camera2, double* residuals) const {
+		residuals[0] = 0;
+		int nr_matches = w.size();
+		double m1T[3];
+		double m2T[3];
+		double p1[3];
+		double p2[3];
+		for(int i = 0; i < nr_matches; i++){
+			m1T[0] = m1[0][i];
+			m1T[1] = m1[1][i];
+			m1T[2] = m1[2][i];
+
+			ceres::AngleAxisRotatePoint(camera1, m1T, p1);
+			p1[0] += camera1[3]; p1[1] += camera1[4]; p1[2] += camera1[5];
+
+			m2T[0] = m2[0][i];
+			m2T[1] = m2[1][i];
+			m2T[2] = m2[2][i];
+			ceres::AngleAxisRotatePoint(camera2, m2T, p2);
+			p2[0] += camera2[3]; p2[1] += camera2[4]; p2[2] += camera2[5];
+
+			residuals[0] += sqrt(w[i]*((p1[0]-p2[0])*(p1[0]-p2[0]) + (p1[1]-p2[1])*(p1[1]-p2[1]) + (p1[2]-p2[2])*(p1[2]-p2[2]))) ;
+		}
+		/*
+		double p1[3];
+		ceres::AngleAxisRotatePoint(camera1, m1, p1);
+		p1[0] += camera1[3]; p1[1] += camera1[4]; p1[2] += camera1[5];
+
+		double p2[3];
+		ceres::AngleAxisRotatePoint(camera2, m2, p2);
+		p2[0] += camera2[3]; p2[1] += camera2[4]; p2[2] += camera2[5];
+
+		residuals[0] = sqrt(w*((p1[0]-p2[0])*(p1[0]-p2[0]) + (p1[1]-p2[1])*(p1[1]-p2[1]) + (p1[2]-p2[2])*(p1[2]-p2[2]))) ;
+		*/
+		return true;
+	}
+};
+
+struct PointError2 {
+	double m1 [3];
+	double m2 [3];
+	double w;
+
+
+	PointError2(double m1x, double m1y, double m1z, double m2x, float m2y, double m2z, double w_){
+		m1[0] = m1x;
+		m1[1] = m1y;
+		m1[2] = m1z;
+
+		m2[0] = m2x;
+		m2[1] = m2y;
+		m2[2] = m2z;
+		w = w_;
+	}
+
+	template <typename T> bool operator()(const T* const camera1, const T* camera2, T* residuals) const {
+		T m1T[3];
+		m1T[0] = T(m1[0]);
+		m1T[1] = T(m1[1]);
+		m1T[2] = T(m1[2]);
+		T p1[3];
+		ceres::AngleAxisRotatePoint(camera1, m1T, p1);
+		p1[0] += camera1[3]; p1[1] += camera1[4]; p1[2] += camera1[5];
+
+		T p2[3];
+		T m2T[3];
+		m2T[0] = T(m2[0]);
+		m2T[1] = T(m2[1]);
+		m2T[2] = T(m2[2]);
+		ceres::AngleAxisRotatePoint(camera2, m2T, p2);
+		p2[0] += camera2[3]; p2[1] += camera2[4]; p2[2] += camera2[5];
+
+		T dx = p1[0]-p2[0];
+		T dy = p1[1]-p2[1];
+		T dz = p1[2]-p2[2];
+		//residuals[1] = T(w)*(p1[1]-p2[1]);
+		//residuals[2] = T(w)*(p1[2]-p2[2]);
+		residuals[0] = sqrt(T(w)*(T(1)+dx*dx+dy*dy+dz*dz));
+
+		return true;
+	}
+
+	static ceres::CostFunction* Create(double m1x, double m1y, double m1z, double m2x, double m2y, double m2z, double w_) {
+		return (new ceres::AutoDiffCostFunction<PointError2, 1, 6, 6>( new PointError2(m1x,m1y,m1z,m2x,m2y,m2z,w_)));
+	}
+};
+
+struct MassPointError {
+//	double m1 [3];
+//	double m2 [3];
+//	double w;
+
+	vector<double> m1x;
+	vector<double> m1y;
+	vector<double> m1z;
+
+	vector<double> m2x;
+	vector<double> m2y;
+	vector<double> m2z;
+
+
+	vector<double> w;
+
+	MassPointError(){
+	}
+
+//	template <typename T> bool operator()(const T* const camera1, const T* camera2, T* residuals) const {
+//		T m1T[3];
+//		m1T[0] = T(m1[0]);
+//		m1T[1] = T(m1[1]);
+//		m1T[2] = T(m1[2]);
+//		T p1[3];
+//		ceres::AngleAxisRotatePoint(camera1, m1T, p1);
+//		p1[0] += camera1[3]; p1[1] += camera1[4]; p1[2] += camera1[5];
+
+//		T p2[3];
+//		T m2T[3];
+//		m2T[0] = T(m2[0]);
+//		m2T[1] = T(m2[1]);
+//		m2T[2] = T(m2[2]);
+//		ceres::AngleAxisRotatePoint(camera2, m2T, p2);
+//		p2[0] += camera2[3]; p2[1] += camera2[4]; p2[2] += camera2[5];
+
+//		residuals[0] = T(w)*(p1[0]-p2[0]);
+//		residuals[1] = T(w)*(p1[1]-p2[1]);
+//		residuals[2] = T(w)*(p1[2]-p2[2]);
+//		return true;
+//	}
+
+//	static ceres::CostFunction* Create(double m1x, double m1y, double m1z, double m2x, double m2y, double m2z, double w_) {
+//		return (new ceres::AutoDiffCostFunction<MassPointError, 3, 6, 6>( new MassPointError(m1x,m1y,m1z,m2x,m2y,m2z,w_)));
+//	}
+};
+
+std::vector<Eigen::Matrix4d>  align_clouds_ceres(int type, vector< Matrix3Xd > measurements, vector< vector< vector<int> > > src_matches, vector< vector< vector<int> > > dst_matches, vector< vector< vector<float> > > w_matches){
     printf("align_clouds_ceres\n");
 
     ceres::Problem problem;
     Solver::Options options;
     options.max_num_iterations = 1500;
     options.minimizer_progress_to_stdout = true;
- //   options.num_linear_solver_threads = 11;
-//    options.num_threads = 11;
+	//options.num_linear_solver_threads = 11;
+	//options.num_threads = 11;
     Solver::Summary summary;
 
     double ** poses = new double*[src_matches.size()];
@@ -183,30 +375,61 @@ void align_clouds_ceres(vector< Matrix3Xd > measurements, vector< vector< vector
 
     for(int f1 = 0; f1 < src_matches.size(); f1++){
         for(int f2 = 0; f2 < src_matches.size(); f2++){
-            for(int i = 0; i < src_matches[f1][f2].size(); i++){
+/*
+			if(src_matches[f1][f2].size() > 0){
+				PointError3CostFunctor * cf = new PointError3CostFunctor();
+				for(int i = 0; i < src_matches[f1][f2].size(); i++){
+					int src = src_matches[f1][f2][i];
+					int dst = dst_matches[f1][f2][i];
+					double w = w_matches[f1][f2][i];
+
+					cf->m1[0].push_back(measurements[f1](0,src));
+					cf->m1[1].push_back(measurements[f1](1,src));
+					cf->m1[2].push_back(measurements[f1](2,src));
+					cf->m2[0].push_back(measurements[f2](0,dst));
+					cf->m2[1].push_back(measurements[f2](1,dst));
+					cf->m2[2].push_back(measurements[f2](2,dst));
+					cf->w.push_back(w);
+				}
+				CostFunction* cost_function = new NumericDiffCostFunction<PointError3CostFunctor, CENTRAL, 1, 6, 6> (cf);
+				problem.AddResidualBlock(cost_function, NULL ,poses[f1],poses[f2]);
+			}
+*/
+
+
+			for(int i = 0; i < src_matches[f1][f2].size(); i++){
                 int src = src_matches[f1][f2][i];
                 int dst = dst_matches[f1][f2][i];
                 double w = w_matches[f1][f2][i];
+				CostFunction* cost_function = 0;
+				if(type == 0){cost_function = new NumericDiffCostFunction<PointErrorCostFunctor, CENTRAL, 3, 6, 6> (new PointErrorCostFunctor(measurements[f1](0,src),measurements[f1](1,src),measurements[f1](2,src),measurements[f2](0,dst),measurements[f2](1,dst),measurements[f2](2,dst),w));}
+				if(type == 1){cost_function = new NumericDiffCostFunction<PointError2CostFunctor, CENTRAL, 1, 6, 6> (new PointError2CostFunctor(measurements[f1](0,src),measurements[f1](1,src),measurements[f1](2,src),measurements[f2](0,dst),measurements[f2](1,dst),measurements[f2](2,dst),w));}
+				if(type == 2){cost_function = PointError::Create(measurements[f1](0,src),measurements[f1](1,src),measurements[f1](2,src),measurements[f2](0,dst),measurements[f2](1,dst),measurements[f2](2,dst),w);}
+				if(cost_function != 0){problem.AddResidualBlock(cost_function, NULL ,poses[f1],poses[f2]);}
             }
+
         }
     }
 
     Solve(options, &problem, &summary);
     std::cout << summary.FullReport() << "\n";
 
+	std::vector<Eigen::Matrix4d> transforms;
     for(int f = 0; f < src_matches.size(); f++){
         Eigen::Matrix4d mat = (getMat(poses[0]).inverse()*getMat(poses[f]));
-        cout << mat << endl;
-        printf("---------------------\n");
+		transforms.push_back(mat);
+		//cout << mat << endl;
+		//printf("---------------------\n");
     }
+	return transforms;
 }
 
 int main(int argc, char **argv){
     int nr_tests = 1;
-    int nr_frames = 20;
-    int points_per_match = 10;
-    double overlap_prob = 0.5;
-    int nr_points = 1000;
+	int nr_frames = 100;
+	int points_per_match = 100;
+	double overlap_prob = 0.1;
+	int nr_points = 5000;
     double noise = 0.01;
 
     for(int nt = 0; nt < nr_tests; nt++){
@@ -244,13 +467,15 @@ int main(int argc, char **argv){
                         int ind = rand()%nr_points;
                         src_matches[f2][f1].push_back(ind);
                         dst_matches[f2][f1].push_back(ind);;
-                        w_matches[f2][f1].push_back((rand()%1000)/1000.0);
+                        w_matches[f2][f1].push_back((rand()%1000)/1000.0);					
                     }
                 }
             }
         }
 
-        align_clouds_ceres(measurements,src_matches,dst_matches,w_matches);
+		std::vector<Eigen::Matrix4d> ceres0_transforms = align_clouds_ceres(0,measurements,src_matches,dst_matches,w_matches);
+		std::vector<Eigen::Matrix4d> ceres1_transforms = align_clouds_ceres(1,measurements,src_matches,dst_matches,w_matches);
+		std::vector<Eigen::Matrix4d> ceres2_transforms = align_clouds_ceres(2,measurements,src_matches,dst_matches,w_matches);
     }
 
 ////exit(0);

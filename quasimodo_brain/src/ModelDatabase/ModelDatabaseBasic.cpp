@@ -6,7 +6,7 @@ ModelDatabaseBasic::~ModelDatabaseBasic(){}
 
 void ModelDatabaseBasic::add(reglib::Model * model){
 	models.push_back(model);
-	printf("number of models: %i\n",models.size());
+	//printf("number of models: %i\n",models.size());
 }
 
 bool ModelDatabaseBasic::remove(reglib::Model * model){

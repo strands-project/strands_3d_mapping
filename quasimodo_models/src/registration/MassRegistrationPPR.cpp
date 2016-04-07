@@ -24,8 +24,14 @@ MassRegistrationPPR::MassRegistrationPPR(double startreg, bool visualize){
 	dwf->debugg_print		= false;
 	func					= dwf;
 
+	nomask = true;
+	maskstep = 1;
+	nomaskstep = 100000;
+
 	stopval = 0.001;
 	steps = 4;
+
+	maxtime = 6000;
 
 	if(visualize){
 		visualizationLvl = 1;
@@ -209,7 +215,9 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 		//printf("start local : data loaded successfully\n");
 		printf("loading data for %i\n",i);
 
-		unsigned char  * maskdata		= (unsigned char	*)(masks[i].data);
+		//unsigned char  * maskdata		= (unsigned char	*)(masks[i].data);
+		//std::vector<ModelMask *> mmasks
+		bool * maskvec		= mmasks[i]->maskvec;
 		unsigned char  * rgbdata		= (unsigned char	*)(frames[i]->rgb.data);
 		unsigned short * depthdata		= (unsigned short	*)(frames[i]->depth.data);
 		float		   * normalsdata	= (float			*)(frames[i]->normals.data);
@@ -229,19 +237,13 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 		const float ify				= 1.0/camera->fy;
 
 		int count = 0;
-
-		//for(unsigned int ind = 0; ind < width*height; ind++){count += (maskdata[ind] == 255);}
-
-		for(unsigned int w = 0; w < width; w+=steps){
-			for(unsigned int h = 0; h < height;h+=steps){
+		for(unsigned int w = 0; w < width; w+=maskstep){
+			for(unsigned int h = 0; h < height; h+=maskstep){
 				int ind = h*width+w;
-				if(maskdata[ind] == 255){
+				if(maskvec[ind]){
 					float z = idepth*float(depthdata[ind]);
 					float xn = normalsdata[3*ind+0];
-
-					if(z > 0.2 && xn != 2){
-						count++;
-					}
+					if(z > 0.2 && xn != 2){count++;}
 				}
 			}
 		}
@@ -263,11 +265,11 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 		Eigen::VectorXd information (count);
 
 		int c = 0;
-		for(unsigned int w = 0; w < width; w+=steps){
-			for(unsigned int h = 0; h < height;h+=steps){
+		for(unsigned int w = 0; w < width; w+=maskstep){
+			for(unsigned int h = 0; h < height;h+=maskstep){
 				if(c == count){continue;}
 				int ind = h*width+w;
-				if(maskdata[ind] == 255){
+				if(maskvec[ind]){
 					float z = idepth*float(depthdata[ind]);
 					float xn = normalsdata[3*ind+0];
 
@@ -303,12 +305,203 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				}
 			}
 		}
+
+
+//for(unsigned int ind = 0; ind < width*height; ind++){count += (maskdata[ind] == 255);}
+
+//		for(unsigned int w = 0; w < width; w++){
+//			for(unsigned int h = 0; h < height;h++){
+//				int ind = h*width+w;
+//				//if(maskdata[ind] == 255){
+
+//				bool maskstep_ok = (w % maskstep == 0) && (h % maskstep == 0);
+//				bool nomaskstep_ok = (w % nomaskstep == 0) && (h % nomaskstep == 0);
+//				//if(	maskvec[ind] && maskstep_ok){
+//				if(	(maskvec[ind] && maskstep_ok) || (!nomask && nomaskstep_ok)){
+//				//if(	maskvec[ind] || !nomask){
+//					float z = idepth*float(depthdata[ind]);
+//					float xn = normalsdata[3*ind+0];
+
+//					if(z > 0.2 && xn != 2){
+//						count++;
+//					}
+//				}
+//			}
+//		}
+
+//		nr_datas[i] = count;
+//		matchids[i].resize(nr_frames);
+//		points[i].resize(Eigen::NoChange,count);
+//		colors[i].resize(Eigen::NoChange,count);
+//		normals[i].resize(Eigen::NoChange,count);
+//		transformed_points[i].resize(Eigen::NoChange,count);
+//		transformed_normals[i].resize(Eigen::NoChange,count);
+
+
+//		Eigen::Matrix<double, 3, Eigen::Dynamic> & X	= points[i];
+//		Eigen::Matrix<double, 3, Eigen::Dynamic> & C	= colors[i];
+//		Eigen::Matrix<double, 3, Eigen::Dynamic> & Xn	= normals[i];
+//		Eigen::Matrix<double, 3, Eigen::Dynamic> & tX	= transformed_points[i];
+//		Eigen::Matrix<double, 3, Eigen::Dynamic> & tXn	= transformed_normals[i];
+//		Eigen::VectorXd information (count);
+
+//		int c = 0;
+//		for(unsigned int w = 0; w < width; w++){
+//			for(unsigned int h = 0; h < height;h++){
+//				if(c == count){continue;}
+//				int ind = h*width+w;
+//				//if(maskdata[ind] == 255){
+//				bool maskstep_ok = (w % maskstep == 0) && (h % maskstep == 0);
+//				bool nomaskstep_ok = (w % nomaskstep == 0) && (h % nomaskstep == 0);
+//				if(	(maskvec[ind] && maskstep_ok) || (!nomask && nomaskstep_ok)){
+//				//if(	maskvec[ind] || !nomask){
+//					float z = idepth*float(depthdata[ind]);
+//					float xn = normalsdata[3*ind+0];
+
+//					if(z > 0.2 && xn != 2){
+//						float yn = normalsdata[3*ind+1];
+//						float zn = normalsdata[3*ind+2];
+
+//						float x = (w - cx) * z * ifx;
+//						float y = (h - cy) * z * ify;
+
+//						X(0,c)	= x;
+//						X(1,c)	= y;
+//						X(2,c)	= z;
+//						Xn(0,c)	= xn;
+//						Xn(1,c)	= yn;
+//						Xn(2,c)	= zn;
+
+//						tX(0,c)		= m00*x + m01*y + m02*z + m03;
+//						tX(1,c)		= m10*x + m11*y + m12*z + m13;
+//						tX(2,c)		= m20*x + m21*y + m22*z + m23;
+//						tXn(0,c)	= m00*xn + m01*yn + m02*zn;
+//						tXn(1,c)	= m10*xn + m11*yn + m12*zn;
+//						tXn(2,c)	= m20*xn + m21*yn + m22*zn;
+
+//						//printf("c: %i count: %i\n",c,count);
+//						information(c) = 1.0/(z*z);
+
+//						C(0,c) = rgbdata[3*ind+0];
+//						C(1,c) = rgbdata[3*ind+1];
+//						C(2,c) = rgbdata[3*ind+2];
+//						c++;
+//					}
+//				}
+//			}
+//		}
 		informations[i] = information;
 		trees.push_back(new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X));
-
 	}
-	func->reset();
 
+	background_nr_matches.resize(nr_frames);
+	background_matchids.resize(nr_frames);
+	background_nr_datas.resize(nr_frames);
+	background_points.resize(nr_frames);
+	background_colors.resize(nr_frames);
+	background_normals.resize(nr_frames);
+	background_transformed_points.resize(nr_frames);
+	background_transformed_normals.resize(nr_frames);
+	background_informations.resize(nr_frames);
+
+	for(unsigned int i = 0; i < nr_frames; i++){
+		//printf("start local : data loaded successfully\n");
+		printf("background loading data for %i\n",i);
+
+		bool * maskvec		= mmasks[i]->maskvec;
+		unsigned char  * rgbdata		= (unsigned char	*)(frames[i]->rgb.data);
+		unsigned short * depthdata		= (unsigned short	*)(frames[i]->depth.data);
+		float		   * normalsdata	= (float			*)(frames[i]->normals.data);
+
+		Eigen::Matrix4d p = poses[i];
+		float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
+		float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
+		float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
+
+		Camera * camera				= frames[i]->camera;
+		const unsigned int width	= camera->width;
+		const unsigned int height	= camera->height;
+		const float idepth			= camera->idepth_scale;
+		const float cx				= camera->cx;
+		const float cy				= camera->cy;
+		const float ifx				= 1.0/camera->fx;
+		const float ify				= 1.0/camera->fy;
+
+		int count = 0;
+		for(unsigned int w = 0; w < width; w+=nomaskstep){
+			for(unsigned int h = 0; h < height; h+=nomaskstep){
+				int ind = h*width+w;
+				if(maskvec[ind]){
+					float z = idepth*float(depthdata[ind]);
+					float xn = normalsdata[3*ind+0];
+					if(z > 0.2 && xn != 2){count++;}
+				}
+			}
+		}
+
+		background_nr_datas[i] = count;
+		background_matchids[i].resize(nr_frames);
+		background_points[i].resize(Eigen::NoChange,count);
+		background_colors[i].resize(Eigen::NoChange,count);
+		background_normals[i].resize(Eigen::NoChange,count);
+		background_transformed_points[i].resize(Eigen::NoChange,count);
+		background_transformed_normals[i].resize(Eigen::NoChange,count);
+
+
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & X	= background_points[i];
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & C	= background_colors[i];
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & Xn	= background_normals[i];
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & tX	= background_transformed_points[i];
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & tXn	= background_transformed_normals[i];
+		Eigen::VectorXd information (count);
+
+		int c = 0;
+		for(unsigned int w = 0; w < width; w+=nomaskstep){
+			for(unsigned int h = 0; h < height; h+=nomaskstep){
+				if(c == count){continue;}
+				int ind = h*width+w;
+				if(maskvec[ind]){
+					float z = idepth*float(depthdata[ind]);
+					float xn = normalsdata[3*ind+0];
+
+					if(z > 0.2 && xn != 2){
+						float yn = normalsdata[3*ind+1];
+						float zn = normalsdata[3*ind+2];
+
+						float x = (w - cx) * z * ifx;
+						float y = (h - cy) * z * ify;
+
+						X(0,c)	= x;
+						X(1,c)	= y;
+						X(2,c)	= z;
+						Xn(0,c)	= xn;
+						Xn(1,c)	= yn;
+						Xn(2,c)	= zn;
+
+						tX(0,c)		= m00*x + m01*y + m02*z + m03;
+						tX(1,c)		= m10*x + m11*y + m12*z + m13;
+						tX(2,c)		= m20*x + m21*y + m22*z + m23;
+						tXn(0,c)	= m00*xn + m01*yn + m02*zn;
+						tXn(1,c)	= m10*xn + m11*yn + m12*zn;
+						tXn(2,c)	= m20*xn + m21*yn + m22*zn;
+
+						//printf("c: %i count: %i\n",c,count);
+						information(c) = 1.0/(z*z);
+
+						C(0,c) = rgbdata[3*ind+0];
+						C(1,c) = rgbdata[3*ind+1];
+						C(2,c) = rgbdata[3*ind+2];
+						c++;
+					}
+				}
+			}
+		}
+		background_informations[i] = information;
+		background_trees.push_back(new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X));
+	}
+
+
+	func->reset();
 
     Eigen::MatrixXd Xo1;
 
@@ -324,6 +517,8 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 
 	int savecounter = 0;
 
+	bool onetoone = true;
+
 	if(visualizationLvl > 0){
 		std::vector<Eigen::MatrixXd> Xv;
 		for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
@@ -333,6 +528,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 	}
 
 	for(int funcupdate=0; funcupdate < 100; ++funcupdate) {
+		if(getTime()-total_time_start > maxtime){break;}
 		if(visualizationLvl == 2){
 			std::vector<Eigen::MatrixXd> Xv;
 			for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
@@ -363,21 +559,28 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				nr_matches[i] = 0;
 				for(unsigned int j = 0; j < nr_frames; j++){
 					if(i == j){continue;}
-					Eigen::Affine3d relative_pose = Eigen::Affine3d(poses[j].inverse()*poses[i]);
+					Eigen::Affine3d rp = Eigen::Affine3d(poses[j].inverse()*poses[i]);
+					Eigen::Affine3d irp = rp.inverse();
 
-					Eigen::Matrix<double, 3, Eigen::Dynamic> tX	= relative_pose*points[i];
-					nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * tree = trees[j];
+					Eigen::Matrix<double, 3, Eigen::Dynamic> tX	= rp*points[i];
+					Eigen::Matrix<double, 3, Eigen::Dynamic> tY	= irp*points[j];
+
+					nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * treex = trees[j];
+					nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * treey = trees[i];
+
 
 					unsigned int nr_data = nr_datas[i];
 					std::vector<int> & matchid = matchids[i][j];
 					matchid.resize(nr_data);
 					for(unsigned int k = 0; k < nr_data; ++k) {
 						int prev = matchid[k];
-						int current =  tree->closest(tX.col(k).data());
+						int current =  treex->closest(tX.col(k).data());
+						//int invcurrent =  treey->closest(tY.col(current).data());
+						//if(k != invcurrent){current = 0;}
+						//printf("k: %i current: %i, invcurrent: %i\n",k,current,invcurrent);
 						good_rematches += prev != current;
 						total_rematches++;
 						matchid[k] = current;
-						//printf("%i -> %i\n",k,matchid[k]);
 					}
 					//exit(0);
 					nr_matches[i] += matchid.size();
@@ -453,6 +656,7 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 
 						for(unsigned int ki = 0; ki < matchesi; ki++){
 							int kj = matchidi[ki];
+							//if(kj == -1){continue;}
 							if( ki >= Qp.cols() || kj < 0 || kj >= tXj.cols() ){continue;}
 
 							//printf("%i %i / %i %i\n",ki,kj,Qp.cols(),tXj.cols());
@@ -505,12 +709,14 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 				computeModel_time += getTime()-computeModel_time_start;
 				//func->debugg_print = false;
 //printf("LINE: %i\n",__LINE__);
-				for(int outer=0; outer < 150; ++outer) {
+				for(int outer=0; outer < 30; ++outer) {
+					if(getTime()-total_time_start > maxtime){break;}
 					printf("funcupdate: %i rematching: %i lala: %i outer: %i\n",funcupdate,rematching,lala,outer);
 					for(unsigned int i = 0; i < nr_frames; i++){poses2[i] = poses[i];}
 
 					//printf("funcupdate: %i rematching: %i outer: %i\n",funcupdate,rematching,outer);
 					for(unsigned int i = 0; i < nr_frames; i++){
+						if(getTime()-total_time_start > maxtime){break;}
 						unsigned int nr_match = 0;
 						for(unsigned int j = 0; j < nr_frames; j++){
 							std::vector<int> & matchidj = matchids[j][i];
@@ -520,10 +726,9 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 
 							for(unsigned int ki = 0; ki < matchesi; ki++){
 								int kj = matchidi[ki];
-
+								if( kj == -1 ){continue;}
 								if( kj >=  matchesj){continue;}
-
-								if(matchidj[kj] == ki){nr_match++;}
+								if(!onetoone || matchidj[kj] == ki){	nr_match++;}
 							}
 						}
 
@@ -555,9 +760,9 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 
 							for(unsigned int ki = 0; ki < matchesi; ki++){
 								int kj = matchidi[ki];
-
+								if( kj == -1 ){continue;}
 								if( kj >=  matchesj){continue;}
-								if(matchidj[kj] == ki){
+								if(!onetoone || matchidj[kj] == ki){
 									Qp.col(count) = tXj.col(kj);
 									Qn.col(count) = tXnj.col(kj);
 
@@ -577,7 +782,6 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 							Eigen::MatrixXd residuals;
 							switch(type) {
 								case PointToPoint:	{residuals = Xp-Qp;} 						break;
-								//case PointToPlane:	{residuals = Qn.array()*(Xp-Qp).array();}	break;
 								case PointToPlane:	{
 									residuals		= Eigen::MatrixXd::Zero(1,	Xp.cols());
 									for(int i=0; i<Xp.cols(); ++i) {
@@ -610,7 +814,42 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 							Xo1 = Xp;
 							switch(type) {
 								case PointToPoint:	{RigidMotionEstimator::point_to_point(Xp, Qp, W);}		break;
-								case PointToPlane:	{RigidMotionEstimator3::point_to_plane(Xp, Xn, Qp, Qn, W);}	break;
+								case PointToPlane:	{
+//									ceres::Problem problem;
+//									Solver::Options options;
+//									options.max_num_iterations = 3;
+//									options.minimizer_progress_to_stdout = true;
+//									options.num_linear_solver_threads = 11;
+//									options.num_threads = 11;
+//									Solver::Summary summary;
+//									double * Xparams = new double[6];
+//									double * Qparams = new double[6];
+//									for(unsigned int c = 0; c < 6; c++){
+//										Xparams[c] = 0;
+//										Qparams[c] = 0;
+//									}
+//									for(unsigned int c = 0; c < nr_match; c++){
+//CostFunction * func = new NumericDiffCostFunction<PointNormalCostFunctor, CENTRAL, 2, 6, 6> (new PointNormalCostFunctor(Xp(0,c),Xp(1,c),Xp(2,c),Xn(0,c),Xn(1,c),Xn(2,c),Qp(0,c),Qp(1,c),Qp(2,c),Qn(0,c),Qn(1,c),Qn(2,c),sqrt(W(c))));
+//problem.AddResidualBlock(func, NULL ,Xparams,Qparams);
+//									}
+//									Solve(options, &problem, &summary);
+//									std::cout << summary.FullReport() << "\n";
+
+//									Eigen::Matrix4d mat = getMatTest(Qparams).inverse()*getMatTest(Xparams);
+//									std::cout << mat << std::endl << std::endl;
+//									exit(0);
+//									Eigen::Matrix3Xd Xpbef		= Xp;
+									RigidMotionEstimator3::point_to_plane(Xp, Xn, Qp, Qn, W);
+//									pcl::TransformationFromCorrespondences tfc1;
+//									for(unsigned int c = 0; c < nr_match; c++){
+//										Eigen::Vector3f a (Xp(0,c),		Xp(1,c),	Xp(2,c));
+//										Eigen::Vector3f b (Xpbef(0,c),	Xpbef(1,c),	Xpbef(2,c));
+//										tfc1.add(b,a);
+//									}
+//									Eigen::Matrix4d changemat = tfc1.getTransformation().cast<double>().matrix();
+//									std::cout << changemat << std::endl << std::endl;
+
+								}	break;
 								default:  			{printf("type not set\n"); } break;
 							}
 
@@ -618,8 +857,7 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 							//printf("funcupdate: %i rematching: %i outer: %i inner: %i stop1: %5.5f\n",funcupdate,rematching,outer,inner,stop1);
 
 							Xo1 = Xp;
-							if(stop1 < 0.001){;break; }
-							else{}
+							if(stop1 < 0.001){break; }
 						}
 
 						pcl::TransformationFromCorrespondences tfc;
@@ -683,7 +921,6 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 							Eigen::Matrix4d diff_before = poses2[i].inverse()*poses2[j];
 							Eigen::Matrix4d diff_after	= poses[i].inverse()*poses[j];
 							Eigen::Matrix4d diff = diff_before.inverse()*diff_after;
-
 							double dt = 0;
 							for(unsigned int k = 0; k < 3; k++){
 								dt += diff(k,3)*diff(k,3);
@@ -695,10 +932,8 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 							change_trans += sqrt(dt);
 						}
 					}
-
 					change_trans /= double(nr_frames*(nr_frames-1));
 					change_rot	 /= double(nr_frames*(nr_frames-1));
-
 					if(change_trans < stopval && change_rot < stopval){break;}
 				}
 
