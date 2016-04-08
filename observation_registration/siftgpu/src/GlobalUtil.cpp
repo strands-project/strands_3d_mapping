@@ -25,7 +25,7 @@
 using std::cout;
 
 #include "GL/glew.h"
-#include "GlobalUtil.h"
+#include "siftgpu/GlobalUtil.h"
 
 //for windows, the default timing uses timeGetTime, you can define TIMING_BY_CLOCK to use clock()
 //for other os, the timing uses gettimeofday
@@ -44,7 +44,7 @@ using std::cout;
 	#include <stdio.h>
 #endif
 
-#include "LiteWindow.h"
+#include "siftgpu/LiteWindow.h"
 
 //
 int GlobalParam::		_verbose =  1;   

@@ -29,10 +29,10 @@
 #include <math.h>
 using namespace std;
 
-#include "GlobalUtil.h"
-#include "GLTexImage.h"
-#include "ShaderMan.h"
-#include "ProgramGPU.h"
-#include "ProgramGLSL.h"
-#include "SiftGPU.h"
+#include "siftgpu/GlobalUtil.h"
+#include "siftgpu/GLTexImage.h"
+#include "siftgpu/ShaderMan.h"
+#include "siftgpu/ProgramGPU.h"
+#include "siftgpu/ProgramGLSL.h"
+#include "siftgpu/SiftGPU.h"
 

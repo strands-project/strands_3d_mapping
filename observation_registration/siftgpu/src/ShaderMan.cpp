@@ -32,11 +32,11 @@ using std::ostream;
 using std::endl;
 
 
-#include "ProgramGLSL.h"
-#include "GlobalUtil.h"
-#include "GLTexImage.h"
-#include "SiftGPU.h"
-#include "ShaderMan.h"
+#include "siftgpu/ProgramGLSL.h"
+#include "siftgpu/GlobalUtil.h"
+#include "siftgpu/GLTexImage.h"
+#include "siftgpu/SiftGPU.h"
+#include "siftgpu/ShaderMan.h"
 
 ///
 ShaderBag   * ShaderMan::s_bag = NULL;

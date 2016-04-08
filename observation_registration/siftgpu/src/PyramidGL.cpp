@@ -30,14 +30,14 @@
 #include <string.h>
 using namespace std;
 
-#include "GlobalUtil.h"
-#include "GLTexImage.h"
-#include "SiftGPU.h"
-#include "ShaderMan.h"
-#include "SiftPyramid.h"
-#include "ProgramGLSL.h"
-#include "PyramidGL.h"
-#include "FrameBufferObject.h"
+#include "siftgpu/GlobalUtil.h"
+#include "siftgpu/GLTexImage.h"
+#include "siftgpu/SiftGPU.h"
+#include "siftgpu/ShaderMan.h"
+#include "siftgpu/SiftPyramid.h"
+#include "siftgpu/ProgramGLSL.h"
+#include "siftgpu/PyramidGL.h"
+#include "siftgpu/FrameBufferObject.h"
 
 
 #if defined(__SSE__) || _MSC_VER > 1200

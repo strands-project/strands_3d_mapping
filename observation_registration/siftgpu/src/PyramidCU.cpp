@@ -32,13 +32,13 @@
 #include <math.h>
 using namespace std;
 
-#include "GlobalUtil.h"
-#include "GLTexImage.h"
-#include "CuTexImage.h" 
-#include "SiftGPU.h"
-#include "SiftPyramid.h"
-#include "ProgramCU.h"
-#include "PyramidCU.h"
+#include "siftgpu/GlobalUtil.h"
+#include "siftgpu/GLTexImage.h"
+#include "siftgpu/CuTexImage.h"
+#include "siftgpu/SiftGPU.h"
+#include "siftgpu/SiftPyramid.h"
+#include "siftgpu/ProgramCU.h"
+#include "siftgpu/PyramidCU.h"
 
 
 //#include "imdebug/imdebuggl.h"

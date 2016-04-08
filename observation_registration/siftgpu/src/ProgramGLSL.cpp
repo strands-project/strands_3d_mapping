@@ -34,11 +34,11 @@
 #include <math.h>
 using namespace std;
 
-#include "GlobalUtil.h"
-#include "ProgramGLSL.h"
-#include "GLTexImage.h"
-#include "ShaderMan.h"
-#include "SiftGPU.h"
+#include "siftgpu/GlobalUtil.h"
+#include "siftgpu/ProgramGLSL.h"
+#include "siftgpu/GLTexImage.h"
+#include "siftgpu/ShaderMan.h"
+#include "siftgpu/SiftGPU.h"
 
 ProgramGLSL::ShaderObject::ShaderObject(int shadertype, const char * source, int filesource)
 {

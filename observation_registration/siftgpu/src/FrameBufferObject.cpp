@@ -24,8 +24,8 @@
 
 #include "GL/glew.h"
 #include <stdlib.h>
-#include "GlobalUtil.h"
-#include "FrameBufferObject.h"
+#include "siftgpu/GlobalUtil.h"
+#include "siftgpu/FrameBufferObject.h"
 
 //whether use only one FBO globally
 int		FrameBufferObject::UseSingleFBO=1;

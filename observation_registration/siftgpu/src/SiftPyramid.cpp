@@ -32,9 +32,9 @@
 #include <math.h>
 using namespace std;
 
-#include "GlobalUtil.h"
-#include "SiftPyramid.h"
-#include "SiftGPU.h"
+#include "siftgpu/GlobalUtil.h"
+#include "siftgpu/SiftPyramid.h"
+#include "siftgpu/SiftGPU.h"
 
 
 #ifdef DEBUG_SIFTGPU

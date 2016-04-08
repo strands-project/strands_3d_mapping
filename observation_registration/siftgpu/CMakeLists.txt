@@ -32,18 +32,20 @@ catkin_package(
 )
 
 # show additional files in qtcreator
-execute_process(COMMAND find ${PROJECT_SOURCE_DIR} -type f
-  OUTPUT_VARIABLE FILES_STRING)
-string(REPLACE "\n" ";" FILES_LIST ${FILES_STRING})
-add_custom_target(additional_files_${PROJECT_NAME} SOURCES
-  ${FILES_LIST}
-  ${PROJECT_SOURCE_DIR}/../README.md
-)
+#execute_process(COMMAND find ${PROJECT_SOURCE_DIR} -type f
+#  OUTPUT_VARIABLE FILES_STRING)
+#string(REPLACE "\n" ";" FILES_LIST ${FILES_STRING})
+#add_custom_target(additional_files_${PROJECT_NAME} SOURCES
+#  ${FILES_LIST}
+#  ${PROJECT_SOURCE_DIR}/../README.md
+#)
+
+file (GLOB HDRS include/siftgpu/*.h)
 
 include_directories(include
 )
 
-cuda_add_library(${PROJECT_NAME}
+cuda_add_library(${PROJECT_NAME} ${HDRS}
   src/ProgramCU.cu
   src/CuTexImage.cpp
   src/FrameBufferObject.cpp

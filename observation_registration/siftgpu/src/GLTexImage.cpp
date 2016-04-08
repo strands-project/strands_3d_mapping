@@ -34,11 +34,11 @@ using namespace std;
 
 
 
-#include "GlobalUtil.h"
+#include "siftgpu/GlobalUtil.h"
 
-#include "GLTexImage.h" 
-#include "FrameBufferObject.h"
-#include "ShaderMan.h"
+#include "siftgpu/GLTexImage.h"
+#include "siftgpu/FrameBufferObject.h"
+#include "siftgpu/ShaderMan.h"
 
 
 #define SIFTGPU_NO_DEVIL

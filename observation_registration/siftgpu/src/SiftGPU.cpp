@@ -36,21 +36,21 @@
 using namespace std;
 
 
-#include "GlobalUtil.h"
-#include "SiftGPU.h"
-#include "GLTexImage.h"
-#include "ShaderMan.h"
-#include "FrameBufferObject.h"
-#include "SiftPyramid.h"
-#include "PyramidGL.h"
+#include "siftgpu/GlobalUtil.h"
+#include "siftgpu/SiftGPU.h"
+#include "siftgpu/GLTexImage.h"
+#include "siftgpu/ShaderMan.h"
+#include "siftgpu/FrameBufferObject.h"
+#include "siftgpu/SiftPyramid.h"
+#include "siftgpu/PyramidGL.h"
 
 //CUDA works only with vc8 or higher
 #if defined(CUDA_SIFTGPU_ENABLED)
-#include "PyramidCU.h"
+#include "siftgpu/PyramidCU.h"
 #endif
 
 #if defined(CL_SIFTGPU_ENABLED)
-#include "PyramidCL.h"
+#include "siftgpu/PyramidCL.h"
 #endif
 
 

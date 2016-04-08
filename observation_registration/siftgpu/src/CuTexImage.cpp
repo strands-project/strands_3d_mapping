@@ -34,10 +34,10 @@ using namespace std;
 #include <cuda_runtime_api.h>
 #include <cuda_gl_interop.h>
 
-#include "GlobalUtil.h"
-#include "GLTexImage.h"
-#include "CuTexImage.h" 
-#include "ProgramCU.h"
+#include "siftgpu/GlobalUtil.h"
+#include "siftgpu/GLTexImage.h"
+#include "siftgpu/CuTexImage.h"
+#include "siftgpu/ProgramCU.h"
 
 #if CUDA_VERSION <= 2010 && defined(SIFTGPU_ENABLE_LINEAR_TEX2D) 
 #error "Require CUDA 2.2 or higher"

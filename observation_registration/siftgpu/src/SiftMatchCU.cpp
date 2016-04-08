@@ -31,11 +31,11 @@
 using namespace std;
 
 
-#include "GlobalUtil.h"
-#include "CuTexImage.h" 
-#include "SiftGPU.h"
-#include "ProgramCU.h"
-#include "SiftMatchCU.h"
+#include "siftgpu/GlobalUtil.h"
+#include "siftgpu/CuTexImage.h"
+#include "siftgpu/SiftGPU.h"
+#include "siftgpu/ProgramCU.h"
+#include "siftgpu/SiftMatchCU.h"
 
 
 SiftMatchCU::SiftMatchCU(int max_sift):SiftMatchGPU()

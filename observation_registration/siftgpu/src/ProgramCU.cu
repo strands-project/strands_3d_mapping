@@ -24,9 +24,9 @@
 #include "GL/glew.h"
 #include "stdio.h"
 
-#include "CuTexImage.h"
-#include "ProgramCU.h"
-#include "GlobalUtil.h"
+#include "siftgpu/CuTexImage.h"
+#include "siftgpu/ProgramCU.h"
+#include "siftgpu/GlobalUtil.h"
 
 //----------------------------------------------------------------
 //Begin SiftGPU setting section.

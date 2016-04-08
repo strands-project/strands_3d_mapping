@@ -28,17 +28,17 @@
 #include <algorithm>
 using namespace std;
 #include <string.h>
-#include "GlobalUtil.h"
+#include "siftgpu/GlobalUtil.h"
 
-#include "ProgramGLSL.h"
-#include "GLTexImage.h"
-#include "SiftGPU.h"
-#include "SiftMatch.h"
-#include "FrameBufferObject.h"
+#include "siftgpu/ProgramGLSL.h"
+#include "siftgpu/GLTexImage.h"
+#include "siftgpu/SiftGPU.h"
+#include "siftgpu/SiftMatch.h"
+#include "siftgpu/FrameBufferObject.h"
 
 #if defined(CUDA_SIFTGPU_ENABLED)
-#include "CuTexImage.h"
-#include "SiftMatchCU.h"
+#include "siftgpu/CuTexImage.h"
+#include "siftgpu/SiftMatchCU.h"
 #endif
 
 
