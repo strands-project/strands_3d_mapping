@@ -23,6 +23,9 @@
 #include <sensor_msgs/image_encodings.h>
 #include <tf_conversions/tf_eigen.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <quasimodo_retrieval/ParametersConfig.h>
+
 using namespace std;
 
 using PointT = pcl::PointXYZRGB;
@@ -43,6 +46,8 @@ public:
     ros::Publisher keypoint_pub;
     ros::Subscriber sub;
 
+    dynamic_reconfigure::Server<quasimodo_retrieval::ParametersConfig> server;
+
     boost::filesystem::path vocabulary_path;
     //boost::filesystem::path data_path;
     int32_t number_query;
@@ -51,6 +56,14 @@ public:
 
     VocabularyT vt;
     dynamic_object_retrieval::vocabulary_summary summary;
+
+    double iss_model_resolution; // 0.01
+    double pfhrgb_radius_search; // 0.06
+
+    void parameters_callback(quasimodo_retrieval::ParametersConfig& config, uint32_t level) {
+        iss_model_resolution = config.iss_model_resolution;
+        pfhrgb_radius_search = config.pfhrgb_radius_search;
+    }
 
     retrieval_node(const std::string& name)
     {
@@ -79,9 +92,14 @@ public:
             vt.compute_normalizing_constants();
         }
 
+
+        //dynamic_reconfigure::Server<quasimodo_retrieval::ParametersConfig>::CallbackType f;
+        //f = boost::bind(&retrieval_node::parameters_callback, this, _1, _2);
+        server.setCallback(boost::bind(&retrieval_node::parameters_callback, this, _1, _2));
+
         pub = n.advertise<quasimodo_msgs::retrieval_query_result>(retrieval_output, 1);
         keypoint_pub = n.advertise<sensor_msgs::PointCloud2>("/models/keypoints", 1);
-        sub = n.subscribe(retrieval_input, 1, &retrieval_node::run_retrieval, this);
+        sub = n.subscribe(retrieval_input, 10, &retrieval_node::run_retrieval, this);
         /*
         vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
         for (const string& xml : folder_xmls) {
@@ -172,7 +190,7 @@ public:
         if (is_query || volume < density_threshold_volume) {
 
             // Fill in the model cloud
-            double model_resolution = 0.01;
+            double model_resolution = iss_model_resolution;
 
             // Compute model_resolution
             iss_salient_radius_ = 6 * model_resolution;
@@ -243,7 +261,7 @@ public:
         se.setIndices(indices); //keypoints
         se.setInputCloud(cloud);
         se.setInputNormals(normals);
-        se.setRadiusSearch(0.06); //support 0.06 orig, 0.04 still seems too big, takes time
+        se.setRadiusSearch(pfhrgb_radius_search); //support 0.06 orig, 0.04 still seems too big, takes time
 
         pcl::PointCloud<pcl::PFHRGBSignature250> pfhrgb_cloud;
         se.compute(pfhrgb_cloud); //descriptors
@@ -259,6 +277,8 @@ public:
 
     void run_retrieval(const quasimodo_msgs::retrieval_query::ConstPtr& query_msg) //const string& sweep_xml)
     {
+        cout << "Received query msg..." << endl;
+
         pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr normal_cloud(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
         pcl::fromROSMsg(query_msg->cloud, *normal_cloud);
         CloudT::Ptr cloud(new CloudT);
@@ -279,7 +299,9 @@ public:
         HistCloudT::Ptr features(new HistCloudT);
         CloudT::Ptr keypoints(new CloudT);
         //dynamic_object_retrieval::compute_features(features, keypoints, cloud, normals, false, true);
+        cout << "Computing features..." << endl;
         test_compute_features(features, keypoints, cloud, normals, false, true);
+        cout << "Done computing features..." << endl;
 
         sensor_msgs::PointCloud2 keypoint_msg;
         pcl::toROSMsg(*keypoints, keypoint_msg);
@@ -294,8 +316,20 @@ public:
         auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, number_query, vocabulary_path, summary);
         tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
+        cout << "Query cloud size: " << cloud->size() << endl;
+        for (CloudT::Ptr& c : retrieved_clouds) {
+            cout << "Retrieved cloud size: " << c->size() << endl;
+        }
+
         vector<float> scores;
+        vector<int> indices;
         for (auto s : results.first) {
+            boost::filesystem::path segment_path = s.first;
+            string name = segment_path.stem().string();
+            size_t last_index = name.find_last_not_of("0123456789");
+            int index = stoi(name.substr(last_index + 1));
+            indices.push_back(index);
+            // indices.push_back(s.second.index); // global index in the vocabulary
             scores.push_back(s.second.score);
         }
 
@@ -322,9 +356,10 @@ public:
         //cv::Mat full_query_image = benchmark_retrieval::sweep_get_rgb_at(sweep_xml, scan_index);
         quasimodo_msgs::retrieval_query_result result;
         result.query = *query_msg;
-        result.result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores);
+        result.result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices);
         pub.publish(result);
 
+        cout << "Finished retrieval..." << endl;
     }
 
     void convert_to_img_msg(const cv::Mat& cv_image, sensor_msgs::Image& ros_image)
@@ -357,7 +392,8 @@ public:
                                                     const vector<vector<cv::Mat> >& depths,
                                                     const vector<vector<cv::Mat> >& masks,
                                                     const vector<vector<string> >& paths,
-                                                    const vector<float>& scores)
+                                                    const vector<float>& scores,
+                                                    const vector<int>& indices)
     {
         quasimodo_msgs::retrieval_result res;
 
@@ -382,6 +418,7 @@ public:
         res.retrieved_masks.resize(number_retrieved);
         res.retrieved_image_paths.resize(number_retrieved);
         res.retrieved_distance_scores.resize(number_retrieved);
+        res.segment_indices.resize(number_retrieved);
 
         for (int i = 0; i < number_retrieved; ++i) {
             pcl::toROSMsg(*clouds[i], res.retrieved_clouds[i]);
@@ -404,6 +441,7 @@ public:
                 res.retrieved_image_paths[i].strings[j] = paths[i][j];
             }
             res.retrieved_distance_scores[i] = scores[i];
+            res.segment_indices[i].ints.push_back(indices[i]);
         }
 
         return res;

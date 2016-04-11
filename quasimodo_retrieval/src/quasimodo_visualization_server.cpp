@@ -6,6 +6,7 @@
 #include "quasimodo_msgs/query_cloud.h"
 #include "quasimodo_msgs/visualize_query.h"
 #include "quasimodo_msgs/retrieval_query_result.h"
+#include "quasimodo_msgs/string_array.h"
 #include <pcl_ros/point_cloud.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
@@ -23,6 +24,7 @@ public:
     ros::NodeHandle n;
     ros::ServiceServer service;
     ros::Publisher image_pub;
+    ros::Publisher label_pub;
     ros::Subscriber sub;
     string image_output;
     string topic_input;
@@ -34,6 +36,7 @@ public:
         pn.param<std::string>("topic_input", topic_input, std::string("/retrieval_result"));
 
         image_pub = n.advertise<sensor_msgs::Image>(image_output, 1);
+        label_pub = n.advertise<quasimodo_msgs::string_array>("/retrieved_labels", 1);
 
         service = n.advertiseService(name, &visualization_server::service_callback, this);
 
@@ -87,17 +90,41 @@ public:
             pcl::fromROSMsg(cloud, *retrieved_clouds.back());
         }
 
-        vector<boost::filesystem::path> sweep_paths;
-        for (const auto& s : result.retrieved_image_paths) {
-            boost::filesystem::path image_path(s.strings[0]);
-            sweep_paths.push_back(image_path.parent_path() / "room.xml");
-        }
-
         string query_label = "Query Image";
         vector<string> dummy_labels;
-        for (int i = 0; i < result.retrieved_clouds.size(); ++i) {
-            dummy_labels.push_back(string("result") + to_string(i));
+        quasimodo_msgs::string_array label_msg;
+        vector<boost::filesystem::path> sweep_paths;
+        int i = 0;
+        for (const auto& s : result.retrieved_image_paths) {
+            boost::filesystem::path image_path(s.strings[0]);
+            boost::filesystem::path sweep_path = image_path.parent_path();
+            boost::filesystem::path annotation_path = sweep_path / "annotation.txt";
+            if (boost::filesystem::exists(annotation_path)) {
+                ifstream f(annotation_path.string());
+                string label;
+                f >> label;
+                int index;
+                f >> index;
+                f.close();
+                cout << "Found annotated index: " << index << endl;
+                cout << "Comparing to retrieved: " << result.segment_indices[i].ints[0] << endl;
+                if (index == result.segment_indices[i].ints[0]) {
+                    dummy_labels.push_back(label);
+                }
+                else {
+                    dummy_labels.push_back(string("result") + to_string(i));
+                }
+            }
+            else {
+                dummy_labels.push_back(string("result") + to_string(i));
+            }
+            label_msg.strings.push_back(dummy_labels.back());
+            sweep_paths.push_back(sweep_path / "room.xml");
+            ++i;
         }
+
+        label_pub.publish(label_msg);
+
         cv::Mat visualization = benchmark_retrieval::make_visualization_image(cv_ptr->image, query_label, retrieved_clouds, sweep_paths, dummy_labels, T);
 
         cv_bridge::CvImagePtr cv_pub_ptr(new cv_bridge::CvImage);

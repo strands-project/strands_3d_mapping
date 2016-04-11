@@ -8,7 +8,7 @@ add_definitions(-std=c++11 -O3)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS roscpp tf sensor_msgs std_msgs image_geometry metaroom_xml_parser quasimodo_msgs message_runtime
                                         message_generation tf_conversions pcl_ros image_geometry cv_bridge tf_conversions eigen_conversions
-                                        k_means_tree dynamic_object_retrieval object_3d_benchmark)
+                                        k_means_tree dynamic_object_retrieval object_3d_benchmark dynamic_reconfigure)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -132,10 +132,9 @@ include(${QT_USE_FILE})
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-#   cfg/DynReconf1.cfg
-#   cfg/DynReconf2.cfg
-# )
+generate_dynamic_reconfigure_options(
+  cfg/parameters.cfg
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -183,6 +182,7 @@ add_executable(quasimodo_retrieval_node src/quasimodo_retrieval_node.cpp)
 #add_dependencies(quasimodo_retrieval_server ${catkin_EXPORTED_TARGETS})
 #add_dependencies(quasimodo_retrieval_publisher ${catkin_EXPORTED_TARGETS})
 #add_dependencies(quasimodo_visualization_server ${catkin_EXPORTED_TARGETS})
+add_dependencies(quasimodo_retrieval_node ${PROJECT_NAME}_gencfg)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(quasimodo_retrieval_server
