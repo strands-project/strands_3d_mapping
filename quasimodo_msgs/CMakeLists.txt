@@ -46,6 +46,7 @@ add_message_files(
   model.msg
   image_array.msg
   string_array.msg
+  int_array.msg
   retrieval_result.msg
   retrieval_query.msg
   retrieval_query_result.msg
