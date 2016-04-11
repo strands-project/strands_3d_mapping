@@ -242,6 +242,26 @@ struct segment_cloud_iterator : public segment_iterator_base, public std::iterat
     segment_cloud_iterator() : segment_iterator_base() {}
 };
 
+struct islast_segment_iterator : public segment_iterator_base, public std::iterator<std::forward_iterator_tag, bool> {
+
+    mutable bool current_value;
+
+    bool& operator* () const
+    {
+        current_value = current_segment >= current_nbr_segments - 1;
+        return current_value;
+    }
+
+    islast_segment_iterator(const std::vector<std::string>& xmls,
+                            const std::string& folder_name,
+                            const std::string& segment_name) :
+        segment_iterator_base(xmls, folder_name, segment_name), current_value(false)
+    {
+
+    }
+    islast_segment_iterator() : segment_iterator_base() {}
+};
+
 // iterators over all convex segments
 
 struct convex_sweep_index_map {
@@ -401,6 +421,23 @@ struct convex_keypoint_cloud_map {
     }
 
     convex_keypoint_cloud_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
+};
+
+struct islast_convex_segment_map {
+
+    boost::filesystem::path data_path;
+
+    islast_segment_iterator begin()
+    {
+        return islast_segment_iterator(semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string()), "convex_segments", "segment");
+    }
+
+    islast_segment_iterator end()
+    {
+        return islast_segment_iterator();
+    }
+
+    islast_convex_segment_map(const boost::filesystem::path& data_path) : data_path(data_path) {}
 };
 
 // iterators over all subsegments
@@ -653,6 +690,25 @@ struct sweep_convex_feature_cloud_map {
     }
 
     sweep_convex_feature_cloud_map(const boost::filesystem::path& sweep_path) : sweep_path(sweep_path / "room.xml") {}
+};
+
+struct sweep_convex_keypoint_cloud_map {
+
+    using iterator = segment_cloud_iterator<pcl::PointCloud<PointT> >;
+
+    boost::filesystem::path sweep_path;
+
+    iterator begin()
+    {
+        return iterator(std::vector<std::string>({sweep_path.string()}), "convex_segments", "pfhrgbkeypoint");
+    }
+
+    iterator end()
+    {
+        return iterator();
+    }
+
+    sweep_convex_keypoint_cloud_map(const boost::filesystem::path& sweep_path) : sweep_path(sweep_path / "room.xml") {}
 };
 
 struct sweep_convex_segment_index_map {

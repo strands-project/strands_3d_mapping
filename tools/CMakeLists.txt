@@ -74,6 +74,9 @@ target_link_libraries(create_convex_surfels ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT
 add_executable(create_sweep_illustration src/create_sweep_illustration.cpp)
 target_link_libraries(create_sweep_illustration ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(annotate_sweep_segment src/annotate_sweep_segment.cpp)
+target_link_libraries(annotate_sweep_segment ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(create_surfel_overlap_cloud src/create_surfel_overlap_cloud.cpp)
 target_link_libraries(create_surfel_overlap_cloud ${PCL_LIBRARIES})
 
