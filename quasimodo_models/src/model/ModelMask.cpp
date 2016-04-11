@@ -7,9 +7,14 @@
 namespace reglib
 {
 
+int ModelMask_id = 0;
+
 ModelMask::ModelMask(cv::Mat mask_){
 	mask = mask_;
 	sweepid = -1;
+
+	id = ModelMask_id++;
+	printf("ModelMask: %i\n",id);
 
 	using namespace cv;
 /*
@@ -32,9 +37,15 @@ ModelMask::ModelMask(cv::Mat mask_){
 	}
 
 */
-
-
 	unsigned char * maskdata = (unsigned char *)mask.data;
+
+	width = 640;
+	height = 480;
+	maskvec = new bool[width*height];
+	for(unsigned int i = 0; i < width*height; i++){maskvec[i] = maskdata[i] != 0;}
+
+
+
 	for(unsigned int w = 1; w < 639; w++){
 		for(unsigned int h = 1; h < 479; h++){
 			if(maskdata[h*640+w] != 0){
@@ -67,6 +78,23 @@ ModelMask::ModelMask(cv::Mat mask_){
 	//cv::waitKey(0);
 	//printf("ModelMask\n");
 }
+
+cv::Mat ModelMask::getMask(){
+//	printf("cv::Mat ModelMask::getMask()\n");
+//	printf("%i %i\n",width,height);
+
+	cv::Mat fullmask;
+	fullmask.create(height,width,CV_8UC1);
+
+	unsigned char * maskdata = (unsigned char *)fullmask.data;
+	for(unsigned int j = 0; j < width*height; j++){
+		maskdata[j] = 255*maskvec[j];
+	}
+	return fullmask;
+}
+//cv::Mat ModelMask::getMask(){
+
+//}
 
 }
 

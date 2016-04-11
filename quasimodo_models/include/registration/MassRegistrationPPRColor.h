@@ -4,6 +4,8 @@
 #include "MassRegistration.h"
 #include "../core/Util.h"
 
+#include "lum2.h"
+
 //#include "DistanceWeightFunction2.h"
 //#include "ICP.h"
 namespace reglib
@@ -36,6 +38,8 @@ namespace reglib
 
 		int max_matches;
 
+		pcl::registration::LUM2<pcl::PointXYZ> * LUM2;
+		std::vector<pcl::registration::LUM2< pcl::PointXYZ >::Vertex> verts;
 
 		DistanceWeightFunction2PPR2 * func;
 		DistanceWeightFunction2PPR2 * funcR;
@@ -52,6 +56,8 @@ namespace reglib
 
 		std::vector< int > nrdatas;
 		std::vector< double* > clouddatas;
+		std::vector< double* > normaldatas;
+		std::vector< bool* > depthedges;
 		std::vector< unsigned char * > rgbdatas;
 		std::vector< ArrayData3D<double> * > ads;
 		std::vector< KDTree2 * > treedatas;
@@ -81,15 +87,19 @@ namespace reglib
 		MassRegistrationPPRColor(double startreg = 0.05, bool visualize = false);
 		~MassRegistrationPPRColor();
 		
-		void setData(std::vector<RGBDFrame*> frames_,std::vector<cv::Mat> masks_);
+		void setData(std::vector<RGBDFrame*> frames_, std::vector<ModelMask *> mmasks_);
 		void preprocessData(int index);
 		void rematchAll(std::vector<Eigen::MatrixXd> poses);
+		void dorematch(std::vector<Eigen::Matrix4d> poses);
 		void recomputeFunctions(std::vector<Eigen::MatrixXd> poses);
 		std::vector<Eigen::MatrixXd> refinePoses(std::vector<Eigen::MatrixXd> poses);
 		std::vector< PointMatch > rematch(int i, int j, Eigen::MatrixXd pose);
 		MassFusionResults getTransforms(std::vector<Eigen::Matrix4d> guess);
 		void showMatches(int i, int j, Eigen::MatrixXd pose);
 		void show(std::vector<Eigen::MatrixXd> guess, bool color = false);
+		void showTP();
+		pcl::CorrespondencesPtr getCorrs(int i, int j, Eigen::MatrixXd pose);
+		std::vector<CostFunction*> getCostFunctions(int i, int j, Eigen::MatrixXd pose);
 	};
 
 }

@@ -180,4 +180,50 @@ namespace reglib{
 		gettimeofday(&start1, NULL);
 		return double(start1.tv_sec+(start1.tv_usec/1000000.0));
 	}
+
+	Eigen::Matrix4d getMatTest(const double * const camera, int mode){
+		Eigen::Matrix4d ret = Eigen::Matrix4d::Identity();
+		double rr [9];
+		ceres::AngleAxisToRotationMatrix(camera,rr);
+
+		ret(0,0) = rr[0];
+		ret(1,0) = rr[1];
+		ret(2,0) = rr[2];
+
+		ret(0,1) = rr[3];
+		ret(1,1) = rr[4];
+		ret(2,1) = rr[5];
+
+		ret(0,2) = rr[6];
+		ret(1,2) = rr[7];
+		ret(2,2) = rr[8];
+
+		ret(0,3) = camera[3];
+		ret(1,3) = camera[4];
+		ret(2,3) = camera[5];
+		return ret;
+	}
+
+
+	double * getCamera(Eigen::Matrix4d mat, int mode){
+		double * camera = new double[6];
+		double rr [9];
+		rr[0] = mat(0,0);
+		rr[1] = mat(1,0);
+		rr[2] = mat(2,0);
+
+		rr[3] = mat(0,1);
+		rr[4] = mat(1,1);
+		rr[5] = mat(2,1);
+
+		rr[6] = mat(0,2);
+		rr[7] = mat(1,2);
+		rr[8] = mat(2,2);
+		ceres::RotationMatrixToAngleAxis(rr,camera);
+
+		camera[3] = mat(0,3);
+		camera[4] = mat(1,3);
+		camera[5] = mat(2,3);
+		return camera;
+	}
 }

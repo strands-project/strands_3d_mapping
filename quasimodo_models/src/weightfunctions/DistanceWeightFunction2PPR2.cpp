@@ -495,7 +495,7 @@ if(!fixed_histogram_size){
 	stdval2 = std::max(1.0,stdval2);
 	stdval2 = maxd*stdval2/float(histogram_size);
 
-    g.stdval = std::min(g.stdval,maxnoise*double(histogram_size)/maxd);
+	g.stdval = std::max(0.0001*double(histogram_size)/maxd,std::min(g.stdval,maxnoise*double(histogram_size)/maxd));
 
 	noiseval = maxd*g.stdval/float(histogram_size);
 
@@ -621,6 +621,20 @@ VectorXd DistanceWeightFunction2PPR2::getProbs(MatrixXd mat){
 		for(unsigned int j = 0; j < nr_data; j++){weights(j) = weights(j) > 0.5;}
 	}
 	return weights;
+}
+
+double DistanceWeightFunction2PPR2::getProb(double d){
+	const float histogram_mul = float(histogram_size)/maxd;
+	double ind = fabs(d)*histogram_mul;
+
+	double w2 = ind-int(ind);
+	double w1 = 1-w2;
+	float p = 0;
+	if(ind >= 0 && (ind+0.5) < histogram_size){
+		if(interp){	p = prob[int(ind)]*w1 + prob[int(ind+1)]*w2;
+		}else{		p = prob[int(ind+0.5)];}
+	}
+	return p;
 }
 
 bool DistanceWeightFunction2PPR2::update(){

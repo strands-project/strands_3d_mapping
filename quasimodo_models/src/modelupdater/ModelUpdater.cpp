@@ -150,7 +150,8 @@ FusionResults ModelUpdater::registerModel(Model * model2, Eigen::Matrix4d guess,
 void ModelUpdater::fuse(Model * model2, Eigen::Matrix4d guess, double uncertanity){
 	for(unsigned int i = 0; i < model2->frames.size();i++){
 		model->frames.push_back(model2->frames[i]);
-		model->masks.push_back(model2->masks[i]);
+		//model->masks.push_back(model2->masks[i]);
+		model->modelmasks.push_back(model2->modelmasks[i]);
 		model->relativeposes.push_back(guess*model2->relativeposes[i]);
 	}
 }
@@ -158,45 +159,51 @@ void ModelUpdater::fuse(Model * model2, Eigen::Matrix4d guess, double uncertanit
 UpdatedModels ModelUpdater::fuseData(FusionResults * f, Model * model1,Model * model2){return UpdatedModels();}
 
 void ModelUpdater::refine(double reg,bool useFullMask){
+	//return ;
 	printf("void ModelUpdater::refine()\n");
 
+	std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(model->relativeposes, model->frames,model->modelmasks,false);
+	std::vector<std::vector < float > > scores = getScores(ocs);
+
+	double sumscore_bef = 0;
+	for(int i = 0; i < scores.size(); i++){
+		for(int j = 0; j < scores.size(); j++){
+			sumscore_bef += scores[i][j];
+		}
+	}
+
 	MassFusionResults mfr;
+	MassRegistrationPPR * massreg = new MassRegistrationPPR(reg);
+	massreg->viewer = viewer;
+	massreg->visualizationLvl = 0;
+	massreg->maskstep = std::max(1,int(0.5+0.2*double(model->frames.size())));
+	massreg->nomaskstep = std::max(1,int(0.5+1.0*double(model->frames.size())));
 
-/*
-	MassRegistrationPPRColor * massregC = new MassRegistrationPPRColor(reg);
-	massregC->viewer = viewer;
-	massregC->visualizationLvl = 3;
-
-	massregC->visualizationLvl = 4;
-	massregC->steps = 1;
-	massregC->stopval = 0.001;
-	massregC->setData(model->frames,model->masks);
-	mfr = massregC->getTransforms(model->relativeposes);
-	model->relativeposes = mfr.poses;
-exit(0);
-*/
-MassRegistrationPPR * massreg = new MassRegistrationPPR(reg);
-massreg->viewer = viewer;
-massreg->visualizationLvl = 0;
-
+	//massreg->type = PointToPoint;
 	if(useFullMask){
-		cv::Mat fullmask;
-		fullmask.create(480,640,CV_8UC1);
-		unsigned char * maskdata = (unsigned char *)fullmask.data;
-		for(unsigned int j = 0; j < 640*480; j++){maskdata[j] = 255;}
-
-
         massreg->visualizationLvl = 0;
-		std::vector<cv::Mat> masks;
-		for(int i = 0; i < model->masks.size(); i++){masks.push_back(fullmask);}
-		massreg->setData(model->frames,masks);
+//		MassRegistrationPPRColor * massregC = new MassRegistrationPPRColor(reg);
+//		massregC->viewer = viewer;
+//		massregC->visualizationLvl = 1;
+//		massregC->steps = 8;
+//		massregC->stopval = 0.001;
+//		massregC->setData(model->frames,model->modelmasks);
+//		mfr = massregC->getTransforms(model->relativeposes);
+//		model->relativeposes = mfr.poses;
+//	exit(0);
 
-
+		massreg->setData(model->frames,model->modelmasks);
+		massreg->nomask = false;
+		massreg->visualizationLvl = 0;
 		massreg->stopval = 0.001;
-        massreg->steps = 8;
+		massreg->steps = 10;
 
 		mfr = massreg->getTransforms(model->relativeposes);
-		model->relativeposes = mfr.poses;
+		//model->relativeposes = mfr.poses;
+		//massreg->steps = 8;
+		//mfr = massreg->getTransforms(model->relativeposes);
+		//model->relativeposes = mfr.poses;
+//		exit(0);
 
 //		massreg->visualizationLvl = 2;
 //		massreg->stopval = 0.002;
@@ -205,44 +212,59 @@ massreg->visualizationLvl = 0;
 //		model->relativeposes = mfr.poses;
 
 	}else{
-		massreg->visualizationLvl = 0;
-		massreg->steps = 1;
+
+		exit(0);
+
+		massreg->nomask = true;
+		massreg->visualizationLvl = 3;
+		massreg->steps = 10;
 		massreg->stopval = 0.001;
-		massreg->setData(model->frames,model->masks);
+		//massreg->setData(model->frames,model->masks);
+		massreg->setData(model->frames,model->modelmasks);
 		mfr = massreg->getTransforms(model->relativeposes);
-		model->relativeposes = mfr.poses;
+		//model->relativeposes = mfr.poses;
+
 	}
 
+	std::vector<std::vector < OcclusionScore > > ocs2 = getOcclusionScores(mfr.poses, model->frames,model->modelmasks,false);
+	std::vector<std::vector < float > > scores2 = getScores(ocs2);
 
-
-
-
-	std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(model->relativeposes, model->frames,model->masks,model->modelmasks,false);
-	std::vector<std::vector < float > > scores = getScores(ocs);
-	std::vector<int> partition = getPartition(scores,2,5,2);
-
-	double sumscore = 0;
-	for(int i = 0; i < scores.size(); i++){
-		for(int j = 0; j < scores.size(); j++){
-			if(partition[i] == partition[j]){sumscore += scores[i][j];}
+	double sumscore_aft = 0;
+	for(int i = 0; i < scores2.size(); i++){
+		for(int j = 0; j < scores2.size(); j++){
+			sumscore_aft += scores2[i][j];
 		}
 	}
-
-	std::vector<int> count;
-	for(unsigned int i = 0; i < partition.size(); i++){
-		if(count.size() <= partition[i]){count.resize(partition[i]+1);}
-		count[partition[i]]++;
+	if(sumscore_aft >= sumscore_bef){
+		model->relativeposes = mfr.poses;
+		model->scores = scores2;
+		model->total_scores = sumscore_aft;
 	}
+//	std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(model->relativeposes, model->frames,model->masks,model->modelmasks,false);
+//	std::vector<std::vector < float > > scores = getScores(ocs);
+//	std::vector<int> partition = getPartition(scores,2,5,2);
 
-	int minpart = count[0];
-	for(unsigned int i = 1; i < count.size(); i++){minpart = std::min(minpart,count[i]);}
+//	double sumscore = 0;
+//	for(int i = 0; i < scores.size(); i++){
+//		for(int j = 0; j < scores.size(); j++){
+//			if(partition[i] == partition[j]){sumscore += scores[i][j];}
+//		}
+//	}
 
-	printf("----------------------------\n");
-	printf("partition: ");for(unsigned int i = 0; i < partition.size(); i++){printf("%i ",partition[i]);}printf("\n");
-	for(unsigned int i = 0; i < count.size(); i++){printf("count %i -> %i\n",i,count[i]);}
+//	std::vector<int> count;
+//	for(unsigned int i = 0; i < partition.size(); i++){
+//		if(count.size() <= partition[i]){count.resize(partition[i]+1);}
+//		count[partition[i]]++;
+//	}
+
+//	int minpart = count[0];
+//	for(unsigned int i = 1; i < count.size(); i++){minpart = std::min(minpart,count[i]);}
+
+//	printf("----------------------------\n");
+//	printf("partition: ");for(unsigned int i = 0; i < partition.size(); i++){printf("%i ",partition[i]);}printf("\n");
+//	for(unsigned int i = 0; i < count.size(); i++){printf("count %i -> %i\n",i,count[i]);}
 //exit(0);
-	//delete massreg;
-
+//delete massreg;
 }
 
 void ModelUpdater::show(bool stop){
@@ -344,8 +366,426 @@ void ModelUpdater::computeResiduals(std::vector<float> & residuals, std::vector<
     }
 }
 
+void ModelUpdater::recomputeScores(){
+//	printf("recomputeScores\n");
+	//std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(model->relativeposes,model->frames,model->masks,model->modelmasks,false);
+	std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(model->relativeposes,model->frames,model->modelmasks,false);
+	model->scores = getScores(ocs);
 
-OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_mask, ModelMask * src_modelmask, RGBDFrame * dst, cv::Mat dst_mask, ModelMask * dst_modelmask, Eigen::Matrix4d p, int step, bool debugg){
+	model->total_scores = 0;
+	for(int i = 0; i < model->scores.size(); i++){
+		for(int j = 0; j < model->scores.size(); j++){
+			model->total_scores += model->scores[i][j];
+		}
+	}
+//	printf("total_scores: %f\n",model->total_scores);
+}
+
+
+//OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_mask, ModelMask * src_modelmask, RGBDFrame * dst, cv::Mat dst_mask, ModelMask * dst_modelmask, Eigen::Matrix4d p, int step, bool debugg){
+//	OcclusionScore oc;
+
+//	unsigned char  * src_maskdata		= (unsigned char	*)(src_modelmask->mask.data);
+//	unsigned char  * src_rgbdata		= (unsigned char	*)(src->rgb.data);
+//	unsigned short * src_depthdata		= (unsigned short	*)(src->depth.data);
+//	float		   * src_normalsdata	= (float			*)(src->normals.data);
+
+//	unsigned char  * dst_maskdata		= (unsigned char	*)(dst_modelmask->mask.data);
+//	unsigned char  * dst_rgbdata		= (unsigned char	*)(dst->rgb.data);
+//	unsigned short * dst_depthdata		= (unsigned short	*)(dst->depth.data);
+//	float		   * dst_normalsdata	= (float			*)(dst->normals.data);
+
+//	float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
+//	float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
+//	float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
+
+//	Camera * src_camera				= src->camera;
+//	const unsigned int src_width	= src_camera->width;
+//	const unsigned int src_height	= src_camera->height;
+//	const float src_idepth			= src_camera->idepth_scale;
+//	const float src_cx				= src_camera->cx;
+//	const float src_cy				= src_camera->cy;
+//	const float src_ifx				= 1.0/src_camera->fx;
+//	const float src_ify				= 1.0/src_camera->fy;
+
+//	Camera * dst_camera				= dst->camera;
+//	const unsigned int dst_width	= dst_camera->width;
+//	const unsigned int dst_height	= dst_camera->height;
+//	const float dst_idepth			= dst_camera->idepth_scale;
+//	const float dst_cx				= dst_camera->cx;
+//	const float dst_cy				= dst_camera->cy;
+//	const float dst_fx				= dst_camera->fx;
+//	const float dst_fy				= dst_camera->fy;
+//	const float dst_ifx				= 1.0/dst_camera->fx;
+//	const float dst_ify				= 1.0/dst_camera->fy;
+//	const unsigned int dst_width2	= dst_camera->width  - 2;
+//	const unsigned int dst_height2	= dst_camera->height - 2;
+
+//	//bool debugg = false;
+//	cv::Mat debugg_img;
+//	unsigned char  * debugg_img_data;
+//	if(debugg){
+//		debugg_img		= src->rgb.clone();
+//		debugg_img_data	= (unsigned char	*)(debugg_img.data);
+//	}
+
+//	std::vector<float> residuals;
+//    std::vector<float> weights;
+//	std::vector<int> ws;
+//	std::vector<int> hs;
+//	residuals.reserve(src_width*src_height);
+//    weights.reserve(src_width*src_height);
+//	if(debugg){
+//		ws.reserve(src_width*src_height);
+//		hs.reserve(src_width*src_height);
+//	}
+
+//	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+//	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+//	scloud->points.resize(src_width*src_height);
+//	dcloud->points.resize(dst_width*dst_height);
+
+//    double sum = 0;
+//    double count = 0;
+
+//	std::vector<int> & testw = src_modelmask->testw;
+//	std::vector<int> & testh = src_modelmask->testh;
+
+//	unsigned int test_nrdata = testw.size();
+//	int indstep = 30;
+////	int indstep = std::max(1.0,double(test_nrdata)/double(step));
+////	printf("indstep: %i\n",indstep);
+////	for(unsigned int ind = 0; ind < test_nrdata;ind+=indstep){
+////	//for(unsigned int src_w = 0; src_w < src_width-1; src_w++){
+////	//    for(unsigned int src_h = 0; src_h < src_height;src_h++){
+////		unsigned int src_w = testw[ind];
+////		unsigned int src_h = testh[ind];
+
+////		int src_ind0 = src_h*src_width+src_w-1;
+////		int src_ind1 = src_h*src_width+src_w;
+////		int src_ind2 = src_h*src_width+src_w+1;
+////		if(src_maskdata[src_ind0] == 255 && src_maskdata[src_ind1] == 255 && src_maskdata[src_ind2] == 255){// && p.z > 0 && !isnan(p.normal_x)){
+////			float z0 = src_idepth*float(src_depthdata[src_ind0]);
+////			float z1 = src_idepth*float(src_depthdata[src_ind1]);
+////			float z2 = src_idepth*float(src_depthdata[src_ind2]);
+
+////			double diff0 = (z0-z1)/(z0*z0+z1*z1);
+////			double diff1 = (z2-z1)/(z2*z2+z1*z1);
+////			if( fabs(diff0) < fabs(diff1)){
+////				if(diff0 != 0){
+////					sum += diff0*diff0;
+////					count++;
+////				}
+////			}else{
+////				if(diff1 != 0){
+////					sum += diff1*diff1;
+////					count++;
+////				}
+////			}
+////		}
+////	}
+////    double me = sqrt(sum/(count+1));
+////    double pred = 1.3*sqrt(2)*me;
+///*
+//	for(unsigned int ind = 0; ind < test_nrdata;ind++){
+//	//for(unsigned int src_w = 0; src_w < src_width-1; src_w++){
+//	//    for(unsigned int src_h = 0; src_h < src_height;src_h++){
+//		unsigned int src_w = testw[ind];
+//		unsigned int src_h = testh[ind];
+
+//		int src_ind = src_h*src_width+src_w;
+//		if(src_maskdata[src_ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
+//			float z = src_idepth*float(src_depthdata[src_ind]);
+//			float nx = src_normalsdata[3*src_ind+0];
+//			if(z > 0 && nx != 2){
+//			//if(z > 0){
+//				float x = (float(src_w) - src_cx) * z * src_ifx;
+//				float y = (float(src_h) - src_cy) * z * src_ify;
+
+//				float tx	= m00*x + m01*y + m02*z + m03;
+//				float ty	= m10*x + m11*y + m12*z + m13;
+//				float tz	= m20*x + m21*y + m22*z + m23;
+
+//				//float tnx	= m00*nx + m01*ny + m02*nz;
+//				//float tny	= m10*nx + m11*ny + m12*nz;
+//				float tnz	= m20*nx + m21*ny + m22*nz;
+
+//				float itz	= 1.0/tz;
+//				float dst_w	= dst_fx*tx*itz + dst_cx;
+//				float dst_h	= dst_fy*ty*itz + dst_cy;
+
+//				if((dst_w > 0) && (dst_h > 0) && (dst_w < dst_width2) && (dst_h < dst_height2)){
+//					unsigned int dst_ind = unsigned(dst_h+0.5) * dst_width + unsigned(dst_w+0.5);
+//					float dst_z = dst_idepth*float(dst_depthdata[dst_ind]);
+//					if(dst_z > 0){
+//						float diff_z = (dst_z-tz)/(z*z+dst_z*dst_z);//if tz < dst_z then tz infront and diff_z > 0
+//						residuals.push_back(diff_z);
+//						if(debugg){
+//							ws.push_back(src_w);
+//							hs.push_back(src_h);
+//						}
+//					}
+//				}
+//			}
+//		}
+//	}
+//*/
+//	for(unsigned int ind = 0; ind < test_nrdata;ind+=indstep){
+//		unsigned int src_w = testw[ind];
+//		unsigned int src_h = testh[ind];
+
+//		int src_ind = src_h*src_width+src_w;
+//		if(src_maskdata[src_ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
+//			float z = src_idepth*float(src_depthdata[src_ind]);
+//			float nx = src_normalsdata[3*src_ind+0];
+
+//			if(z > 0 && nx != 2){
+//				float ny = src_normalsdata[3*src_ind+1];
+//				float nz = src_normalsdata[3*src_ind+2];
+
+//				float x = (float(src_w) - src_cx) * z * src_ifx;
+//				float y = (float(src_h) - src_cy) * z * src_ify;
+
+//				float tx	= m00*x + m01*y + m02*z + m03;
+//				float ty	= m10*x + m11*y + m12*z + m13;
+//				float tz	= m20*x + m21*y + m22*z + m23;
+//				float itz	= 1.0/tz;
+//				float dst_w	= dst_fx*tx*itz + dst_cx;
+//				float dst_h	= dst_fy*ty*itz + dst_cy;
+
+//				if((dst_w > 0) && (dst_h > 0) && (dst_w < dst_width2) && (dst_h < dst_height2)){
+//					unsigned int dst_ind = unsigned(dst_h+0.5) * dst_width + unsigned(dst_w+0.5);
+
+//					float dst_z = dst_idepth*float(dst_depthdata[dst_ind]);
+//					if(dst_z > 0){
+//						float diff_z = (dst_z-tz)/(z*z+dst_z*dst_z);//if tz < dst_z then tz infront and diff_z > 0
+//						residuals.push_back(diff_z);
+
+//						float tnx	= m00*nx + m01*ny + m02*nz;
+//						float tny	= m10*nx + m11*ny + m12*nz;
+//						float tnz	= m20*nx + m21*ny + m22*nz;
+
+//						float dst_x = (float(dst_w) - dst_cx) * dst_z * dst_ifx;
+//						float dst_y = (float(dst_h) - dst_cy) * dst_z * dst_ify;
+//						float angle = (tnx*dst_x+tny*dst_y+tnz*dst_z)/sqrt(dst_x*dst_x + dst_y*dst_y + dst_z*dst_z);
+//						weights.push_back(1-angle);
+//						if(debugg){
+//							ws.push_back(src_w);
+//							hs.push_back(src_h);
+//						}
+//					}
+//				}
+//			}
+//		}
+//	}
+
+
+
+
+////	DistanceWeightFunction2PPR2 * func = new DistanceWeightFunction2PPR2();
+////	func->maxp			= 1.0;
+////	func->update_size	= true;
+////	func->zeromean      = true;
+////	func->startreg		= 0.0001;
+////	func->debugg_print	= debugg;
+////	func->bidir			= true;
+////	func->maxnoise      = pred;
+////	func->reset();
+
+//	DistanceWeightFunction2 * func = new DistanceWeightFunction2();
+//	func->f = THRESHOLD;
+//	func->p = 0.01;
+
+//	Eigen::MatrixXd X = Eigen::MatrixXd::Zero(1,residuals.size());
+//	for(int i = 0; i < residuals.size(); i++){X(0,i) = residuals[i];}
+//	func->computeModel(X);
+
+//	Eigen::VectorXd  W = func->getProbs(X);
+
+//	delete func;
+
+//	for(unsigned int i = 0; i < residuals.size(); i++){
+//		float r = residuals[i];
+//		float weight = W(i);
+//		float ocl = 0;
+//		if(r > 0){ocl += 1-weight;}
+//		oc.score		+= weight*weights.at(i);
+//		oc.occlusions	+= ocl*weights.at(i);
+//	}
+
+//	if(debugg){
+//		for(unsigned int src_w = 0; src_w < src_width-1; src_w++){
+//			for(unsigned int src_h = 0; src_h < src_height;src_h++){
+//				int src_ind = src_h*src_width+src_w;
+//				if(src_maskdata[src_ind] != 255){continue;}
+//				float z = src_idepth*float(src_depthdata[src_ind]);
+//				if(z > 0){
+//					float x = (float(src_w) - src_cx) * z * src_ifx;
+//					float y = (float(src_h) - src_cy) * z * src_ify;
+//					float tx	= m00*x + m01*y + m02*z + m03;
+//					float ty	= m10*x + m11*y + m12*z + m13;
+//					float tz	= m20*x + m21*y + m22*z + m23;
+//					scloud->points[src_ind].x = tx;
+//					scloud->points[src_ind].y = ty;
+//					scloud->points[src_ind].z = tz+2;
+//					scloud->points[src_ind].r = 0;
+//					scloud->points[src_ind].g = 0;
+//					scloud->points[src_ind].b = 255;
+//				}
+//			}
+//		}
+//		for(unsigned int dst_w = 0; dst_w < dst_width; dst_w++){
+//			for(unsigned int dst_h = 0; dst_h < dst_height;dst_h++){
+//				int dst_ind = dst_h*dst_width+dst_w;
+//				if(true || dst_maskdata[dst_ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
+//					float z = dst_idepth*float(dst_depthdata[dst_ind]);
+//					if(z > 0){// && (dst_w%3 == 0) && (dst_h%3 == 0)){
+//						float x = (float(dst_w) - dst_cx) * z * dst_ifx;
+//						float y = (float(dst_h) - dst_cy) * z * dst_ify;
+//						dcloud->points[dst_ind].x = x;
+//						dcloud->points[dst_ind].y = y;
+//						dcloud->points[dst_ind].z = z+2;
+//						dcloud->points[dst_ind].r = dst_rgbdata[3*dst_ind+2];
+//						dcloud->points[dst_ind].g = dst_rgbdata[3*dst_ind+1];
+//						dcloud->points[dst_ind].b = dst_rgbdata[3*dst_ind+0];
+//						if(dst_maskdata[dst_ind] == 255){
+//							dcloud->points[dst_ind].r = 255;
+//							dcloud->points[dst_ind].g = 000;
+//							dcloud->points[dst_ind].b = 255;
+//						}
+//					}
+//				}
+//			}
+//		}
+//		viewer->removeAllPointClouds();
+//		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
+//		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
+//		viewer->spin();
+//		viewer->removeAllPointClouds();
+
+//		for(unsigned int dst_w = 0; dst_w < dst_width; dst_w++){
+//			for(unsigned int dst_h = 0; dst_h < dst_height;dst_h++){
+//				int dst_ind = dst_h*dst_width+dst_w;
+//				dcloud->points[dst_ind].x = 0;
+//				dcloud->points[dst_ind].y = 0;
+//				dcloud->points[dst_ind].z = 0;
+//			}
+//		}
+
+
+//		for(unsigned int i = 0; i < residuals.size(); i++){
+//			float r = residuals[i];
+//			float weight = W(i);
+//			float ocl = 0;
+//			if(r > 0){ocl += 1-weight;}
+//			if(debugg){
+//				int w = ws[i];
+//				int h = hs[i];
+//				unsigned int src_ind = h * src_width + w;
+//				if(ocl > 0.01 || weight > 0.01){
+//					scloud->points[src_ind].r = 255.0*weights.at(i);
+//					scloud->points[src_ind].g = 00000*weights.at(i);
+//					scloud->points[src_ind].b = 255.0*weights.at(i);
+//				}else{
+//					scloud->points[src_ind].x = 0;
+//					scloud->points[src_ind].y = 0;
+//					scloud->points[src_ind].z = 0;
+//				}
+//			}
+//		}
+
+//		viewer->removeAllPointClouds();
+//		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
+//		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
+//		viewer->spin();
+//		viewer->removeAllPointClouds();
+
+//		for(unsigned int src_w = 0; src_w < src_width-1; src_w++){
+//			for(unsigned int src_h = 0; src_h < src_height;src_h++){
+//				int src_ind = src_h*src_width+src_w;
+//				if(src_maskdata[src_ind] != 255){continue;}
+//				float z = src_idepth*float(src_depthdata[src_ind]);
+//				if(z > 0){
+//					float x = (float(src_w) - src_cx) * z * src_ifx;
+//					float y = (float(src_h) - src_cy) * z * src_ify;
+//					float tx	= m00*x + m01*y + m02*z + m03;
+//					float ty	= m10*x + m11*y + m12*z + m13;
+//					float tz	= m20*x + m21*y + m22*z + m23;
+//					scloud->points[src_ind].x = tx;
+//					scloud->points[src_ind].y = ty;
+//					scloud->points[src_ind].z = tz+2;
+//					scloud->points[src_ind].r = 0;
+//					scloud->points[src_ind].g = 0;
+//					scloud->points[src_ind].b = 255;
+//				}
+//			}
+//		}
+//		for(unsigned int dst_w = 0; dst_w < dst_width; dst_w++){
+//			for(unsigned int dst_h = 0; dst_h < dst_height;dst_h++){
+//				int dst_ind = dst_h*dst_width+dst_w;
+//				if(true || dst_maskdata[dst_ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
+//					float z = dst_idepth*float(dst_depthdata[dst_ind]);
+//					if(z > 0){// && (dst_w%3 == 0) && (dst_h%3 == 0)){
+//						float x = (float(dst_w) - dst_cx) * z * dst_ifx;
+//						float y = (float(dst_h) - dst_cy) * z * dst_ify;
+//						dcloud->points[dst_ind].x = x;
+//						dcloud->points[dst_ind].y = y;
+//						dcloud->points[dst_ind].z = z+2;
+//						dcloud->points[dst_ind].r = dst_rgbdata[3*dst_ind+2];
+//						dcloud->points[dst_ind].g = dst_rgbdata[3*dst_ind+1];
+//						dcloud->points[dst_ind].b = dst_rgbdata[3*dst_ind+0];
+//						if(dst_maskdata[dst_ind] == 255){
+//							dcloud->points[dst_ind].r = 255;
+//							dcloud->points[dst_ind].g = 000;
+//							dcloud->points[dst_ind].b = 255;
+//						}
+//					}
+//				}
+//			}
+//		}
+//		for(unsigned int i = 0; i < residuals.size(); i++){
+//			float r = residuals[i];
+//			float weight = W(i);
+//			float ocl = 0;
+//			if(r > 0){ocl += 1-weight;}
+//			if(debugg){
+//				int w = ws[i];
+//				int h = hs[i];
+//				unsigned int src_ind = h * src_width + w;
+//				if(ocl > 0.01 || weight > 0.01){
+//					scloud->points[src_ind].r = 255.0*ocl*weights.at(i);
+//					scloud->points[src_ind].g = 255.0*weight*weights.at(i);
+//					scloud->points[src_ind].b = 0;
+//				}else{
+//					scloud->points[src_ind].x = 0;
+//					scloud->points[src_ind].y = 0;
+//					scloud->points[src_ind].z = 0;
+//				}
+//			}
+//		}
+
+//		viewer->removeAllPointClouds();
+//		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
+//		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
+//		viewer->spin();
+//		viewer->removeAllPointClouds();
+//	}
+///*
+//	if(debugg){
+//		viewer->removeAllPointClouds();
+//		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
+//		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
+//		cv::namedWindow("debuggimage",		cv::WINDOW_AUTOSIZE );
+//		cv::imshow(		"debuggimage",		debugg_img );
+//		//cv::waitKey(30);
+//		viewer->spin();
+//		viewer->removeAllPointClouds();
+//	}
+//	*/
+//	return oc;
+//}
+
+OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, ModelMask * src_modelmask, RGBDFrame * dst, ModelMask * dst_modelmask, Eigen::Matrix4d p, int step, bool debugg){
 	OcclusionScore oc;
 
 	unsigned char  * src_maskdata		= (unsigned char	*)(src_modelmask->mask.data);
@@ -393,63 +833,57 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 	}
 
 	std::vector<float> residuals;
-    std::vector<float> weights;
+	std::vector<float> weights;
 	std::vector<int> ws;
 	std::vector<int> hs;
 	residuals.reserve(src_width*src_height);
-    weights.reserve(src_width*src_height);
+	weights.reserve(src_width*src_height);
 	if(debugg){
 		ws.reserve(src_width*src_height);
 		hs.reserve(src_width*src_height);
 	}
 
-	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-	scloud->points.resize(src_width*src_height);
-	dcloud->points.resize(dst_width*dst_height);
-
-    double sum = 0;
-    double count = 0;
+	double sum = 0;
+	double count = 0;
 
 	std::vector<int> & testw = src_modelmask->testw;
 	std::vector<int> & testh = src_modelmask->testh;
 
 	unsigned int test_nrdata = testw.size();
-	int indstep = std::max(1.0,double(test_nrdata)/double(step));
-	//printf("indstep: %i\n",indstep);
-	for(unsigned int ind = 0; ind < test_nrdata;ind+=1){
-	//for(unsigned int src_w = 0; src_w < src_width-1; src_w++){
-	//    for(unsigned int src_h = 0; src_h < src_height;src_h++){
-		unsigned int src_w = testw[ind];
-		unsigned int src_h = testh[ind];
+	int indstep = 10;
+//	int indstep = std::max(1.0,double(test_nrdata)/double(step));
+//	printf("indstep: %i\n",indstep);
+//	for(unsigned int ind = 0; ind < test_nrdata;ind+=indstep){
+//	//for(unsigned int src_w = 0; src_w < src_width-1; src_w++){
+//	//    for(unsigned int src_h = 0; src_h < src_height;src_h++){
+//		unsigned int src_w = testw[ind];
+//		unsigned int src_h = testh[ind];
 
-		int src_ind0 = src_h*src_width+src_w-1;
-		int src_ind1 = src_h*src_width+src_w;
-		int src_ind2 = src_h*src_width+src_w+1;
-		if(src_maskdata[src_ind0] == 255 && src_maskdata[src_ind1] == 255 && src_maskdata[src_ind2] == 255){// && p.z > 0 && !isnan(p.normal_x)){
-			float z0 = src_idepth*float(src_depthdata[src_ind0]);
-			float z1 = src_idepth*float(src_depthdata[src_ind1]);
-			float z2 = src_idepth*float(src_depthdata[src_ind2]);
+//		int src_ind0 = src_h*src_width+src_w-1;
+//		int src_ind1 = src_h*src_width+src_w;
+//		int src_ind2 = src_h*src_width+src_w+1;
+//		if(src_maskdata[src_ind0] == 255 && src_maskdata[src_ind1] == 255 && src_maskdata[src_ind2] == 255){// && p.z > 0 && !isnan(p.normal_x)){
+//			float z0 = src_idepth*float(src_depthdata[src_ind0]);
+//			float z1 = src_idepth*float(src_depthdata[src_ind1]);
+//			float z2 = src_idepth*float(src_depthdata[src_ind2]);
 
-			double diff0 = (z0-z1)/(z0*z0+z1*z1);
-			double diff1 = (z2-z1)/(z2*z2+z1*z1);
-			if( fabs(diff0) < fabs(diff1)){
-				if(diff0 != 0){
-					sum += diff0*diff0;
-					count++;
-				}
-			}else{
-				if(diff1 != 0){
-					sum += diff1*diff1;
-					count++;
-				}
-			}
-		}
-	}
-
-
-    double me = sqrt(sum/(count+1));
-    double pred = 1.3*sqrt(2)*me;
+//			double diff0 = (z0-z1)/(z0*z0+z1*z1);
+//			double diff1 = (z2-z1)/(z2*z2+z1*z1);
+//			if( fabs(diff0) < fabs(diff1)){
+//				if(diff0 != 0){
+//					sum += diff0*diff0;
+//					count++;
+//				}
+//			}else{
+//				if(diff1 != 0){
+//					sum += diff1*diff1;
+//					count++;
+//				}
+//			}
+//		}
+//	}
+//    double me = sqrt(sum/(count+1));
+//    double pred = 1.3*sqrt(2)*me;
 /*
 	for(unsigned int ind = 0; ind < test_nrdata;ind++){
 	//for(unsigned int src_w = 0; src_w < src_width-1; src_w++){
@@ -494,7 +928,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 		}
 	}
 */
-	for(unsigned int ind = 0; ind < test_nrdata;ind++){
+	for(unsigned int ind = 0; ind < test_nrdata;ind+=indstep){
 		unsigned int src_w = testw[ind];
 		unsigned int src_h = testh[ind];
 
@@ -546,15 +980,19 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 
 
 
-	DistanceWeightFunction2PPR2 * func = new DistanceWeightFunction2PPR2();
-	func->maxp			= 1.0;
-	func->update_size	= true;
-    func->zeromean      = true;
-    func->startreg		= 0.0001;
-    func->debugg_print	= debugg;
-	func->bidir			= true;
-    func->maxnoise      = pred;
-	func->reset();
+//	DistanceWeightFunction2PPR2 * func = new DistanceWeightFunction2PPR2();
+//	func->maxp			= 1.0;
+//	func->update_size	= true;
+//	func->zeromean      = true;
+//	func->startreg		= 0.0001;
+//	func->debugg_print	= debugg;
+//	func->bidir			= true;
+//	func->maxnoise      = pred;
+//	func->reset();
+
+	DistanceWeightFunction2 * func = new DistanceWeightFunction2();
+	func->f = THRESHOLD;
+	func->p = 0.005;
 
 	Eigen::MatrixXd X = Eigen::MatrixXd::Zero(1,residuals.size());
 	for(int i = 0; i < residuals.size(); i++){X(0,i) = residuals[i];}
@@ -574,6 +1012,10 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 	}
 
 	if(debugg){
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+		scloud->points.resize(src_width*src_height);
+		dcloud->points.resize(dst_width*dst_height);
 		for(unsigned int src_w = 0; src_w < src_width-1; src_w++){
 			for(unsigned int src_h = 0; src_h < src_height;src_h++){
 				int src_ind = src_h*src_width+src_w;
@@ -744,6 +1186,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, cv::Mat src_
 	*/
 	return oc;
 }
+
 using namespace std;
 using namespace Eigen;
 
@@ -852,7 +1295,7 @@ vector<vector< OcclusionScore > > ModelUpdater::computeAllOcclusionScores(RGBDFr
 
 	DistanceWeightFunction2PPR * func = new DistanceWeightFunction2PPR();
 	func->update_size = true;
-    func->startreg = 0.00001;
+	func->startreg = 0.00001;
 	func->debugg_print = true;
 	func->reset();
 
@@ -881,51 +1324,70 @@ vector<vector< OcclusionScore > > ModelUpdater::computeAllOcclusionScores(RGBDFr
 }
 
 
-vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames,std::vector<cv::Mat> current_masks,std::vector<ModelMask*> current_modelmasks, bool debugg_scores){
+//vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames,std::vector<cv::Mat> current_masks,std::vector<ModelMask*> current_modelmasks, bool debugg_scores){
+//	vector<vector < OcclusionScore > > occlusionScores;
+//	occlusionScores.resize(current_frames.size());
+//	for(int i = 0; i < current_frames.size(); i++){occlusionScores[i].resize(current_frames.size());}
+
+//	int max_points = 100000.0/double(current_frames.size()*(current_frames.size()-1));
+//	float occlusion_penalty = 10.0f;
+//	std::vector<std::vector < float > > scores;
+//	scores.resize(occlusionScores.size());
+//	for(int i = 0; i < occlusionScores.size(); i++){scores[i].resize(occlusionScores.size());}
+
+//	bool lock = false;
+//	for(int i = 0; i < current_frames.size(); i++){
+//		printf("getOcclusionScores(%i)\n",i);
+//		scores[i][i] = 0;
+//		for(int j = i+1; j < current_frames.size(); j++){
+//			if(lock && current_modelmasks[j]->sweepid == current_modelmasks[i]->sweepid && current_modelmasks[j]->sweepid != -1){
+//				occlusionScores[i][j].score = 99999999;
+//				occlusionScores[i][j].occlusions = 0;
+//				occlusionScores[j][i].score = 99999999;
+//				occlusionScores[j][i].occlusions = 0;
+//			}else{
+//				Eigen::Matrix4d relative_pose = current_poses[i].inverse() * current_poses[j];
+//				occlusionScores[j][i]		= computeOcclusionScore(current_frames[j], current_masks[j], current_modelmasks[j],current_frames[i], current_masks[i], current_modelmasks[i], relative_pose,max_points,debugg_scores);
+//				occlusionScores[i][j]		= computeOcclusionScore(current_frames[i], current_masks[i], current_modelmasks[i],current_frames[j], current_masks[j], current_modelmasks[j], relative_pose.inverse(),max_points,debugg_scores);
+//			}
+//			scores[i][j] = occlusionScores[i][j].score+occlusionScores[j][i].score - occlusion_penalty*(occlusionScores[i][j].occlusions+occlusionScores[j][i].occlusions);
+//			scores[j][i] = scores[i][j];
+//		}
+//	}
+//	return occlusionScores;
+//}
+
+//vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames, std::vector<cv::Mat> current_masks, std::vector<ModelMask*> current_modelmasks, bool debugg_scores){
+vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames, std::vector<ModelMask*> current_modelmasks, bool debugg_scores){
 	vector<vector < OcclusionScore > > occlusionScores;
 	occlusionScores.resize(current_frames.size());
 	for(int i = 0; i < current_frames.size(); i++){occlusionScores[i].resize(current_frames.size());}
 
-	int max_points = 1000000.0/double(current_frames.size()*(current_frames.size()-1));
+	int max_points = 100000.0/double(current_frames.size()*(current_frames.size()-1));
 	float occlusion_penalty = 10.0f;
 	std::vector<std::vector < float > > scores;
 	scores.resize(occlusionScores.size());
 	for(int i = 0; i < occlusionScores.size(); i++){scores[i].resize(occlusionScores.size());}
 
+	bool lock = true;
 	for(int i = 0; i < current_frames.size(); i++){
-		printf("getOcclusionScores(%i)\n",i);
+		//printf("getOcclusionScores(%i)\n",i);
 		scores[i][i] = 0;
 		for(int j = i+1; j < current_frames.size(); j++){
-			if(current_modelmasks[j]->sweepid == current_modelmasks[i]->sweepid && current_modelmasks[j]->sweepid != -1){
+			if(lock && current_modelmasks[j]->sweepid == current_modelmasks[i]->sweepid && current_modelmasks[j]->sweepid != -1){
 				occlusionScores[i][j].score = 99999999;
 				occlusionScores[i][j].occlusions = 0;
 				occlusionScores[j][i].score = 99999999;
 				occlusionScores[j][i].occlusions = 0;
 			}else{
 				Eigen::Matrix4d relative_pose = current_poses[i].inverse() * current_poses[j];
-				occlusionScores[j][i]		= computeOcclusionScore(current_frames[j], current_masks[j], current_modelmasks[j],current_frames[i], current_masks[i], current_modelmasks[i], relative_pose,max_points,debugg_scores);
-				occlusionScores[i][j]		= computeOcclusionScore(current_frames[i], current_masks[i], current_modelmasks[i],current_frames[j], current_masks[j], current_modelmasks[j], relative_pose.inverse(),max_points,debugg_scores);
+				occlusionScores[j][i]		= computeOcclusionScore(current_frames[j], current_modelmasks[j],current_frames[i], current_modelmasks[i], relative_pose,max_points,debugg_scores);
+				occlusionScores[i][j]		= computeOcclusionScore(current_frames[i], current_modelmasks[i],current_frames[j], current_modelmasks[j], relative_pose.inverse(),max_points,debugg_scores);
 			}
 			scores[i][j] = occlusionScores[i][j].score+occlusionScores[j][i].score - occlusion_penalty*(occlusionScores[i][j].occlusions+occlusionScores[j][i].occlusions);
 			scores[j][i] = scores[i][j];
-			/*
-			if(scores[i][j] < 0){
-				computeOcclusionScore(current_frames[j], current_masks[j], current_modelmasks[j],current_frames[i], current_masks[i], current_modelmasks[i], relative_pose,max_points,true);
-				computeOcclusionScore(current_frames[i], current_masks[i], current_modelmasks[i],current_frames[j], current_masks[j], current_modelmasks[j], relative_pose.inverse(),max_points,true);
-
-			}
-			*/
 		}
 	}
-
-/*
-	for(int i = 0; i < scores.size(); i++){
-		for(int j = 0; j < scores.size(); j++){
-			printf("%3.3f ",scores[i][j]*0.00001);
-		}
-		printf("\n");
-	}
-*/
 	return occlusionScores;
 }
 
@@ -937,20 +1399,12 @@ std::vector<std::vector < float > > ModelUpdater::getScores(std::vector<std::vec
 	std::vector<std::vector < float > > scores;
 	scores.resize(occlusionScores.size());
 	for(int i = 0; i < occlusionScores.size(); i++){scores[i].resize(occlusionScores.size());}
-
 	for(int i = 0; i < scores.size(); i++){
 		scores[i][i] = 0;
 		for(int j = i+1; j < scores.size(); j++){
 			scores[i][j] = occlusionScores[i][j].score+occlusionScores[j][i].score - occlusion_penalty*(occlusionScores[i][j].occlusions+occlusionScores[j][i].occlusions);
 			scores[j][i] = scores[i][j];
 		}
-	}
-
-	for(int i = 0; i < scores.size(); i++){
-		for(int j = 0; j < scores.size(); j++){
-			printf("%3.3f ",scores[i][j]*0.00001);
-		}
-		printf("\n");
 	}
 	return scores;
 }

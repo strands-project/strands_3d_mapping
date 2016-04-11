@@ -3,105 +3,118 @@
 
 namespace reglib
 {
+using namespace Eigen;
 
 unsigned int model_id_counter = 0;
 
 Model::Model(){
-    id = model_id_counter++;
+//	printf("Model::Model()\n");
+	total_scores = 0;
+	score = 0;
+	id = model_id_counter++;
+	last_changed = -1;
 }
 
-using namespace Eigen;
-
 Model::Model(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d pose){
+	total_scores = 0;
+	scores.resize(1);
+	scores.back().resize(1);
+	scores[0][0] = 0;
+
 //printf("start Model::Model(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d pose)\n");
     score = 0;
     id = model_id_counter++;
 
 	last_changed = -1;
 
-//	addFrameToModel(frame, mask, pose);
-	unsigned char  * maskdata		= (unsigned char	*)(mask.data);
-	unsigned char  * rgbdata		= (unsigned char	*)(frame->rgb.data);
-	unsigned short * depthdata		= (unsigned short	*)(frame->depth.data);
-	float		   * normalsdata	= (float			*)(frame->normals.data);
-
-	unsigned int frameid = frame->id;
-
-	Camera * camera				= frame->camera;
-	const unsigned int width	= camera->width;
-	const unsigned int height	= camera->height;
-	const unsigned int width2	= width-2;
-	const unsigned int height2	= height-2;
-	const float idepth			= camera->idepth_scale;
-	const float cx				= camera->cx;
-	const float cy				= camera->cy;
-	const float ifx				= 1.0/camera->fx;
-	const float ify				= 1.0/camera->fy;
-	const float fx				= camera->fx;
-	const float fy				= camera->fy;
-
-//HACK, should only be done if pose == identity
-	//std::vector<superpoint> pointsToAdd;
-	points.reserve(width*height);
-	for(unsigned int w = 0; w < width; w+=1){
-		for(unsigned int h = 0; h < height;h+=1){
-			int ind = h*width+w;
-			if(maskdata[ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
-				float z = idepth*float(depthdata[ind]);
-				float nx = normalsdata[3*ind+0];
-
-				if(z > 0 && nx != 2){
-					float ny = normalsdata[3*ind+1];
-					float nz = normalsdata[3*ind+2];
-
-					float x = (w - cx) * z * ifx;
-					float y = (h - cy) * z * ify;
-
-					float pb = rgbdata[3*ind+0];
-					float pg = rgbdata[3*ind+1];
-					float pr = rgbdata[3*ind+2];
-
-					Vector3f	pxyz	(x	,y	,z );
-					Vector3f	pnxyz	(nx,ny,nz);
-					Vector3f	prgb	(pr	,pg	,pb );
-					float		weight	= 1.0/(z*z);
-					points.push_back(superpoint(pxyz,pnxyz,prgb, weight, weight, frameid));
-				}
-			}
-		}
-	}
-
 	relativeposes.push_back(pose);
 	frames.push_back(frame);
-	masks.push_back(mask);
+//	masks.push_back(mask);
 	modelmasks.push_back(new ModelMask(mask));
-	
-	char buf [1024];
-//	sprintf(buf,"Frame %i maskimage",frame->id);
-//	cv::namedWindow(buf,	cv::WINDOW_AUTOSIZE);
-//	cv::imshow(		buf,	mask);
+	recomputeModelPoints();
 
-//	sprintf(buf,"Frame %i frame->depth",frame->id);
-//	cv::namedWindow(buf,	cv::WINDOW_AUTOSIZE);
-//	cv::imshow(		buf,	frame->depth);
-	
-//	sprintf(buf,"Frame %i frame->rgb",frame->id);
-//	cv::namedWindow(buf,	cv::WINDOW_AUTOSIZE);
-//	cv::imshow(		buf,	frame->rgb);
+////	addFrameToModel(frame, mask, pose);
+//	//unsigned char  * maskdata		= (unsigned char	*)(mask.data);
+//	bool  * maskvec		= modelmasks.back()->maskvec;
+//	unsigned char  * rgbdata		= (unsigned char	*)(frame->rgb.data);
+//	unsigned short * depthdata		= (unsigned short	*)(frame->depth.data);
+//	float		   * normalsdata	= (float			*)(frame->normals.data);
 
-	cv::waitKey(100);
-//printf("end Model::Model(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d pose)\n");
+//	unsigned int frameid = frame->id;
+
+//	Camera * camera				= frame->camera;
+//	const unsigned int width	= camera->width;
+//	const unsigned int height	= camera->height;
+//	const unsigned int width2	= width-2;
+//	const unsigned int height2	= height-2;
+//	const float idepth			= camera->idepth_scale;
+//	const float cx				= camera->cx;
+//	const float cy				= camera->cy;
+//	const float ifx				= 1.0/camera->fx;
+//	const float ify				= 1.0/camera->fy;
+//	const float fx				= camera->fx;
+//	const float fy				= camera->fy;
+
+////HACK, should only be done if pose == identity
+//	//std::vector<superpoint> pointsToAdd;
+//	points.reserve(width*height);
+//	for(unsigned int w = 0; w < width; w+=1){
+//		for(unsigned int h = 0; h < height;h+=1){
+//			int ind = h*width+w;
+//			//if(maskdata[ind] == 255){// && p.z > 0 && !isnan(p.normal_x)){
+//				float z = idepth*float(depthdata[ind]);
+//				float nx = normalsdata[3*ind+0];
+
+//				if(z > 0 && nx != 2){
+//					float ny = normalsdata[3*ind+1];
+//					float nz = normalsdata[3*ind+2];
+
+//					float x = (w - cx) * z * ifx;
+//					float y = (h - cy) * z * ify;
+
+//					float pb = rgbdata[3*ind+0];
+//					float pg = rgbdata[3*ind+1];
+//					float pr = rgbdata[3*ind+2];
+
+//					Vector3f	pxyz	(x	,y	,z );
+//					Vector3f	pnxyz	(nx,ny,nz);
+//					Vector3f	prgb	(pr	,pg	,pb );
+//					float		weight	= 1.0/(z*z);
+//					points.push_back(superpoint(pxyz,pnxyz,prgb, weight, weight, frameid));
+//				}
+//			}
+//		}
+//	}
+
+
+	
+//	char buf [1024];
+////	sprintf(buf,"Frame %i maskimage",frame->id);
+////	cv::namedWindow(buf,	cv::WINDOW_AUTOSIZE);
+////	cv::imshow(		buf,	mask);
+
+////	sprintf(buf,"Frame %i frame->depth",frame->id);
+////	cv::namedWindow(buf,	cv::WINDOW_AUTOSIZE);
+////	cv::imshow(		buf,	frame->depth);
+	
+////	sprintf(buf,"Frame %i frame->rgb",frame->id);
+////	cv::namedWindow(buf,	cv::WINDOW_AUTOSIZE);
+////	cv::imshow(		buf,	frame->rgb);
+
+////	cv::waitKey(100);
+////printf("end Model::Model(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d pose)\n");
 }
 
 void Model::recomputeModelPoints(){
 	points.clear();
 	for(int i = 0; i < frames.size(); i++){
-		addPointsToModel(frames[i],masks[i],relativeposes[i]);
+		addPointsToModel(frames[i],modelmasks[i],relativeposes[i]);
 	}
 }
 
-void Model::addPointsToModel(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d p){
-	unsigned char  * maskdata		= (unsigned char	*)(mask.data);
+void Model::addPointsToModel(RGBDFrame * frame, ModelMask * modelmask, Eigen::Matrix4d p){
+	//unsigned char  * maskdata		= (unsigned char	*)(mask.data);
+	bool * maskvec = modelmask->maskvec;
 	unsigned char  * rgbdata		= (unsigned char	*)(frame->rgb.data);
 	unsigned short * depthdata		= (unsigned short	*)(frame->depth.data);
 	float		   * normalsdata	= (float			*)(frame->normals.data);
@@ -128,7 +141,8 @@ void Model::addPointsToModel(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d p)
 	for(unsigned int w = 0; w < width; w++){
 		for(unsigned int h = 0; h < height;h++){
 			int ind = h*width+w;
-			if(maskdata[ind] == 255 && !reprojected[ind]){// && p.z > 0 && !isnan(p.normal_x)){
+			//if(maskdata[ind] == 255 && !reprojected[ind]){// && p.z > 0 && !isnan(p.normal_x)){
+			if(maskvec[ind] && !reprojected[ind]){// && p.z > 0 && !isnan(p.normal_x)){
 				float z = idepth*float(depthdata[ind]);
 				float nx = normalsdata[3*ind+0];
 
@@ -161,19 +175,32 @@ void Model::addPointsToModel(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d p)
 	}
 }
 
-void Model::addFrameToModel(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d p){
-	addPointsToModel(frame, mask, p);
+void Model::print(){
+	//printf("-------------- START void Model::print() --------------\n");
+	printf("id: %i ",id);
+	printf("last_changed: %i ",last_changed);
+	printf("score: %f ",score);
+	printf("total_scores: %f ",total_scores);
+	printf("frames: %i ",frames.size());
+	printf("modelmasks: %i ",modelmasks.size());
+	printf("relativeposes: %i\n",relativeposes.size());
+	//printf("--------------  END  void Model::print() --------------\n");
+}
+
+void Model::addFrameToModel(RGBDFrame * frame,  ModelMask * modelmask, Eigen::Matrix4d p){
+	addPointsToModel(frame, modelmask, p);
 	
 	relativeposes.push_back(p);
 	frames.push_back(frame);
-	masks.push_back(mask);
+	modelmasks.push_back(modelmask);
+	//masks.push_back(mask);
 }
 
 void Model::merge(Model * model, Eigen::Matrix4d p){
 	for(int i = 0; i < model->frames.size(); i++){
 		relativeposes.push_back(p * model->relativeposes[i]);
 		frames.push_back(model->frames[i]);
-		masks.push_back(model->masks[i]);
+		//masks.push_back(model->masks[i]);
 		modelmasks.push_back(model->modelmasks[i]);
 	}
 	recomputeModelPoints();
@@ -276,7 +303,8 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Model::getPCLcloud(int step, bool color){
 		std::map<int,int> mymapG;
 		std::map<int,int> mymapB;
 		for(int f = 0; f < frames.size(); f++){
-			unsigned char  * maskdata		= (unsigned char	*)(masks[f].data);
+			//unsigned char  * maskdata		= (unsigned char	*)(masks[f].data);
+			bool * maskvec = modelmasks[f]->maskvec;
 			unsigned char  * rgbdata		= (unsigned char	*)(frames[f]->rgb.data);
 			unsigned short * depthdata		= (unsigned short	*)(frames[f]->depth.data);
 			float		   * normalsdata	= (float			*)(frames[f]->normals.data);
@@ -318,7 +346,8 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Model::getPCLcloud(int step, bool color){
 			for(unsigned int w = 0; w < width; w++){
 				for(unsigned int h = 0; h < height;h++){
 					int ind = h*width+w;
-					if(maskdata[ind] == 255){
+					//if(maskdata[ind] == 255){
+					if(maskvec[ind]){
 						float z = idepth*float(depthdata[ind]);
 						if(z > 0){
 							float x = (w - cx) * z * ifx;

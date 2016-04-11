@@ -3,7 +3,7 @@ project(quasimodo_models)
 
 #find_package(catkin REQUIRED)# quasimodo_msgs)# COMPONENTS quasimodo_msgs)
 set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3")
-#set(CMAKE_CXX_FLAGS "-g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3")
+#set(CMAKE_CXX_FLAGS "-O1 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3")
 
 
 find_package(catkin REQUIRED COMPONENTS
@@ -60,6 +60,12 @@ link_directories(/opt/ros/indigo/lib)
 link_directories(/usr/local/lib/)
 include_directories(/usr/local/include/)
 
+
+#Ceres
+FIND_PACKAGE(Ceres REQUIRED)
+INCLUDE_DIRECTORIES(${CERES_INCLUDE_DIRS})
+
+
 add_library(quasimodo_SICP src/registration/ICP.cpp)
 target_link_libraries(quasimodo_SICP ${catkin_LIBRARIES})
 
@@ -81,7 +87,7 @@ add_library(quasimodo_reglib src/registration/Registration.cpp src/registration/
 target_link_libraries(quasimodo_reglib quasimodo_myhull quasimodo_SICP quasimodo_weightlib ceres glog ${catkin_LIBRARIES})
 
 add_library(quasimodo_core src/core/Util.cpp src/core/Camera.cpp src/core/RGBDFrame.cpp)
-target_link_libraries(quasimodo_core quasimodo_SICP ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(quasimodo_core ${CERES_LIBRARIES} quasimodo_SICP ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 
 

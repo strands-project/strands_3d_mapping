@@ -32,7 +32,7 @@ namespace reglib
 		cv::Mat rgb;
 		cv::Mat depth;
 		cv::Mat normals;
-
+		cv::Mat depthedges;
 		int * labels;
 		int nr_labels;
 

@@ -32,7 +32,7 @@ RegistrationPPR::RegistrationPPR(){
 	type					= PointToPlane;
 	use_PPR_weight			= true;
 	use_features			= true;
-	normalize_matchweights	= true;
+	//normalize_matchweights	= true;
 	func					= new DistanceWeightFunction2PPR();
 
 	visualizationLvl = 2;
@@ -316,7 +316,7 @@ FusionResults RegistrationPPR::getTransform(Eigen::MatrixXd guess){
 				}
 				
 				Wold = W;
-
+				if(visualizationLvl >= 3){show(X,Qp,W);}
 				//Normalizing weights has an effect simmilar to one to one matching
 				//in that it reduces the effect of border points
 				if(normalize_matchweights){

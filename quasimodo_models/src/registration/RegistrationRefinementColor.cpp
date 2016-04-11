@@ -24,7 +24,7 @@ RegistrationRefinementColor::RegistrationRefinementColor(){
 	normalize_matchweights	= true;
 	//DistanceWeightFunction2PPR * fu = new DistanceWeightFunction2PPR();
 	DistanceWeightFunction2PPR2 * fu = new DistanceWeightFunction2PPR2();
-	fu->startreg			= 0.001;
+	fu->startreg			= 0.01;
 	fu->debugg_print		= false;
 	func					= fu;
 
@@ -393,7 +393,7 @@ exit(0);
 //					printf("index old: %i index new: %i\n",matchid[i],ret_index[0]);
 					//std::cout << "ret_index=" << ret_index[j] << " out_dist_sqr=" << out_dist_sqr[j] << endl;
 			}
-exit(0);
+//exit(0);
 			/// Find closest point
 #pragma omp parallel for
 			for(unsigned int i=0; i< xcols; ++i) {

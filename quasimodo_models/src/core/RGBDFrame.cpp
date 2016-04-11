@@ -64,6 +64,11 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 	int width = img->width;
 	int height = img->height;
 	int sz = height*width;
+	const double idepth			= camera->idepth_scale;
+	const double cx				= camera->cx;
+	const double cy				= camera->cy;
+	const double ifx			= 1.0/camera->fx;
+	const double ify			= 1.0/camera->fy;
 
 	connections.resize(1);
 	connections[0].resize(1);
@@ -77,34 +82,124 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 	labels = new int[width*height];
 	for(unsigned int i = 0; i < width*height; i++){labels[i] = 0;}
 
-	printf("Image loaded %d\n",img->nChannels);
+//	printf("Image loaded %d\n",img->nChannels);
 
 
-
+	unsigned short * depthdata = (unsigned short *)depth.data;
+	unsigned char * rgbdata = (unsigned char *)rgb.data;
 
 	//unsigned short * oriframe = (unsigned short *)depth.data;
 	//for(int i = 10000; i < 640*480; i+=10000){printf("%i depth %i\n",i,oriframe[i]);}
 	//exit(0);
 
+	depthedges.create(height,width,CV_8UC1);
+	unsigned char * depthedgesdata = (unsigned char *)depthedges.data;
+
+	double t = 0.01;
+	for(unsigned int w = 0; w < width; w++){
+		for(unsigned int h = 0; h < height;h++){
+			int ind = h*width+w;
+			depthedgesdata[ind] = 0;
+			double z = idepth*double(depthdata[ind]);
+			if(w > 0){
+				double z2 = idepth*double(depthdata[ind-1]);
+				double info = 1.0/(z*z+z2*z2);
+				double diff = fabs(z2-z)*info;
+				if(diff > t){depthedgesdata[ind] = 255;}
+			}
+
+			if(w < width-1){
+				double z2 = idepth*double(depthdata[ind+1]);
+				double info = 1.0/(z*z+z2*z2);
+				double diff = fabs(z2-z)*info;
+				if(diff > t){depthedgesdata[ind] = 255;}
+			}
+
+			if(h > 0){
+				double z2 = idepth*double(depthdata[ind-width]);
+				double info = 1.0/(z*z+z2*z2);
+				double diff = fabs(z2-z)*info;
+				if(diff > t){depthedgesdata[ind] = 255;}
+			}
+
+			if(h < height-1){
+				double z2 = idepth*double(depthdata[ind+width]);
+				double info = 1.0/(z*z+z2*z2);
+				double diff = fabs(z2-z)*info;
+				if(diff > t){depthedgesdata[ind] = 255;}
+			}
+
+			if(h > 0 && w > 0){
+				double z2 = idepth*double(depthdata[ind-width-1]);
+				double info = 1.0/(z*z+z2*z2);
+				double diff = fabs(z2-z)*info;
+				if(diff > t){depthedgesdata[ind] = 255;}
+			}
+
+			if(w > 0 && h < height-1){
+				double z2 = idepth*double(depthdata[ind+width-1]);
+				double info = 1.0/(z*z+z2*z2);
+				double diff = fabs(z2-z)*info;
+				if(diff > t){depthedgesdata[ind] = 255;}
+			}
+
+			if(h > 0 && w < width-1){
+				double z2 = idepth*double(depthdata[ind-width+1]);
+				double info = 1.0/(z*z+z2*z2);
+				double diff = fabs(z2-z)*info;
+				if(diff > t){depthedgesdata[ind] = 255;}
+			}
+
+			if(h < height-1 && w < width-1){
+				double z2 = idepth*double(depthdata[ind+width+1]);
+				double info = 1.0/(z*z+z2*z2);
+				double diff = fabs(z2-z)*info;
+				if(diff > t){depthedgesdata[ind] = 255;}
+			}
+		}
+	}
+
+//	for(unsigned int w = 0; w < width; w++){
+//		for(unsigned int h = 0; h < height;h++){
+//			int ind = h*width+w;
+//			double z = idepth*double(depthdata[ind]);
+//			if(w > 0		&& depthedgesdata[ind-1] > 0){		depthedgesdata[ind] = 255;}
+//			if(h > 0		&& depthedgesdata[ind-width] > 0){	depthedgesdata[ind] = 255;}
+//			if(w < width-1	&& depthedgesdata[ind+1] > 0){		depthedgesdata[ind] = 255;}
+//			if(h < height-1 && depthedgesdata[ind+width] > 0){	depthedgesdata[ind] = 255;}
+//		}
+//	}
+
+/*
+	cv::namedWindow( "rgb", cv::WINDOW_AUTOSIZE );			cv::imshow( "rgb", rgb );
+	cv::namedWindow( "normals", cv::WINDOW_AUTOSIZE );		cv::imshow( "normals", normals );
+	cv::namedWindow( "depth", cv::WINDOW_AUTOSIZE );		cv::imshow( "depth", depth );
+	cv::namedWindow( "depthedges", cv::WINDOW_AUTOSIZE );	cv::imshow( "depthedges", depthedges );
+	cv::namedWindow( "erosion_mask", cv::WINDOW_AUTOSIZE );	cv::imshow( "erosion_mask", erosion_mask );
+	cv::waitKey(0);
+*/
+
+/*
+	unsigned char * erosion_maskdata = (unsigned char *)erosion_mask.data;
+	for(unsigned int w = 1; w < 639; w++){
+		for(unsigned int h = 1; h < 479; h++){
+			if(erosion_maskdata[h*640+w] != 0){
+				testw.push_back(w);
+				testh.push_back(h);
+			}
+		}
+	}
+*/
+
 	if(compute_normals){
-		const unsigned int width	= camera->width;
-		const unsigned int height	= camera->height;
+
 
 		normals.create(height,width,CV_32FC3);
 		float * normalsdata = (float *)normals.data;
 
-		unsigned short * depthdata = (unsigned short *)depth.data;
-		unsigned char * rgbdata = (unsigned char *)rgb.data;
 
 
-
-		const double idepth			= camera->idepth_scale;
-		const double cx				= camera->cx;
-		const double cy				= camera->cy;
-		const double ifx			= 1.0/camera->fx;
-		const double ify			= 1.0/camera->fy;
-
-		printf("idepth: %f\n",idepth);
+		//printf("idepth: %f\n",idepth);
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr	cloud	(new pcl::PointCloud<pcl::PointXYZ>);
 		pcl::PointCloud<pcl::Normal>::Ptr	normals (new pcl::PointCloud<pcl::Normal>);
@@ -241,251 +336,17 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 				updated = false;
 			//}
 		}
-			//exit(0);
 	}
-/*
-		unsigned int* ubuff = new unsigned int[sz];
-		unsigned int* ubuff2 = new unsigned int[sz];
-		unsigned int* dbuff = new unsigned int[sz];
-		unsigned int pValue;
-		unsigned int pdValue;
-		char c;
-		unsigned int r,g,b,d,dx,dy;
-		int idx = 0;
-		/// Create Windows
-		cv::namedWindow("segoutput_labels", 1);
-		cv::namedWindow("segoutput_boundary", 1);
-
-		int seed_width = 3;
-		int seed_height = 4;
-		int nr_levels = 5;
-		int NR_BINS = 5; // Number of bins in each histogram channel
-		int normal_NR_BINS = 5; // Number of bins in each histogram channel
-
-		int smoothing_prior_slider = 10;
-		int smoothing_power_slider = 40;
-		int xydistance_prior_slider = 100;
-		int xydistance_power_slider = 40;
-
-		int colorhist_weight_slider = 10;
-		int normalhist_weight_slider = 0;
-
-		int nr_iter = 10;
-
-		cv::createTrackbar( "smoothing_prior", "segoutput_labels", &smoothing_prior_slider, 100, on_trackbar );
-		cv::createTrackbar( "smoothing_power", "segoutput_labels", &smoothing_power_slider, 100, on_trackbar );
-		cv::createTrackbar( "xydistance_prior", "segoutput_labels", &xydistance_prior_slider, 1000, on_trackbar );
-		cv::createTrackbar( "xydistance_power", "segoutput_labels", &xydistance_power_slider, 100, on_trackbar );
-
-		cv::createTrackbar( "colorhist_weight", "segoutput_labels", &colorhist_weight_slider, 100, on_trackbar );
-		cv::createTrackbar( "normalhist_weight", "segoutput_labels", &normalhist_weight_slider, 100, on_trackbar );
-		cv::createTrackbar( "nr_iter", "segoutput_labels", &nr_iter, 200, on_trackbar );
-		cv::createTrackbar( "seed_width", "segoutput_labels", &seed_width, 15, on_trackbar );
-		cv::createTrackbar( "seed_height", "segoutput_labels", &seed_height, 15, on_trackbar );
-		cv::createTrackbar( "nr_levels", "segoutput_labels", &nr_levels, 15, on_trackbar );
-		cv::createTrackbar( "NR_BINS", "segoutput_labels", &NR_BINS, 25, on_trackbar );
-		sz = 3*width*height;
-		unsigned int * output_buff = new unsigned int[sz];
-	while(true){
-
-
-		idx = 0;
-			for(int j=0;j<img->height;j++){
-			  for(int i=0;i<img->width;i++){
-				  if(img->nChannels == 3){
-					  // image is assumed to have data in BGR order
-					  b = ((uchar*)(img->imageData + img->widthStep*(j)))[(i)*img->nChannels];
-					  g = ((uchar*)(img->imageData + img->widthStep*(j)))[(i)*img->nChannels+1];
-					  r = ((uchar*)(img->imageData + img->widthStep*(j)))[(i)*img->nChannels+2];
-					  if (d < 128) d = 0;
-					  pValue = b | (g << 8) | (r << 16);
-					}else if(img->nChannels == 1){
-					  c = ((uchar*)(img->imageData + img->widthStep*(j)))[(i)*img->nChannels];
-					  pValue = c | (c << 8) | (c << 16);
-					}else{
-					  printf("Unknown number of channels %d\n", img->nChannels);exit(0);
-					}
-				  ubuff[idx] = pValue;
-				  ubuff2[idx] = pValue;
-				  idx++;
-				}
-			}
-
-		SEEDS seeds(width, height, 3, NR_BINS,normal_NR_BINS);
-		seeds.smoothing_prior = double(smoothing_prior_slider)*0.1;
-		seeds.smoothing_power = double(smoothing_power_slider)*0.1;
-		seeds.xydistance_prior = double(xydistance_prior_slider)*1;
-		seeds.xydistance_power = double(xydistance_power_slider)*0.1;
-		seeds.colorhist_weight = double(colorhist_weight_slider);
-		seeds.normalhist_weight = double(normalhist_weight_slider);
-		seeds.nr_iter = nr_iter;
-
-		//SEEDS2 seeds(width, height, 3, NR_BINS,normal_NR_BINS);
-		//seeds.smoothing_prior = double(smoothing_prior_slider)*0.1;
-		//seeds.smoothing_power = double(smoothing_power_slider)*0.1;
-		//seeds.xydistance_prior = double(xydistance_prior_slider)*1;
-		//seeds.xydistance_power = double(xydistance_power_slider)*0.1;
-		//seeds.colorhist_weight = double(colorhist_weight_slider);
-		//seeds.normalhist_weight = double(normalhist_weight_slider);
-		//seeds.nr_iter = nr_iter;
-		seeds.initialize(seed_width, seed_height, nr_levels);
-		seeds.update_image_ycbcr(ubuff,normalsdata);
-		seeds.iterate();
-
-		printf("done all\n");
-		printf("SEEDS produced %d labels\n", seeds.count_superpixels());
-
-
-
-		for (int i = 0; i<sz; i++){output_buff[i] = 0;}
-
-
-
-		int nr_pixels = seeds.count_superpixels();
-		//std::vector< std::vector<double> > connections;
-		connections.resize(nr_pixels);
-		for (int i = 0; i<nr_pixels; i++){
-			connections[i].resize(nr_pixels);
-			for (int j = 0; j<nr_pixels; j++){
-				connections[i][j] = 0;
-			}
-		}
-
-
-
-		unsigned int * labels = seeds.labels[seeds.seeds_top_level];	 //[level][y * width + x]
-		unsigned int * means = seeds.means;
-
-		for (int x=0; x<width-1; x++){
-			for (int y=0; y<height; y++){
-				int i = y*width +x;
-				int li = labels[i];
-				int lip = labels[i+1];
-				if(li != lip){
-					double weight = 1;
-
-					double z1 = idepth*double(depthdata[i]);
-					double z2 = idepth*double(depthdata[i+1]);
-
-					//printf("%i %i -> %f %f\n",x,y,z1,z2);
-					if(z1 > 0 && z2 > 0){
-						if( fabs(z1-z2) < 0.1){
-							connections[li][lip]+=weight;
-							connections[lip][li]+=weight;
-						}
-					}
-				}
-			}
-		}
-
-		for (int x=0; x<width; x++){
-			for (int y=0; y<height-1; y++){
-				int i = y*width +x;
-				int li = labels[i];
-				int lip = labels[i+width];
-				if(li != lip){
-					double weight = 1;
-
-					double z1 = idepth*double(depthdata[i]);
-					double z2 = idepth*double(depthdata[i+width]);
-
-
-					if(z1 > 0 && z2 > 0){
-						if( fabs(z1-z2) < 0.1){
-							//printf("%i %i -> %f %f\n",x,y,z1,z2);
-							connections[li][lip]+=weight;
-							connections[lip][li]+=weight;
-						}
-					}
-				}
-			}
-		}
-
-		//std::vector< std::vector<double> > intersections;
-		intersections.resize(nr_pixels);
-		for (int i = 0; i<nr_pixels; i++){
-			intersections[i].resize(nr_pixels);
-			for (int j = 0; j<nr_pixels; j++){
-				intersections[i][j] = 0;
-			}
-		}
-
-		for (int i = 0; i<nr_pixels; i++){
-			for (int j = 0; j<nr_pixels; j++){
-				if(connections[i][j] != 0){
-					intersections[i][j] = seeds.intersection(seeds.seeds_top_level, i, seeds.seeds_top_level, j);
-					//printf("%i %i -> %f\n",i,j,intersections[i][j]);
-				}
-			}
-		}
-
-		printf("Draw Contours Around Segments\n");
-		DrawContoursAroundSegments(ubuff, seeds.labels[nr_levels-1], width, height, 0xff0000, false);//0xff0000 draws red contours
-		DrawContoursAroundSegments(output_buff, seeds.labels[nr_levels-1], width, height, 0xffffff, true);//0xff0000 draws white contours
-
-		  SaveImage(ubuff,			width, height,"segoutput_labels.png");
-		  SaveImage(output_buff,	width, height,"segoutput_boundary.png");
-		  seeds.SaveLabels_Text("segoutput.seg");
-
-
-
-
-
-		  cv::Mat src1 = cv::imread("segoutput_labels.png");
-		  cv::Mat src_graph = cv::imread("segoutput_labels.png");
-		  cv::Mat src2 = cv::imread("segoutput_boundary.png");
-
-		  for(unsigned int w = 0; w < width; w++){
-			  for(unsigned int h = 0; h < height;h++){
-				  int ind = h*width+w;
-				  pcl::Normal		p2		= normals->points[ind];
-				  if(!isnan(p2.normal_x)){
-					cv::circle(src_graph, cv::Point(w,h), 1, cv::Scalar(255,0,255));
-				  }
-			  }
-		  }
-
-			for (int i = 0; i<nr_pixels; i++){
-				float px = seeds.X_channel[i] / seeds.T[seeds.seeds_top_level][i];
-				float py = seeds.Y_channel[i] / seeds.T[seeds.seeds_top_level][i];
-				cv::circle(src_graph, cv::Point(px,py), 5, cv::Scalar(0,255,0));
-				for (int j = 0; j<nr_pixels; j++){
-					if(connections[i][j] != 0){
-						float pxj = seeds.X_channel[j] / seeds.T[seeds.seeds_top_level][j];
-						float pyj = seeds.Y_channel[j] / seeds.T[seeds.seeds_top_level][j];
-						float score = intersections[i][j];
-						cv::line(src_graph, cv::Point(px,py), cv::Point(pxj,pyj), cv::Scalar(255.0*(1-score),0,255.0*(score)),1);
-					}
-				}
-			}
-
-
-
-
-
-		  cv::imshow( "segoutput_labels", src1 );
-		  cv::imshow( "segoutput_graph", src_graph );
-		  cv::imshow( "segoutput_boundary", src2 );
-		  cv::waitKey(0);
-		  printf("Done!\n");
-
-	}
-
-		delete[] ubuff;
-		delete[] output_buff;
-	exit(0);
-	*/
-	//}
-
 	//show(true);
 }
 
 RGBDFrame::~RGBDFrame(){}
 
 void RGBDFrame::show(bool stop){
-	cv::namedWindow( "rgb", cv::WINDOW_AUTOSIZE );		cv::imshow( "rgb", rgb );
-	cv::namedWindow( "normals", cv::WINDOW_AUTOSIZE );	cv::imshow( "normals", normals );
-	cv::namedWindow( "depth", cv::WINDOW_AUTOSIZE );	cv::imshow( "depth", depth );
+	cv::namedWindow( "rgb", cv::WINDOW_AUTOSIZE );			cv::imshow( "rgb", rgb );
+	cv::namedWindow( "normals", cv::WINDOW_AUTOSIZE );		cv::imshow( "normals", normals );
+	cv::namedWindow( "depth", cv::WINDOW_AUTOSIZE );		cv::imshow( "depth", depth );
+	cv::namedWindow( "depthedges", cv::WINDOW_AUTOSIZE );	cv::imshow( "depthedges", depthedges );
 	if(stop){	cv::waitKey(0);}else{					cv::waitKey(30);}
 }
 

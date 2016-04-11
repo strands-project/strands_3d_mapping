@@ -68,12 +68,11 @@ class superpoint{
 
 		std::vector<Eigen::Matrix4d> relativeposes;
 		std::vector<RGBDFrame*> frames;
-		std::vector<cv::Mat> masks;
+		//std::vector<cv::Mat> masks;
 		std::vector<ModelMask*> modelmasks;
-		//std::vector<std::vector< int > > masks_testw;
-		//std::vector<std::vector< int > > masks_testh;
+
+		double total_scores;
 		std::vector<std::vector < float > > scores;
-		//OcclusionScore oc1;
 
 		Model();
 		Model(RGBDFrame * frame_, cv::Mat mask, Eigen::Matrix4d pose = Eigen::Matrix4d::Identity());
@@ -82,12 +81,14 @@ class superpoint{
 		void merge(Model * model, Eigen::Matrix4d p);
 
 		void recomputeModelPoints();
-		void addPointsToModel(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d p);
+		void addPointsToModel(RGBDFrame * frame, ModelMask * modelmask, Eigen::Matrix4d p);
 
-		void addFrameToModel(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d p);
+		//void addFrameToModel(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d p);
+		void addFrameToModel(RGBDFrame * frame, ModelMask * modelmask, Eigen::Matrix4d p);
 		CloudData * getCD(unsigned int target_points = 2000);
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr getPCLcloud(int step = 5, bool color = true);
 		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr getPCLnormalcloud(int step = 5, bool color = true);
+		void print();
 	};
 
 }

@@ -53,10 +53,13 @@ namespace reglib
 		virtual void refine(double reg = 0.05,bool useFullMask = false);
 		virtual void show(bool stop = true);
 		virtual void pruneOcclusions();
-		virtual OcclusionScore				computeOcclusionScore(RGBDFrame * src, cv::Mat src_mask, ModelMask * src_modelmask, RGBDFrame * dst, cv::Mat dst_mask, ModelMask * dst_modelmask, Eigen::Matrix4d p, int step = 1, bool debugg = false);
-        virtual void computeResiduals(std::vector<float> & residuals, std::vector<float> & weights, RGBDFrame * src, cv::Mat src_mask, ModelMask * src_modelmask, RGBDFrame * dst, cv::Mat dst_mask, ModelMask * dst_modelmask, Eigen::Matrix4d p, bool debugg = false);
+//		virtual OcclusionScore computeOcclusionScore(RGBDFrame * src, cv::Mat src_mask, ModelMask * src_modelmask, RGBDFrame * dst, cv::Mat dst_mask, ModelMask * dst_modelmask, Eigen::Matrix4d p, int step = 1, bool debugg = false);
+		virtual OcclusionScore computeOcclusionScore(RGBDFrame * src, ModelMask * src_modelmask, RGBDFrame * dst, ModelMask * dst_modelmask, Eigen::Matrix4d p, int step = 1, bool debugg = false);
+		virtual void computeResiduals(std::vector<float> & residuals, std::vector<float> & weights, RGBDFrame * src, cv::Mat src_mask, ModelMask * src_modelmask, RGBDFrame * dst, cv::Mat dst_mask, ModelMask * dst_modelmask, Eigen::Matrix4d p, bool debugg = false);
 
 		virtual std::vector<std::vector< OcclusionScore > >	computeAllOcclusionScores(	RGBDFrame * src, cv::Mat src_mask, RGBDFrame * dst, cv::Mat dst_mask,Eigen::Matrix4d p, bool debugg = false);
+//		virtual std::vector<std::vector< OcclusionScore > >	computeAllOcclusionScores(	RGBDFrame * src, RGBDFrame * dst, Eigen::Matrix4d p, bool debugg = false);
+
 		//virtual OcclusionScore computeAllOcclusionScore(RGBDFrame * src, cv::Mat src_mask, RGBDFrame * dst, cv::Mat dst_mask,Eigen::Matrix4d p, bool debugg = false);
 		//virtual std::vector<std::vector< OcclusionScore > > computeAllOcclusionScores(RGBDFrame * src, cv::Mat src_mask, RGBDFrame * dst, cv::Mat dst_mask,Eigen::Matrix4d p, bool debugg){
 
@@ -67,9 +70,12 @@ namespace reglib
 
 		virtual	void computeMassRegistration(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames,std::vector<cv::Mat> current_masks);
 
-		std::vector<std::vector < OcclusionScore > > getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames,std::vector<cv::Mat> current_masks,std::vector<ModelMask*> current_modelmasks,  bool debugg_scores = false);
+//		std::vector<std::vector < OcclusionScore > > getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames,std::vector<cv::Mat> current_masks,std::vector<ModelMask*> current_modelmasks,  bool debugg_scores = false);
+		std::vector<std::vector < OcclusionScore > > getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames, std::vector<ModelMask*> current_modelmasks,  bool debugg_scores = false);
 		std::vector<std::vector < float > > getScores(std::vector<std::vector < OcclusionScore > > occlusionScores, float occlusion_penalty = 5.0f);
 		std::vector<int> getPartition(std::vector< std::vector< float > > & scores, int dims = 2, int nr_todo = 5, double timelimit = 2);
+
+		virtual void recomputeScores();
 
 		CloudData * getCD(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames,std::vector<cv::Mat> current_masks, int step);
 	};

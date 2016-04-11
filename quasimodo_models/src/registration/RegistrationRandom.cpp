@@ -39,7 +39,7 @@ RegistrationRandom::RegistrationRandom(){
 	}
 
 	refinement = new RegistrationRefinement();
-    refinementColor = new RegistrationRefinementColor();
+	//refinementColor = new RegistrationRefinementColor();
 }
 RegistrationRandom::~RegistrationRandom(){}
 
@@ -47,12 +47,12 @@ RegistrationRandom::~RegistrationRandom(){}
 void RegistrationRandom::setSrc(CloudData * src_){
 	src = src_;
 	refinement->setSrc(src_);
-    refinementColor->setSrc(src_);
+	//refinementColor->setSrc(src_);
 }
 void RegistrationRandom::setDst(CloudData * dst_){
 	dst = dst_;
 	refinement->setDst(dst_);
-    refinementColor->setDst(dst_);
+	//refinementColor->setDst(dst_);
 }
 
 
@@ -174,7 +174,7 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	unsigned int s_nr_data = src->data.cols();//std::min(int(src->data.cols()),int(500000));
 	unsigned int d_nr_data = dst->data.cols();
     refinement->allow_regularization = true;
-	printf("s_nr_data: %i d_nr_data: %i\n",s_nr_data,d_nr_data);
+	//printf("s_nr_data: %i d_nr_data: %i\n",s_nr_data,d_nr_data);
 
 	int stepy = std::max(1,int(d_nr_data)/100000);
 
@@ -223,7 +223,7 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	d_mean_y /= double(d_nr_data);
 	d_mean_z /= double(d_nr_data);
 
-	printf("%f %f %f\n",d_mean_x,d_mean_y,d_mean_z);
+//	printf("%f %f %f\n",d_mean_x,d_mean_y,d_mean_z);
 
 	double stop		= 0.00001;
 
@@ -251,14 +251,14 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	int r = 0;
 
     refinement->viewer = viewer;
-    refinement->visualizationLvl = 1;
+	refinement->visualizationLvl = 0;
 	//for(int r = 0; r < 1000; r++){
 //	while(true){
 //		double rx = 2.0*M_PI*0.0001*double(rand()%10000);
 //		double ry = 2.0*M_PI*0.0001*double(rand()%10000);
 //		double rz = 2.0*M_PI*0.0001*double(rand()%10000);
     //double stop = 0;
-	double step = 2.0;
+	double step = 0.1+2.0*M_PI/4;
 	for(double rx = 0; rx < 2.0*M_PI; rx += step){
 	for(double ry = 0; ry < 2.0*M_PI; ry += step)
 	for(double rz = 0; rz < 2.0*M_PI; rz += step){
@@ -353,14 +353,11 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 
 	}
 }
-	printf("sumtime: %f\n",sumtime);
+//	printf("sumtime: %f\n",sumtime);
     refinement->maxtime = 9999999999;
-
-
-
 	for(unsigned int ax = 0; ax < all_X.size() && ax < 5; ax++){
-		printf("%i -> %i\n",ax,count_X[ax]);
-		if(visualizationLvl >= 2){show(all_X[ax],Y);}
+		//printf("%i -> %i\n",ax,count_X[ax]);
+		//if(visualizationLvl >= 2){show(all_X[ax],Y);}
 	}
 
 /*
@@ -433,6 +430,8 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	FusionResults fr = FusionResults();
     refinement->allow_regularization = false;
 
+	int tpbef = refinement->target_points;
+	refinement->target_points = 2000;
 	for(unsigned int ax = 0; ax < all_X.size(); ax++){
         Eigen::Matrix4d np = all_res[ax].matrix();
 //		printf("%i -> %i(%f)\n",ax,count_X[ax],1.0/score_X[ax]);
@@ -456,10 +455,21 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
             //break;
         }
 */
+
+		refinement->visualizationLvl = visualizationLvl;
+		if(ax < 15){
+			double start = getTime();
+			FusionResults fr1 = refinement->getTransform(np);
+			double stop = getTime();
+			//printf("%i refinement cost: %fs\n",ax,stop-start);
+			np = fr1.guess;
+		}
+		refinement->visualizationLvl = 0;
         fr.candidates.push_back(np);
 		fr.counts.push_back(count_X[ax]);
 		fr.scores.push_back(1.0/score_X[ax]);
 	}
+	refinement->target_points = tpbef;
 	return fr;
 /*
 

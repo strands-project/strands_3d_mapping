@@ -24,6 +24,7 @@
 #include "../weightfunctions/DistanceWeightFunction2.h"
 #include "RegistrationSICP.h"
 #include "../core/RGBDFrame.h"
+#include "../model/Model.h"
 
 #include "lum2.h"
 
@@ -59,17 +60,22 @@ namespace reglib
 	class MassRegistration{
 		public:
 		
+		bool nomask;
+		int maskstep;
+		int nomaskstep;
+
 		boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
 
 		unsigned int visualizationLvl;
 
 		std::vector<RGBDFrame*> frames;
-		std::vector<cv::Mat> masks;
+		//std::vector<cv::Mat> masks;
+		std::vector<ModelMask *> mmasks;
 
 		MassRegistration();
 		~MassRegistration();
 
-		virtual void setData(std::vector<RGBDFrame*> frames_,std::vector<cv::Mat> masks_);
+		virtual void setData(std::vector<RGBDFrame*> frames_, std::vector<ModelMask *> mmasks);
 		void setVisualizationLvl(unsigned int lvl);
 		virtual MassFusionResults getTransforms(std::vector<Eigen::Matrix4d> guess);
 
@@ -84,16 +90,8 @@ namespace reglib
 /*
 		CloudData * src;
 		CloudData * dst;
-
-
-
-
-		
 		void setSrc(CloudData * src_);
 		void setDst(CloudData * dst_);
-
-
-
 		virtual void show(Eigen::MatrixXd X, Eigen::MatrixXd Y);
 		virtual void show(Eigen::MatrixXd X, Eigen::MatrixXd Y, Eigen::VectorXd W);
 		virtual void show(Eigen::MatrixXd X, Eigen::MatrixXd Xn, Eigen::MatrixXd Y, Eigen::MatrixXd Yn);

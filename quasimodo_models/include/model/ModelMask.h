@@ -18,13 +18,18 @@ namespace reglib
 {
 	class ModelMask{
 		public:
+		int id;
 		cv::Mat mask;
+		int width;
+		int height;
+		bool * maskvec;
 		std::vector<int> testw;
 		std::vector<int> testh;
 		int sweepid;
 
 		ModelMask(cv::Mat mask_);
 		~ModelMask();
+		cv::Mat getMask();
 	};
 
 }
