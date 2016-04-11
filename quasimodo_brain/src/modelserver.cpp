@@ -40,7 +40,7 @@
 
 #include <sys/time.h>
 
-
+bool visualization = false;
 
 
 std::map<int , reglib::Camera *>		cameras;
@@ -80,6 +80,7 @@ bool myfunction (reglib::Model * i,reglib::Model * j) { return i->frames.size() 
 
 int savecounter = 0;
 void show_sorted(){
+    if(!visualization){return;}
 	std::vector<reglib::Model *> results;
 	for(unsigned int i = 0; i < modeldatabase->models.size(); i++){results.push_back(modeldatabase->models[i]);}
 
@@ -438,7 +439,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 				printf("changed: %i\n",m);
 
 				double start = getTime();
-				double timelimit = 30;
+                double timelimit = 1;//30;
 
 				new_search_result = false;
 				models_new_pub.publish(getModelMSG(currentTest));
@@ -585,10 +586,11 @@ int main(int argc, char **argv){
 	registration	= new reglib::RegistrationGOICP();
 	modeldatabase	= new ModelDatabaseBasic();
 
-	viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("viewer"));
-	viewer->addCoordinateSystem(0.1);
-	viewer->setBackgroundColor(0.9,0.9,0.9);
-
+    if(visualization){
+        viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("viewer"));
+        viewer->addCoordinateSystem(0.1);
+        viewer->setBackgroundColor(0.9,0.9,0.9);
+    }
 	models_new_pub		= n.advertise<quasimodo_msgs::model>("/models/new",		1000);
 	models_updated_pub	= n.advertise<quasimodo_msgs::model>("/models/updated", 1000);
 	models_deleted_pub	= n.advertise<quasimodo_msgs::model>("/models/deleted", 1000);
