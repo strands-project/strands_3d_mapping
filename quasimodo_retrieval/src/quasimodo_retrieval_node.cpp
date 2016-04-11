@@ -57,8 +57,8 @@ public:
     VocabularyT vt;
     dynamic_object_retrieval::vocabulary_summary summary;
 
-    double iss_model_resolution; // 0.01
-    double pfhrgb_radius_search; // 0.06
+    double iss_model_resolution; // 0.004
+    double pfhrgb_radius_search; // 0.04
 
     void parameters_callback(quasimodo_retrieval::ParametersConfig& config, uint32_t level) {
         iss_model_resolution = config.iss_model_resolution;
