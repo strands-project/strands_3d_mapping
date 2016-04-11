@@ -574,12 +574,16 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 		//show_sorted();
 		newmodel->print();
 		addToDB(modeldatabase, newmodel,false);
+//<<<<<<< HEAD
 		if(modaddcount % 1 == 0){
 			show_sorted();
 		}
 		modaddcount++;
 //printf("LINE: %i\n",__LINE__);
 		for(unsigned int m = 0; false && m < modeldatabase->models.size(); m++){
+//=======
+//        for(unsigned int m = 0; m < modeldatabase->models.size(); m++){
+//>>>>>>> master
 			printf("looking at: %i\n",modeldatabase->models[m]->last_changed);
 			reglib::Model * currentTest = modeldatabase->models[m];
 			if(currentTest->last_changed > current_model_update_before){
@@ -613,15 +617,21 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								catch (cv_bridge::Exception& e) {ROS_ERROR("cv_bridge exception: %s", e.what());exit(-1);}
 
 								cv::Mat rgbimage	= ret_image_ptr->image;
-								cv::Mat maskimage	= ret_mask_ptr->image;
-								cv::Mat depthimage	= ret_depth_ptr->image;
+                                cv::Mat maskimage	= ret_mask_ptr->image;
+                                cv::Mat depthimage	= ret_depth_ptr->image;
+                                for (int ii = 0; ii < depthimage.rows; ++ii) {
+                                    for (int jj = 0; jj < depthimage.cols; ++jj) {
+                                        depthimage.at<uint16_t>(ii, jj) /= 2;
+                                    }
+                                }
 
                                 printf("res rgb: %i %i\n",rgbimage.rows, rgbimage.cols);
                                 printf("res mask: %i %i\n",maskimage.rows, maskimage.cols);
                                 printf("res depth: %i %i\n",depthimage.rows, depthimage.cols);
 
                                 // Remove this when this is correct:
-                                cv::Mat masked_rgb = rgbimage.clone();
+                                /*
+                                cv::Mat masked_rgb = depthimage.clone();
                                 masked_rgb.setTo(cv::Scalar(0, 0, 0), maskimage == 0);
 								cv::namedWindow("maskimage",	cv::WINDOW_AUTOSIZE);
 								cv::imshow(		"maskimage",	maskimage);
@@ -631,7 +641,8 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								cv::imshow(		"depthimage",	depthimage );
                                 cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
                                 cv::imshow(		"mask",	masked_rgb);
-								cv::waitKey(30);
+                                cv::waitKey(0);
+                                */
 
 								//printf("indexFrame\n");
 								//sensor_msgs::CameraInfo		camera			= req.frame.camera;
