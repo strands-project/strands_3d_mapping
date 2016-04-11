@@ -20,7 +20,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 # If using catkin, including it using catkin instead
 if (catkin_FOUND)
     find_package(catkin REQUIRED COMPONENTS roscpp tf tf_conversions pcl_ros
-                        metaroom_xml_parser object_manager k_means_tree)
+                        metaroom_xml_parser object_manager k_means_tree convex_segmentation)
     set(ROS_LIBRARIES ${catkin_LIBRARIES})
     include_directories(${catkin_INCLUDE_DIRS})
 else()
@@ -36,6 +36,10 @@ else()
         BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
         INSTALL_COMMAND ""
     )
+
+    set(segmentation_dir ${CMAKE_CURRENT_SOURCE_DIR}/../convex_segmentation)
+    include_directories(${segmentation_dir}/include)
+    link_directories(${segmentation_dir}/build)
 
     # Be sure to set this to YOUR workspace, use custom version of metaroom_xml_parser for labeled data,
     # https://github.com/RaresAmbrus/strands_3d_mapping, branch hydro-devel
@@ -99,7 +103,7 @@ add_library(sift include/sift/sift.cpp include/sift/sift.h)
 # This library registers objects for us using SIFT
 add_library(register_objects src/register_objects.cpp ${include_dir}/register_objects.h)
 # This library does the convex segmentation
-add_library(supervoxel_segmentation src/supervoxel_segmentation.cpp ${include_dir}/supervoxel_segmentation.h)
+#add_library(supervoxel_segmentation src/supervoxel_segmentation.cpp ${include_dir}/supervoxel_segmentation.h)
 # This library computes PFHRGB features, among other things
 add_library(pfhrgb_estimation src/pfhrgb_estimation.cpp ${include_dir}/pfhrgb_estimation.h)
 # This library computes SHOTCOLOR features, among other things
@@ -108,7 +112,7 @@ add_library(shot_estimation src/shot_estimation.cpp ${include_dir}/shot_estimati
 # Link all of our libraries
 target_link_libraries(sift ${OpenCV_LIBS})
 target_link_libraries(register_objects sift ${OpenCV_LIBS} ${PCL_LIBRARIES})
-target_link_libraries(supervoxel_segmentation ${OpenCV_LIBS} ${PCL_LIBRARIES})
+#target_link_libraries(supervoxel_segmentation ${OpenCV_LIBS} ${PCL_LIBRARIES})
 target_link_libraries(pfhrgb_estimation ${PCL_LIBRARIES})
 target_link_libraries(shot_estimation ${PCL_LIBRARIES})
 

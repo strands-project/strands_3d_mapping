@@ -24,7 +24,7 @@ list(APPEND CMAKE_MODULE_PATH "${retrieval_dir}/cmake")
 if (catkin_FOUND)
     find_package(catkin REQUIRED COMPONENTS roscpp tf tf_conversions pcl_ros
                         metaroom_xml_parser object_manager k_means_tree
-                        dynamic_object_retrieval)
+                        dynamic_object_retrieval convex_segmentation)
     set(ROS_LIBRARIES ${catkin_LIBRARIES})
     include_directories(${catkin_INCLUDE_DIRS})
 else()
@@ -37,6 +37,11 @@ else()
     # The main header location
     include_directories(${retrieval_dir}/include)
     link_directories(${retrieval_dir}/build)
+
+    # The location of the convex_segmentation library
+    set(segmentation_dir ${CMAKE_CURRENT_SOURCE_DIR}/../convex_segmentation)
+    include_directories(${segmentation_dir}/include)
+    link_directories(${segmentation_dir}/build)
 
     set(stopwatch_dir ${retrieval_dir}/stopwatch)
     set(stopwatch_include_dir ${stopwatch_dir}/src)
