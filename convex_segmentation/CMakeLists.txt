@@ -22,6 +22,17 @@ if (catkin_FOUND)
     find_package(catkin REQUIRED COMPONENTS roscpp tf tf_conversions pcl_ros k_means_tree)
     set(ROS_LIBRARIES ${catkin_LIBRARIES})
     include_directories(${catkin_INCLUDE_DIRS})
+
+    add_message_files(
+        FILES
+        CloudArray.msg
+    )
+
+    generate_messages(
+        DEPENDENCIES
+        std_msgs  # Or other packages containing msgs
+        sensor_msgs
+    )
 else()
     # Find ROS
     find_package(ROS REQUIRED)
@@ -64,11 +75,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-st
 
 ############### TESTING PROGRAMS ##################
 
-#add_executable(test_segmentation test/test_segmentation.cpp)
-#target_link_libraries(test_segmentation supervoxel_segmentation ${ROS_LIBRARIES} ${PCL_LIBRARIES})
-
-#add_executable(test_surfel_segmentation test/test_surfel_segmentation.cpp)
-#target_link_libraries(test_surfel_segmentation supervoxel_segmentation ${ROS_LIBRARIES} ${PCL_LIBRARIES})
+if (catkin_FOUND)
+    add_executable(convex_segmentation_node src/convex_segmentation_node.cpp)
+    target_link_libraries(convex_segmentation_node supervoxel_segmentation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES})
+endif()
 
 if (catkin_FOUND)
     #install(FILES include/serial/serial.h include/serial/v8stdint.h
