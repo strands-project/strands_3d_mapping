@@ -49,6 +49,7 @@ add_message_files(
   retrieval_result.msg
   retrieval_query.msg
   retrieval_query_result.msg
+  SOMA2Object.msg
 )
 
 ## Generate services in the 'srv' folder

@@ -133,36 +133,25 @@ void show_sorted(){
 }
 
 quasimodo_msgs::model getModelMSG(reglib::Model * model){
-//printf("LINE: %i\n",__LINE__);
 	quasimodo_msgs::model msg;
-
 	msg.model_id = model->id;
 	msg.local_poses.resize(model->relativeposes.size());
 	msg.frames.resize(model->frames.size());
 	msg.masks.resize(model->modelmasks.size());
-//printf("LINE: %i\n",__LINE__);
 	for(unsigned int i = 0; i < model->relativeposes.size(); i++){
-//		printf("%i LINE: %i\n",i,__LINE__);
 		geometry_msgs::Pose		pose1;
 		tf::poseEigenToMsg (Eigen::Affine3d(model->relativeposes[i]), pose1);
-//		printf("%i LINE: %i\n",i,__LINE__);
 		geometry_msgs::Pose		pose2;
 		tf::poseEigenToMsg (Eigen::Affine3d(model->frames[i]->pose), pose2);
-//		printf("%i LINE: %i\n",i,__LINE__);
 		cv_bridge::CvImage rgbBridgeImage;
 		rgbBridgeImage.image = model->frames[i]->rgb;
 		rgbBridgeImage.encoding = "bgr8";
-//		printf("%i LINE: %i\n",i,__LINE__);
 		cv_bridge::CvImage depthBridgeImage;
 		depthBridgeImage.image = model->frames[i]->depth;
 		depthBridgeImage.encoding = "mono16";
-//		printf("%i LINE: %i\n",i,__LINE__);
-
 		cv_bridge::CvImage maskBridgeImage;
-		//maskBridgeImage.image			= model->masks[i];
 		maskBridgeImage.image			= model->modelmasks[i]->getMask();
 		maskBridgeImage.encoding		= "mono8";
-//		printf("%i LINE: %i\n",i,__LINE__);
 		msg.local_poses[i]			= pose1;
 		msg.frames[i].capture_time	= ros::Time();
 		msg.frames[i].pose			= pose2;
@@ -171,8 +160,105 @@ quasimodo_msgs::model getModelMSG(reglib::Model * model){
 		msg.frames[i].depth			= *(depthBridgeImage.toImageMsg());
 		msg.masks[i]				= *(maskBridgeImage.toImageMsg());//getMask()
 	}
-//printf("LINE: %i\n",__LINE__);
 	return msg;
+}
+
+std::vector<quasimodo_msgs::SOMA2Object> getSOMA2ObjectMSGs(reglib::Model * model){
+	std::vector<quasimodo_msgs::SOMA2Object> msgs;
+	for(int i = 0; i < model->frames.size(); i++){
+		quasimodo_msgs::SOMA2Object msg;
+		char buf [1024];
+		sprintf(buf,"id_%i_%i",model->id,model->frames[i]->id);
+		msg.id				= std::string(buf);
+		msg.map_name		= "whatevermapname";				//	#### the global map that the object belongs. Automatically filled by SOMA2 insert service
+		msg.map_unique_id	= "";								// 	#### the unique db id of the map. Automatically filled by SOMA2 insert service
+		msg.config			= "configid";						//	#### the corresponding world configuration. This could be incremented as config1, config2 at each meta-room observation
+		msg.mesh			= "";								//	#### mesh model of the object. Could be left blank
+		sprintf(buf,"type_%i",model->id);
+		msg.type			= std::string(buf);					//	#### type of the object. For higher level objects, this could chair1, chair2. For middle or lower level segments it could be segment1101, segment1102, etc.
+//		msg.waypoint		= "";								//	#### the waypoint id. Could be left blank
+		msg.timestep 		= 0;								//	#### this is the discrete observation instance. This could be incremented at each meta-room observation as 1,2,3,etc...
+		msg.logtimestamp	= 1000000.0 * double(model->frames[i]->capturetime);	//	#### this is the unix timestamp information that holds the time when the object is logged. SOMA2 uses UTC time values.
+
+		Eigen::Affine3f transform = Eigen::Affine3f(model->frames[i]->pose.cast<float>());//Eigen::Affine3f::Identity();
+
+		bool * maskdata = model->modelmasks[i]->maskvec;
+		unsigned char * rgbdata = (unsigned char *) model->frames[i]->rgb.data;
+		unsigned short * depthdata = (unsigned short *) model->frames[i]->depth.data;
+
+		const unsigned int width	= model->frames[i]->camera->width; const unsigned int height	= model->frames[i]->camera->height;
+		const double idepth			= model->frames[i]->camera->idepth_scale;
+		const double cx				= model->frames[i]->camera->cx;		const double cy				= model->frames[i]->camera->cy;
+		const double ifx			= 1.0/model->frames[i]->camera->fx;	const double ify			= 1.0/model->frames[i]->camera->fy;
+
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr	cloud	(new pcl::PointCloud<pcl::PointXYZRGB>);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr	transformed_cloud	(new pcl::PointCloud<pcl::PointXYZRGB>);
+		for(unsigned int w = 0; w < width; w++){
+			for(unsigned int h = 0; h < height;h++){
+				int ind = h*width+w;
+				double z = idepth*double(depthdata[ind]);
+				if(z > 0 && maskdata[ind]){
+					pcl::PointXYZRGB p;
+					p.x = (double(w) - cx) * z * ifx;
+					p.y = (double(h) - cy) * z * ify;
+					p.z = z;
+					p.b = rgbdata[3*ind+0];
+					p.g = rgbdata[3*ind+1];
+					p.r = rgbdata[3*ind+2];
+					cloud->points.push_back(p);
+				}
+			}
+		}
+
+		pcl::transformPointCloud (*cloud, *transformed_cloud, transform);
+		sensor_msgs::PointCloud2ConstPtr input;
+		pcl::fromROSMsg (*input, *transformed_cloud);
+
+
+		msg.cloud = *input; //#### The 3D cloud of the object		(with respect to /map frame)
+
+		Eigen::Quaterniond q = Eigen::Quaterniond(Eigen::Affine3d(model->frames[i]->pose).rotation());
+
+		geometry_msgs::Pose		pose;
+		pose.orientation.x	= q.x();
+		pose.orientation.y	= q.y();
+		pose.orientation.z	= q.z();
+		pose.orientation.w	= q.w();
+		pose.position.x		= model->frames[i]->pose(0,3);
+		pose.position.y		= model->frames[i]->pose(1,3);
+		pose.position.z		= model->frames[i]->pose(2,3);
+		msg.pose = pose;		//	#### Object pose in 3D			(with respect to /map frame)
+//		geometry_msgs/Pose sweepCenter 	#### The pose of the robot during sweep (with respect to /map frame)
+		msgs.push_back(msg);
+	}
+
+//	msg.model_id = model->id;
+//	msg.local_poses.resize(model->relativeposes.size());
+//	msg.frames.resize(model->frames.size());
+//	msg.masks.resize(model->modelmasks.size());
+//	for(unsigned int i = 0; i < model->relativeposes.size(); i++){
+//		geometry_msgs::Pose		pose1;
+//		tf::poseEigenToMsg (Eigen::Affine3d(model->relativeposes[i]), pose1);
+//		geometry_msgs::Pose		pose2;
+//		tf::poseEigenToMsg (Eigen::Affine3d(model->frames[i]->pose), pose2);
+//		cv_bridge::CvImage rgbBridgeImage;
+//		rgbBridgeImage.image = model->frames[i]->rgb;
+//		rgbBridgeImage.encoding = "bgr8";
+//		cv_bridge::CvImage depthBridgeImage;
+//		depthBridgeImage.image = model->frames[i]->depth;
+//		depthBridgeImage.encoding = "mono16";
+//		cv_bridge::CvImage maskBridgeImage;
+//		maskBridgeImage.image			= model->modelmasks[i]->getMask();
+//		maskBridgeImage.encoding		= "mono8";
+//		msg.local_poses[i]			= pose1;
+//		msg.frames[i].capture_time	= ros::Time();
+//		msg.frames[i].pose			= pose2;
+//		msg.frames[i].frame_id		= model->frames[i]->id;
+//		msg.frames[i].rgb			= *(rgbBridgeImage.toImageMsg());
+//		msg.frames[i].depth			= *(depthBridgeImage.toImageMsg());
+//		msg.masks[i]				= *(maskBridgeImage.toImageMsg());//getMask()
+//	}
+	return msgs;
 }
 
 
