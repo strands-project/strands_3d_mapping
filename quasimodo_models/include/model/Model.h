@@ -89,6 +89,8 @@ class superpoint{
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr getPCLcloud(int step = 5, bool color = true);
 		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr getPCLnormalcloud(int step = 5, bool color = true);
 		void print();
+		void save(std::string path = "");
+		static Model * load(Camera * cam, std::string path);
 	};
 
 }

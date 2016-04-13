@@ -7,10 +7,16 @@
 #include <stdlib.h> 
 #include <chrono>
 
+
+#include <iostream>
+#include <fstream>
+
 namespace reglib
 {
 	class Camera{
 		public:
+		int id;
+
 		double idepth_scale;
 
 		double fx;
@@ -27,6 +33,10 @@ namespace reglib
 
 		Camera();
 		~Camera();
+
+		void save(std::string path = "");
+		void print();
+		static Camera * load(std::string path);
 	};
 
 }
