@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>quasimodo_retrieval</name>
+  <name>quasimodo_optimization</name>
   <version>0.0.0</version>
-  <description>The quasimodo_retrieval package</description>
+  <description>The quasimodo_optimization package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but mutiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/quasimodo_retrieval</url> -->
+  <!-- <url type="website">http://wiki.ros.org/quasimodo_optimization</url> -->
 
 
   <!-- Author tags are optional, mutiple are allowed, one per tag -->
@@ -41,29 +41,12 @@
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>message_generation</build_depend>
-  <build_depend>quasimodo_msgs</build_depend>
-  <build_depend>image_geometry</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>tf_conversions</build_depend>
-  <build_depend>tf</build_depend>
-  <build_depend>metaroom_xml_parser</build_depend>
-  <build_depend>pcl_ros</build_depend>
-  <build_depend>k_means_tree</build_depend>
-  <build_depend>dynamic_object_retrieval</build_depend>
-  <build_depend>object_3d_benchmark</build_depend>
-  <build_depend>dynamic_reconfigure</build_depend>
-  <run_depend>message_runtime</run_depend>
-  <run_depend>quasimodo_msgs</run_depend>
-  <run_depend>image_geometry</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>tf_conversions</run_depend>
-  <run_depend>tf</run_depend>
-  <run_depend>metaroom_xml_parser</run_depend>
-  <run_depend>pcl_ros</run_depend>
-  <run_depend>k_means_tree</run_depend>
-  <run_depend>dynamic_object_retrieval</run_depend>
-  <run_depend>object_3d_benchmark</run_depend>
-  <run_depend>dynamic_reconfigure</run_depend>
+  <build_depend>actionlib_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>actionlib_msgs</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>quasimodo_retrieval</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

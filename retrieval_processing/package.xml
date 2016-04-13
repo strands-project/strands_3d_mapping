@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>quasimodo_retrieval</name>
+  <name>retrieval_processing</name>
   <version>0.0.0</version>
   <description>The quasimodo_retrieval package</description>
 
@@ -51,7 +51,6 @@
   <build_depend>k_means_tree</build_depend>
   <build_depend>dynamic_object_retrieval</build_depend>
   <build_depend>object_3d_benchmark</build_depend>
-  <build_depend>dynamic_reconfigure</build_depend>
   <run_depend>message_runtime</run_depend>
   <run_depend>quasimodo_msgs</run_depend>
   <run_depend>image_geometry</run_depend>
@@ -63,7 +62,6 @@
   <run_depend>k_means_tree</run_depend>
   <run_depend>dynamic_object_retrieval</run_depend>
   <run_depend>object_3d_benchmark</run_depend>
-  <run_depend>dynamic_reconfigure</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

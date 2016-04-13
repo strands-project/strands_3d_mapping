@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(quasimodo_retrieval)
+project(retrieval_processing)
 
 add_definitions(-std=c++11 -O3)
 
@@ -8,47 +8,14 @@ add_definitions(-std=c++11 -O3)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS roscpp tf sensor_msgs std_msgs image_geometry metaroom_xml_parser quasimodo_msgs message_runtime
                                         message_generation tf_conversions pcl_ros image_geometry cv_bridge tf_conversions eigen_conversions
-                                        k_means_tree dynamic_object_retrieval object_3d_benchmark dynamic_reconfigure)
+                                        k_means_tree dynamic_object_retrieval convex_segmentation object_3d_benchmark)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
 include_directories(${catkin_INCLUDE_DIRS})
 
-# This is the root dir of https://github.com/nilsbore/dynamic_object_retrieval
-#set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../dynamic_object_retrieval)
-#set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../../../object_3d_retrieval/)
-
-# This is the main project, used for retrieval
-#set(retrieval_dir ${retrieval_project_dir}/dynamic_object_retrieval)
-#set(retrieval_libraries grouped_vocabulary_tree vocabulary_tree k_means_tree
-#    dynamic_retrieval
-#    dynamic_visualize register_objects extract_sift sift pfhrgb_estimation)
-#include_directories(${retrieval_dir}/include)
-#link_directories(${retrieval_dir}/build)
-
-# This is the base vocabulary tree representation
-#set(k_means_tree_dir ${retrieval_project_dir}/k_means_tree)
-#set(k_means_tree_library_dir ${k_means_tree_dir}/build)
-#include_directories(${k_means_tree_dir}/include ${k_means_tree_dir}/impl)
-#link_directories(${k_means_tree_library_dir})
-
-# This is the stopwatch by Whelan, also included in the base dir
-#set(stopwatch_dir ${retrieval_dir}/stopwatch)
-#set(stopwatch_include_dir ${stopwatch_dir}/src)
-#include_directories(${stopwatch_include_dir})
-
 find_package(OpenGL)
-
-# The benchmark project is also in the base dir
-#set(benchmark_dir ${retrieval_project_dir}/benchmark)
-#set(benchmark_libraries benchmark_result benchmark_retrieval benchmark_visualization benchmark_overlap surfel_renderer ${OPENGL_gl_LIBRARY} ${QT_QTOPENGL_LIBRARY})
-#include_directories(${benchmark_dir}/include)
-#link_directories(${benchmark_dir}/build)
-
-# Define the locations of cereal serialization header files
-#set(cereal_include_dir ${k_means_tree_dir}/cereal/include)
-#include_directories(${cereal_include_dir})
 
 # Find PCL
 find_package(PCL 1.6 REQUIRED COMPONENTS common io search visualization surface kdtree features surface segmentation octree filter keypoints)
@@ -132,9 +99,10 @@ include(${QT_USE_FILE})
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-generate_dynamic_reconfigure_options(
-  cfg/parameters.cfg
-)
+# generate_dynamic_reconfigure_options(
+#   cfg/DynReconf1.cfg
+#   cfg/DynReconf2.cfg
+# )
 
 ###################################
 ## catkin specific configuration ##
@@ -171,73 +139,44 @@ catkin_package(
 # add_dependencies(quasimodo_retrieval ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(quasimodo_retrieval_server src/quasimodo_retrieval_server.cpp)
-add_executable(quasimodo_retrieval_publisher src/quasimodo_retrieval_publisher.cpp)
-add_executable(quasimodo_visualization_server src/quasimodo_visualization_server.cpp)
-add_executable(quasimodo_visualize_model src/quasimodo_visualize_model.cpp)
-add_executable(quasimodo_retrieval_node src/quasimodo_retrieval_node.cpp)
+add_executable(retrieval_segmentation src/retrieval_segmentation.cpp)
+add_executable(retrieval_features src/retrieval_features.cpp)
+add_executable(retrieval_vocabulary src/retrieval_vocabulary.cpp)
+add_executable(retrieval_simulate_observations src/retrieval_simulate_observations.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-#add_dependencies(quasimodo_retrieval_server ${catkin_EXPORTED_TARGETS})
-#add_dependencies(quasimodo_retrieval_publisher ${catkin_EXPORTED_TARGETS})
-#add_dependencies(quasimodo_visualization_server ${catkin_EXPORTED_TARGETS})
-add_dependencies(quasimodo_retrieval_node ${PROJECT_NAME}_gencfg)
+#add_dependencies(retrieval_segmentation ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(quasimodo_retrieval_server
-#  ${retrieval_libraries}
-#  ${benchmark_libraries}
+target_link_libraries(retrieval_segmentation
   ${OpenCV_LIBS}
   ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
   ${PCL_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
-target_link_libraries(quasimodo_retrieval_publisher
-#  ${retrieval_libraries}
-#  ${benchmark_libraries}
+target_link_libraries(retrieval_features
   ${OpenCV_LIBS}
   ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
   ${PCL_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
-target_link_libraries(quasimodo_visualize_model
-#  ${retrieval_libraries}
-#  ${benchmark_libraries}
+target_link_libraries(retrieval_vocabulary
   ${OpenCV_LIBS}
   ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
   ${PCL_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
-#target_link_libraries(quasimodo_retrieval_publisher
-#  pfhrgb_estimation extract_sift sift
-#  benchmark_result benchmark_retrieval benchmark_visualization benchmark_overlap
-#  dynamic_visualize register_objects
-#  ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES}
-#  ${catkin_LIBRARIES}
-#  grouped_vocabulary_tree vocabulary_tree k_means_tree # The order here matters for some reason
-#)
-
-target_link_libraries(quasimodo_visualization_server
-#  ${retrieval_libraries}
-#  ${benchmark_libraries}
+target_link_libraries(retrieval_simulate_observations
   ${OpenCV_LIBS}
   ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
   ${PCL_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
-target_link_libraries(quasimodo_retrieval_node
-#  ${retrieval_libraries}
-#  ${benchmark_libraries}
-  ${OpenCV_LIBS}
-  ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${catkin_LIBRARIES}
-)
 
 #############
 ## Install ##
