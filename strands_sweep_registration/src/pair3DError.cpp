@@ -1,4 +1,5 @@
 #include "strands_sweep_registration/pair3DError.h"
+#include "strands_sweep_registration/camera_parameters.h"
 
 int sumid = 0;
 
@@ -30,10 +31,15 @@ bool pair3DError::Evaluate(double const* const* parameters, double* residuals, d
 	double smat[12];
 	double dmat[12];
 
-	double invfx = 1.0/540.0;
-	double invfy = 1.0/540.0;
-	double cx = 319.5;
-	double cy = 239.5;
+//	double invfx = 1.0/540.0;
+//	double invfy = 1.0/540.0;
+//	double cx = 319.5;
+//	double cy = 239.5;
+
+    double invfx = 1.0/CameraParameters::get().fx();
+    double invfy = 1.0/CameraParameters::get().fy();
+    double cx = CameraParameters::get().cx();
+    double cy = CameraParameters::get().cy();
 
     if(optimizeCameraParams){
         invfx = params[0];

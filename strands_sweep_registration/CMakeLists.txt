@@ -50,28 +50,28 @@ INCLUDE_DIRECTORIES(${CERES_INCLUDE_DIRS})
 
 
 #PixelFunction is a per pixel library for updating the pixelvalues individually. Will learn per pixel biases and fix those
-add_library(PixelFunction_strands_room include/strands_sweep_registration/PixelFunction.h src/PixelFunction.cpp)
+add_library(PixelFunction_strands_room include/strands_sweep_registration/PixelFunction.h src/PixelFunction.cpp include/strands_sweep_registration/camera_parameters.h)
 
 #Keeps camera parameters etc
-add_library(Camera_strands_room include/strands_sweep_registration/Camera.h src/Camera.cpp)
+add_library(Camera_strands_room include/strands_sweep_registration/Camera.h src/Camera.cpp include/strands_sweep_registration/camera_parameters.h)
 target_link_libraries(Camera_strands_room PixelFunction_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
-add_library(Frame_strands_room include/strands_sweep_registration/Frame.h src/Frame.cpp)
+add_library(Frame_strands_room include/strands_sweep_registration/Frame.h src/Frame.cpp include/strands_sweep_registration/camera_parameters.h)
 target_link_libraries(Frame_strands_room Camera_strands_room  ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
-add_library(Sweep_strands_room include/strands_sweep_registration/Sweep.h src/Sweep.cpp)
+add_library(Sweep_strands_room include/strands_sweep_registration/Sweep.h src/Sweep.cpp include/strands_sweep_registration/camera_parameters.h)
 target_link_libraries(Sweep_strands_room Frame_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
-add_library(util_strands_room include/strands_sweep_registration/util.h src/util.cpp)
+add_library(util_strands_room include/strands_sweep_registration/util.h src/util.cpp include/strands_sweep_registration/camera_parameters.h)
 target_link_libraries(util_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
-add_library(pair3DError_strands_room include/strands_sweep_registration/pair3DError.h src/pair3DError.cpp)
+add_library(pair3DError_strands_room include/strands_sweep_registration/pair3DError.h src/pair3DError.cpp include/strands_sweep_registration/camera_parameters.h)
 target_link_libraries(pair3DError_strands_room util_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
-add_library(ProblemFrameConnection_strands_room include/strands_sweep_registration/ProblemFrameConnection.h src/ProblemFrameConnection.cpp)
+add_library(ProblemFrameConnection_strands_room include/strands_sweep_registration/ProblemFrameConnection.h src/ProblemFrameConnection.cpp include/strands_sweep_registration/camera_parameters.h)
 target_link_libraries(ProblemFrameConnection_strands_room pair3DError_strands_room Frame_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
-add_library(RobotContainer_strands_room include/strands_sweep_registration/RobotContainer.h src/RobotContainer.cpp)
+add_library(RobotContainer_strands_room include/strands_sweep_registration/RobotContainer.h src/RobotContainer.cpp include/strands_sweep_registration/camera_parameters.h)
 target_link_libraries(RobotContainer_strands_room ProblemFrameConnection_strands_room pair3DError_strands_room util_strands_room Sweep_strands_room ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 ############################# INSTALL TARGETS
