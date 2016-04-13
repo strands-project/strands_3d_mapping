@@ -107,7 +107,19 @@ void execute(const calibrate_sweeps::CalibrateSweepsGoalConstPtr& goal, Server* 
     unsigned int gy = 3;
     unsigned int todoy = 3;
     RobotContainer * rc = new RobotContainer(gx,todox,gy,todoy);
-    rc->initializeCamera(540.0, 540.0,319.5, 219.5, 640, 480);
+
+    // initialize camera parameters from the sweep
+    if (matchingObservations.size()){
+        SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(matchingObservations[0],true);
+        if (aRoom.getIntermediateCloudCameraParameters().size()){
+            image_geometry::PinholeCameraModel aCameraModel = aRoom.getIntermediateCloudCameraParameters()[0];
+            rc->initializeCamera(aCameraModel.fx(), aCameraModel.fy(), aCameraModel.cx(), aCameraModel.cy(), aCameraModel.fullResolution().width, aCameraModel.fullResolution().height);
+        } else {
+            // no camera parameters saved with the sweep -> initialize optimizer with default parameters
+            rc->initializeCamera(540.0, 540.0,319.5, 219.5, 640, 480);
+        }
+    }
+
 
     for (size_t i=0; i<goal->max_num_sweeps && i<matchingObservations.size(); i++)
     {
