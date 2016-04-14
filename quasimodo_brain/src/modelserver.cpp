@@ -654,7 +654,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								reglib::Model * searchmodel = new reglib::Model(frame,maskimage);
 
 								printf("--- trying to add serach results, if more then one addToDB: results added-----\n");
-								addToDB(modeldatabase, newmodel,false,true);
+								addToDB(modeldatabase, searchmodel,false,true);
 
 //								pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = searchmodel->getPCLcloud(1, false);
 //								viewer->removeAllPointClouds();
