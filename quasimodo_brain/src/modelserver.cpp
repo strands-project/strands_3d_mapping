@@ -393,7 +393,10 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
 	res = modeldatabase->search(model,150);
 	fr_res.resize(res.size());
 
-	if(res.size() == 0){return;}
+	if(res.size() == 0){
+		printf("no candidates found in database!\n");
+		return;
+	}
 
 	std::vector<reglib::Model * > models2merge;
 	std::vector<reglib::FusionResults > fr2merge;
@@ -470,7 +473,6 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
 
 	printf("end of addToDB: %i %i",add,deleteIfFail);
 	if(deleteIfFail){
-
 		if(!changed){
 			printf("didnt manage to integrate searchresult\n");
 			database->remove(model);
