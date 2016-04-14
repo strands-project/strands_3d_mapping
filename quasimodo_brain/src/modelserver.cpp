@@ -71,11 +71,19 @@ bool new_search_result = false;
 double last_search_result_time = 0;
 
 void dumpDatabase(std::string path = "."){
+	char command [1024];
+	sprintf(command,"rm -r %s/model*",path.c_str());
+	printf("%s\n",command);
+	system(command);
+
+	sprintf(command,"rm %s/camera*",path.c_str());
+	printf("%s\n",command);
+	system(command);
+
 	cameras[0]->save(path+"/camera0");
 	for(unsigned int m = 0; m < modeldatabase->models.size(); m++){
 		char buf [1024];
 		sprintf(buf,"%s/model%i",path.c_str(),m);
-		char command [1024];
 		sprintf(command,"mkdir -p %s",buf);
 		system(command);
 		modeldatabase->models[m]->save(std::string(buf));
@@ -543,7 +551,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 		addToDB(modeldatabase, newmodel,false);
 		//if(modaddcount % 1 == 0){show_sorted();}
 		modaddcount++;
-		dumpDatabase();
+		dumpDatabase(savepath);
 
 //		cameras[0]->save("./camera0");
 //		for(unsigned int m = 0; m < modeldatabase->models.size(); m++){
@@ -555,7 +563,8 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 //			modeldatabase->models[m]->save(std::string(buf));
 //		}
 //exit(0);
-		for(unsigned int m = 0; false && m < modeldatabase->models.size(); m++){
+		bool run_search = false;
+		for(unsigned int m = 0; run_search && m < modeldatabase->models.size(); m++){
 			printf("looking at: %i\n",modeldatabase->models[m]->last_changed);
 			reglib::Model * currentTest = modeldatabase->models[m];
 			if(currentTest->last_changed > current_model_update_before){
@@ -723,27 +732,27 @@ int main(int argc, char **argv){
 	ros::Subscriber sub = n.subscribe("/retrieval_result", 1, retrievalCallback);
 	ROS_INFO("Ready to add recieve search results.");
 
-//	int inputstate = -1;
-//	for(int i = 1; i < argc;i++){
-//		printf("input: %s\n",argv[i]);
-//		if(		std::string(argv[i]).compare("-c") == 0){	printf("camera input state\n"); inputstate = 1;}
-//		else if(std::string(argv[i]).compare("-m") == 0){	printf("model input state\n");	inputstate = 2;}
-//		else if(std::string(argv[i]).compare("-p") == 0){	printf("path input state\n");	inputstate = 3;}
-//		else if(inputstate == 1){
-//			reglib::Camera * cam = reglib::Camera::load(std::string(argv[i]));
-//			delete cameras[0];
-//			cameras[0] = cam;
-//		}else if(inputstate == 2){
-//			reglib::Model * model = reglib::Model::load(cameras[0],std::string(argv[i]));
-//			sweepid_counter = std::max(int(model->modelmasks[0]->sweepid + 1), sweepid_counter);
-//			modeldatabase->add(model);
-//			addToDB(modeldatabase, model,false);
-//			model->last_changed = ++current_model_update;
-//			show_sorted();
-//		}else if(inputstate == 3){
-//			savepath = std::string(argv[i]);
-//		}
-//	}
+	int inputstate = -1;
+	for(int i = 1; i < argc;i++){
+		printf("input: %s\n",argv[i]);
+		if(		std::string(argv[i]).compare("-c") == 0){	printf("camera input state\n"); inputstate = 1;}
+		else if(std::string(argv[i]).compare("-m") == 0){	printf("model input state\n");	inputstate = 2;}
+		else if(std::string(argv[i]).compare("-p") == 0){	printf("path input state\n");	inputstate = 3;}
+		else if(inputstate == 1){
+			//reglib::Camera * cam = reglib::Camera::load(std::string(argv[i]));
+			//delete cameras[0];
+			//cameras[0] = cam;
+		}else if(inputstate == 2){
+			//reglib::Model * model = reglib::Model::load(cameras[0],std::string(argv[i]));
+			//sweepid_counter = std::max(int(model->modelmasks[0]->sweepid + 1), sweepid_counter);
+			//modeldatabase->add(model);
+			//addToDB(modeldatabase, model,false);
+			//model->last_changed = ++current_model_update;
+			//show_sorted();
+		}else if(inputstate == 3){
+			savepath = std::string(argv[i]);
+		}
+	}
 //	exit(0);
 
     ros::Duration(1.0).sleep();
