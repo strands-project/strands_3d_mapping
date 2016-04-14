@@ -371,7 +371,7 @@ void call_from_thread(int i) {
 
 int current_model_update = 0;
 void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, bool deleteIfFail = false){
-	printf("addToDB\n");
+	printf("addToDB %i %i\n",add,deleteIfFail);
 	if(add){
 
 		if(model->frames.size() > 2){
@@ -468,7 +468,9 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
 	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end();	++it){	addToDB(database, it->second);}
 	for (std::map<int,reglib::Model *>::iterator it=new_models.begin();		it!=new_models.end();		++it){	addToDB(database, it->second);}
 
+	printf("end of addToDB: %i %i",add,deleteIfFail);
 	if(deleteIfFail){
+
 		if(!changed){
 			printf("didnt manage to integrate searchresult\n");
 			database->remove(model);
