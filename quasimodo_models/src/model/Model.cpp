@@ -411,7 +411,7 @@ void Model::save(std::string path){
 	delete[] buffer;
 
 
-	printf("saving model %i to %s\n",id,path.c_str());
+	//printf("saving model %i to %s\n",id,path.c_str());
 	for(unsigned int f = 0; f < frames.size(); f++){
 		char buf [1024];
 

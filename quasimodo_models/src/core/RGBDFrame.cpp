@@ -418,7 +418,7 @@ pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr RGBDFrame::getPCLcloud(){
 }
 
 void RGBDFrame::save(std::string path){
-	printf("saving frame %i to %s\n",id,path.c_str());
+	//printf("saving frame %i to %s\n",id,path.c_str());
 
 	cv::imwrite( path+"_rgb.png", rgb );
 	cv::imwrite( path+"_depth.png", depth );

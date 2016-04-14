@@ -15,7 +15,9 @@
 #include "quasimodo_msgs/retrieval_query_result.h"
 #include "quasimodo_msgs/retrieval_query.h"
 #include "quasimodo_msgs/retrieval_result.h"
-#include "quasimodo_msgs/SOMA2Object.h"
+#include "soma2_msgs/SOMA2Object.h"
+
+#include "soma_manager/SOMA2InsertObjs.h"
 
 //#include "modelupdater/ModelUpdater.h"
 //#include "/home/johane/catkin_ws_dyn/src/quasimodo_models/include/modelupdater/ModelUpdater.h"
@@ -60,6 +62,8 @@ ros::Publisher models_new_pub;
 ros::Publisher models_updated_pub;
 ros::Publisher models_deleted_pub;
 
+ros::ServiceClient soma2add;
+
 double getTime(){
 	struct timeval start1;
 	gettimeofday(&start1, NULL);
@@ -96,6 +100,7 @@ void retrievalCallback(const quasimodo_msgs::retrieval_query_result & qr){
 	new_search_result = true;
 	last_search_result_time = getTime();
 }
+
 
 bool myfunction (reglib::Model * i,reglib::Model * j) { return i->frames.size() > j->frames.size(); }
 
@@ -174,10 +179,10 @@ quasimodo_msgs::model getModelMSG(reglib::Model * model){
 	return msg;
 }
 
-std::vector<quasimodo_msgs::SOMA2Object> getSOMA2ObjectMSGs(reglib::Model * model){
-	std::vector<quasimodo_msgs::SOMA2Object> msgs;
+std::vector<soma2_msgs::SOMA2Object> getSOMA2ObjectMSGs(reglib::Model * model){
+	std::vector<soma2_msgs::SOMA2Object> msgs;
 	for(int i = 0; i < model->frames.size(); i++){
-		quasimodo_msgs::SOMA2Object msg;
+		soma2_msgs::SOMA2Object msg;
 		char buf [1024];
 		sprintf(buf,"id_%i_%i",model->id,model->frames[i]->id);
 		msg.id				= std::string(buf);
@@ -272,8 +277,20 @@ std::vector<quasimodo_msgs::SOMA2Object> getSOMA2ObjectMSGs(reglib::Model * mode
 	return msgs;
 }
 
+void publishModel(reglib::Model * model){
+//	std::vector<soma2_msgs::SOMA2Object> somamsgs = getSOMA2ObjectMSGs(model);
+	soma_manager::SOMA2InsertObjs objs;
+	objs.request.objects = getSOMA2ObjectMSGs(model);
+	if (soma2add.call(objs)){//Add frame to model server
+	////			int frame_id = ifsrv.response.frame_id;
+	}else{ROS_ERROR("Failed to call service soma2add");}
 
-
+//	for(int i = 0; i < somamsgs.size(); i++){
+//		if (soma2add.call(somamsgs[i])){//Add frame to model server
+////			int frame_id = ifsrv.response.frame_id;
+//		 }else{ROS_ERROR("Failed to call service soma2add");}
+//	 }
+}
 
 bool getModel(quasimodo_msgs::get_model::Request  & req, quasimodo_msgs::get_model::Response & res){
 	int model_id			= req.model_id;
@@ -283,7 +300,7 @@ bool getModel(quasimodo_msgs::get_model::Request  & req, quasimodo_msgs::get_mod
 }
 
 bool indexFrame(quasimodo_msgs::index_frame::Request  & req, quasimodo_msgs::index_frame::Response & res){
-	printf("indexFrame\n");
+	//printf("indexFrame\n");
 	sensor_msgs::CameraInfo		camera			= req.frame.camera;
 	ros::Time					capture_time	= req.frame.capture_time;
 	geometry_msgs::Pose			pose			= req.frame.pose;
@@ -323,7 +340,7 @@ class SearchResult{
 };
 
 bool removeModel(int id){
-	printf("removeModel: %i\n",id);
+	//printf("removeModel: %i\n",id);
 	delete models[id];
 	models.erase(id);
 	delete updaters[id];
@@ -581,9 +598,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 					if(new_search_result){
 
 						for(int i = 0; i < sresult.retrieved_images.size(); i++){
-							printf("i: %i\n",i);
 							for(int j = 0; j < 1 && j < sresult.retrieved_images[i].images.size(); j++){
-								printf("i: %i  j: %i\n",i,j);
 
 								cv_bridge::CvImagePtr ret_image_ptr;
 								try {ret_image_ptr = cv_bridge::toCvCopy(sresult.retrieved_images[i].images[j], sensor_msgs::image_encodings::BGR8);}
@@ -606,9 +621,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
                                     }
                                 }
 
-                                printf("res rgb: %i %i\n",rgbimage.rows, rgbimage.cols);
-                                printf("res mask: %i %i\n",maskimage.rows, maskimage.cols);
-                                printf("res depth: %i %i\n",depthimage.rows, depthimage.cols);
+
 
                                 // Remove this when this is correct:
 
@@ -636,6 +649,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								reglib::RGBDFrame * frame = new reglib::RGBDFrame(cameras[0],rgbimage, depthimage, 0, epose.matrix());
 								reglib::Model * searchmodel = new reglib::Model(frame,maskimage);
 
+								printf("--- trying to add serach results, if more then one addToDB: results added-----\n");
 								addToDB(modeldatabase, newmodel,false,true);
 
 //								pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = searchmodel->getPCLcloud(1, false);
@@ -691,6 +705,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 					}
 				}
 			}
+			exit(0);
 		}
 		newmodel = 0;
 		sweepid_counter++;
@@ -728,6 +743,9 @@ int main(int argc, char **argv){
 
 	ros::ServiceServer service4 = n.advertiseService("get_model", getModel);
 	ROS_INFO("Ready to add use get_model.");
+
+	soma2add					= n.serviceClient<soma_manager::SOMA2InsertObjs>(		"soma2/insert_objs");
+	ROS_INFO("Ready to add use soma2add.");
 
 	ros::Subscriber sub = n.subscribe("/retrieval_result", 1, retrievalCallback);
 	ROS_INFO("Ready to add recieve search results.");
