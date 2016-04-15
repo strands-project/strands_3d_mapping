@@ -217,6 +217,24 @@ target_link_libraries(test_top_match_one_map extract_sift register_objects pfhrg
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 if (catkin_FOUND)
-    #install(FILES include/serial/serial.h include/serial/v8stdint.h
-    #  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/serial)
+    # Mark cpp header files for installation
+    install(DIRECTORY include/dynamic_object_retrieval include/extract_sift include/object_3d_retrieval include/sift
+      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    )
+
+    install(PROGRAMS scripts/menu.py scripts/training_menu.py
+      DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
+
+    # Mark executables and/or libraries for installation
+    install(TARGETS sift register_objects pfhrgb_estimation shot_estimation demo_convex_segmentation demo_sweep_segmentation
+                    dynamic_visualize extract_sift dynamic_retrieval extract_surfel_features dynamic_init_folders dynamic_convex_segmentation
+                    dynamic_supervoxel_convex_segmentation dynamic_extract_convex_features dynamic_extract_supervoxel_features
+                    dynamic_create_subsegments dynamic_init_vocabulary dynamic_train_vocabulary dynamic_query_vocabulary dynamic_extract_sift
+                    test_added_count test_feature_keypoint_match test_segmentation test_surfel_segmentation test_gt_labelled_data
+                    test_supervoxel_keypoints test_supervoxel_convex_mapping test_visualize_keypoints test_query_keypoints test_adjacencies test_top_match_one_map
+      ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
 endif()

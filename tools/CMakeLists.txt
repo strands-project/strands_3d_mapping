@@ -9,8 +9,8 @@ else()
     message("NOT USING CATKIN!")
 endif()
 
-set(CMAKE_C_COMPILER clang)
-set(CMAKE_CXX_COMPILER clang++)
+#set(CMAKE_C_COMPILER clang)
+#set(CMAKE_CXX_COMPILER clang++)
 
 add_definitions(-std=c++11 -O3)
 
@@ -19,7 +19,7 @@ add_definitions(-std=c++11 -O3)
 if (catkin_FOUND)
     find_package(catkin REQUIRED COMPONENTS roscpp tf tf_conversions pcl_ros
                         metaroom_xml_parser object_manager k_means_tree
-                        dynamic_object_retrieval)
+                        dynamic_object_retrieval convex_segmentation)
     set(ROS_LIBRARIES ${catkin_LIBRARIES})
     include_directories(${catkin_INCLUDE_DIRS})
 else()
@@ -90,6 +90,16 @@ add_executable(transform_surfel_cloud src/transform_surfel_cloud.cpp)
 target_link_libraries(transform_surfel_cloud ${PCL_LIBRARIES})
 
 if (catkin_FOUND)
-    #install(FILES include/serial/serial.h include/serial/v8stdint.h
-    #  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/serial)
+    # Mark cpp header files for installation
+    install(FILES include/surfel_type.h
+      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    )
+
+    # Mark executables and/or libraries for installation
+    install(TARGETS create_convex_surfels create_sweep_illustration annotate_sweep_segment create_surfel_overlap_cloud
+                    create_overlap_cloud create_line_point_clouds transform_surfel_cloud
+      ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
 endif()

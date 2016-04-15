@@ -9,8 +9,8 @@ else()
     message("NOT USING CATKIN!")
 endif()
 
-set(CMAKE_C_COMPILER clang)
-set(CMAKE_CXX_COMPILER clang++)
+#set(CMAKE_C_COMPILER clang)
+#set(CMAKE_CXX_COMPILER clang++)
 
 add_definitions(-std=c++11 -O3)
 
@@ -165,6 +165,17 @@ add_executable(test_summarize_benchmark test/test_summarize_benchmark)
 target_link_libraries(test_summarize_benchmark benchmark_result ${PCL_LIBRARIES})
 
 if (catkin_FOUND)
-    #install(FILES include/serial/serial.h include/serial/v8stdint.h
-    #  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/serial)
+    # Mark cpp header files for installation
+    install(DIRECTORY include/object_3d_benchmark
+      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    )
+
+    # Mark executables and/or libraries for installation
+    install(TARGETS benchmark_overlap benchmark_retrieval benchmark_result surfel_renderer benchmark_visualization benchmark_segmentation
+                    benchmark_query_vocabulary benchmark_convex_segmentation benchmark_incremental_segmentation
+                    test_query_annotated_sweep test_visualize_query test_results_image test_static_matching test_renderer test_summarize_benchmark
+      ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
 endif()

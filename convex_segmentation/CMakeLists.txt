@@ -81,6 +81,14 @@ if (catkin_FOUND)
 endif()
 
 if (catkin_FOUND)
-    #install(FILES include/serial/serial.h include/serial/v8stdint.h
-    #  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/serial)
+    install(DIRECTORY include/object_3d_retrieval
+      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    )
+
+    # Mark executables and/or libraries for installation
+    install(TARGETS supervoxel_segmentation convex_segmentation_node
+      ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
 endif()
