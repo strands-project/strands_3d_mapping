@@ -24,7 +24,7 @@
 #include <tf_conversions/tf_eigen.h>
 
 #include <dynamic_reconfigure/server.h>
-#include <quasimodo_retrieval/ParametersConfig.h>
+#include <quasimodo_retrieval/parametersConfig.h>
 
 using namespace std;
 
@@ -46,7 +46,7 @@ public:
     ros::Publisher keypoint_pub;
     ros::Subscriber sub;
 
-    dynamic_reconfigure::Server<quasimodo_retrieval::ParametersConfig> server;
+    dynamic_reconfigure::Server<quasimodo_retrieval::parametersConfig> server;
 
     boost::filesystem::path vocabulary_path;
     //boost::filesystem::path data_path;
@@ -60,7 +60,7 @@ public:
     double iss_model_resolution; // 0.004
     double pfhrgb_radius_search; // 0.04
 
-    void parameters_callback(quasimodo_retrieval::ParametersConfig& config, uint32_t level) {
+    void parameters_callback(quasimodo_retrieval::parametersConfig& config, uint32_t level) {
         iss_model_resolution = config.iss_model_resolution;
         pfhrgb_radius_search = config.pfhrgb_radius_search;
     }
@@ -93,7 +93,7 @@ public:
         }
 
 
-        //dynamic_reconfigure::Server<quasimodo_retrieval::ParametersConfig>::CallbackType f;
+        //dynamic_reconfigure::Server<quasimodo_retrieval::parametersConfig>::CallbackType f;
         //f = boost::bind(&retrieval_node::parameters_callback, this, _1, _2);
         server.setCallback(boost::bind(&retrieval_node::parameters_callback, this, _1, _2));
 
