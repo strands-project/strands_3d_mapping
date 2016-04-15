@@ -68,7 +68,7 @@ public:
             sift_wrapper.extractSIFT(image, sift.desc_number, sift.descriptors, sift.keypoints);
             vSIFTData_1.push_back(sift);
             if (m_bVerbose){
-                ROS_INFO_STREAM("Extracted "<<vSIFTData_1[vSIFTData_1.size()-1].keypoints.size()<<" SIFT keypoints for sweep 1 -- image "<<i);
+                ROS_INFO_STREAM("Extracted "<<vSIFTData_1[vSIFTData_1.size()-1].keypoints.size()<<" SIFT keypoints for observation 1 -- image "<<i);
             }
         }
 
@@ -78,7 +78,7 @@ public:
             sift_wrapper.extractSIFT(image, sift.desc_number, sift.descriptors, sift.keypoints);
             vSIFTData_2.push_back(sift);
             if (m_bVerbose){
-                ROS_INFO_STREAM("Extracted "<<vSIFTData_2[vSIFTData_2.size()-1].keypoints.size()<<" SIFT keypoints for sweep 2 -- image "<<i);
+                ROS_INFO_STREAM("Extracted "<<vSIFTData_2[vSIFTData_2.size()-1].keypoints.size()<<" SIFT keypoints for observation 2 -- image "<<i);
             }
         }
 

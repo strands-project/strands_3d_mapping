@@ -6,9 +6,12 @@
 #include <siftgpu/SiftGPU.h>
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
 #include <pcl/registration/transformation_estimation_svd.h>
+#include <pcl/filters/frustum_culling.h>
+#include <tf_conversions/tf_eigen.h>
 
 #include "additional_view_registration_server/sift_wrapper.h"
 #include "additional_view_registration_server/additional_view_registration_residual.h"
+#include <pcl/visualization/pcl_visualizer.h>
 
 class AdditionalViewRegistrationOptimizer{
 
@@ -18,7 +21,11 @@ public:
 
     template <class PointType>
     bool registerViews(const std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& all_views, const std::vector<tf::StampedTransform>& all_initial_poses,
-                                             std::vector<int>& number_of_constraints, std::vector<tf::Transform>& registered_poses){
+                       const std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& observation_views, const std::vector<tf::StampedTransform>& observation_poses,
+                       const tf::StampedTransform& observation_origin_transform,
+                       std::vector<int>& number_of_constraints, std::vector<tf::Transform>& registered_poses,
+                       int& observation_constraints, tf::Transform& observation_transform,
+                       const bool& register_to_observation){
         using namespace std;
         using namespace cv;
         using namespace ceres;
@@ -185,9 +192,183 @@ public:
         if (!all_cameras.size()){
             ROS_WARN_STREAM("AdditionalViewRegistrationOptimizer ---- WARNING - no cameras defined for this object");
         }
-
         problem.SetParameterBlockConstant(all_cameras[0]->quaternion);
         problem.SetParameterBlockConstant(all_cameras[0]->translation);
+
+        // check for registration to the observation
+        Camera* cam_to_observation(new Camera);
+        observation_constraints = 0;
+        if ((register_to_observation) && (observation_views.size() == observation_poses.size())){
+            if (all_initial_poses.size() == all_views.size()){
+                ROS_INFO_STREAM("Registering to obervation using the odometry initial transforms for the additional views.");
+            } else {
+                ROS_INFO_STREAM("Registering to obervation without odometry initial transforms for the additional views. THIS WILL BE SLOW AND PROBABLY INACCURATE.");
+            }
+            // create imagesfor observation clouds
+            vector<Mat> vRGBImages_Obs;
+            vector<Mat> vDepthImages_Obs;
+            for (auto cloud : observation_views){
+                auto image_pair = createRGBandDepthFromCloud(cloud);
+                vRGBImages_Obs.push_back(image_pair.first);
+                vDepthImages_Obs.push_back(image_pair.second);
+            }
+
+            vector<SIFTData> vSIFTData_Obs;
+            // extract SIFT from observation clouds
+            for (size_t i=0; i<vRGBImages_Obs.size();i++){
+                auto image = vRGBImages_Obs[i];
+                SIFTData sift;
+                sift_wrapper.extractSIFT(image, sift.desc_number, sift.descriptors, sift.keypoints);
+                vSIFTData_Obs.push_back(sift);
+                if (m_bVerbose){
+                    ROS_INFO_STREAM("Extracted "<<vSIFTData_Obs[vSIFTData_Obs.size()-1].keypoints.size()<<" SIFT keypoints for observation -- image "<<i);
+                }
+            }
+
+            // transform observation clouds in the map frame
+            for (size_t i=0; i<observation_views.size();i++){
+                pcl_ros::transformPointCloud(*observation_views[i], *observation_views[i],observation_poses[i]);
+                pcl_ros::transformPointCloud(*observation_views[i], *observation_views[i],observation_origin_transform);
+            }
+
+            vector<ConstraintStructure> constraints_and_correspondences_obs;
+            // for each additional view, find the overlapping / closest observation cloud(s)
+            // use the odometry poses for the views, and the sweep poses for the clouds
+            for (size_t j=0; j<all_views.size(); j++){
+                vector<int> overlapping_cloud_indices;
+                 if (all_initial_poses.size() == all_views.size()){ // we have odometry poses for the views
+                     pcl::FrustumCulling<PointType> fc;
+                     fc.setVerticalFOV (25);
+                     fc.setHorizontalFOV (55);
+                     fc.setNearPlaneDistance (2.0);
+                     fc.setFarPlaneDistance (4.0);
+                     Eigen::Matrix4f cam2robot;
+                     cam2robot << 0, 0, 1, 0, 0,-1, 0, 0,1, 0, 0, 0, 0, 0, 0, 1;
+                     Eigen::Matrix4f view_odometry_pose;
+                     pcl_ros::transformAsMatrix(all_initial_poses[j],view_odometry_pose);
+                     Eigen::Matrix4f fc_pose = view_odometry_pose * cam2robot;
+                     fc.setCameraPose(fc_pose);
+
+                     for (size_t k=0; k<observation_views.size();k++){
+                         auto cloud = observation_views[k];
+                         fc.setInputCloud(cloud);
+                         pcl::PointCloud <PointType> filtered;
+                         fc.filter(filtered);
+                         if (filtered.points.size()){
+                             overlapping_cloud_indices.push_back(k);
+                             cout<<"Cloud "<<k<<" filtered points "<<filtered.points.size()<<endl;
+                         }
+                     }
+
+                 } else {
+                     // no odometry poses -> try to match every view against every observation cloud
+                     // THIS IS GOING TO BE a) SLOW b) PROBABLY INACCURATE !!!
+                     overlapping_cloud_indices.resize(observation_views.size());
+                     std::iota (std::begin(overlapping_cloud_indices), std::end(overlapping_cloud_indices), 0); // all the clouds ...
+                 }
+
+                 /************* DEBUG ******************/
+//                 ROS_INFO_STREAM("Number of overlapping clouds for view "<<j<<" "<<overlapping_cloud_indices.size());
+//                 char** argv;
+//                 int argc=0;
+//                 static pcl::visualization::PCLVisualizer* pg = new pcl::visualization::PCLVisualizer (argc, argv, "test_additional_view_registration");
+//                 pg->addCoordinateSystem(1.0);
+//                 boost::shared_ptr<pcl::PointCloud<PointType>> tempView(new pcl::PointCloud<PointType>);
+//                 pcl_ros::transformPointCloud(*all_views[j], *tempView,all_initial_poses[j]); // transform to map frame
+//                 pg->addPointCloud(tempView,"AV");
+//                 for (size_t k=0; k<overlapping_cloud_indices.size();k++){
+//                     stringstream ss;ss<<"cloud_";ss<<k;
+//                     pg->addPointCloud(observation_views[overlapping_cloud_indices[k]],ss.str());
+//                 }
+//                 pg->spin();
+//                 pg->removeAllPointClouds();
+                 /************* DEBUG ******************/
+
+                 // For each overlapping cloud, compute feature correspondences
+                 vector<int> remaining_cloud_indices;
+                 for (size_t k=0; k<overlapping_cloud_indices.size();k++){
+                     ConstraintStructure constr;
+                     constr.image1 = j;
+                     constr.image2 = overlapping_cloud_indices[k];
+                     constr.depth_threshold = -1; // not filtering according to depth, as the observation cloud already is in the map frame
+
+                     SIFTData image1_sift = vSIFTData[constr.image1];
+                     SIFTData image2_sift = vSIFTData_Obs[constr.image2];
+                     vector<pair<SiftGPU::SiftKeypoint,SiftGPU::SiftKeypoint>> matches;
+
+                     sift_wrapper.matchSIFT(image1_sift.desc_number, image2_sift.desc_number,
+                                            image1_sift.descriptors, image2_sift.descriptors,
+                                            image1_sift.keypoints, image2_sift.keypoints,
+                                            matches);
+                     if (m_bVerbose){
+                         ROS_INFO_STREAM("Registration to observation - Resulting number of matches for images "<<constr.image1<<" "<<constr.image2<<" is "<<matches.size());
+                     }
+                     constr.correspondences = validateMatches(matches,
+                                                              vRGBImages[constr.image1], vRGBImages_Obs[constr.image2],
+                                                              all_views[constr.image1], observation_views[constr.image2],
+                                                              constr.depth_threshold,
+                                                              constr.correspondences_2d);
+                     if (m_bVerbose){
+                         ROS_INFO_STREAM("Registration to observation --- after validating "<<constr.correspondences.size()<<"  "<<constr.correspondences_2d.size()<<" are left ");
+                     }
+
+                     if (constr.correspondences.size()){
+                         remaining_cloud_indices.push_back(constr.image2);
+                     }
+
+                     constraints_and_correspondences_obs.push_back(constr);
+                 }
+
+                 /************* DEBUG ******************/
+//                 ROS_INFO_STREAM("Number of remaining overlapping after feature matching clouds for view "<<j<<" "<<remaining_cloud_indices.size());
+//                 pcl_ros::transformPointCloud(*all_views[j], *tempView,all_initial_poses[j]); // transform to map frame
+//                 pg->addPointCloud(tempView,"AV");
+//                 for (size_t k=0; k<remaining_cloud_indices.size();k++){
+//                     stringstream ss;ss<<"cloud_";ss<<k;
+//                     pg->addPointCloud(observation_views[remaining_cloud_indices[k]],ss.str());
+//                 }
+//                 pg->spin();
+//                 pg->removeAllPointClouds();
+                 /************* DEBUG ******************/
+            }
+
+            if (constraints_and_correspondences_obs.size()){
+                // Add constraints to optimization
+
+                for (auto constr : constraints_and_correspondences_obs){
+                    Camera* cam1 = all_cameras[constr.image1];
+                    Camera* cam2 = cam_to_observation; // one transform from all additional views to the observation
+
+                    if (constr.correspondences.size() < min_correspondences){
+                        continue;
+                    }
+
+                    for (size_t k=0; k<constr.correspondences.size(); k++){
+                        auto corresp = constr.correspondences[k];
+                        auto corresp_2d = constr.correspondences_2d[k];
+                        double point_original1[3] = {corresp.first.x, corresp.first.y, corresp.first.z};
+                        double point_original2[3] = {corresp.second.x, corresp.second.y, corresp.second.z};
+
+                        double point_original1_2d[2] = {corresp_2d.first.x, corresp_2d.first.y};
+                        double point_original2_2d[2] = {corresp_2d.second.x, corresp_2d.second.y};
+                        double depth1 = corresp.first.z;
+                        double depth2 = corresp.second.z;
+
+                        double weight = (corresp.first.getVector3fMap().squaredNorm() + corresp.second.getVector3fMap().squaredNorm())/2;
+
+                        ceres::CostFunction *cost_function_proj = ProjectionResidual::Create(point_original1, point_original2, weight);
+                        ceres::LossFunction *loss_function_proj = new ceres::HuberLoss(weight * 0.005);
+                        problem.AddResidualBlock(cost_function_proj,
+                                                 loss_function_proj,
+                                                 cam1->quaternion,
+                                                 cam1->translation,
+                                                 cam2->quaternion,
+                                                 cam2->translation);
+                        observation_constraints++;
+                    }
+                }
+            }
+        }
 
 
         Solver::Summary summary;
@@ -196,7 +377,8 @@ public:
             ROS_INFO_STREAM(summary.FullReport() << "\n");
         }
 
-        cout<<"Total constraints "<<total_constraints<<endl;
+        ROS_INFO_STREAM("Additional view regitration constraints "<<total_constraints);
+        ROS_INFO_STREAM("Observation registration constraints "<<observation_constraints);
 
         for (size_t i=0; i<all_cameras.size();i++){
             tf::Quaternion tf_q(all_cameras[i]->quaternion[1],all_cameras[i]->quaternion[2],all_cameras[i]->quaternion[3], all_cameras[i]->quaternion[0]);
@@ -204,6 +386,11 @@ public:
             tf::Transform ceres_transform(tf_q, tf_v);
             registered_poses.push_back(ceres_transform);
         }
+
+        tf::Quaternion tf_q(cam_to_observation->quaternion[1],cam_to_observation->quaternion[2],cam_to_observation->quaternion[3], cam_to_observation->quaternion[0]);
+        tf::Vector3 tf_v(cam_to_observation->translation[0], cam_to_observation->translation[1], cam_to_observation->translation[2]);
+        observation_transform.setOrigin(tf_v);
+        observation_transform.setRotation(tf_q);
 
         // free memory
         // TODO check if this is necessary
@@ -243,8 +430,10 @@ public:
                 continue; // skip nan matches
             }
 
-            if ((p1.z > depth_threshold) || (p2.z > depth_threshold)){
-                continue; // skip points with depth outside desired range
+            if (depth_threshold > 0.0){
+                if ((p1.z > depth_threshold) || (p2.z > depth_threshold)){
+                    continue; // skip points with depth outside desired range
+                }
             }
 
             pcl::Correspondence c;
@@ -253,8 +442,6 @@ public:
             c.distance = 1.0;
             correspondences_sift->push_back(c);
         }
-
-        cout<<"After depth filtering "<<correspondences_sift->size()<<endl;
 
         // next do RANSAC filtering
         pcl::registration::CorrespondenceRejectorSampleConsensus<PointType> cr;

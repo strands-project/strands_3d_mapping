@@ -19,6 +19,7 @@ bool optimize(const vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& addit
               const vector<tf::StampedTransform>& additional_views_odometry_transforms,
               const vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& observation_intermediate_clouds,
               const vector<tf::StampedTransform>& observation_intermediate_clouds_transforms,
+              const tf::StampedTransform& observation_origin_transform,
               std::vector<int>& additional_view_constraints,
               vector<tf::StampedTransform>& additional_view_registered_transforms,
               int& observation_constraints,
@@ -48,17 +49,28 @@ bool additional_view_registration_service(
 
     vector<boost::shared_ptr<pcl::PointCloud<PointType>>> observation_clouds;
     std::vector<tf::StampedTransform> observation_transforms;
+    tf::StampedTransform observation_origin_transform;
+
     // load observation
     if (req.observation_xml != ""){
         SemanticRoomXMLParser<PointType> parser;
         auto source_observation = parser.loadRoomFromXML(req.observation_xml);
         observation_clouds = source_observation.getIntermediateClouds();
-        observation_transforms = source_observation.getIntermediateCloudTransforms();
+        observation_transforms = source_observation.getIntermediateCloudTransformsRegistered();
+
+        if (!source_observation.getIntermediateCloudTransforms().size()){
+            ROS_ERROR_STREAM("object_additional_view_registration_service: the observations provided contains 0 registered transforms. Cannot register to observation -> will register only the additional views.");
+            observation_origin_transform.setIdentity();
+            observation_clouds.clear();
+            observation_transforms.clear();
+        } else {
+            observation_origin_transform = source_observation.getIntermediateCloudTransforms()[0];
+        }
 
         // check intermediate clouds
         if ((observation_clouds.size() == 0) || (observation_transforms.size() == 0)){
             // no intermediate clouds -> cannot register!
-            ROS_ERROR_STREAM("additional_view_registration_service: the observations provided contain 0 intermediate clouds or 0 intermediate transforms. Cannot register to observation -> will register only the additional views.");
+            ROS_ERROR_STREAM("additional_view_registration_service: the observations provided contain 0 intermediate clouds or 0 registered intermediate transforms. Cannot register to observation -> will register only the additional views.");
         }
     }
 
@@ -100,7 +112,7 @@ bool additional_view_registration_service(
 
     ROS_INFO_STREAM("Registering additional views ...");
     optimize(additional_views, additional_views_odometry_transforms,
-             observation_intermediate_clouds, observation_intermediate_clouds_transforms,
+             observation_intermediate_clouds, observation_intermediate_clouds_transforms, observation_origin_transform,
              additional_view_constraints, additional_view_registered_transforms,
              observation_constraints, observation_transform);
 
@@ -152,18 +164,28 @@ bool object_additional_view_registration_service(
 
     vector<boost::shared_ptr<pcl::PointCloud<PointType>>> observation_clouds;
     std::vector<tf::StampedTransform> observation_transforms;
+    tf::StampedTransform observation_origin_transform;
 
     // load observation
     if (req.observation_xml != ""){
         SemanticRoomXMLParser<PointType> parser;
         auto source_observation = parser.loadRoomFromXML(req.observation_xml);
         observation_clouds = source_observation.getIntermediateClouds();
-        observation_transforms = source_observation.getIntermediateCloudTransforms();
+        observation_transforms = source_observation.getIntermediateCloudTransformsRegistered();
+
+        if (!source_observation.getIntermediateCloudTransforms().size()){
+            ROS_ERROR_STREAM("object_additional_view_registration_service: the observations provided contains 0 registered transforms. Cannot register to observation -> will register only the additional views.");
+            observation_origin_transform.setIdentity();
+            observation_clouds.clear();
+            observation_transforms.clear();
+        } else {
+            observation_origin_transform = source_observation.getIntermediateCloudTransforms()[0];
+        }
 
         // check intermediate clouds
         if ((observation_clouds.size() == 0) || (observation_transforms.size() == 0)){
             // no intermediate clouds -> cannot register!
-            ROS_ERROR_STREAM("object_additional_view_registration_service: the observations provided contain 0 intermediate clouds or 0 intermediate transforms. Cannot register to observation -> will register only the additional views.");
+            ROS_ERROR_STREAM("object_additional_view_registration_service: the observations provided contains 0 intermediate clouds or 0 registered intermediate transforms. Cannot register to observation -> will register only the additional views.");
         }
     }
 
@@ -191,7 +213,7 @@ bool object_additional_view_registration_service(
 
     ROS_INFO_STREAM("Registering additional views ...");
     optimize(additional_views, additional_views_odometry_transforms,
-             observation_intermediate_clouds, observation_intermediate_clouds_transforms,
+             observation_intermediate_clouds, observation_intermediate_clouds_transforms, observation_origin_transform,
              additional_view_constraints, additional_view_registered_transforms,
              observation_constraints, observation_transform);
 
@@ -220,24 +242,36 @@ bool optimize(const vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& addit
               const vector<tf::StampedTransform>& additional_views_odometry_transforms,
               const vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& observation_intermediate_clouds,
               const vector<tf::StampedTransform>& observation_intermediate_clouds_transforms,
+              const tf::StampedTransform& observation_origin_transform,
               std::vector<int>& additional_view_constraints,
               vector<tf::StampedTransform>& additional_view_registered_transforms,
               int& observation_constraints,
               tf::StampedTransform& observation_transform){
 
     bool register_to_observation = false;
-    if((observation_intermediate_clouds.size()!=0) && (observation_intermediate_clouds.size() == observation_intermediate_clouds_transforms.size())){
+    if((observation_intermediate_clouds.size()!=0) && (observation_intermediate_clouds.size() == observation_intermediate_clouds_transforms.size())
+            /*&& (additional_views_odometry_transforms.size() != 0)*/){
         register_to_observation = true;
     }
 
+
     bool verbose = true;
     vector<tf::Transform> registered_transforms;
+    tf::Transform transform_to_observation;
     AdditionalViewRegistrationOptimizer optimizer(verbose);
-    optimizer.registerViews<PointType>(additional_views,additional_views_odometry_transforms,additional_view_constraints,registered_transforms);
+    optimizer.registerViews<PointType>(additional_views,additional_views_odometry_transforms,
+                                       observation_intermediate_clouds, observation_intermediate_clouds_transforms, observation_origin_transform,
+                                       additional_view_constraints,registered_transforms,
+                                       observation_constraints,
+                                       transform_to_observation,
+                                       register_to_observation);
+
     for (auto tf : registered_transforms){
         tf::StampedTransform tf_stamped(tf, ros::Time::now(),"", "");
         additional_view_registered_transforms.push_back(tf_stamped);
     }
+
+    observation_transform = tf::StampedTransform(transform_to_observation, ros::Time::now(),"","");
 
     return true;
 }

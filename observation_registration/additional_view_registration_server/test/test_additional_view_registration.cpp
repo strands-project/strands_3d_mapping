@@ -75,17 +75,58 @@ int main(int argc, char** argv)
     ROS_INFO_STREAM("Visualizing registration");
     pcl::visualization::PCLVisualizer* pg = new pcl::visualization::PCLVisualizer (argc, argv, "test_additional_view_registration");
     pg->addCoordinateSystem(1.0);
+    int v1, v2;
+    pg->createViewPort (0.0, 0.0, 0.5, 1.0, v1);
+    pg->createViewPort (0.5, 0.0, 1.0, 1.0, v2);
+    pg->addCoordinateSystem(1.0, v1);
+    pg->addCoordinateSystem(1.0, v2);
 
     for (size_t i=0; i<object.vAdditionalViews.size();i++){
         CloudPtr transformedCloud1(new Cloud);
         pcl_ros::transformPointCloud(*object.vAdditionalViews[i], *transformedCloud1,registered_transforms[i]);
 
         stringstream ss; ss<<"Cloud";ss<<i;
-        pg->addPointCloud(transformedCloud1, ss.str());
+        pg->addPointCloud(transformedCloud1, ss.str(),v1);
     }
 
     pg->spin();
     pg->removeAllPointClouds();
+
+    if (srv.response.observation_correspondences){
+        // load observation and build complete cloud
+        SemanticRoomXMLParser<PointType> parser;
+        auto obs_data = parser.loadRoomFromXML(obs);
+        CloudPtr obs_cloud;
+        obs_cloud = rebuildCloud(obs_data.getIntermediateClouds(), obs_data.getIntermediateCloudTransformsRegistered());
+        pcl_ros::transformPointCloud(*obs_cloud, *obs_cloud,obs_data.getIntermediateCloudTransforms()[0]);
+
+        // compute registered observation cloud
+        tf::Transform obs_transform;
+        tf::transformMsgToTF(srv.response.observation_transform, obs_transform);
+        CloudPtr obs_cloud_registered(new Cloud);
+        pcl_ros::transformPointCloud(*obs_cloud, *obs_cloud_registered,obs_transform);
+
+        // check registration to observation
+        // add views to both viewports
+        for (size_t i=0; i<object.vAdditionalViews.size();i++){
+            CloudPtr transformedCloud1(new Cloud);
+            pcl_ros::transformPointCloud(*object.vAdditionalViews[i], *transformedCloud1,registered_transforms[i]);
+
+            stringstream ss1; ss1<<"Cloud1";ss1<<i;
+            pg->addPointCloud(transformedCloud1, ss1.str(), v1);
+            stringstream ss2; ss2<<"Cloud2";ss2<<i;
+            pg->addPointCloud(transformedCloud1, ss2.str(), v2);
+        }
+
+        // add observation cloud and registrered observation cloud
+        pcl::visualization::PointCloudColorHandlerCustom<PointType> obs_handler_original (obs_cloud, 255, 0, 0);
+        pcl::visualization::PointCloudColorHandlerCustom<PointType> obs_handler_registered (obs_cloud_registered, 255, 0, 0);
+        pg->addPointCloud (obs_cloud,obs_handler_original,"obs_cloud", v1);
+        pg->addPointCloud (obs_cloud_registered,obs_handler_registered,"obs_cloud_registered", v2);
+
+        pg->spin();
+        pg->removeAllPointClouds();
+    }
 
 
     /************************************************ TEST SECOND SERVICE ********************************************************/
@@ -94,7 +135,7 @@ int main(int argc, char** argv)
     srv2.request.observation_xml = obs;
     // copy object data here
     for (size_t i=0; i<object.vAdditionalViews.size(); i++){
-//
+        //
         sensor_msgs::PointCloud2 cloud_msg;
         pcl::toROSMsg(*object.vAdditionalViews[i], cloud_msg);
         srv2.request.additional_views.push_back(cloud_msg);
@@ -133,18 +174,67 @@ int main(int argc, char** argv)
 
     // check registration
     ROS_INFO_STREAM("Visualizing registration");
-
     for (size_t i=0; i<object.vAdditionalViews.size();i++){
         CloudPtr transformedCloud1(new Cloud);
         pcl_ros::transformPointCloud(*object.vAdditionalViews[i], *transformedCloud1,registered_transforms[i]);
 
         stringstream ss; ss<<"Cloud";ss<<i;
-        pg->addPointCloud(transformedCloud1, ss.str());
+        pg->addPointCloud(transformedCloud1, ss.str(),v1);
     }
 
     pg->spin();
     pg->removeAllPointClouds();
 
+    if (srv.response.observation_correspondences){
+        // load observation and build complete cloud
+        SemanticRoomXMLParser<PointType> parser;
+        auto obs_data = parser.loadRoomFromXML(obs);
+        CloudPtr obs_cloud;
+        obs_cloud = rebuildCloud(obs_data.getIntermediateClouds(), obs_data.getIntermediateCloudTransformsRegistered());
+        pcl_ros::transformPointCloud(*obs_cloud, *obs_cloud,obs_data.getIntermediateCloudTransforms()[0]);
+
+        // compute registered observation cloud
+        tf::Transform obs_transform;
+        tf::transformMsgToTF(srv.response.observation_transform, obs_transform);
+        CloudPtr obs_cloud_registered(new Cloud);
+        pcl_ros::transformPointCloud(*obs_cloud, *obs_cloud_registered,obs_transform);
+
+        // check registration to observation
+        // add views to both viewports
+        for (size_t i=0; i<object.vAdditionalViews.size();i++){
+            CloudPtr transformedCloud1(new Cloud);
+            pcl_ros::transformPointCloud(*object.vAdditionalViews[i], *transformedCloud1,registered_transforms[i]);
+
+            stringstream ss1; ss1<<"Cloud1";ss1<<i;
+            pg->addPointCloud(transformedCloud1, ss1.str(), v1);
+            stringstream ss2; ss2<<"Cloud2";ss2<<i;
+            pg->addPointCloud(transformedCloud1, ss2.str(), v2);
+        }
+
+        // add observation cloud and registrered observation cloud
+        pcl::visualization::PointCloudColorHandlerCustom<PointType> obs_handler_original (obs_cloud, 255, 0, 0);
+        pcl::visualization::PointCloudColorHandlerCustom<PointType> obs_handler_registered (obs_cloud_registered, 255, 0, 0);
+        pg->addPointCloud (obs_cloud,obs_handler_original,"obs_cloud", v1);
+        pg->addPointCloud (obs_cloud_registered,obs_handler_registered,"obs_cloud_registered", v2);
+
+        pg->spin();
+        pg->removeAllPointClouds();
+        delete pg;
+    }
+
 }
 
 
+
+
+CloudPtr rebuildCloud(std::vector<CloudPtr> intermediate_clouds, std::vector<tf::StampedTransform> intermediate_transforms){
+    CloudPtr mergedCloud(new Cloud);
+
+    for (size_t i=0; i<intermediate_clouds.size(); i++)
+    {
+        Cloud transformed_cloud;
+        pcl_ros::transformPointCloud(*intermediate_clouds[i], transformed_cloud,intermediate_transforms[i]);
+        *mergedCloud+=transformed_cloud;
+    }
+    return mergedCloud;
+}
