@@ -8,6 +8,8 @@ find_package(catkin REQUIRED COMPONENTS roscpp rospy sensor_msgs std_msgs geomet
 add_service_files(
    FILES
    ObservationRegistrationService.srv
+   AdditionalViewRegistrationService.srv
+   ObjectAdditionalViewRegistrationService.srv
 )
 
 generate_messages(
