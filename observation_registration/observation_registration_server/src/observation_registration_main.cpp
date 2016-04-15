@@ -46,6 +46,7 @@ bool observation_registration_service(
     if ((source_observation_intermediate_clouds.size() == 0) || (target_observation_intermediate_clouds.size() == 0) ||
             (source_observation_transforms.size() == 0) || (target_observation_transforms.size() == 0)){
         // no intermediate clouds -> cannot register!
+        ROS_ERROR_STREAM("observation_registration_service: the observations provided contain 0 intermediate clouds or 0 intermediate transforms. Cannot register.");
         throw std::runtime_error(
                     std::string("observation_registration_service: the observations "
                                 "provided contain 0 intermediate clouds or 0 intermediate transforms. Cannot register.\n"));
