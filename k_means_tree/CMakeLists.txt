@@ -33,16 +33,30 @@ add_library(grouped_vocabulary_tree src/grouped_vocabulary_tree.cpp
             include/grouped_vocabulary_tree/grouped_vocabulary_tree.h
             impl/grouped_vocabulary_tree.hpp)
 
-add_executable(test src/test.cpp)
+add_executable(test_tree src/test.cpp)
 add_executable(test_vocabulary_tree src/test_vocabulary_tree.cpp)
 
 target_link_libraries(k_means_tree ${PCL_LIBRARIES})
 target_link_libraries(vocabulary_tree k_means_tree ${PCL_LIBRARIES})
 target_link_libraries(grouped_vocabulary_tree vocabulary_tree k_means_tree ${PCL_LIBRARIES})
-target_link_libraries(test k_means_tree vocabulary_tree grouped_vocabulary_tree)
+target_link_libraries(test_tree k_means_tree vocabulary_tree grouped_vocabulary_tree)
 target_link_libraries(test_vocabulary_tree k_means_tree vocabulary_tree)
 
 if (catkin_FOUND)
-    #install(FILES include/serial/serial.h include/serial/v8stdint.h
-    #  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/serial)
+    # Mark cpp header files for installation
+    install(DIRECTORY include/k_means_tree include/vocabulary_tree include/grouped_vocabulary_tree
+      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    )
+
+    # Mark cpp header files for installation
+    install(FILES impl/k_means_tree.hpp impl/vocabulary_tree.hpp impl/grouped_vocabulary_tree.hpp
+      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    )
+
+    # Mark executables and/or libraries for installation
+    install(TARGETS k_means_tree vocabulary_tree grouped_vocabulary_tree test_tree test_vocabulary_tree
+      ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
 endif()

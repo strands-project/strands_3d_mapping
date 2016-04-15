@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>object_3d_benchmark</name>
+  <name>convex_segmentation</name>
   <version>0.0.1</version>
   <description>
       This is a framework for querying for point clouds within a
@@ -36,8 +36,6 @@
   <build_depend>metaroom_xml_parser</build_depend>
   <build_depend>object_manager</build_depend>
   <build_depend>k_means_tree</build_depend>
-  <build_depend>dynamic_object_retrieval</build_depend>
-  <build_depend>convex_segmentation</build_depend>
   <run_depend>libpcl-all</run_depend>
   <run_depend>libopencv-dev</run_depend>
   <run_depend>roscpp</run_depend>
@@ -47,8 +45,6 @@
   <run_depend>metaroom_xml_parser</run_depend>
   <run_depend>object_manager</run_depend>
   <run_depend>k_means_tree</run_depend>
-  <run_depend>dynamic_object_retrieval</run_depend>
-  <run_depend>convex_segmentation</run_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

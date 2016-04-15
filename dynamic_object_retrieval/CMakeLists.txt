@@ -20,7 +20,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 # If using catkin, including it using catkin instead
 if (catkin_FOUND)
     find_package(catkin REQUIRED COMPONENTS roscpp tf tf_conversions pcl_ros
-                        metaroom_xml_parser object_manager k_means_tree)
+                        metaroom_xml_parser object_manager k_means_tree convex_segmentation)
     set(ROS_LIBRARIES ${catkin_LIBRARIES})
     include_directories(${catkin_INCLUDE_DIRS})
 else()
@@ -36,6 +36,10 @@ else()
         BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
         INSTALL_COMMAND ""
     )
+
+    set(segmentation_dir ${CMAKE_CURRENT_SOURCE_DIR}/../convex_segmentation)
+    include_directories(${segmentation_dir}/include)
+    link_directories(${segmentation_dir}/build)
 
     # Be sure to set this to YOUR workspace, use custom version of metaroom_xml_parser for labeled data,
     # https://github.com/RaresAmbrus/strands_3d_mapping, branch hydro-devel
@@ -99,7 +103,7 @@ add_library(sift include/sift/sift.cpp include/sift/sift.h)
 # This library registers objects for us using SIFT
 add_library(register_objects src/register_objects.cpp ${include_dir}/register_objects.h)
 # This library does the convex segmentation
-add_library(supervoxel_segmentation src/supervoxel_segmentation.cpp ${include_dir}/supervoxel_segmentation.h)
+#add_library(supervoxel_segmentation src/supervoxel_segmentation.cpp ${include_dir}/supervoxel_segmentation.h)
 # This library computes PFHRGB features, among other things
 add_library(pfhrgb_estimation src/pfhrgb_estimation.cpp ${include_dir}/pfhrgb_estimation.h)
 # This library computes SHOTCOLOR features, among other things
@@ -108,7 +112,7 @@ add_library(shot_estimation src/shot_estimation.cpp ${include_dir}/shot_estimati
 # Link all of our libraries
 target_link_libraries(sift ${OpenCV_LIBS})
 target_link_libraries(register_objects sift ${OpenCV_LIBS} ${PCL_LIBRARIES})
-target_link_libraries(supervoxel_segmentation ${OpenCV_LIBS} ${PCL_LIBRARIES})
+#target_link_libraries(supervoxel_segmentation ${OpenCV_LIBS} ${PCL_LIBRARIES})
 target_link_libraries(pfhrgb_estimation ${PCL_LIBRARIES})
 target_link_libraries(shot_estimation ${PCL_LIBRARIES})
 
@@ -213,6 +217,24 @@ target_link_libraries(test_top_match_one_map extract_sift register_objects pfhrg
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 if (catkin_FOUND)
-    #install(FILES include/serial/serial.h include/serial/v8stdint.h
-    #  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/serial)
+    # Mark cpp header files for installation
+    install(DIRECTORY include/dynamic_object_retrieval include/extract_sift include/object_3d_retrieval include/sift
+      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    )
+
+    install(PROGRAMS scripts/menu.py scripts/training_menu.py
+      DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
+
+    # Mark executables and/or libraries for installation
+    install(TARGETS sift register_objects pfhrgb_estimation shot_estimation demo_convex_segmentation demo_sweep_segmentation
+                    dynamic_visualize extract_sift dynamic_retrieval extract_surfel_features dynamic_init_folders dynamic_convex_segmentation
+                    dynamic_supervoxel_convex_segmentation dynamic_extract_convex_features dynamic_extract_supervoxel_features
+                    dynamic_create_subsegments dynamic_init_vocabulary dynamic_train_vocabulary dynamic_query_vocabulary dynamic_extract_sift
+                    test_added_count test_feature_keypoint_match test_segmentation test_surfel_segmentation test_gt_labelled_data
+                    test_supervoxel_keypoints test_supervoxel_convex_mapping test_visualize_keypoints test_query_keypoints test_adjacencies test_top_match_one_map
+      ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+      RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
 endif()
