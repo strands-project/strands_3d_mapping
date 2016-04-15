@@ -45,6 +45,8 @@ namespace reglib
 
 		void show(bool stop = false);
 		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr getPCLcloud();
+		void save(std::string path = "");
+		static RGBDFrame * load(Camera * cam, std::string path);
 	};
 
 }

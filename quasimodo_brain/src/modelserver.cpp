@@ -15,7 +15,9 @@
 #include "quasimodo_msgs/retrieval_query_result.h"
 #include "quasimodo_msgs/retrieval_query.h"
 #include "quasimodo_msgs/retrieval_result.h"
-#include "quasimodo_msgs/SOMA2Object.h"
+#include "soma2_msgs/SOMA2Object.h"
+
+#include "soma_manager/SOMA2InsertObjs.h"
 
 //#include "modelupdater/ModelUpdater.h"
 //#include "/home/johane/catkin_ws_dyn/src/quasimodo_models/include/modelupdater/ModelUpdater.h"
@@ -52,13 +54,15 @@ std::map<int , reglib::ModelUpdater *>	updaters;
 reglib::RegistrationGOICP *				registration;
 ModelDatabase * 						modeldatabase;
 
+std::string								savepath = ".";
+
 boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
 
 ros::Publisher models_new_pub;
 ros::Publisher models_updated_pub;
 ros::Publisher models_deleted_pub;
 
-
+ros::ServiceClient soma2add;
 
 double getTime(){
 	struct timeval start1;
@@ -70,12 +74,33 @@ quasimodo_msgs::retrieval_result sresult;
 bool new_search_result = false;
 double last_search_result_time = 0;
 
+void dumpDatabase(std::string path = "."){
+	char command [1024];
+	sprintf(command,"rm -r %s/model*",path.c_str());
+	printf("%s\n",command);
+	system(command);
+
+	sprintf(command,"rm %s/camera*",path.c_str());
+	printf("%s\n",command);
+	system(command);
+
+	cameras[0]->save(path+"/camera0");
+	for(unsigned int m = 0; m < modeldatabase->models.size(); m++){
+		char buf [1024];
+		sprintf(buf,"%s/model%i",path.c_str(),m);
+		sprintf(command,"mkdir -p %s",buf);
+		system(command);
+		modeldatabase->models[m]->save(std::string(buf));
+	}
+}
+
 void retrievalCallback(const quasimodo_msgs::retrieval_query_result & qr){
 	printf("retrievalCallback\n");
 	sresult = qr.result;
 	new_search_result = true;
 	last_search_result_time = getTime();
 }
+
 
 bool myfunction (reglib::Model * i,reglib::Model * j) { return i->frames.size() > j->frames.size(); }
 
@@ -84,17 +109,10 @@ void show_sorted(){
     if(!visualization){return;}
 	std::vector<reglib::Model *> results;
 	for(unsigned int i = 0; i < modeldatabase->models.size(); i++){results.push_back(modeldatabase->models[i]);}
-
 	std::sort (results.begin(), results.end(), myfunction);
-
 	viewer->removeAllPointClouds();
-	//printf("number of models: %i\n",results.size());
-
 	float maxx = 0;
 	for(unsigned int i = 0; i < results.size(); i++){
-		//printf("results %i -> %i\n",i,results[i]->frames.size());
-
-		//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = results[i]->getPCLcloud(results[i]->frames.size(), false);
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = results[i]->getPCLcloud(1, false);
 		float meanx = 0;
 		float meany = 0;
@@ -124,13 +142,10 @@ void show_sorted(){
 		viewer->addPointCloud<pcl::PointXYZRGB> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cloud), buf);
 	}
 	viewer->spin();
-	//if(savecounter % 5 == 0){viewer->spin();}
-	char buf [1024];
-	sprintf(buf,"globalimg%i.png",savecounter++);
-	viewer->saveScreenshot(std::string(buf));
-	viewer->spinOnce();
-
-	//viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud), buf);
+	//char buf [1024];
+	//sprintf(buf,"globalimg%i.png",savecounter++);
+	//viewer->saveScreenshot(std::string(buf));
+	//viewer->spinOnce();
 }
 
 quasimodo_msgs::model getModelMSG(reglib::Model * model){
@@ -164,10 +179,10 @@ quasimodo_msgs::model getModelMSG(reglib::Model * model){
 	return msg;
 }
 
-std::vector<quasimodo_msgs::SOMA2Object> getSOMA2ObjectMSGs(reglib::Model * model){
-	std::vector<quasimodo_msgs::SOMA2Object> msgs;
+std::vector<soma2_msgs::SOMA2Object> getSOMA2ObjectMSGs(reglib::Model * model){
+	std::vector<soma2_msgs::SOMA2Object> msgs;
 	for(int i = 0; i < model->frames.size(); i++){
-		quasimodo_msgs::SOMA2Object msg;
+		soma2_msgs::SOMA2Object msg;
 		char buf [1024];
 		sprintf(buf,"id_%i_%i",model->id,model->frames[i]->id);
 		msg.id				= std::string(buf);
@@ -262,54 +277,30 @@ std::vector<quasimodo_msgs::SOMA2Object> getSOMA2ObjectMSGs(reglib::Model * mode
 	return msgs;
 }
 
+void publishModel(reglib::Model * model){
+//	std::vector<soma2_msgs::SOMA2Object> somamsgs = getSOMA2ObjectMSGs(model);
+	soma_manager::SOMA2InsertObjs objs;
+	objs.request.objects = getSOMA2ObjectMSGs(model);
+	if (soma2add.call(objs)){//Add frame to model server
+	////			int frame_id = ifsrv.response.frame_id;
+	}else{ROS_ERROR("Failed to call service soma2add");}
 
-
+//	for(int i = 0; i < somamsgs.size(); i++){
+//		if (soma2add.call(somamsgs[i])){//Add frame to model server
+////			int frame_id = ifsrv.response.frame_id;
+//		 }else{ROS_ERROR("Failed to call service soma2add");}
+//	 }
+}
 
 bool getModel(quasimodo_msgs::get_model::Request  & req, quasimodo_msgs::get_model::Response & res){
 	int model_id			= req.model_id;
 	reglib::Model * model	= models[model_id];
-	printf("getModel\n");
-
-	res.model = getModelMSG(model);/*
-	res.model.model_id = model_id;
-	res.model.local_poses.resize(model->relativeposes.size());
-	res.model.frames.resize(model->frames.size());
-	res.model.masks.resize(model->modelmasks.size());
-
-	for(unsigned int i = 0; i < model->relativeposes.size(); i++){
-		geometry_msgs::Pose		pose1;
-		tf::poseEigenToMsg (Eigen::Affine3d(model->relativeposes[i]), pose1);
-		res.model.local_poses[i] = pose1;
-
-
-		geometry_msgs::Pose		pose2;
-		tf::poseEigenToMsg (Eigen::Affine3d(model->frames[i]->pose), pose2);
-
-		cv_bridge::CvImage rgbBridgeImage;
-		rgbBridgeImage.image = model->frames[i]->rgb;
-		rgbBridgeImage.encoding = "bgr8";
-
-		cv_bridge::CvImage depthBridgeImage;
-		depthBridgeImage.image = model->frames[i]->depth;
-		depthBridgeImage.encoding = "mono16";
-
-		res.model.frames[i].capture_time = ros::Time();
-		//res.model.frames[i].pose		= pose2;
-		res.model.frames[i].frame_id	= model->frames[i]->id;
-		res.model.frames[i].rgb			= *(rgbBridgeImage.toImageMsg());
-		res.model.frames[i].depth		= *(depthBridgeImage.toImageMsg());
-
-		cv_bridge::CvImage maskBridgeImage;
-		maskBridgeImage.image			= model->masks[i];
-		maskBridgeImage.encoding		= "mono8";
-		res.model.masks[i]				= *(maskBridgeImage.toImageMsg());
-	}
-			*/
+	res.model = getModelMSG(model);
 	return true;
 }
 
 bool indexFrame(quasimodo_msgs::index_frame::Request  & req, quasimodo_msgs::index_frame::Response & res){
-	printf("indexFrame\n");
+	//printf("indexFrame\n");
 	sensor_msgs::CameraInfo		camera			= req.frame.camera;
 	ros::Time					capture_time	= req.frame.capture_time;
 	geometry_msgs::Pose			pose			= req.frame.pose;
@@ -349,7 +340,7 @@ class SearchResult{
 };
 
 bool removeModel(int id){
-	printf("removeModel: %i\n",id);
+	//printf("removeModel: %i\n",id);
 	delete models[id];
 	models.erase(id);
 	delete updaters[id];
@@ -379,7 +370,8 @@ void call_from_thread(int i) {
 
 
 int current_model_update = 0;
-void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
+void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, bool deleteIfFail = false){
+	printf("addToDB %i %i\n",add,deleteIfFail);
 	if(add){
 
 		if(model->frames.size() > 2){
@@ -395,20 +387,19 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 		//models_new_pub.publish(getModelMSG(model));
 		model->last_changed = ++current_model_update;
 //		show_sorted();
-
-
 	}
-//	printf("add to db\n");
 
 	mod = model;
 	res = modeldatabase->search(model,150);
 	fr_res.resize(res.size());
 
-	if(res.size() == 0){return;}
+	if(res.size() == 0){
+		printf("no candidates found in database!\n");
+		return;
+	}
 
 	std::vector<reglib::Model * > models2merge;
 	std::vector<reglib::FusionResults > fr2merge;
-//printf("LINE: %i\n",__LINE__);
 	bool multi_thread = true;
 	if(multi_thread){
 		const int num_threads = res.size();
@@ -445,9 +436,9 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 		}
 	}
 
+	bool changed = false;
 	std::map<int , reglib::Model *>	new_models;
 	std::map<int , reglib::Model *>	updated_models;
-//printf("LINE: %i\n",__LINE__);
 	for(unsigned int i = 0; i < models2merge.size(); i++){
 		reglib::Model * model2 = models2merge[i];
 
@@ -473,16 +464,27 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true){
 			database->remove(ud.deleted_models[j]);
 			delete ud.deleted_models[j];
 		}
-		if(ud.deleted_models.size() > 0){
-			break;
-		}
+		if(ud.deleted_models.size() > 0){changed = true; break;}
 	}
-//printf("LINE: %i\n",__LINE__);
+
 	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end();	++it){	database->remove(it->second); 		models_deleted_pub.publish(getModelMSG(it->second));}
 	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end();	++it){	addToDB(database, it->second);}
 	for (std::map<int,reglib::Model *>::iterator it=new_models.begin();		it!=new_models.end();		++it){	addToDB(database, it->second);}
-//printf("LINE: %i\n",__LINE__);
-//printf("DONE WITH REGISTER\n");
+
+	printf("end of addToDB: %i %i",add,deleteIfFail);
+	if(deleteIfFail){
+		if(!changed){
+			printf("didnt manage to integrate searchresult\n");
+			database->remove(model);
+			for(int i = 0; i < model->frames.size(); i++){
+				delete model->frames[i];
+				delete model->modelmasks[i];
+			}
+			delete model;
+		}else{
+			printf("integrateing searchresult\n");
+		}
+	}
 }
 
 bool nextNew = true;
@@ -506,8 +508,6 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 
 	cv::Mat mask					= mask_ptr->image;
 	allmasks.push_back(mask);
-//	newmasks.push_back(mask);
-//printf("LINE: %i\n",__LINE__);
 	std::cout << frames[frame_id]->pose << std::endl << std::endl;
 
 	cv::Mat fullmask;
@@ -557,7 +557,6 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 		//newmasks.clear();
 		newmodel->recomputeModelPoints();
 		//show_sorted();
-//printf("LINE: %i\n",__LINE__);
 		reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom();
 		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( newmodel, reg);
 		mu->viewer							= viewer;
@@ -566,25 +565,27 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 		mu->recomputeScores();
 		delete mu;
 		delete reg;
-//printf("LINE: %i\n",__LINE__);
 		int current_model_update_before = current_model_update;
 		newmodel->recomputeModelPoints();
-		//models_new_pub.publish(getModelMSG(newmodel));
 		newmodel->last_changed = ++current_model_update;
-//printf("LINE: %i\n",__LINE__);
-		//show_sorted();
 		newmodel->print();
 		addToDB(modeldatabase, newmodel,false);
-//<<<<<<< HEAD
-		if(modaddcount % 1 == 0){
-			show_sorted();
-		}
+		//if(modaddcount % 1 == 0){show_sorted();}
 		modaddcount++;
-//printf("LINE: %i\n",__LINE__);
-		for(unsigned int m = 0; false && m < modeldatabase->models.size(); m++){
-//=======
-//        for(unsigned int m = 0; m < modeldatabase->models.size(); m++){
-//>>>>>>> master
+		dumpDatabase(savepath);
+
+//		cameras[0]->save("./camera0");
+//		for(unsigned int m = 0; m < modeldatabase->models.size(); m++){
+//			char buf [1024];
+//			sprintf(buf,"./model%i",m);
+//			char command [1024];
+//			sprintf(command,"mkdir -p %s",buf);
+//			system(command);
+//			modeldatabase->models[m]->save(std::string(buf));
+//		}
+//exit(0);
+		bool run_search = false;
+		for(unsigned int m = 0; run_search && m < modeldatabase->models.size(); m++){
 			printf("looking at: %i\n",modeldatabase->models[m]->last_changed);
 			reglib::Model * currentTest = modeldatabase->models[m];
 			if(currentTest->last_changed > current_model_update_before){
@@ -601,9 +602,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 					if(new_search_result){
 
 						for(int i = 0; i < sresult.retrieved_images.size(); i++){
-							printf("i: %i\n",i);
 							for(int j = 0; j < 1 && j < sresult.retrieved_images[i].images.size(); j++){
-								printf("i: %i  j: %i\n",i,j);
 
 								cv_bridge::CvImagePtr ret_image_ptr;
 								try {ret_image_ptr = cv_bridge::toCvCopy(sresult.retrieved_images[i].images[j], sensor_msgs::image_encodings::BGR8);}
@@ -626,24 +625,22 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
                                     }
                                 }
 
-                                printf("res rgb: %i %i\n",rgbimage.rows, rgbimage.cols);
-                                printf("res mask: %i %i\n",maskimage.rows, maskimage.cols);
-                                printf("res depth: %i %i\n",depthimage.rows, depthimage.cols);
+
 
                                 // Remove this when this is correct:
-                                /*
-                                cv::Mat masked_rgb = depthimage.clone();
-                                masked_rgb.setTo(cv::Scalar(0, 0, 0), maskimage == 0);
-								cv::namedWindow("maskimage",	cv::WINDOW_AUTOSIZE);
-								cv::imshow(		"maskimage",	maskimage);
-								cv::namedWindow("rgbimage",		cv::WINDOW_AUTOSIZE );
-								cv::imshow(		"rgbimage",		rgbimage );
-								cv::namedWindow("depthimage",	cv::WINDOW_AUTOSIZE );
-								cv::imshow(		"depthimage",	depthimage );
-                                cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
-                                cv::imshow(		"mask",	masked_rgb);
-                                cv::waitKey(0);
-                                */
+
+//                                cv::Mat masked_rgb = depthimage.clone();
+//                                masked_rgb.setTo(cv::Scalar(0, 0, 0), maskimage == 0);
+//								cv::namedWindow("maskimage",	cv::WINDOW_AUTOSIZE);
+//								cv::imshow(		"maskimage",	maskimage);
+//								cv::namedWindow("rgbimage",		cv::WINDOW_AUTOSIZE );
+//								cv::imshow(		"rgbimage",		rgbimage );
+//								cv::namedWindow("depthimage",	cv::WINDOW_AUTOSIZE );
+//								cv::imshow(		"depthimage",	depthimage );
+//                                cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
+//                                cv::imshow(		"mask",	masked_rgb);
+//                                cv::waitKey(0);
+
 
 								//printf("indexFrame\n");
 								//sensor_msgs::CameraInfo		camera			= req.frame.camera;
@@ -656,51 +653,52 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 								reglib::RGBDFrame * frame = new reglib::RGBDFrame(cameras[0],rgbimage, depthimage, 0, epose.matrix());
 								reglib::Model * searchmodel = new reglib::Model(frame,maskimage);
 
+								printf("--- trying to add serach results, if more then one addToDB: results added-----\n");
+								addToDB(modeldatabase, searchmodel,false,true);
 
+//								pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = searchmodel->getPCLcloud(1, false);
+//								viewer->removeAllPointClouds();
+//								viewer->addPointCloud<pcl::PointXYZRGB> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cloud), "cloud");
+//								viewer->spin();
 
-								pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = searchmodel->getPCLcloud(1, false);
-								viewer->removeAllPointClouds();
-								viewer->addPointCloud<pcl::PointXYZRGB> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cloud), "cloud");
-								viewer->spin();
+//								reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
+//								reglib::ModelUpdaterBasicFuse * mu		= new reglib::ModelUpdaterBasicFuse( searchmodel, reg);
+//								mu->viewer								= viewer;
+//                                reg->visualizationLvl					= 0;
 
-								reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
-								reglib::ModelUpdaterBasicFuse * mu		= new reglib::ModelUpdaterBasicFuse( searchmodel, reg);
-								mu->viewer								= viewer;
-                                reg->visualizationLvl					= 0;
+//								reglib::FusionResults fr = mu->registerModel(currentTest);
+//								reglib::UpdatedModels ud = mu->fuseData(&(fr), currentTest, searchmodel);
 
-								reglib::FusionResults fr = mu->registerModel(currentTest);
-								reglib::UpdatedModels ud = mu->fuseData(&(fr), currentTest, searchmodel);
+//								printf("merge %i to %i\n",		currentTest->id,searchmodel->id);
+//								printf("new_models:     %i\n",ud.new_models.size());
+//								printf("updated_models: %i\n",ud.updated_models.size());
+//								printf("deleted_models: %i\n",ud.deleted_models.size());
 
-								printf("merge %i to %i\n",		currentTest->id,searchmodel->id);
-								printf("new_models:     %i\n",ud.new_models.size());
-								printf("updated_models: %i\n",ud.updated_models.size());
-								printf("deleted_models: %i\n",ud.deleted_models.size());
+//								for(unsigned int j = 0; j < ud.new_models.size(); j++){
+//									modeldatabase->add(ud.new_models[j]);
+//								}
 
-								for(unsigned int j = 0; j < ud.new_models.size(); j++){
-									modeldatabase->add(ud.new_models[j]);
-								}
+//								for(unsigned int j = 0; j < ud.updated_models.size(); j++){
+//									modeldatabase->remove(ud.updated_models[j]);
+//									modeldatabase->add(ud.updated_models[j]);
+//								}
 
-								for(unsigned int j = 0; j < ud.updated_models.size(); j++){
-									modeldatabase->remove(ud.updated_models[j]);
-									modeldatabase->add(ud.updated_models[j]);
-								}
+//								bool searchmodel_merged = false;
+//								for(unsigned int j = 0; j < ud.deleted_models.size(); j++){
+//									if(ud.deleted_models[j] == searchmodel){
+//										searchmodel_merged = true;
+//									}else{
+//										modeldatabase->remove(ud.deleted_models[j]);
+//									}
+//									delete ud.deleted_models[j];
+//								}
 
-								bool searchmodel_merged = false;
-								for(unsigned int j = 0; j < ud.deleted_models.size(); j++){
-									if(ud.deleted_models[j] == searchmodel){
-										searchmodel_merged = true;
-									}else{
-										modeldatabase->remove(ud.deleted_models[j]);
-									}
-									delete ud.deleted_models[j];
-								}
+//								if(searchmodel_merged){
+//									frames[frame->id] = frame;
+//								}
 
-								if(searchmodel_merged){
-									frames[frame->id] = frame;
-								}
-
-								delete mu;
-								delete reg;
+//								delete mu;
+//								delete reg;
 							}
 						}
 
@@ -711,19 +709,10 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 					}
 				}
 			}
+			exit(0);
 		}
-//		exit(0);
-//printf("LINE: %i\n",__LINE__);
 		newmodel = 0;
 		sweepid_counter++;
-
-		//The model is added and refined in the database... its time to search in the full dabase for other similar stuff
-		// TEMPORARY us fuse once
-		// Get search results
-		// if search fits...
-		// add to db
-		// else move on with our lives...
-		//
 	}
 	return true;
 }
@@ -759,17 +748,38 @@ int main(int argc, char **argv){
 	ros::ServiceServer service4 = n.advertiseService("get_model", getModel);
 	ROS_INFO("Ready to add use get_model.");
 
+	soma2add					= n.serviceClient<soma_manager::SOMA2InsertObjs>(		"soma2/insert_objs");
+	ROS_INFO("Ready to add use soma2add.");
+
 	ros::Subscriber sub = n.subscribe("/retrieval_result", 1, retrievalCallback);
 	ROS_INFO("Ready to add recieve search results.");
-	/**
-	 * ros::spin() will enter a loop, pumping callbacks.  With this version, all
-	 * callbacks will be called from within this thread (the main one).  ros::spin()
-	 * will exit when Ctrl-C is pressed, or the node is shutdown by the master.
-     */
-    ros::Duration(1.0).sleep();
 
-   ros::Publisher chatter_pub = n.advertise<std_msgs::String>("modelserver", 1000);
-sleep(1);
+	int inputstate = -1;
+	for(int i = 1; i < argc;i++){
+		printf("input: %s\n",argv[i]);
+		if(		std::string(argv[i]).compare("-c") == 0){	printf("camera input state\n"); inputstate = 1;}
+		else if(std::string(argv[i]).compare("-m") == 0){	printf("model input state\n");	inputstate = 2;}
+		else if(std::string(argv[i]).compare("-p") == 0){	printf("path input state\n");	inputstate = 3;}
+		else if(inputstate == 1){
+			//reglib::Camera * cam = reglib::Camera::load(std::string(argv[i]));
+			//delete cameras[0];
+			//cameras[0] = cam;
+		}else if(inputstate == 2){
+			//reglib::Model * model = reglib::Model::load(cameras[0],std::string(argv[i]));
+			//sweepid_counter = std::max(int(model->modelmasks[0]->sweepid + 1), sweepid_counter);
+			//modeldatabase->add(model);
+			//addToDB(modeldatabase, model,false);
+			//model->last_changed = ++current_model_update;
+			//show_sorted();
+		}else if(inputstate == 3){
+			savepath = std::string(argv[i]);
+		}
+	}
+//	exit(0);
+
+    ros::Duration(1.0).sleep();
+	ros::Publisher chatter_pub = n.advertise<std_msgs::String>("modelserver", 1000);
+	sleep(1);
 	std_msgs::String msg;
 	msg.data = "starting";
 	chatter_pub.publish(msg);

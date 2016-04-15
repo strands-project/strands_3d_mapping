@@ -14,8 +14,6 @@ ModelMask::ModelMask(cv::Mat mask_){
 	sweepid = -1;
 
 	id = ModelMask_id++;
-	printf("ModelMask: %i\n",id);
-
 	using namespace cv;
 /*
 	int erosion_size = 1;
@@ -80,21 +78,15 @@ ModelMask::ModelMask(cv::Mat mask_){
 }
 
 cv::Mat ModelMask::getMask(){
-//	printf("cv::Mat ModelMask::getMask()\n");
-//	printf("%i %i\n",width,height);
-
 	cv::Mat fullmask;
 	fullmask.create(height,width,CV_8UC1);
-
 	unsigned char * maskdata = (unsigned char *)fullmask.data;
-	for(unsigned int j = 0; j < width*height; j++){
-		maskdata[j] = 255*maskvec[j];
-	}
+	for(unsigned int j = 0; j < width*height; j++){maskdata[j] = 255*maskvec[j];}
 	return fullmask;
 }
-//cv::Mat ModelMask::getMask(){
 
-//}
+ModelMask::~ModelMask(){delete[] maskvec;}
+
 
 }
 

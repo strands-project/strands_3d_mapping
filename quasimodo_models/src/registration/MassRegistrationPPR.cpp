@@ -187,7 +187,7 @@ double getTime(){
 }
 
 MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses){
-	printf("start MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses)\n");
+	//printf("start MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses)\n");
 
 	unsigned int nr_frames = frames.size();
 	if(poses.size() != nr_frames){
@@ -213,7 +213,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 
 	for(unsigned int i = 0; i < nr_frames; i++){
 		//printf("start local : data loaded successfully\n");
-		printf("loading data for %i\n",i);
+		//printf("loading data for %i\n",i);
 
 		//unsigned char  * maskdata		= (unsigned char	*)(masks[i].data);
 		//std::vector<ModelMask *> mmasks
@@ -406,7 +406,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 
 	for(unsigned int i = 0; i < nr_frames; i++){
 		//printf("start local : data loaded successfully\n");
-		printf("background loading data for %i\n",i);
+		//printf("background loading data for %i\n",i);
 
 		bool * maskvec		= mmasks[i]->maskvec;
 		unsigned char  * rgbdata		= (unsigned char	*)(frames[i]->rgb.data);
@@ -538,7 +538,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 		}
 
 		//printf("funcupdate: %i\n",funcupdate);
-		for(int rematching=0; rematching < 40; ++rematching) {
+		for(int rematching=0; rematching < 20; ++rematching) {
 			//printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
 
 			if(visualizationLvl == 3){
@@ -587,9 +587,8 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				}
 			}
 			rematch_time += getTime()-rematch_time_start;
-			printf("rematch_time: %f\n",rematch_time);
-
-printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_rematches/total_rematches,good_rematches,total_rematches);
+//			printf("rematch_time: %f\n",rematch_time);
+//			printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_rematches/total_rematches,good_rematches,total_rematches);
 
 			for(unsigned int i = 0; i < nr_frames; i++){
 				nr_matches[i] = 0;
@@ -711,7 +710,7 @@ printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_remat
 //printf("LINE: %i\n",__LINE__);
 				for(int outer=0; outer < 30; ++outer) {
 					if(getTime()-total_time_start > maxtime){break;}
-					printf("funcupdate: %i rematching: %i lala: %i outer: %i\n",funcupdate,rematching,lala,outer);
+					//printf("funcupdate: %i rematching: %i lala: %i outer: %i\n",funcupdate,rematching,lala,outer);
 					for(unsigned int i = 0; i < nr_frames; i++){poses2[i] = poses[i];}
 
 					//printf("funcupdate: %i rematching: %i outer: %i\n",funcupdate,rematching,outer);

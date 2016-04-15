@@ -37,6 +37,9 @@
 
 #include <ctime>
 
+#include <iostream>
+#include <fstream>
+
 namespace reglib
 {
 unsigned long RGBDFrame_id_counter;
@@ -412,6 +415,72 @@ pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr RGBDFrame::getPCLcloud(){
 		}
 	}
 	return cloud_ptr;
+}
+
+void RGBDFrame::save(std::string path){
+	//printf("saving frame %i to %s\n",id,path.c_str());
+
+	cv::imwrite( path+"_rgb.png", rgb );
+	cv::imwrite( path+"_depth.png", depth );
+
+	unsigned long buffersize = 19*sizeof(double);
+	char* buffer = new char[buffersize];
+	double * buffer_double = (double *)buffer;
+	unsigned long * buffer_long = (unsigned long *)buffer;
+
+	int counter = 0;
+	buffer_double[counter++] = capturetime;
+	for(int i = 0; i < 4; i++){
+		for(int j = 0; j < 4; j++){
+			buffer_double[counter++] = pose(i,j);
+		}
+	}
+	buffer_long[counter++] = sweepid;
+	buffer_long[counter++] = camera->id;
+	std::ofstream outfile (path+"_data.txt",std::ofstream::binary);
+	outfile.write (buffer,buffersize);
+	outfile.close();
+	delete[] buffer;
+}
+
+RGBDFrame * RGBDFrame::load(Camera * cam, std::string path){
+	printf("RGBDFrame * RGBDFrame::load(Camera * cam, std::string path)\n");
+
+	std::streampos size;
+	char * buffer;
+	char buf [1024];
+	std::string datapath = path+"_data.txt";
+	std::ifstream file (datapath, std::ios::in | std::ios::binary | std::ios::ate);
+	if (file.is_open()){
+		size = file.tellg();
+		buffer = new char [size];
+		file.seekg (0, std::ios::beg);
+		file.read (buffer, size);
+		file.close();
+
+		double * buffer_double = (double *)buffer;
+		unsigned long * buffer_long = (unsigned long *)buffer;
+
+		int counter = 0;
+		double capturetime = buffer_double[counter++];
+		Eigen::Matrix4d pose;
+		for(int i = 0; i < 4; i++){
+			for(int j = 0; j < 4; j++){
+				pose(i,j) = buffer_double[counter++];
+			}
+		}
+		int sweepid = buffer_long[counter++];
+		int camera_id = buffer_long[counter++];
+
+		cv::Mat rgb = cv::imread(path+"_rgb.png", -1);   // Read the file
+		cv::Mat depth = cv::imread(path+"_depth.png", -1);   // Read the file
+
+		RGBDFrame * frame = new RGBDFrame(cam,rgb,depth,capturetime,pose);
+		frame->sweepid = sweepid;
+		//printf("sweepid: %i",sweepid);
+
+		return frame;
+	}else{printf("cant open %s\n",(path+"/data.txt").c_str());}
 }
 
 }

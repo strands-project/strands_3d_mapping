@@ -374,5 +374,116 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr Model::getPCLcloud(int step, bool color){
 	return cloud_ptr;
 }
 
+void Model::save(std::string path){
+	unsigned long buffersize = (1+1+16*frames.size()+1+frames.size()*frames.size()+1*frames.size())*sizeof(double);
+	char* buffer = new char[buffersize];
+	double * buffer_double = (double *)buffer;
+	unsigned long * buffer_long = (unsigned long *)buffer;
+
+	int counter = 0;
+	buffer_long[counter++] = frames.size();
+	buffer_double[counter++] = score;
+	for(unsigned int f = 0; f < frames.size(); f++){
+		Eigen::Matrix4d pose = relativeposes[f];
+		for(int i = 0; i < 4; i++){
+			for(int j = 0; j < 4; j++){
+				buffer_double[counter++] = pose(i,j);
+			}
+		}
+	}
+
+	buffer_double[counter++] = total_scores;
+
+	for(unsigned int f1 = 0; f1 < frames.size(); f1++){
+		for(unsigned int f2 = 0; f2 < frames.size(); f2++){
+			buffer_double[counter++] = scores[f1][f2];
+		}
+	}
+
+
+	for(unsigned int f1 = 0; f1 < frames.size(); f1++){
+		buffer_long[counter++] = modelmasks[f1]->sweepid;
+	}
+
+	std::ofstream outfile (path+"/data.txt",std::ofstream::binary);
+	outfile.write (buffer,buffersize);
+	outfile.close();
+	delete[] buffer;
+
+
+	//printf("saving model %i to %s\n",id,path.c_str());
+	for(unsigned int f = 0; f < frames.size(); f++){
+		char buf [1024];
+
+		sprintf(buf,"%s/frame_%i",path.c_str(),f);
+		frames[f]->save(std::string(buf));
+
+		sprintf(buf,"%s/modelmask_%i.png",path.c_str(),f);
+		cv::imwrite( buf, modelmasks[f]->getMask() );
+	}
+}
+
+Model * Model::load(Camera * cam, std::string path){
+	printf("Model * Model::load(Camera * cam, std::string path)\n");
+	std::streampos size;
+	char * buffer;
+	char buf [1024];
+	std::string datapath = path+"/data.txt";
+	std::ifstream file (datapath, std::ios::in | std::ios::binary | std::ios::ate);
+	if (file.is_open()){
+		size = file.tellg();
+		buffer = new char [size];
+		file.seekg (0, std::ios::beg);
+		file.read (buffer, size);
+		file.close();
+
+		Model * mod = new Model();
+		double *		buffer_double	= (double *)buffer;
+		unsigned long * buffer_long		= (unsigned long *)buffer;
+//		std::vector<ModelMask*> modelmasks;
+
+		int counter = 0;
+		int nr_frames = buffer_long[counter++];
+		mod->score = buffer_double[counter++];
+		for(unsigned int f = 0; f < nr_frames; f++){
+			Eigen::Matrix4d pose;
+			for(int i = 0; i < 4; i++){
+				for(int j = 0; j < 4; j++){
+					pose(i,j) = buffer_double[counter++];
+				}
+			}
+
+			sprintf(buf,"%s/frame_%i",path.c_str(),f);
+			RGBDFrame * frame = RGBDFrame::load(cam, std::string(buf));
+
+			sprintf(buf,"%s/modelmask_%i.png",path.c_str(),f);
+			cv::Mat mask = cv::imread(buf, -1);   // Read the file
+
+			mod->relativeposes.push_back(pose);
+			mod->frames.push_back(frame);
+			mod->modelmasks.push_back(new ModelMask(mask));
+		}
+
+		mod->total_scores = buffer_double[counter++];
+		mod->scores.resize(nr_frames);
+		for(unsigned int f1 = 0; f1 < nr_frames; f1++){
+			mod->scores[f1].resize(nr_frames);
+			for(unsigned int f2 = 0; f2 < nr_frames; f2++){
+				mod->scores[f1][f2] = buffer_double[counter++];
+			}
+		}
+
+		for(unsigned int f = 0; f < nr_frames; f++){
+			mod->modelmasks[f]->sweepid = buffer_long[counter++];
+			printf("modelmask sweepid: %i\n",mod->modelmasks[f]->sweepid);
+		}
+
+		mod->recomputeModelPoints();
+		delete[] buffer;
+		return mod;
+	}else{std::cout << "Unable to open model file " << datapath << std::endl; exit(0);}
+	return 0;
+}
+
 }
 
