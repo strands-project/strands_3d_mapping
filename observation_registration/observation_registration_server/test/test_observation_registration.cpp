@@ -76,7 +76,7 @@ int main(int argc, char** argv)
     CloudPtr obs1_registered_cloud(new Cloud);
     pcl_ros::transformPointCloud(*obs1_cloud, *obs1_registered_cloud,registered_transform);
     // visualize: left - original, right - registered
-    pcl::visualization::PCLVisualizer* pg = new pcl::visualization::PCLVisualizer (argc, argv, "global_transform");
+    pcl::visualization::PCLVisualizer* pg = new pcl::visualization::PCLVisualizer (argc, argv, "test_observation_registration");
     int v1, v2;
     pg->createViewPort (0.0, 0.0, 0.5, 1.0, v1);
     pg->createViewPort (0.5, 0.0, 1.0, 1.0, v2);
