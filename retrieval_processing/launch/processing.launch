@@ -2,15 +2,15 @@
     <node pkg="surfelize_it" type="run_map_processor.py" name="run_map_processor" output="screen" respawn="true"/>
     <node pkg="retrieval_processing" type="retrieval_segmentation" name="retrieval_segmentation" output="screen" respawn="false">
         <param name="threshold" value="0.3"/>
-        <param name="bypass" value="true" type="bool"/>
+        <param name="bypass" value="false" type="bool"/>
     </node>
     <node pkg="retrieval_processing" type="retrieval_features" name="retrieval_features" output="screen" respawn="false">
-        <param name="bypass" value="true" type="bool"/>
+        <param name="bypass" value="false" type="bool"/>
     </node>
     <node pkg="retrieval_processing" type="retrieval_vocabulary" name="retrieval_vocabulary" output="screen" respawn="false">
         <param name="vocabulary_path" value="/media/nbore/My Passport/ICRA_data/uncontrolled_experiments/office_runs/vocabulary"/>
         <param name="min_training_sweeps" value="3"/>
-        <param name="bypass" value="true" type="bool"/>
+        <param name="bypass" value="false" type="bool"/>
     </node>
     <node pkg="retrieval_processing" type="retrieval_simulate_observations" name="retrieval_simulate_observations" output="screen" respawn="false">
         <param name="data_path" value="/media/nbore/My Passport/ICRA_data/uncontrolled_experiments/office_runs"/>
