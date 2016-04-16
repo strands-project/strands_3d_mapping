@@ -51,10 +51,18 @@ int main(int argc, char** argv)
     string data_path;
     pn.param<string>("data_path", data_path, "");
 
+    bool bypass_surfelize;
+    pn.param<bool>("bypass_surfelize", bypass_surfelize, true);
+
     sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path, true);
     sweep_ind = 0;
 
-    pub = n.advertise<std_msgs::String>("/surfelization_done", 1);
+    if (bypass_surfelize) {
+        pub = n.advertise<std_msgs::String>("/surfelization_done", 1);
+    }
+    else {
+        pub = n.advertise<std_msgs::String>("/local_metric_map/status", 1);
+    }
     ros::Subscriber sub = n.subscribe("/vocabulary_done", 1, callback);
 
     std_msgs::String sweep_msg;
