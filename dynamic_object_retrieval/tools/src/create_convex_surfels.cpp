@@ -1,6 +1,6 @@
 #include "dynamic_object_retrieval/summary_iterators.h"
 #include <metaroom_xml_parser/load_utilities.h>
-#include "surfel_type.h"
+#include "retrieval_tools/surfel_type.h"
 #include <pcl/kdtree/flann.h>
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
 

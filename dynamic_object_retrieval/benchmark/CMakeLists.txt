@@ -167,7 +167,7 @@ target_link_libraries(test_summarize_benchmark benchmark_result ${PCL_LIBRARIES}
 if (catkin_FOUND)
     # Mark cpp header files for installation
     install(DIRECTORY include/object_3d_benchmark
-      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+      DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION} # ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
     )
 
     # Mark executables and/or libraries for installation

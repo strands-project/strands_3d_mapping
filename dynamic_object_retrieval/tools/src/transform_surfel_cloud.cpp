@@ -1,4 +1,4 @@
-#include "surfel_type.h"
+#include "retrieval_tools/surfel_type.h"
 #include <pcl/io/pcd_io.h>
 
 using SurfelT = SurfelType;
