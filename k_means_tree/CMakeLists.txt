@@ -44,13 +44,13 @@ target_link_libraries(test_vocabulary_tree k_means_tree vocabulary_tree)
 
 if (catkin_FOUND)
     # Mark cpp header files for installation
-    install(DIRECTORY include/k_means_tree include/vocabulary_tree include/grouped_vocabulary_tree
-      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    install(DIRECTORY include/k_means_tree include/vocabulary_tree include/grouped_vocabulary_tree cereal/include/cereal
+      DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION} # ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
     )
 
     # Mark cpp header files for installation
     install(FILES impl/k_means_tree.hpp impl/vocabulary_tree.hpp impl/grouped_vocabulary_tree.hpp
-      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+      DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION} # ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
     )
 
     # Mark executables and/or libraries for installation

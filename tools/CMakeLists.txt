@@ -91,7 +91,7 @@ target_link_libraries(transform_surfel_cloud ${PCL_LIBRARIES})
 
 if (catkin_FOUND)
     # Mark cpp header files for installation
-    install(FILES include/surfel_type.h
+    install(DIRECTORY include/retrieval_tools
       DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
     )
 

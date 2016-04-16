@@ -219,7 +219,12 @@ target_link_libraries(test_top_match_one_map extract_sift register_objects pfhrg
 if (catkin_FOUND)
     # Mark cpp header files for installation
     install(DIRECTORY include/dynamic_object_retrieval include/extract_sift include/object_3d_retrieval include/sift
-      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+      DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION} # ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    )
+
+    # Mark cpp header files for installation
+    install(FILES stopwatch/src/Stopwatch.h
+      DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION} # ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
     )
 
     install(PROGRAMS scripts/menu.py scripts/training_menu.py

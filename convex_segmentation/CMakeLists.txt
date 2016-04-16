@@ -82,7 +82,7 @@ endif()
 
 if (catkin_FOUND)
     install(DIRECTORY include/object_3d_retrieval
-      DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+      DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION} # ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
     )
 
     # Mark executables and/or libraries for installation
