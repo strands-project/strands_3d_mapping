@@ -40,6 +40,8 @@
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>libpcl-all-dev</build_depend>
+  <build_depend>libopencv-dev</build_depend>
   <build_depend>message_generation</build_depend>
   <build_depend>quasimodo_msgs</build_depend>
   <build_depend>image_geometry</build_depend>
@@ -52,6 +54,10 @@
   <build_depend>dynamic_object_retrieval</build_depend>
   <build_depend>object_3d_benchmark</build_depend>
   <build_depend>dynamic_reconfigure</build_depend>
+  <build_depend>libqt4-dev</build_depend>
+  <build_depend>libqt4-opengl-dev</build_depend>
+  <run_depend>libpcl-all</run_depend>
+  <run_depend>libopencv-dev</run_depend>
   <run_depend>message_runtime</run_depend>
   <run_depend>quasimodo_msgs</run_depend>
   <run_depend>image_geometry</run_depend>
@@ -64,6 +70,8 @@
   <run_depend>dynamic_object_retrieval</run_depend>
   <run_depend>object_3d_benchmark</run_depend>
   <run_depend>dynamic_reconfigure</run_depend>
+  <run_depend>libqt4</run_depend>
+  <run_depend>libqt4-opengl</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
