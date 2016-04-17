@@ -15,6 +15,18 @@
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 
+/**
+ * The most reasonable thing to keep track of which metaroom folders that we have traversed
+ * would be to create a new json file in the vocabulary folder with a list of all the sweeps
+ * that have been added. It should be saved every time a new sweep is reported added.
+ * Using this list we can train the vocabulary once sufficiently many sweeps have been added.
+ * It is important that the order is kept wrt the metaroom_xml_parser but in theory that
+ * should return all of the sweeps in order. The current approach is more risky in that
+ * sense. Another possibility is to simply feed the data path as a parameter to this node.
+ * That should definitely be doable since the vocabulary path is most often just an extension
+ * of the data path. So that would probably be worth trying first.
+ */
+
 using namespace std;
 
 POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
@@ -42,6 +54,7 @@ ros::Publisher pub;
 int min_training_sweeps;
 size_t nbr_added_sweeps;
 boost::filesystem::path vocabulary_path;
+boost::filesystem::path data_path;
 VocT* vt;
 
 set<pair<int, int> > compute_group_adjacencies(const boost::filesystem::path& segment_path)
@@ -236,8 +249,7 @@ void train_vocabulary(const boost::filesystem::path& data_path)
 
 // hopefully these sweeps will always be after the previously collected ones
 // maybe even iterate through all of this to assert that there are no more?
-pair<size_t, size_t> get_offsets_in_data(const boost::filesystem::path& sweep_path,
-                                         const boost::filesystem::path& data_path)
+pair<size_t, size_t> get_offsets_in_data(const boost::filesystem::path& sweep_path)
 {
     // iterate through all of the segment paths, don't load anything
     //dynamic_object_retrieval::convex_feature_cloud_map segment_features(data_path);
@@ -282,11 +294,11 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
     boost::filesystem::path sweep_xml(msg->data);
     boost::filesystem::path segments_path = sweep_xml.parent_path() / "convex_segments";
 
-    boost::filesystem::path data_path = sweep_xml.parent_path() // room directory
-                                                 .parent_path() // patrol run
-                                                 .parent_path() // date
-                                                 .parent_path() // data root
-                                                 .parent_path(); // actual data root in this data set
+//    boost::filesystem::path data_path = sweep_xml.parent_path() // room directory
+//                                                 .parent_path() // patrol run
+//                                                 .parent_path() // date
+//                                                 .parent_path() // data root
+//                                                 .parent_path(); // actual data root in this data set
 
     if (vt == NULL) {
         vector<string> room_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string());
@@ -311,7 +323,7 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
     size_t offset; // same thing here, index among segments, can't take this from vocab, instead parse everything?
     size_t sweep_offset;
     // how do we get this to not require anything
-    tie(sweep_offset, offset) = get_offsets_in_data(sweep_xml.parent_path(), data_path);
+    tie(sweep_offset, offset) = get_offsets_in_data(sweep_xml.parent_path());
 
     cout << __FILE__ << ", " << __LINE__ << endl;
 
@@ -381,8 +393,11 @@ int main(int argc, char** argv)
     ros::NodeHandle pn("~");
     pn.param<int>("min_training_sweeps", min_training_sweeps, 20);
     string temp_path;
-    pn.param<string>("vocabulary_path", temp_path, "~/.ros/vocabulary");
+    pn.param<string>("vocabulary_path", temp_path, "~/.semanticMap/vocabulary");
     vocabulary_path = boost::filesystem::path(temp_path);
+    pn.param<string>("data_path", temp_path, "~/.semanticMap");
+    data_path = boost::filesystem::path(temp_path);
+
     boost::filesystem::create_directory(vocabulary_path);
     bool bypass;
     pn.param<bool>("bypass", bypass, 0);
