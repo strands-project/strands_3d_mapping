@@ -62,16 +62,17 @@ Can be launched with
 ```
 roslaunch quasimodo_optimizer optimizer.launch
 ```
+Afterwards, run `plot_values.py` in the folder where you ran the launch file.
 
 ### Nodes
 
-* `optimizer.py` - Steps through the parameters and plays back the rosbags for every parameter configuration
-* `rosbag_player.py` - An action server for playing back ros bags on demand
-* * `plot_values.py` - Plots the values as a heat map in parameter space
+* `optimizer.py` - steps through the parameters and plays back the rosbags for every parameter configuration
+* `rosbag_player.py` - an action server for playing back ros bags on demand
+* `plot_values.py` - plots the values as a heat map in parameter space
 
 ### Launch files
 
-* `optimizer.launch`
+* `optimizer.launch` - launches `optimizer.py` and `rosbag_player.py`.
 
 ## quasimodo_brain
 
