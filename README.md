@@ -54,11 +54,20 @@ where the vocabulary is most often located in `~/.semanticMap/vocabulary`.
 
 ## quasimodo_optimization
 
+This package is a general tool for optimizing some value by evaluating some metric that comes from analyzing a rosbag.
+The tool package uses `dynamic_reconfigure` to play back the rosbag with different parameters and record the
+values associated with the parameters.
+
+Can be launched with
+```
+roslaunch quasimodo_optimizer optimizer.launch
+```
+
 ### Nodes
 
-* `optimizer.py`
-* `plot_values.py`
-* `rosbag_player.py`
+* `optimizer.py` - Steps through the parameters and plays back the rosbags for every parameter configuration
+* `rosbag_player.py` - An action server for playing back ros bags on demand
+* * `plot_values.py` - Plots the values as a heat map in parameter space
 
 ### Launch files
 
