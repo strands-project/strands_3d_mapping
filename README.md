@@ -40,14 +40,17 @@ where the vocabulary is most often located in `~/.semanticMap/vocabulary`.
 ### Nodes
 
 * `quasimodo_retrieval_node` - provides the service `/query_normal_cloud` and subscribes to the topic `/models/new`. If something is published on the topic, it returns the result on `/retrieval_result`.
-* `quasimodo_retrieval_publisher` - 
-* `quasimodo_retrieval_server` - 
 * `quasimodo_visualization_server` - this node simply subscribes to `/retrieval_result` and visualizes the query result using the tools in the package `object_3d_benchmark`, <https://github.com/strands-project/strands_3d_mapping/tree/hydro-devel/dynamic_object_retrieval/benchmark>. The resulting image is published on `/visualization_image`.
-* `quasimodo_visualize_model` - 
+
+### Other Nodes
+
+* `quasimodo_visualize_model` - this node simply visualizes the topic `/models/new` by integrating it into a point cloud and showing a PCL visualizer
+* `quasimodo_retrieval_publisher` - this node queries for all the labeled objects in a particular metaroom sweep, given by the parameter `data_path`.
+* `quasimodo_retrieval_server` - a barebones version of `quasimodo_retrieval_node`, simply returns the retrieved clouds without loading any images or objects masks
 
 ### Launch files
 
-* `retrieval.launch`
+* `retrieval.launch` - launches `quasimodo_retrieval_node`, `quasimodo_visualization_server` and a node for fusing the incoming RGB-D frames. Takes the parameter `vocabulary_path`, most often this is `~/.semanticMap/vocabulary`.
 
 ## quasimodo_optimization
 
