@@ -44,6 +44,7 @@ class retrieval_node {
 public:
     ros::NodeHandle n;
     ros::Publisher pub;
+    ros::ServiceServer service;
     ros::Publisher keypoint_pub;
     ros::Subscriber sub;
 
@@ -101,6 +102,7 @@ public:
         pub = n.advertise<quasimodo_msgs::retrieval_query_result>(retrieval_output, 1);
         keypoint_pub = n.advertise<sensor_msgs::PointCloud2>("/models/keypoints", 1);
         sub = n.subscribe(retrieval_input, 10, &retrieval_node::run_retrieval, this);
+        service = n.advertiseService("/query_normal_cloud", &retrieval_node::service_callback, this);
         /*
         vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
         for (const string& xml : folder_xmls) {
