@@ -1,26 +1,14 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(quasimodo_test)
-
-add_definitions(-std=c++11 -O4)
+project(quasimodo_launch)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp quasimodo_msgs quasimodo_retrieval message_runtime metaroom_xml_parser pcl_ros cv_bridge)
+find_package(catkin REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
-# Find PCL
-find_package(PCL 1.6 REQUIRED COMPONENTS common io search visualization surface kdtree features surface segmentation octree filter keypoints)
-include_directories(${PCL_INCLUDE_DIRS})
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
-
-# Find QT
-find_package(OpenCV REQUIRED)
-find_package(Qt4 REQUIRED)
-include(${QT_USE_FILE})
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -109,7 +97,7 @@ include(${QT_USE_FILE})
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES test_quasimodo
+#  LIBRARIES quasimodo_launch
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
 )
@@ -120,41 +108,29 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-include_directories(${catkin_INCLUDE_DIRS})
+# include_directories(include)
 
 ## Declare a C++ library
-# add_library(test_quasimodo
-#   src/${PROJECT_NAME}/test_quasimodo.cpp
+# add_library(quasimodo_launch
+#   src/${PROJECT_NAME}/quasimodo_launch.cpp
 # )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(test_quasimodo ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(quasimodo_launch ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(test_msgs src/test_msgs.cpp)
-add_executable(test_verify_images src/test_verify_images.cpp)
+# add_executable(quasimodo_launch_node src/quasimodo_launch_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(test_msgs roscpp quasimodo_msgs_generate_messages_cpp)
-add_dependencies(test_verify_images roscpp quasimodo_msgs_generate_messages_cpp)
+# add_dependencies(quasimodo_launch_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(test_msgs
-  ${OpenCV_LIBS}
-  ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${catkin_LIBRARIES}
-)
-
-target_link_libraries(test_verify_images
-  ${OpenCV_LIBS}
-  ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${catkin_LIBRARIES}
-)
+# target_link_libraries(quasimodo_launch_node
+#   ${catkin_LIBRARIES}
+# )
 
 #############
 ## Install ##
@@ -163,43 +139,6 @@ target_link_libraries(test_verify_images
 # all install targets should use catkin DESTINATION variables
 # See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
 
-## Mark executable scripts (Python etc.) for installation
-## in contrast to setup.py, you can choose the destination
-# install(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
-
-## Mark executables and/or libraries for installation
-# install(TARGETS test_quasimodo test_quasimodo_node
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
-
-## Mark cpp header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
-
-## Mark other files for installation (e.g. launch and bag files, etc.)
-# install(FILES
-#   # myfile1
-#   # myfile2
-#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-# )
-
-#############
-## Testing ##
-#############
-
-## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_test_quasimodo.cpp)
-# if(TARGET ${PROJECT_NAME}-test)
-#   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
-# endif()
-
-## Add folders to be run by python nosetests
-# catkin_add_nosetests(test)
+install(DIRECTORY launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)

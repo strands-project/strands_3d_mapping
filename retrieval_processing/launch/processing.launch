@@ -1,5 +1,6 @@
 <launch>
-    <arg name="data_path" default="/media/nbore/My Passport/ICRA_data/uncontrolled_experiments/office_runs"/>
+    <!-- <arg name="data_path" default="/media/nbore/My Passport/ICRA_data/controlled_experiments"/> -->
+    <arg name="data_path" default="~/.semanticMap"/>
 
     <node pkg="surfelize_it" type="run_map_processor.py" name="run_map_processor" output="screen" respawn="true"/>
     <node pkg="retrieval_processing" type="retrieval_segmentation" name="retrieval_segmentation" output="screen" respawn="false">
