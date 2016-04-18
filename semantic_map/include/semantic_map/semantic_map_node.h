@@ -352,8 +352,11 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
                  // registration successfull -> update room cloud and set registered transform
                 tf::transformMsgToTF(srv.response.transform, registered_transform);
                 CloudPtr room_complete_cloud = aRoom.getCompleteRoomCloud();
-                pcl_ros::transformPointCloud(*room_complete_cloud, *room_complete_cloud,registered_transform);
-                aRoom.setCompleteRoomCloud(room_complete_cloud);
+                CloudPtr room_interior_cloud = MetaRoom<PointType>::downsampleCloud(room_complete_cloud->makeShared());
+                pcl_ros::transformPointCloud(*room_interior_cloud, *room_interior_cloud,registered_transform);
+                aRoom.setDeNoisedRoomCloud(room_interior_cloud);
+                aRoom.setInteriorRoomCloud(room_interior_cloud);
+
                 Eigen::Affine3d registered_transform_eigen;
                 tf::transformTFToEigen(registered_transform, registered_transform_eigen);
                 aRoom.setRoomTransform(registered_transform_eigen.matrix().cast<float>());
@@ -417,10 +420,12 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         SemanticRoomXMLParser<PointType> parser;
         SemanticRoom<PointType> prevRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(previousObservationXml,true);
 
-        CloudPtr prevCloud = prevRoom.getInteriorRoomCloud();
-        Eigen::Matrix4f prevRoomTransform = prevRoom.getRoomTransform();
-        // apply this to the current observation cloud as well
-        pcl::transformPointCloud (*roomCloud, *roomCloud, prevRoomTransform);
+        CloudPtr prevCompleteCloud = prevRoom.getCompleteRoomCloud();
+        CloudPtr prevCloud = MetaRoom<PointType>::downsampleCloud(prevCompleteCloud->makeShared());
+
+//        Eigen::Matrix4f prevRoomTransform = prevRoom.getRoomTransform();
+//        // apply this to the current observation cloud as well
+//        pcl::transformPointCloud (*roomCloud, *roomCloud, prevRoomTransform);
 
         // compute differences and check occlusions
         CloudPtr differenceRoomToPrevRoom(new Cloud);
@@ -446,7 +451,8 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         CloudPtr toBeRemoved(new Cloud());
 
         OcclusionChecker<PointType> occlusionChecker;
-        occlusionChecker.setSensorOrigin(metaroom->getSensorOrigin()); // since it's already transformed in the metaroom frame of ref
+//        occlusionChecker.setSensorOrigin(metaroom->getSensorOrigin()); // since it's already transformed in the metaroom frame of ref
+        occlusionChecker.setSensorOrigin(prevRoom.getIntermediateCloudTransforms()[0].getOrigin()); // since it's already transformed in the metaroom frame of ref
         auto occlusions = occlusionChecker.checkOcclusions(differenceRoomToPrevRoom,differencePrevRoomToRoom, 720 );
         *difference = *occlusions.toBeRemoved;
     }
