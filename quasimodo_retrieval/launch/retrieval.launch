@@ -1,5 +1,5 @@
 <launch>
-    <node pkg="vocabulary_path" default="~/.semanticMap/vocabulary"/>
+    <arg name="vocabulary_path" default="~/.semanticMap/vocabulary"/>
 
     <node pkg="surfelize_it" type="surfelize_it" name="surfelize_it" output="screen" respawn="true"/>
     <node pkg="quasimodo_retrieval" type="quasimodo_retrieval_node" name="quasimodo_retrieval_node" output="screen" respawn="true">
