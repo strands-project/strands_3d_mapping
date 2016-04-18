@@ -4,7 +4,16 @@ Quasimodo - Qu(erying) A(nd) S(patio-Temporal) I(ncremental) Mod(el building of)
 ## General Info \& Launching
 
 The packages in this repo provides functionality for building a database of objects from observations
-in an unsupervised manner. It builds 
+in an unsupervised manner. It builds on the Metaroom paradigm for data collection. The libraries
+used for retrieving point clouds from several weeks of data collection can be found in
+<https://github.com/strands-project/strands_3d_mapping/tree/hydro-devel/dynamic_object_retrieval>.
+
+For launching the pipeline for building the representation and querying on the robot, do
+```
+roslaunch quasimodo_launch quasimodo.launch
+```
+This will launch the necessary nodes and launch files, both for maintaining a data base of object
+models and for retrieving point clouds across weeks of exploration.
 
 ## retrieval_processing
 
