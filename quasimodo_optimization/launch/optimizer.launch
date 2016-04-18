@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="quasimodo_optimization" type="rosbag_player.py" name="rosbag_player" output="screen" respawn="false"/>
+    <node pkg="quasimodo_optimization" type="optimizer.py" name="optimizer" output="screen" respawn="false"/>
+</launch>

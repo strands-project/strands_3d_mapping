@@ -36,6 +36,7 @@ using SurfelCloudT = pcl::PointCloud<SurfelT>;
 
 ros::Publisher pub;
 
+/*
 void test_compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT::Ptr& cloud,
                            SurfelCloudT::Ptr& surfel_cloud, bool do_visualize = false, bool is_query = false)
 {
@@ -113,19 +114,6 @@ void test_compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, Cl
         }
     }
 
-    /*
-    if (do_visualize) {
-        CloudT::Ptr vis_cloud(new CloudT());
-        *vis_cloud += *cloud;
-        for (PointT p : keypoints->points) {
-            p.r = 255; p.g = 0; p.b = 0;
-            vis_cloud->push_back(p);
-        }
-        visualize_features(vis_cloud);
-    }
-    */
-    // ISS3D
-
     // PFHRGB
     pcl::PFHRGBEstimation<PointT, NormalT> se;
     se.setSearchMethod(tree);
@@ -146,6 +134,7 @@ void test_compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, Cl
 
     std::cout << "Number of features: " << pfhrgb_cloud.size() << std::endl;
 }
+*/
 
 void features_callback(const std_msgs::String::ConstPtr& msg)
 {
@@ -167,8 +156,8 @@ void features_callback(const std_msgs::String::ConstPtr& msg)
 
         HistCloudT::Ptr desc_cloud(new HistCloudT);
         CloudT::Ptr kp_cloud(new CloudT);
-        //dynamic_object_retrieval::compute_features(desc_cloud, kp_cloud, segment, surfel_map);
-        test_compute_features(desc_cloud, kp_cloud, segment, surfel_map);
+        dynamic_object_retrieval::compute_features(desc_cloud, kp_cloud, segment, surfel_map);
+        //test_compute_features(desc_cloud, kp_cloud, segment, surfel_map);
         if (desc_cloud->empty()) {
             // push back one inf point on descriptors and keypoints
             HistT sp;

@@ -62,6 +62,7 @@ add_service_files(
   fuse_models.srv
   get_model.srv
   query_cloud.srv
+  simple_query_cloud.srv
   visualize_query.srv
 )
 

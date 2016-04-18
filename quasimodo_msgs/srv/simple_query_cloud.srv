@@ -1,0 +1,3 @@
+sensor_msgs/PointCloud2 query_cloud
+---
+retrieval_result result
