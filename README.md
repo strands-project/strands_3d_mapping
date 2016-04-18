@@ -1,6 +1,11 @@
 # quasimodo
 Quasimodo - Qu(erying) A(nd) S(patio-Temporal) I(ncremental) Mod(el building of) O(bjects)
 
+## General Info \& Launching
+
+The packages in this repo provides functionality for building a database of objects from observations
+in an unsupervised manner. It builds 
+
 ## retrieval_processing
 
 This package runs in conjunction with the metaroom nodes online on the robot. As metarooms are collected,
@@ -25,13 +30,20 @@ typically `~/.semanticMap`.
 
 ## quasimodo_retrieval
 
+This package provides the nodes for retrieving point clouds from the memory created by `retrieval_processing`.
+Launch everything simply with
+```
+roslaunch quasimodo_retrieval retrieval.launch vocabulary_path:=/path/to/vocabulary
+```
+where the vocabulary is most often located in `~/.semanticMap/vocabulary`.
+
 ### Nodes
 
-* `quasimodo_retrieval_node`
-* `quasimodo_retrieval_publisher`
-* `quasimodo_retrieval_server`
-* `quasimodo_visualization_server`
-* `quasimodo_visualize_model`
+* `quasimodo_retrieval_node` - provides the service `/query_normal_cloud` and subscribes to the topic `/models/new`. If something is published on the topic, it returns the result on `/retrieval_result`.
+* `quasimodo_retrieval_publisher` - 
+* `quasimodo_retrieval_server` - 
+* `quasimodo_visualization_server` - this node simply subscribes to `/retrieval_result` and visualizes the query result using the tools in the package `object_3d_benchmark`, <https://github.com/strands-project/strands_3d_mapping/tree/hydro-devel/dynamic_object_retrieval/benchmark>. The resulting image is published on `/visualization_image`.
+* `quasimodo_visualize_model` - 
 
 ### Launch files
 
