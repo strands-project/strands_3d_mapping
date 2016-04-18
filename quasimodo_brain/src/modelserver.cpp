@@ -62,7 +62,15 @@ ros::Publisher models_new_pub;
 ros::Publisher models_updated_pub;
 ros::Publisher models_deleted_pub;
 
+ros::Publisher model_pcd_pub;
+ros::Publisher database_pcd_pub;
+
 ros::ServiceClient soma2add;
+
+double occlusion_penalty = 5;
+double massreg_timeout = 60;
+
+bool myfunction (reglib::Model * i,reglib::Model * j) { return i->frames.size() > j->frames.size(); }
 
 double getTime(){
 	struct timeval start1;
@@ -73,6 +81,52 @@ double getTime(){
 quasimodo_msgs::retrieval_result sresult;
 bool new_search_result = false;
 double last_search_result_time = 0;
+
+void publishDatabasePCD(){
+    std::vector<reglib::Model *> results;
+    for(unsigned int i = 0; i < modeldatabase->models.size(); i++){results.push_back(modeldatabase->models[i]);}
+    std::sort (results.begin(), results.end(), myfunction);
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr	conccloud	(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+    float maxx = 0;
+    for(unsigned int i = 0; i < results.size(); i++){
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = results[i]->getPCLcloud(1, false);
+        float meanx = 0;
+        float meany = 0;
+        float meanz = 0;
+        for(int j = 0; j < cloud->points.size(); j++){
+            meanx += cloud->points[j].x;
+            meany += cloud->points[j].y;
+            meanz += cloud->points[j].z;
+        }
+        meanx /= float(cloud->points.size());
+        meany /= float(cloud->points.size());
+        meanz /= float(cloud->points.size());
+
+        for(unsigned int j = 0; j < cloud->points.size(); j++){
+            cloud->points[j].x -= meanx;
+            cloud->points[j].y -= meany;
+            cloud->points[j].z -= meanz;
+        }
+
+        float minx = 100000000000;
+
+        for(unsigned int j = 0; j < cloud->points.size(); j++){minx = std::min(cloud->points[j].x , minx);}
+        for(unsigned int j = 0; j < cloud->points.size(); j++){cloud->points[j].x += maxx-minx + 0.15;}
+        for(unsigned int j = 0; j < cloud->points.size(); j++){maxx = std::max(cloud->points[j].x,maxx);}
+
+        for(unsigned int j = 0; j < cloud->points.size(); j++){conccloud->points.push_back(cloud->points[j]);}
+    }
+
+    sensor_msgs::PointCloud2 input;
+    pcl::toROSMsg (*conccloud,input);//, *transformed_cloud);
+    database_pcd_pub.publish(input);
+}
+
+void publishObject(int id){
+
+}
 
 void dumpDatabase(std::string path = "."){
 	char command [1024];
@@ -101,8 +155,6 @@ void retrievalCallback(const quasimodo_msgs::retrieval_query_result & qr){
 	last_search_result_time = getTime();
 }
 
-
-bool myfunction (reglib::Model * i,reglib::Model * j) { return i->frames.size() > j->frames.size(); }
 
 int savecounter = 0;
 void show_sorted(){
@@ -320,7 +372,7 @@ bool indexFrame(quasimodo_msgs::index_frame::Request  & req, quasimodo_msgs::ind
 
 	reglib::RGBDFrame * frame = new reglib::RGBDFrame(cameras[0],rgb, depth, double(capture_time.sec)+double(capture_time.nsec)/1000000000.0, epose.matrix());
 	frames[frame->id] = frame;
-	res.frame_id = frame->id;
+    res.frame_id = frame->id;
 	return true;
 }
 
@@ -358,6 +410,8 @@ void call_from_thread(int i) {
 	printf("testreg %i to %i\n",mod->id,model2->id);
 	reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 	reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
+    mu->occlusion_penalty               = occlusion_penalty;
+    mu->massreg_timeout                 = massreg_timeout;
 	mu->viewer							= viewer;
 	reg->visualizationLvl				= 0;
 
@@ -377,6 +431,8 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
 		if(model->frames.size() > 2){
 			reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom();
 			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model, 0);
+            mu->occlusion_penalty               = occlusion_penalty;
+            mu->massreg_timeout                 = massreg_timeout;
 			mu->viewer							= viewer;
 			reg->visualizationLvl				= 0;
 			mu->refine(0.001,true);
@@ -421,7 +477,8 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
 			reglib::Model * model2 = res[i];
 			reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
-
+            mu->occlusion_penalty               = occlusion_penalty;
+            mu->massreg_timeout                 = massreg_timeout;
 			mu->viewer							= viewer;
 			reg->visualizationLvl				= 0;
 			reglib::FusionResults fr = mu->registerModel(model);
@@ -444,6 +501,8 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
 
 		reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
+        mu->occlusion_penalty               = occlusion_penalty;
+        mu->massreg_timeout                 = massreg_timeout;
 		mu->viewer							= viewer;
 		reg->visualizationLvl				= 0;
 
@@ -559,6 +618,8 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 		//show_sorted();
 		reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom();
 		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( newmodel, reg);
+        mu->occlusion_penalty               = occlusion_penalty;
+        mu->massreg_timeout                 = massreg_timeout;
 		mu->viewer							= viewer;
 //		reg->visualizationLvl				= 0;
 		mu->refine(0.01,true);
@@ -571,6 +632,8 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 		newmodel->print();
 		addToDB(modeldatabase, newmodel,false);
 		//if(modaddcount % 1 == 0){show_sorted();}
+        show_sorted();
+        publishDatabasePCD();
 		modaddcount++;
 		dumpDatabase(savepath);
 
@@ -626,79 +689,13 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
                                 }
 
 
-
-                                // Remove this when this is correct:
-
-//                                cv::Mat masked_rgb = depthimage.clone();
-//                                masked_rgb.setTo(cv::Scalar(0, 0, 0), maskimage == 0);
-//								cv::namedWindow("maskimage",	cv::WINDOW_AUTOSIZE);
-//								cv::imshow(		"maskimage",	maskimage);
-//								cv::namedWindow("rgbimage",		cv::WINDOW_AUTOSIZE );
-//								cv::imshow(		"rgbimage",		rgbimage );
-//								cv::namedWindow("depthimage",	cv::WINDOW_AUTOSIZE );
-//								cv::imshow(		"depthimage",	depthimage );
-//                                cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
-//                                cv::imshow(		"mask",	masked_rgb);
-//                                cv::waitKey(0);
-
-
-								//printf("indexFrame\n");
-								//sensor_msgs::CameraInfo		camera			= req.frame.camera;
-								//ros::Time					capture_time	= req.frame.capture_time;
-								//geometry_msgs::Pose			pose			= req.frame.pose;
-
 								Eigen::Affine3d epose = Eigen::Affine3d::Identity();
-								//tf::poseMsgToEigen(pose, epose);
 
 								reglib::RGBDFrame * frame = new reglib::RGBDFrame(cameras[0],rgbimage, depthimage, 0, epose.matrix());
 								reglib::Model * searchmodel = new reglib::Model(frame,maskimage);
 
 								printf("--- trying to add serach results, if more then one addToDB: results added-----\n");
 								addToDB(modeldatabase, searchmodel,false,true);
-
-//								pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = searchmodel->getPCLcloud(1, false);
-//								viewer->removeAllPointClouds();
-//								viewer->addPointCloud<pcl::PointXYZRGB> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cloud), "cloud");
-//								viewer->spin();
-
-//								reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
-//								reglib::ModelUpdaterBasicFuse * mu		= new reglib::ModelUpdaterBasicFuse( searchmodel, reg);
-//								mu->viewer								= viewer;
-//                                reg->visualizationLvl					= 0;
-
-//								reglib::FusionResults fr = mu->registerModel(currentTest);
-//								reglib::UpdatedModels ud = mu->fuseData(&(fr), currentTest, searchmodel);
-
-//								printf("merge %i to %i\n",		currentTest->id,searchmodel->id);
-//								printf("new_models:     %i\n",ud.new_models.size());
-//								printf("updated_models: %i\n",ud.updated_models.size());
-//								printf("deleted_models: %i\n",ud.deleted_models.size());
-
-//								for(unsigned int j = 0; j < ud.new_models.size(); j++){
-//									modeldatabase->add(ud.new_models[j]);
-//								}
-
-//								for(unsigned int j = 0; j < ud.updated_models.size(); j++){
-//									modeldatabase->remove(ud.updated_models[j]);
-//									modeldatabase->add(ud.updated_models[j]);
-//								}
-
-//								bool searchmodel_merged = false;
-//								for(unsigned int j = 0; j < ud.deleted_models.size(); j++){
-//									if(ud.deleted_models[j] == searchmodel){
-//										searchmodel_merged = true;
-//									}else{
-//										modeldatabase->remove(ud.deleted_models[j]);
-//									}
-//									delete ud.deleted_models[j];
-//								}
-
-//								if(searchmodel_merged){
-//									frames[frame->id] = frame;
-//								}
-
-//								delete mu;
-//								delete reg;
 							}
 						}
 
@@ -727,11 +724,6 @@ int main(int argc, char **argv){
 	registration	= new reglib::RegistrationGOICP();
 	modeldatabase	= new ModelDatabaseBasic();
 
-    if(visualization){
-        viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("viewer"));
-        viewer->addCoordinateSystem(0.1);
-        viewer->setBackgroundColor(0.9,0.9,0.9);
-    }
 	models_new_pub		= n.advertise<quasimodo_msgs::model>("/models/new",		1000);
 	models_updated_pub	= n.advertise<quasimodo_msgs::model>("/models/updated", 1000);
 	models_deleted_pub	= n.advertise<quasimodo_msgs::model>("/models/deleted", 1000);
@@ -754,12 +746,21 @@ int main(int argc, char **argv){
 	ros::Subscriber sub = n.subscribe("/retrieval_result", 1, retrievalCallback);
 	ROS_INFO("Ready to add recieve search results.");
 
+
+    database_pcd_pub  = n.advertise<sensor_msgs::PointCloud2>("modelserver/databasepcd", 1000);
+//    ros::Publisher database_pcd_pub;
+
+
+
 	int inputstate = -1;
 	for(int i = 1; i < argc;i++){
 		printf("input: %s\n",argv[i]);
 		if(		std::string(argv[i]).compare("-c") == 0){	printf("camera input state\n"); inputstate = 1;}
 		else if(std::string(argv[i]).compare("-m") == 0){	printf("model input state\n");	inputstate = 2;}
-		else if(std::string(argv[i]).compare("-p") == 0){	printf("path input state\n");	inputstate = 3;}
+        else if(std::string(argv[i]).compare("-p") == 0){	printf("path input state\n");	inputstate = 3;}
+        else if(std::string(argv[i]).compare("-occlusion_penalty") == 0){printf("occlusion_penalty input state\n");inputstate = 4;}
+        else if(std::string(argv[i]).compare("-massreg_timeout") == 0){printf("massreg_timeout input state\n");inputstate = 5;}
+        else if(std::string(argv[i]).compare("-v") == 0){	printf("visualization turned on\n");	visualization = true;}
 		else if(inputstate == 1){
 			//reglib::Camera * cam = reglib::Camera::load(std::string(argv[i]));
 			//delete cameras[0];
@@ -773,9 +774,18 @@ int main(int argc, char **argv){
 			//show_sorted();
 		}else if(inputstate == 3){
 			savepath = std::string(argv[i]);
-		}
+        }else if(inputstate == 4){
+            occlusion_penalty = atof(argv[i]);
+        }else if(inputstate == 5){
+            massreg_timeout = atof(argv[i]);
+        }
 	}
-//	exit(0);
+
+    if(visualization){
+        viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("viewer"));
+        viewer->addCoordinateSystem(0.1);
+        viewer->setBackgroundColor(0.9,0.9,0.9);
+    }
 
     ros::Duration(1.0).sleep();
 	ros::Publisher chatter_pub = n.advertise<std_msgs::String>("modelserver", 1000);

@@ -45,6 +45,7 @@ include_directories(include/registration)
 include_directories(include/weightfunctions)
 include_directories(include/core)
 include_directories(include/model)
+include_directories(include/Mesher)
 include_directories(include/modelupdater)
 include_directories(include/modelupdater2)
 
@@ -100,8 +101,13 @@ target_link_libraries(quasimodo_modelmask quasimodo_core quasimodo_reglib ${catk
 add_library(quasimodo_model src/model/Model.cpp)
 target_link_libraries(quasimodo_model quasimodo_modelmask quasimodo_core quasimodo_reglib ${catkin_LIBRARIES})
 
+add_library(quasimodo_Mesher src/mesher/Mesh.cpp)
+target_link_libraries(quasimodo_Mesher quasimodo_model ${catkin_LIBRARIES})
+
+
 add_library(quasimodo_ModelUpdater src/modelupdater/ModelUpdater.cpp src/modelupdater/ModelUpdaterBasic.cpp src/modelupdater/ModelUpdaterBasicFuse.cpp)
 target_link_libraries(quasimodo_ModelUpdater quasimodo_model quasimodo_reglib quasimodo_massreglib ${catkin_LIBRARIES})
+
 
 catkin_package(
   INCLUDE_DIRS include

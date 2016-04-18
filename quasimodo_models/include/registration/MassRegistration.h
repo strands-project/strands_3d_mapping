@@ -59,7 +59,7 @@ namespace reglib
 
 	class MassRegistration{
 		public:
-		
+        double timeout;
 		bool nomask;
 		int maskstep;
 		int nomaskstep;

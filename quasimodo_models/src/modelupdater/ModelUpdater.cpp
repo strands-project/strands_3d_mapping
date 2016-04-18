@@ -141,7 +141,12 @@ std::vector<int> ModelUpdater::getPartition(std::vector< std::vector< float > > 
 	return partition_graph(scores);
 }
 
-ModelUpdater::ModelUpdater(){model = 0;}
+ModelUpdater::ModelUpdater(){
+    occlusion_penalty = 5;
+    massreg_timeout = 60;
+    model = 0;
+}
+
 ModelUpdater::ModelUpdater(Model * model_){	model = model_;}
 ModelUpdater::~ModelUpdater(){}
 
@@ -174,6 +179,7 @@ void ModelUpdater::refine(double reg,bool useFullMask){
 
 	MassFusionResults mfr;
 	MassRegistrationPPR * massreg = new MassRegistrationPPR(reg);
+    massreg->timeout = massreg_timeout;
 	massreg->viewer = viewer;
 	massreg->visualizationLvl = 0;
 	massreg->maskstep = std::max(1,int(0.5+0.2*double(model->frames.size())));
@@ -1364,7 +1370,7 @@ vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(std::vector<
 	for(int i = 0; i < current_frames.size(); i++){occlusionScores[i].resize(current_frames.size());}
 
 	int max_points = 100000.0/double(current_frames.size()*(current_frames.size()-1));
-	float occlusion_penalty = 10.0f;
+    //float occlusion_penalty = 10.0f;
 	std::vector<std::vector < float > > scores;
 	scores.resize(occlusionScores.size());
 	for(int i = 0; i < occlusionScores.size(); i++){scores[i].resize(occlusionScores.size());}
@@ -1395,7 +1401,7 @@ CloudData * ModelUpdater::getCD(std::vector<Eigen::Matrix4d> current_poses, std:
 
 void ModelUpdater::computeMassRegistration(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames,std::vector<cv::Mat> current_masks){}
 
-std::vector<std::vector < float > > ModelUpdater::getScores(std::vector<std::vector < OcclusionScore > > occlusionScores, float occlusion_penalty){
+std::vector<std::vector < float > > ModelUpdater::getScores(std::vector<std::vector < OcclusionScore > > occlusionScores){//, float occlusion_penalty){
 	std::vector<std::vector < float > > scores;
 	scores.resize(occlusionScores.size());
 	for(int i = 0; i < occlusionScores.size(); i++){scores[i].resize(occlusionScores.size());}

@@ -19,7 +19,6 @@ namespace reglib
 		bool use_features;
 		bool normalize_matchweights;
 
-		double maxtime;
 		double stopval;
 		unsigned steps;
 
