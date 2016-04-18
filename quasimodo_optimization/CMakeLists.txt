@@ -142,3 +142,7 @@ catkin_package(
 install(PROGRAMS scripts/optimizer.py scripts/plot_values.py scripts/rosbag_player.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
+install(DIRECTORY launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
