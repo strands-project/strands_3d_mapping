@@ -104,7 +104,7 @@ int main(int argc, char** argv)
         tf::Transform obs_transform;
         tf::transformMsgToTF(srv.response.observation_transform, obs_transform);
         CloudPtr obs_cloud_registered(new Cloud);
-        pcl_ros::transformPointCloud(*obs_cloud, *obs_cloud_registered,obs_transform);
+        pcl_ros::transformPointCloud(*obs_cloud, *obs_cloud_registered,obs_transform.inverse());
 
         // check registration to observation
         // add views to both viewports
@@ -144,6 +144,7 @@ int main(int argc, char** argv)
         tf::transformTFToMsg(object.vAdditionalViewsTransforms[i],transform_msg);
         srv2.request.additional_views_odometry_transforms.push_back(transform_msg);
     }
+    srv2.request.additional_views_odometry_transforms.clear();
 
     registered_transforms.clear();
 
@@ -185,7 +186,7 @@ int main(int argc, char** argv)
     pg->spin();
     pg->removeAllPointClouds();
 
-    if (srv.response.observation_correspondences){
+    if (srv2.response.observation_correspondences){
         // load observation and build complete cloud
         SemanticRoomXMLParser<PointType> parser;
         auto obs_data = parser.loadRoomFromXML(obs);
@@ -195,9 +196,9 @@ int main(int argc, char** argv)
 
         // compute registered observation cloud
         tf::Transform obs_transform;
-        tf::transformMsgToTF(srv.response.observation_transform, obs_transform);
+        tf::transformMsgToTF(srv2.response.observation_transform, obs_transform);
         CloudPtr obs_cloud_registered(new Cloud);
-        pcl_ros::transformPointCloud(*obs_cloud, *obs_cloud_registered,obs_transform);
+        pcl_ros::transformPointCloud(*obs_cloud, *obs_cloud_registered,obs_transform.inverse());
 
         // check registration to observation
         // add views to both viewports
