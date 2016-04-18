@@ -28,7 +28,7 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-int-to-pointer-cast -Wno-write-stri
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  DEPENDS libglew-dev nvidia-cuda-toolkit
+  DEPENDS libglew-dev nvidia-cuda
 )
 
 # show additional files in qtcreator

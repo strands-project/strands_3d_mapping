@@ -10,7 +10,7 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>libglew-dev</build_depend>
-  <build_depend>nvidia-cuda-toolkit</build_depend>
+  <build_depend>nvidia-cuda</build_depend>
   <run_depend>libglew-dev</run_depend>
-  <run_depend>nvidia-cuda-toolkit</run_depend>
+  <run_depend>nvidia-cuda</run_depend>
 </package>
