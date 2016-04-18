@@ -111,4 +111,20 @@ All the message and service types required for the Quasimodo framework.
 
 ## quasimodo_brain
 
+### Nodes
+
+* XXX
+
+### Launch files
+
+* XXX
+
 ## quasimodo_models
+
+### Nodes
+
+* XXX
+
+### Launch files
+
+* XXX
