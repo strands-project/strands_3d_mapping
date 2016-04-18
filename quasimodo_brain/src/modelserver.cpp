@@ -748,9 +748,6 @@ int main(int argc, char **argv){
 
 
     database_pcd_pub  = n.advertise<sensor_msgs::PointCloud2>("modelserver/databasepcd", 1000);
-//    ros::Publisher database_pcd_pub;
-
-
 
 	int inputstate = -1;
 	for(int i = 1; i < argc;i++){
