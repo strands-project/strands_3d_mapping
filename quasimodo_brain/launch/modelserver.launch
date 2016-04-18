@@ -1,0 +1,8 @@
+<launch>
+    <arg name="occlusion_penalty" default="5"/>
+    <arg name="massreg_timeout" default="60"/>
+    <arg name="modelpath" default="./"/>
+    <arg name="flags" default=""/>
+    <node pkg="quasimodo_brain" type="modelserver" name="modelserver" output="screen" respawn="false"  args="-occlusion_penalty $(arg occlusion_penalty) -massreg_timeout $(arg massreg_timeout) -p $(arg modelpath) $(arg flags)">
+    </node>
+</launch>

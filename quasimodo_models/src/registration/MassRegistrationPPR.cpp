@@ -31,7 +31,7 @@ MassRegistrationPPR::MassRegistrationPPR(double startreg, bool visualize){
 	stopval = 0.001;
 	steps = 4;
 
-	maxtime = 6000;
+    timeout = 6000;
 
 	if(visualize){
 		visualizationLvl = 1;
@@ -212,11 +212,6 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 	informations.resize(nr_frames);
 
 	for(unsigned int i = 0; i < nr_frames; i++){
-		//printf("start local : data loaded successfully\n");
-		//printf("loading data for %i\n",i);
-
-		//unsigned char  * maskdata		= (unsigned char	*)(masks[i].data);
-		//std::vector<ModelMask *> mmasks
 		bool * maskvec		= mmasks[i]->maskvec;
 		unsigned char  * rgbdata		= (unsigned char	*)(frames[i]->rgb.data);
 		unsigned short * depthdata		= (unsigned short	*)(frames[i]->depth.data);
@@ -294,7 +289,6 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 						tXn(1,c)	= m10*xn + m11*yn + m12*zn;
 						tXn(2,c)	= m20*xn + m21*yn + m22*zn;
 
-						//printf("c: %i count: %i\n",c,count);
 						information(c) = 1.0/(z*z);
 
 						C(0,c) = rgbdata[3*ind+0];
@@ -305,91 +299,6 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				}
 			}
 		}
-
-
-//for(unsigned int ind = 0; ind < width*height; ind++){count += (maskdata[ind] == 255);}
-
-//		for(unsigned int w = 0; w < width; w++){
-//			for(unsigned int h = 0; h < height;h++){
-//				int ind = h*width+w;
-//				//if(maskdata[ind] == 255){
-
-//				bool maskstep_ok = (w % maskstep == 0) && (h % maskstep == 0);
-//				bool nomaskstep_ok = (w % nomaskstep == 0) && (h % nomaskstep == 0);
-//				//if(	maskvec[ind] && maskstep_ok){
-//				if(	(maskvec[ind] && maskstep_ok) || (!nomask && nomaskstep_ok)){
-//				//if(	maskvec[ind] || !nomask){
-//					float z = idepth*float(depthdata[ind]);
-//					float xn = normalsdata[3*ind+0];
-
-//					if(z > 0.2 && xn != 2){
-//						count++;
-//					}
-//				}
-//			}
-//		}
-
-//		nr_datas[i] = count;
-//		matchids[i].resize(nr_frames);
-//		points[i].resize(Eigen::NoChange,count);
-//		colors[i].resize(Eigen::NoChange,count);
-//		normals[i].resize(Eigen::NoChange,count);
-//		transformed_points[i].resize(Eigen::NoChange,count);
-//		transformed_normals[i].resize(Eigen::NoChange,count);
-
-
-//		Eigen::Matrix<double, 3, Eigen::Dynamic> & X	= points[i];
-//		Eigen::Matrix<double, 3, Eigen::Dynamic> & C	= colors[i];
-//		Eigen::Matrix<double, 3, Eigen::Dynamic> & Xn	= normals[i];
-//		Eigen::Matrix<double, 3, Eigen::Dynamic> & tX	= transformed_points[i];
-//		Eigen::Matrix<double, 3, Eigen::Dynamic> & tXn	= transformed_normals[i];
-//		Eigen::VectorXd information (count);
-
-//		int c = 0;
-//		for(unsigned int w = 0; w < width; w++){
-//			for(unsigned int h = 0; h < height;h++){
-//				if(c == count){continue;}
-//				int ind = h*width+w;
-//				//if(maskdata[ind] == 255){
-//				bool maskstep_ok = (w % maskstep == 0) && (h % maskstep == 0);
-//				bool nomaskstep_ok = (w % nomaskstep == 0) && (h % nomaskstep == 0);
-//				if(	(maskvec[ind] && maskstep_ok) || (!nomask && nomaskstep_ok)){
-//				//if(	maskvec[ind] || !nomask){
-//					float z = idepth*float(depthdata[ind]);
-//					float xn = normalsdata[3*ind+0];
-
-//					if(z > 0.2 && xn != 2){
-//						float yn = normalsdata[3*ind+1];
-//						float zn = normalsdata[3*ind+2];
-
-//						float x = (w - cx) * z * ifx;
-//						float y = (h - cy) * z * ify;
-
-//						X(0,c)	= x;
-//						X(1,c)	= y;
-//						X(2,c)	= z;
-//						Xn(0,c)	= xn;
-//						Xn(1,c)	= yn;
-//						Xn(2,c)	= zn;
-
-//						tX(0,c)		= m00*x + m01*y + m02*z + m03;
-//						tX(1,c)		= m10*x + m11*y + m12*z + m13;
-//						tX(2,c)		= m20*x + m21*y + m22*z + m23;
-//						tXn(0,c)	= m00*xn + m01*yn + m02*zn;
-//						tXn(1,c)	= m10*xn + m11*yn + m12*zn;
-//						tXn(2,c)	= m20*xn + m21*yn + m22*zn;
-
-//						//printf("c: %i count: %i\n",c,count);
-//						information(c) = 1.0/(z*z);
-
-//						C(0,c) = rgbdata[3*ind+0];
-//						C(1,c) = rgbdata[3*ind+1];
-//						C(2,c) = rgbdata[3*ind+2];
-//						c++;
-//					}
-//				}
-//			}
-//		}
 		informations[i] = information;
 		trees.push_back(new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X));
 	}
@@ -528,7 +437,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 	}
 
 	for(int funcupdate=0; funcupdate < 100; ++funcupdate) {
-		if(getTime()-total_time_start > maxtime){break;}
+        if(getTime()-total_time_start > timeout){break;}
 		if(visualizationLvl == 2){
 			std::vector<Eigen::MatrixXd> Xv;
 			for(unsigned int j = 0; j < nr_frames; j++){Xv.push_back(transformed_points[j]);}
@@ -551,7 +460,6 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 
 
 			}
-//exit(0);
 			for(unsigned int i = 0; i < nr_frames; i++){poses1[i] = poses[i];}
 
 			double rematch_time_start = getTime();
@@ -709,13 +617,13 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				//func->debugg_print = false;
 //printf("LINE: %i\n",__LINE__);
 				for(int outer=0; outer < 30; ++outer) {
-					if(getTime()-total_time_start > maxtime){break;}
+                    if(getTime()-total_time_start > timeout){break;}
 					//printf("funcupdate: %i rematching: %i lala: %i outer: %i\n",funcupdate,rematching,lala,outer);
 					for(unsigned int i = 0; i < nr_frames; i++){poses2[i] = poses[i];}
 
 					//printf("funcupdate: %i rematching: %i outer: %i\n",funcupdate,rematching,outer);
 					for(unsigned int i = 0; i < nr_frames; i++){
-						if(getTime()-total_time_start > maxtime){break;}
+                        if(getTime()-total_time_start > timeout){break;}
 						unsigned int nr_match = 0;
 						for(unsigned int j = 0; j < nr_frames; j++){
 							std::vector<int> & matchidj = matchids[j][i];

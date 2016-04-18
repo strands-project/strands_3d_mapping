@@ -411,6 +411,16 @@ void Model::save(std::string path){
 	delete[] buffer;
 
 
+    ofstream posesfile;
+    posesfile.open (path+"/poses.txt");
+
+    ofstream raresfile;
+    raresfile.open (path+"/raresposes.txt");
+    Eigen::Matrix4f eigen_tr(Eigen::Matrix4f::Identity() );
+    Eigen::IOFormat CommaInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, " ", " ", "", "", "", "");
+    raresfile << eigen_tr.format(CommaInitFmt)<<endl;
+
+
 	//printf("saving model %i to %s\n",id,path.c_str());
 	for(unsigned int f = 0; f < frames.size(); f++){
 		char buf [1024];
@@ -420,7 +430,14 @@ void Model::save(std::string path){
 
 		sprintf(buf,"%s/modelmask_%i.png",path.c_str(),f);
 		cv::imwrite( buf, modelmasks[f]->getMask() );
+
+        Eigen::Matrix4f eigen_tr(relativeposes[f].cast<float>());
+        Eigen::IOFormat CommaInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, " ", " ", "", "", "", "");
+        raresfile << eigen_tr.format(CommaInitFmt)<<endl;
+        //raresfile << relativeposes[f] << std::endl << std::endl;
 	}
+
+    raresfile.close();
 }
 
 Model * Model::load(Camera * cam, std::string path){

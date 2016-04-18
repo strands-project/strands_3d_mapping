@@ -3,7 +3,7 @@ project(quasimodo_brain)
 
 find_package(catkin REQUIRED COMPONENTS roscpp soma2_msgs soma_manager quasimodo_msgs quasimodo_models message_runtime pcl_ros metaroom_xml_parser eigen_conversions cv_bridge)
 
-set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3")
+set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3  -w")
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -144,6 +144,10 @@ add_executable(			modelserver src/modelserver.cpp)
 add_dependencies(		modelserver roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	modelserver quasimodo_ModelDatabase quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
+
+add_executable(			MeshTest src/MeshTest.cpp)
+add_dependencies(		MeshTest roscpp quasimodo_msgs_generate_messages_cpp)
+target_link_libraries(	MeshTest quasimodo_ModelDatabase quasimodo_Mesher quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 #add_executable(			modelserver2 src/modelserver2.cpp)
 #add_dependencies(		modelserver2 roscpp quasimodo_msgs_generate_messages_cpp)

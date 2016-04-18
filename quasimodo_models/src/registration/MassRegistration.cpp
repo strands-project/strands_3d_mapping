@@ -8,6 +8,7 @@ MassRegistration::MassRegistration(){
 	nomask = true;
 	maskstep = 1;
 	nomaskstep = 100000;
+    timeout = 60;//1 minute timeout
 }
 MassRegistration::~MassRegistration(){}
 

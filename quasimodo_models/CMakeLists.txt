@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(quasimodo_models)
 
 #find_package(catkin REQUIRED)# quasimodo_msgs)# COMPONENTS quasimodo_msgs)
-set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3")
+set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3 -w")
 #set(CMAKE_CXX_FLAGS "-O1 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3")
 
 
@@ -45,6 +45,7 @@ include_directories(include/registration)
 include_directories(include/weightfunctions)
 include_directories(include/core)
 include_directories(include/model)
+include_directories(include/Mesher)
 include_directories(include/modelupdater)
 include_directories(include/modelupdater2)
 
@@ -100,8 +101,13 @@ target_link_libraries(quasimodo_modelmask quasimodo_core quasimodo_reglib ${catk
 add_library(quasimodo_model src/model/Model.cpp)
 target_link_libraries(quasimodo_model quasimodo_modelmask quasimodo_core quasimodo_reglib ${catkin_LIBRARIES})
 
+add_library(quasimodo_Mesher src/mesher/Mesh.cpp)
+target_link_libraries(quasimodo_Mesher quasimodo_model ${catkin_LIBRARIES})
+
+
 add_library(quasimodo_ModelUpdater src/modelupdater/ModelUpdater.cpp src/modelupdater/ModelUpdaterBasic.cpp src/modelupdater/ModelUpdaterBasicFuse.cpp)
 target_link_libraries(quasimodo_ModelUpdater quasimodo_model quasimodo_reglib quasimodo_massreglib ${catkin_LIBRARIES})
+
 
 catkin_package(
   INCLUDE_DIRS include
