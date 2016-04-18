@@ -18,6 +18,7 @@
 #include "ros/ros.h"
 #include "quasimodo_msgs/retrieval_query_result.h"
 #include "quasimodo_msgs/retrieval_query.h"
+#include "quasimodo_msgs/simple_query_cloud.h"
 #include <pcl_ros/point_cloud.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
@@ -273,6 +274,78 @@ public:
         }
 
         std::cout << "Number of features: " << pfhrgb_cloud.size() << std::endl;
+    }
+
+    bool service_callback(quasimodo_msgs::simple_query_cloud::Request& req,
+                          quasimodo_msgs::simple_query_cloud::Response& res)
+    {
+        // we assume that req.query_cloud contains a cloud with PointXYZRGBNormal
+        cout << "Received query msg..." << endl;
+
+        pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr normal_cloud(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+        pcl::fromROSMsg(req.query_cloud, *normal_cloud);
+
+        CloudT::Ptr cloud(new CloudT);
+        NormalCloudT::Ptr normals(new NormalCloudT);
+        cloud->reserve(normal_cloud->size()); normals->reserve(normal_cloud->size());
+        for (const pcl::PointXYZRGBNormal& pn : normal_cloud->points) {
+            PointT p; p.getVector3fMap() = pn.getVector3fMap(); p.rgba = pn.rgba;
+            NormalT n; n.getNormalVector3fMap() = pn.getNormalVector3fMap();
+            cloud->push_back(p); normals->push_back(n);
+        }
+
+        HistCloudT::Ptr features(new HistCloudT);
+        CloudT::Ptr keypoints(new CloudT);
+        cout << "Computing features..." << endl;
+        test_compute_features(features, keypoints, cloud, normals, false, true);
+        cout << "Done computing features..." << endl;
+
+        vector<CloudT::Ptr> retrieved_clouds;
+        vector<boost::filesystem::path> sweep_paths;
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, number_query, vocabulary_path, summary);
+        tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
+
+        cout << "Query cloud size: " << cloud->size() << endl;
+        for (CloudT::Ptr& c : retrieved_clouds) {
+            cout << "Retrieved cloud size: " << c->size() << endl;
+        }
+
+        vector<float> scores;
+        vector<int> indices;
+        for (auto s : results.first) {
+            boost::filesystem::path segment_path = s.first;
+            string name = segment_path.stem().string();
+            size_t last_index = name.find_last_not_of("0123456789");
+            int index = stoi(name.substr(last_index + 1));
+            indices.push_back(index);
+            scores.push_back(s.second.score);
+        }
+
+        vector<vector<Eigen::Matrix4f>, Eigen::aligned_allocator<Eigen::Matrix4f > > initial_poses;
+        vector<vector<cv::Mat> > masks(retrieved_clouds.size());
+        vector<vector<cv::Mat> > images(retrieved_clouds.size());
+        vector<vector<cv::Mat> > depths(retrieved_clouds.size());
+        vector<vector<string> > paths(retrieved_clouds.size());
+        Eigen::Matrix3f K;
+        K << 0, 0, 0, 0, 0, 0, 0, 0, 0;
+        for (int i = 0; i < retrieved_clouds.size(); ++i) {
+            vector<int> inds;
+            auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
+            vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > sweep_transforms;
+            for (tf::StampedTransform& t : sweep_data.vIntermediateRoomCloudTransformsRegistered) {
+                Eigen::Affine3d e;
+                tf::transformTFToEigen(t, e);
+                sweep_transforms.push_back(e.inverse().matrix().cast<float>());
+            }
+            tie(masks[i], images[i], depths[i], inds) = generate_images_for_object(retrieved_clouds[i], K, sweep_paths[i], sweep_transforms);
+            for (int j = 0; j < inds.size(); ++j) {
+                paths[i].push_back(sweep_paths[i].string() + " " + to_string(inds[j]));
+            }
+        }
+
+        res.result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices);
+
+        cout << "Finished retrieval..." << endl;
     }
 
     void run_retrieval(const quasimodo_msgs::retrieval_query::ConstPtr& query_msg) //const string& sweep_xml)
