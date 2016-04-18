@@ -192,6 +192,7 @@ public:
         if (!all_cameras.size()){
             ROS_WARN_STREAM("AdditionalViewRegistrationOptimizer ---- WARNING - no cameras defined for this object");
         }
+
         problem.SetParameterBlockConstant(all_cameras[0]->quaternion);
         problem.SetParameterBlockConstant(all_cameras[0]->translation);
 
@@ -256,7 +257,6 @@ public:
                          fc.filter(filtered);
                          if (filtered.points.size()){
                              overlapping_cloud_indices.push_back(k);
-                             cout<<"Cloud "<<k<<" filtered points "<<filtered.points.size()<<endl;
                          }
                      }
 
@@ -301,7 +301,7 @@ public:
                                             image1_sift.keypoints, image2_sift.keypoints,
                                             matches);
                      if (m_bVerbose){
-                         ROS_INFO_STREAM("Registration to observation - Resulting number of matches for images "<<constr.image1<<" "<<constr.image2<<" is "<<matches.size());
+                         ROS_INFO_STREAM("Reg. to observation - Resulting number of matches for images "<<constr.image1<<" "<<constr.image2<<" is "<<matches.size());
                      }
                      constr.correspondences = validateMatches(matches,
                                                               vRGBImages[constr.image1], vRGBImages_Obs[constr.image2],
@@ -309,7 +309,7 @@ public:
                                                               constr.depth_threshold,
                                                               constr.correspondences_2d);
                      if (m_bVerbose){
-                         ROS_INFO_STREAM("Registration to observation --- after validating "<<constr.correspondences.size()<<"  "<<constr.correspondences_2d.size()<<" are left ");
+//                         ROS_INFO_STREAM("Reg. to observation --- after validating "<<constr.correspondences.size()<<"  "<<constr.correspondences_2d.size()<<" are left ");
                      }
 
                      if (constr.correspondences.size()){
@@ -370,7 +370,6 @@ public:
             }
         }
 
-
         Solver::Summary summary;
         Solve(options, &problem, &summary);
         if (m_bVerbose){
@@ -389,8 +388,11 @@ public:
 
         tf::Quaternion tf_q(cam_to_observation->quaternion[1],cam_to_observation->quaternion[2],cam_to_observation->quaternion[3], cam_to_observation->quaternion[0]);
         tf::Vector3 tf_v(cam_to_observation->translation[0], cam_to_observation->translation[1], cam_to_observation->translation[2]);
-        observation_transform.setOrigin(tf_v);
-        observation_transform.setRotation(tf_q);
+        tf::Transform observation_inverse_transform = tf::Transform(tf_q, tf_v);
+        observation_transform = observation_inverse_transform.inverse();
+
+        ROS_INFO_STREAM("Translation to observation "<<cam_to_observation->translation[0]<<" "<<cam_to_observation->translation[1]<<" "<<cam_to_observation->translation[2]);
+        ROS_INFO_STREAM("Rotation to observation "<<cam_to_observation->quaternion[0]<<" "<<cam_to_observation->quaternion[1]<<" "<<cam_to_observation->quaternion[2]<<" "<<cam_to_observation->quaternion[3]);
 
         // free memory
         // TODO check if this is necessary
