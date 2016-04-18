@@ -83,12 +83,32 @@ Afterwards, run `plot_values.py` in the folder where you ran the launch file.
 
 * `optimizer.launch` - launches `optimizer.py` and `rosbag_player.py`.
 
-## quasimodo_brain
-
-## quasimodo_data
-
-## quasimodo_models
-
 ## quasimodo_msgs
 
-## quasimodo_test
+All the message and service types required for the Quasimodo framework.
+
+### Message types
+
+* `image_array.msg` - an array of images
+* `int_array.msg` - an array of ints
+* `model.msg` - a model object, consisting of point clouds, frames, camera parameters and relative transforms
+* `retrieval_query.msg` - message type for querying `quasimodo_retrieval`
+* `retrieval_result.msg`- message type result from querying `quasimodo_retrieval`
+* `retrieval_query_result.msg` - a combined message for querying and result
+* `rgbd_frame.msg` - RGD images, depth images and camera parameters
+* `string_array.msg` - an array of strings
+
+### Service types
+
+* `cloud_from_model.srv` - service for fusing models into clouds
+* `fuse_models.srv` - several models to one fused model
+* `get_model.srv` - get model for identifier
+* `index_frame.srv` - add frame to model data base
+* `model_from_frame.srv` - turn frame into model
+* `query_cloud.srv` - query retrieval using `retrieval_query.msg`
+* `simple_query_cloud.srv` - query retrieval using `sensor_msgs/PointCloud2` pointcloud with normals
+* `visualize_query.srv`- visualize a `retrieval_result.msg`
+
+## quasimodo_brain
+
+## quasimodo_models
