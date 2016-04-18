@@ -3,7 +3,7 @@ project(quasimodo_brain)
 
 find_package(catkin REQUIRED COMPONENTS roscpp soma2_msgs soma_manager quasimodo_msgs quasimodo_models message_runtime pcl_ros metaroom_xml_parser eigen_conversions cv_bridge)
 
-set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3")
+set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3  -w")
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
