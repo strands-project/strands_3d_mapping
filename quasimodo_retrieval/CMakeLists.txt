@@ -177,6 +177,12 @@ add_executable(quasimodo_visualization_server src/quasimodo_visualization_server
 add_executable(quasimodo_visualize_model src/quasimodo_visualize_model.cpp)
 add_executable(quasimodo_retrieval_node src/quasimodo_retrieval_node.cpp)
 
+add_dependencies(quasimodo_retrieval_server quasimodo_msgs_generate_messages_cpp)
+add_dependencies(quasimodo_retrieval_publisher quasimodo_msgs_generate_messages_cpp)
+add_dependencies(quasimodo_visualization_server quasimodo_msgs_generate_messages_cpp)
+add_dependencies(quasimodo_visualize_model quasimodo_msgs_generate_messages_cpp)
+add_dependencies(quasimodo_retrieval_node quasimodo_msgs_generate_messages_cpp)
+
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 #add_dependencies(quasimodo_retrieval_server ${catkin_EXPORTED_TARGETS})
