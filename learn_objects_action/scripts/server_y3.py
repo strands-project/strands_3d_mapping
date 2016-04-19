@@ -2,7 +2,7 @@
 import rospy
 import os
 import sys
-from learn_objects_action.machine import LearnObjectActionMachineRAL16, LearnObjectActionMachineInfoGain
+from learn_objects_action.machine_y3 import LearnObjectActionMachineYear3
 from smach_ros import ActionServerWrapper
 from learn_objects_action.msg import LearnObjectAction
 
@@ -32,13 +32,11 @@ if debug_mode:
 
 # Construct state machine
 
-planning_method = rospy.get_param("~view_planner", "ral16")
-if planning_method == "ral16":
-    rospy.loginfo("Using the RAL-16 method for learning the object.")
-    sm = LearnObjectActionMachineRAL16(model_path, rois_file, debug_mode)
+planning_method = rospy.get_param("~view_planner", "year3")
+if planning_method == "year3":
+    rospy.loginfo("Using the Strands year3 method for learning the object.")
+    sm = LearnObjectActionMachineYear3(model_path, rois_file, debug_mode)
     pass
-elif planning_method == "infogain":
-    sm = LearnObjectActionMachineInfoGain(model_path, debug_mode)
 else:
     rospyt.logerr("The chosen planning method is not available.")
     sys.exit(1)
