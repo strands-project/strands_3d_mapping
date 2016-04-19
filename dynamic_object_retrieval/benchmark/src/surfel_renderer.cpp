@@ -475,6 +475,8 @@ cv::Mat render_surfel_image(SurfelCloudT::Ptr& cloud, const Eigen::Matrix4f& T,
 {
     int argc = 1;
     char* argv = "render_surfels";
+    //QApplication::setDesktopSettingsAware(false);
+    QApplication::setStyle("cde");
     QApplication app(argc, &argv);
 
     PointView pview;
