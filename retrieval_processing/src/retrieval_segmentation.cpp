@@ -173,12 +173,17 @@ int main(int argc, char** argv)
     pn.param<string>("data_path", temp_path, "~/.semanticMap");
     data_path = boost::filesystem::path(temp_path);
 
-    data_summary = dynamic_object_retrieval::data_summary();
-    data_summary.nbr_sweeps = 0;
-    data_summary.nbr_convex_segments = 0;
-    data_summary.nbr_subsegments = 0;
-    data_summary.subsegment_type = "convex_segment";
-    data_summary.save(data_path);
+    if (boost::filesystem::exists(data_path / "segments_summary.json")) {
+        data_summary.load(data_path);
+    }
+    else {
+        data_summary = dynamic_object_retrieval::data_summary();
+        data_summary.nbr_sweeps = 0;
+        data_summary.nbr_convex_segments = 0;
+        data_summary.nbr_subsegments = 0;
+        data_summary.subsegment_type = "convex_segment";
+        data_summary.save(data_path);
+    }
 
     pub = n.advertise<std_msgs::String>("/segmentation_done", 1);
 
