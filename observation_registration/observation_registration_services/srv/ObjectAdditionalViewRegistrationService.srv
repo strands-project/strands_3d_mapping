@@ -1,0 +1,7 @@
+string observation_xml # can be blank
+string object_xml
+---
+geometry_msgs/Transform[] additional_view_transforms
+int32[] additional_view_correspondences
+geometry_msgs/Transform observation_transform
+int32 observation_correspondences

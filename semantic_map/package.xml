@@ -27,6 +27,8 @@
   <build_depend>tf_conversions</build_depend>
   <build_depend>strands_sweep_registration</build_depend>
   <build_depend>metaroom_xml_parser</build_depend>
+  <build_depend>observation_registration_services</build_depend>
+
 
   <run_depend>rospy</run_depend>
   <run_depend>roscpp</run_depend>
@@ -44,6 +46,7 @@
   <run_depend>image_geometry</run_depend>
   <run_depend>strands_sweep_registration</run_depend>
   <run_depend>metaroom_xml_parser</run_depend>
+  <run_depend>observation_registration_services</run_depend>
 
   <export>
   </export>

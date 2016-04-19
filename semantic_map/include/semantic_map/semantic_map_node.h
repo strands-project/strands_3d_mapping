@@ -19,6 +19,7 @@
 
 // Services
 #include <semantic_map/ClearMetaroomService.h>
+#include <observation_registration_services/ObservationRegistrationService.h>
 //#include <semantic_map/DynamicClusterService.h>
 //#include <semantic_map/ObservationService.h>
 
@@ -267,96 +268,112 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         matchingMetaroomXML+="/metaroom.xml";
     }
 
-    metaroom->setUpdateMetaroom(m_bUpdateMetaroom);
-    metaroom->setSaveIntermediateSteps(m_bSaveIntermediateData);
-
-    // update metaroom
-    // check if the sweep poses have been precomputed
-    unsigned int x,y;
-    double*** rawPoses = semantic_map_registration_transforms::loadRegistrationTransforms(x,y);
-    RegistrationFeatures reg(false);
-    std::vector<RegistrationFeatures::RegistrationData> mr_features = reg.loadOrbFeatures(matchingMetaroomXML, false);
-    std::vector<RegistrationFeatures::RegistrationData> room_features = reg.loadOrbFeatures(xml_file_name, false);
-    std::cout<<"MR features "<<mr_features.size()<<" room features "<<room_features.size()<<std::endl;
-    std::cout<<"Room xml "<<xml_file_name<<" MR xml "<<matchingMetaroomXML<<std::endl;
-
-    bool do_registration = true;
     if (!found)
     {
         ROS_INFO_STREAM("Initializing metaroom.");
-    }/* else {
+    }
+    metaroom->setUpdateMetaroom(m_bUpdateMetaroom);
+    metaroom->setSaveIntermediateSteps(m_bSaveIntermediateData);
 
-        if ((!m_bUseNDTRegistration) && (rawPoses !=NULL) && (mr_features.size() != 0) && (room_features.size() != 0))
+    std::string previousObservationXml;
+    bool do_registration = true;
+    // check if we should register with the previous observation or with the Metaroom
+    if (!m_bNewestClusters)
+    { // computing all the clusters, by comparison with the metaroom -> register the observation with the metaroom
+        do_registration = true;
+    } else {
+        // computing the latest clusters by comparison with the previous observation -> register with the previous observation
+        do_registration=false;
+
+        // look for the previous observation in ~/.semanticMap/
+        passwd* pw = getpwuid(getuid());
+        std::string dataPath(pw->pw_dir);
+        dataPath+="/.semanticMap";
+
+        std::vector<std::string> matchingObservations = semantic_map_load_utilties::getSweepXmlsForTopologicalWaypoint<PointType>(dataPath, aRoom.getRoomStringId());
+        if (matchingObservations.size() == 0) // no observations -> first observation
         {
-            ROS_INFO_STREAM("Registering sweep using ORB features.");
-            unsigned int gx = 17;
-            unsigned int todox = 17;
-            unsigned int gy = 3;
-            unsigned int todoy = 3;
-            RobotContainer* new_rc = new RobotContainer(gx,todox,gy,todoy);
-            new_rc->initializeCamera(540.0, 540.0,319.5, 219.5, 640, 480);
-            for (size_t i=0; i<todox; i++){
-                for (size_t j=0; j<todoy;j++){
-                    for (size_t k=0; k<6;k++)
-                    {
+            ROS_INFO_STREAM("No observations for this waypoint saved on the disk "+aRoom.getRoomStringId()+" cannot compare with previous observation.");
+            std_msgs::String msg;
+            msg.data = "finished_processing_observation";
+            m_PublisherStatus.publish(msg);
 
-                        new_rc->poses[i][j][k] = rawPoses[i][j][k];
-                    }
-                }
-            }
+            // also update the metaroom here
+            auto updateIteration = metaroom->updateMetaRoom(aRoom,"",do_registration);
+            // save metaroom
+            ROS_INFO_STREAM("Saving metaroom.");
+            MetaRoomXMLParser<PointType> meta_parser;
+            meta_parser.saveMetaRoomAsXML(*metaroom);
 
-            for(unsigned int x = 0; x < todox; x++){
-                for(unsigned int y = 0; y < todoy; y++){
-                    delete[] rawPoses[x][y];
-                }
-                delete[] rawPoses[x];
-            }
-            delete[] rawPoses;
-
-            new_rc->addToTrainingORBFeatures(matchingMetaroomXML);
-            new_rc->addToTrainingORBFeatures(xml_file_name);
-            std::vector<Eigen::Matrix4f> reg_transforms = new_rc->alignAndStoreSweeps();
-
-            std::vector<Eigen::Matrix4f> sweepPoses = new_rc->sweeps[1]->getPoseVector();
-            auto roomTransforms = aRoom.getIntermediateCloudTransforms();
-            aRoom.clearIntermediateCloudRegisteredTransforms();
-
-            for (size_t j=0; j<roomTransforms.size();j++)
-            {
-                tf::StampedTransform roomTransform = roomTransforms[j];
-                const Eigen::Affine3d eigenTr(sweepPoses[j].cast<double>());
-                tf::Transform tfTr;
-                tf::transformEigenToTF(eigenTr, tfTr);
-
-                roomTransform.setOrigin(tfTr.getOrigin());
-                roomTransform.setBasis(tfTr.getBasis());
-
-                aRoom.addIntermediateRoomCloudRegisteredTransform(roomTransform);
-            }
-
-            semantic_map_room_utilities::rebuildRegisteredCloud<PointType>(aRoom);
-            CloudPtr roomCloud = aRoom.getCompleteRoomCloud();
-            pcl::transformPointCloud (*roomCloud, *roomCloud, metaroom->getRoomTransform());
-
-            aRoom.setCompleteRoomCloud(roomCloud);
-
-            // update room transform
-            tf::StampedTransform sweep_to_map = aRoom.getIntermediateCloudTransforms()[0];
-            Eigen::Affine3d eigen_affine; tf::transformTFToEigen(sweep_to_map, eigen_affine);
-            Eigen::Matrix4f eigen_matrix(eigen_affine.matrix().cast<float>());
-            aRoom.setRoomTransform(metaroom->getRoomTransform() * eigen_matrix.inverse());
-
-            SemanticRoomXMLParser<PointType> parser;
-            parser.saveRoomAsXML(aRoom);
-            delete new_rc;
-            do_registration = false;
-        } else {
-            ROS_INFO_STREAM("Preregistered sweep poses not found or ORB features not computed. Registering with NDT.");
+            return;
         }
-    }*/
+        if (matchingObservations.size() == 1) // first observation at this waypoint
+        {
+            ROS_INFO_STREAM("No dynamic clusters.");
+            std_msgs::String msg;
+            msg.data = "finished_processing_observation";
+            m_PublisherStatus.publish(msg);
+
+            // also update the metaroom here
+            auto updateIteration = metaroom->updateMetaRoom(aRoom,"",do_registration);
+            // save metaroom
+            ROS_INFO_STREAM("Saving metaroom.");
+            MetaRoomXMLParser<PointType> meta_parser;
+            meta_parser.saveMetaRoomAsXML(*metaroom);
+
+            return;
+        }
+
+        // multiple observations -> find the previous one
+        reverse(matchingObservations.begin(), matchingObservations.end());
+        std::string latest = matchingObservations[0];
+        if (latest != xml_file_name)
+        {
+            ROS_WARN_STREAM("The xml file for the latest observations "+latest+" is different from the one provided "+xml_file_name+" Aborting");
+        }
+
+        previousObservationXml = matchingObservations[1];
+    }
+
+     if (m_bNewestClusters){
+         // register with the previous observation using the observation_registration_server service
+         ros::ServiceClient client = m_NodeHandle.serviceClient<observation_registration_services::ObservationRegistrationService>("/observation_registration_server");
+         observation_registration_services::ObservationRegistrationService srv;
+         srv.request.source_observation_xml = xml_file_name; // source
+         srv.request.target_observation_xml = previousObservationXml; //target
+         tf::Transform registered_transform;
+         if (client.call(srv))
+         {
+             ROS_INFO_STREAM("Registration done using the observation_registration_server service. Number of constraints "<<srv.response.total_correspondences);
+             if (srv.response.total_correspondences <= 0){
+                 ROS_ERROR_STREAM("Registration unsuccessful due to insufficient constraints. Will use the default NDT registration");
+                 do_registration = true;
+             } else {
+                 // registration successfull -> update room cloud and set registered transform
+                tf::transformMsgToTF(srv.response.transform, registered_transform);
+                CloudPtr room_complete_cloud = aRoom.getCompleteRoomCloud();
+                CloudPtr room_interior_cloud = MetaRoom<PointType>::downsampleCloud(room_complete_cloud->makeShared());
+                pcl_ros::transformPointCloud(*room_interior_cloud, *room_interior_cloud,registered_transform);
+                aRoom.setDeNoisedRoomCloud(room_interior_cloud);
+                aRoom.setInteriorRoomCloud(room_interior_cloud);
+
+                Eigen::Affine3d registered_transform_eigen;
+                tf::transformTFToEigen(registered_transform, registered_transform_eigen);
+                aRoom.setRoomTransform(registered_transform_eigen.matrix().cast<float>());
+                do_registration=false;
+                // save updated room
+                parser.saveRoomAsXML(aRoom);
+             }
+         }
+         else
+         {
+             ROS_ERROR("Failed to call service observation_registration_server. Will use the default NDT registration.");
+             do_registration = true;
+         }
+
+     }
 
     auto updateIteration = metaroom->updateMetaRoom(aRoom,"",do_registration);
-
     // save metaroom
     ROS_INFO_STREAM("Saving metaroom.");
     MetaRoomXMLParser<PointType> meta_parser;
@@ -381,15 +398,6 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
 //    m_vLoadedMetarooms.push_back(metaroom); // don't keep data in memory
     ROS_INFO_STREAM("Published metaroom");
 
-
-//    if (aRoom.getRoomStringId() != "") // waypoint id set, update the map
-//    {
-//        m_WaypointToMetaroomMap[aRoom.getRoomStringId()] = metaroom;
-//        ROS_INFO_STREAM("Updated map with new metaroom for waypoint "<<aRoom.getRoomStringId());
-//        m_WaypointToRoomMap[aRoom.getRoomStringId()] = aRoom;
-//    }
-
-
     CloudPtr roomCloud = aRoom.getInteriorRoomCloud();
     ROS_INFO_STREAM("Computing differences");
     CloudPtr difference(new Cloud());
@@ -408,44 +416,16 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         ROS_INFO_STREAM("Comparison cloud "<<metaroomCloud->points.size()<<"  room cloud "<<roomCloud->points.size());
     } else {
         // compare with previous observation
-
-        // look for the previous observation in ~/.semanticMap/
-        passwd* pw = getpwuid(getuid());
-        std::string dataPath(pw->pw_dir);
-        dataPath+="/.semanticMap";
-
-        std::vector<std::string> matchingObservations = semantic_map_load_utilties::getSweepXmlsForTopologicalWaypoint<PointType>(dataPath, aRoom.getRoomStringId());
-        if (matchingObservations.size() == 0)
-        {
-            ROS_ERROR_STREAM("No observations for this waypoint saved on the disk "+aRoom.getRoomStringId()+" cannot compare with previous observation.");
-            std_msgs::String msg;
-            msg.data = "finished_processing_observation";
-            m_PublisherStatus.publish(msg);
-            return;
-        }
-        if (matchingObservations.size() == 1)
-        {
-            ROS_INFO_STREAM("No dynamic clusters.");
-            std_msgs::String msg;
-            msg.data = "finished_processing_observation";
-            m_PublisherStatus.publish(msg);
-            return;
-        }
-
-//        sort(matchingObservations.begin(), matchingObservations.end());
-        reverse(matchingObservations.begin(), matchingObservations.end());
-        std::string latest = matchingObservations[0];
-        if (latest != xml_file_name)
-        {
-            ROS_WARN_STREAM("The xml file for the latest observations "+latest+" is different from the one provided "+xml_file_name+" Aborting");
-        }
-
-        std::string previous = matchingObservations[1];
-        ROS_INFO_STREAM("Comparing with "<<previous);
+        ROS_INFO_STREAM("Comparing with "<<previousObservationXml);
         SemanticRoomXMLParser<PointType> parser;
-        SemanticRoom<PointType> prevRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(previous,true);
+        SemanticRoom<PointType> prevRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(previousObservationXml,true);
 
-        CloudPtr prevCloud = prevRoom.getInteriorRoomCloud();
+        CloudPtr prevCompleteCloud = prevRoom.getCompleteRoomCloud();
+        CloudPtr prevCloud = MetaRoom<PointType>::downsampleCloud(prevCompleteCloud->makeShared());
+
+//        Eigen::Matrix4f prevRoomTransform = prevRoom.getRoomTransform();
+//        // apply this to the current observation cloud as well
+//        pcl::transformPointCloud (*roomCloud, *roomCloud, prevRoomTransform);
 
         // compute differences and check occlusions
         CloudPtr differenceRoomToPrevRoom(new Cloud);
@@ -471,7 +451,8 @@ void SemanticMapNode<PointType>::processRoomObservation(std::string xml_file_nam
         CloudPtr toBeRemoved(new Cloud());
 
         OcclusionChecker<PointType> occlusionChecker;
-        occlusionChecker.setSensorOrigin(metaroom->getSensorOrigin()); // since it's already transformed in the metaroom frame of ref
+//        occlusionChecker.setSensorOrigin(metaroom->getSensorOrigin()); // since it's already transformed in the metaroom frame of ref
+        occlusionChecker.setSensorOrigin(prevRoom.getIntermediateCloudTransforms()[0].getOrigin()); // since it's already transformed in the metaroom frame of ref
         auto occlusions = occlusionChecker.checkOcclusions(differenceRoomToPrevRoom,differencePrevRoomToRoom, 720 );
         *difference = *occlusions.toBeRemoved;
     }

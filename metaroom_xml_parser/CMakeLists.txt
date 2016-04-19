@@ -50,6 +50,8 @@ add_executable(load_labelled_data src/load_labelled_data.cpp )
 
 add_executable(test_dynamic_object_parser src/test_dynamic_object_parser.cpp )
 
+add_executable(load_additional_views src/load_additional_views_main.cpp )
+
  target_link_libraries(metaroom_xml_parser
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
@@ -84,11 +86,18 @@ add_executable(test_dynamic_object_parser src/test_dynamic_object_parser.cpp )
    metaroom_xml_parser
  )
 
+ target_link_libraries(load_additional_views
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+   metaroom_xml_parser
+ )
+
 
 
 ############################# INSTALL TARGETS
 
-install(TARGETS metaroom_xml_parser  load_single_file load_multiple_files load_labelled_data
+install(TARGETS metaroom_xml_parser  load_single_file load_multiple_files load_labelled_data test_dynamic_object_parser load_additional_views
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

@@ -4,8 +4,11 @@
 #include "strands_sweep_registration/pair3DError.h"
 #include "strands_sweep_registration/RobotContainer.h"
 
+#include "strands_sweep_registration/camera_parameters.h"
+
 typedef pcl::PointXYZRGB PointType;
 typedef typename SimpleSummaryParser::EntityStruct Entities;
+
 
 void RobotContainer::saveAllSweeps(std::string savePath)
 {
@@ -115,7 +118,7 @@ RobotContainer::~RobotContainer(){
 
 void RobotContainer::initializeCamera(double fx, double fy, double cx, double cy, unsigned int w, unsigned int h)
 {
-    std::cout<<"Initializing camera"<<std::endl;
+    std::cout<<"Initializing camera with parameters "<<fx<<"  "<<fy<<"  "<<cx<<"  "<<cy<<"  "<<w<<"  "<<h<<std::endl;
     width = w;
     height = h;
 
@@ -135,6 +138,9 @@ void RobotContainer::initializeCamera(double fx, double fy, double cx, double cy
     shared_params[2] = cx;
     shared_params[3] = cy;
     shared_params[4] = 0.1;
+
+    // initialize singleton class
+    CameraParameters::get(fx, fy, cx, cy ,w, h);
 }
 
 bool RobotContainer::addToTrainingORBFeatures(std::string path)
