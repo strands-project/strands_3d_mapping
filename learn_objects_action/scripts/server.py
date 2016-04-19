@@ -3,7 +3,6 @@ import rospy
 import os
 import sys
 from learn_objects_action.machine import LearnObjectActionMachineRAL16, LearnObjectActionMachineInfoGain
-from learn_objects_action.machine_y3 import LearnObjectActionMachineYear3
 from smach_ros import ActionServerWrapper
 from learn_objects_action.msg import LearnObjectAction
 
@@ -40,9 +39,6 @@ if planning_method == "ral16":
     pass
 elif planning_method == "infogain":
     sm = LearnObjectActionMachineInfoGain(model_path, debug_mode)
-elif planning_method == "year3":
-    sm = LearnObjectActionMachineYear3(model_path, debug_mode)
-
 else:
     rospyt.logerr("The chosen planning method is not available.")
     sys.exit(1)
