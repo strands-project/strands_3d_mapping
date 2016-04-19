@@ -64,9 +64,9 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 	IplImage iplimg = rgb_;
 	IplImage* img = &iplimg;
 
-	int width = img->width;
-	int height = img->height;
-	int sz = height*width;
+    int width = img->width;
+    int height = img->height;
+    int sz = height*width;
 	const double idepth			= camera->idepth_scale;
 	const double cx				= camera->cx;
 	const double cy				= camera->cy;
@@ -99,8 +99,8 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 	unsigned char * depthedgesdata = (unsigned char *)depthedges.data;
 
 	double t = 0.01;
-	for(unsigned int w = 0; w < width; w++){
-		for(unsigned int h = 0; h < height;h++){
+    for(int w = 0; w < width; w++){
+        for(int h = 0; h < height;h++){
 			int ind = h*width+w;
 			depthedgesdata[ind] = 0;
 			double z = idepth*double(depthdata[ind]);
@@ -210,8 +210,8 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 		cloud->height	= height;
 		cloud->points.resize(width*height);
 
-		for(unsigned int w = 0; w < width; w++){
-			for(unsigned int h = 0; h < height;h++){
+        for(int w = 0; w < width; w++){
+            for(int h = 0; h < height;h++){
 				int ind = h*width+w;
 				pcl::PointXYZ & p = cloud->points[ind];
 				//p.b = rgbdata[3*ind+0];
@@ -253,8 +253,8 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 		ne.setDepthDependentSmoothing (depth_dependent_smoothing);
 		ne.compute(*normals);
 
-		for(unsigned int w = 0; w < width; w++){
-			for(unsigned int h = 0; h < height;h++){
+        for(int w = 0; w < width; w++){
+            for(int h = 0; h < height;h++){
 				int ind = h*width+w;
 				pcl::Normal		p2		= normals->points[ind];
 				if(!isnan(p2.normal_x)){
@@ -292,8 +292,8 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 				ne.setNormalSmoothingSize(NormalSmoothingSize);
 				ne.setDepthDependentSmoothing (depth_dependent_smoothing);
 				ne.compute(*normals);
-				for(unsigned int w = 0; w < width; w++){
-					for(unsigned int h = 0; h < height;h++){
+                for(int w = 0; w < width; w++){
+                    for(int h = 0; h < height;h++){
 						int ind = h*width+w;
 						pcl::Normal		p2		= normals->points[ind];
 						if(!isnan(p2.normal_x)){

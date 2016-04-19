@@ -111,20 +111,23 @@ All the message and service types required for the Quasimodo framework.
 
 ## quasimodo_brain
 
+This package controlls the flow of data in the quasimodo system and maintains the database of object models. Relies heavily on the quasimodo_models package. The package also contains loaders for different formats of data, such as for example the metarooms.
+```
+roslaunch quasimodo_brain modelserver.launch
+```
+
 ### Nodes
 
-* XXX
+* `preload_object_data` - Reads data in the metarooms format. Uppon requests publishes data for the `modelserver`. Input: paths to a set of folders containing data. 
+
+* `modelserver` - Listens to data from input modules, uses the `quasimodo_models` package to register and merge models into more complete models and thereby maintain the database of objects. Input: '-v' for visualization, '-p /path/to/folder' to set a folder where the database is read/stored, '-m' initializes the database with the data from /path/to/folder, '-massreg_timeout value' sets the stopping time for the multiview registration, '-occlusion_penalty value' sets the penalty value for occlusions(controlling how likeley the database is to merge models).
 
 ### Launch files
 
-* XXX
+* `modelserver.launch` - this file launches the modelserver node without the visualization flag.
+
+* `brain.launch` - Launches the modelserver and the preload_object_data nodes. On automatic restart.
 
 ## quasimodo_models
 
-### Nodes
-
-* XXX
-
-### Launch files
-
-* XXX
+This package is contains libraries for registering, splitting, merging and optimizing quasimodo object models. Quasimodo object models contain RGBDFrames, Segmentation masks, Depthimages and relative poses between the data for the frames.
