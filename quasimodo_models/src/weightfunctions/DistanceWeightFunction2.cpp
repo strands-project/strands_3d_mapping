@@ -1,4 +1,4 @@
-#include "DistanceWeightFunction2.h"
+#include "weightfunctions/DistanceWeightFunction2.h"
 
 namespace reglib
 {

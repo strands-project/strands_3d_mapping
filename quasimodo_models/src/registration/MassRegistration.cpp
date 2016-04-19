@@ -1,4 +1,4 @@
-#include "MassRegistration.h"
+#include "registration/MassRegistration.h"
 
 namespace reglib
 {

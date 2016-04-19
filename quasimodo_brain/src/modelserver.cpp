@@ -21,7 +21,7 @@
 
 //#include "modelupdater/ModelUpdater.h"
 //#include "/home/johane/catkin_ws_dyn/src/quasimodo_models/include/modelupdater/ModelUpdater.h"
-#include "../../quasimodo_models/include/modelupdater/ModelUpdater.h"
+#include "modelupdater/ModelUpdater.h"
 #include "core/RGBDFrame.h"
 #include <sensor_msgs/PointCloud2.h>
 #include <string.h>
@@ -51,7 +51,7 @@ std::map<int , reglib::RGBDFrame *>		frames;
 
 std::map<int , reglib::Model *>			models;
 std::map<int , reglib::ModelUpdater *>	updaters;
-reglib::RegistrationGOICP *				registration;
+reglib::RegistrationRandom *				registration;
 ModelDatabase * 						modeldatabase;
 
 std::string								savepath = ".";
@@ -95,7 +95,7 @@ void publishDatabasePCD(){
         float meanx = 0;
         float meany = 0;
         float meanz = 0;
-        for(int j = 0; j < cloud->points.size(); j++){
+        for(unsigned int j = 0; j < cloud->points.size(); j++){
             meanx += cloud->points[j].x;
             meany += cloud->points[j].y;
             meanz += cloud->points[j].z;
@@ -132,18 +132,18 @@ void dumpDatabase(std::string path = "."){
 	char command [1024];
 	sprintf(command,"rm -r %s/model*",path.c_str());
 	printf("%s\n",command);
-	system(command);
+    int r = system(command);
 
 	sprintf(command,"rm %s/camera*",path.c_str());
 	printf("%s\n",command);
-	system(command);
+    r = system(command);
 
 	cameras[0]->save(path+"/camera0");
 	for(unsigned int m = 0; m < modeldatabase->models.size(); m++){
 		char buf [1024];
 		sprintf(buf,"%s/model%i",path.c_str(),m);
 		sprintf(command,"mkdir -p %s",buf);
-		system(command);
+        r = system(command);
 		modeldatabase->models[m]->save(std::string(buf));
 	}
 }
@@ -169,7 +169,7 @@ void show_sorted(){
 		float meanx = 0;
 		float meany = 0;
 		float meanz = 0;
-		for(int j = 0; j < cloud->points.size(); j++){
+        for(unsigned int j = 0; j < cloud->points.size(); j++){
 			meanx += cloud->points[j].x;
 			meany += cloud->points[j].y;
 			meanz += cloud->points[j].z;
@@ -233,16 +233,16 @@ quasimodo_msgs::model getModelMSG(reglib::Model * model){
 
 std::vector<soma2_msgs::SOMA2Object> getSOMA2ObjectMSGs(reglib::Model * model){
 	std::vector<soma2_msgs::SOMA2Object> msgs;
-	for(int i = 0; i < model->frames.size(); i++){
+    for(unsigned int i = 0; i < model->frames.size(); i++){
 		soma2_msgs::SOMA2Object msg;
 		char buf [1024];
-		sprintf(buf,"id_%i_%i",model->id,model->frames[i]->id);
+        sprintf(buf,"id_%i_%i",int(model->id),int(model->frames[i]->id));
 		msg.id				= std::string(buf);
 		msg.map_name		= "whatevermapname";				//	#### the global map that the object belongs. Automatically filled by SOMA2 insert service
 		msg.map_unique_id	= "";								// 	#### the unique db id of the map. Automatically filled by SOMA2 insert service
 		msg.config			= "configid";						//	#### the corresponding world configuration. This could be incremented as config1, config2 at each meta-room observation
 		msg.mesh			= "";								//	#### mesh model of the object. Could be left blank
-		sprintf(buf,"type_%i",model->id);
+        sprintf(buf,"type_%i",int(model->id));
 		msg.type			= std::string(buf);					//	#### type of the object. For higher level objects, this could chair1, chair2. For middle or lower level segments it could be segment1101, segment1102, etc.
 //		msg.waypoint		= "";								//	#### the waypoint id. Could be left blank
 		msg.timestep 		= 0;								//	#### this is the discrete observation instance. This could be incremented at each meta-room observation as 1,2,3,etc...
@@ -407,7 +407,7 @@ std::vector<reglib::FusionResults > fr_res;
 void call_from_thread(int i) {
 	reglib::Model * model2 = res[i];
 
-	printf("testreg %i to %i\n",mod->id,model2->id);
+    printf("testreg %i to %i\n",int(mod->id),int(model2->id));
 	reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 	reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
     mu->occlusion_penalty               = occlusion_penalty;
@@ -425,7 +425,7 @@ void call_from_thread(int i) {
 
 int current_model_update = 0;
 void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, bool deleteIfFail = false){
-	printf("addToDB %i %i\n",add,deleteIfFail);
+    printf("addToDB %i %i\n",int(add),int(deleteIfFail));
 	if(add){
 
 		if(model->frames.size() > 2){
@@ -508,10 +508,10 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
 
 		reglib::UpdatedModels ud = mu->fuseData(&(fr2merge[i]), model, model2);
 
-		printf("merge %i to %i\n",model->id,model2->id);
-		printf("new_models:     %i\n",ud.new_models.size());
-		printf("updated_models: %i\n",ud.updated_models.size());
-		printf("deleted_models: %i\n",ud.deleted_models.size());
+        printf("merge %i to %i\n",int(model->id),int(model2->id));
+        printf("new_models:     %i\n",int(ud.new_models.size()));
+        printf("updated_models: %i\n",int(ud.updated_models.size()));
+        printf("deleted_models: %i\n",int(ud.deleted_models.size()));
 
 		delete mu;
 		delete reg;
@@ -530,12 +530,12 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
 	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end();	++it){	addToDB(database, it->second);}
 	for (std::map<int,reglib::Model *>::iterator it=new_models.begin();		it!=new_models.end();		++it){	addToDB(database, it->second);}
 
-	printf("end of addToDB: %i %i",add,deleteIfFail);
+    printf("end of addToDB: %i %i",int(add),int(deleteIfFail));
 	if(deleteIfFail){
 		if(!changed){
 			printf("didnt manage to integrate searchresult\n");
 			database->remove(model);
-			for(int i = 0; i < model->frames.size(); i++){
+            for(unsigned int i = 0; i < model->frames.size(); i++){
 				delete model->frames[i];
 				delete model->modelmasks[i];
 			}
@@ -560,7 +560,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 	uint64 frame_id = req.frame_id;
 	uint64 isnewmodel = req.isnewmodel;
 
-	printf("%i and %i\n",long(frame_id),long(isnewmodel));
+    printf("%i and %i\n",int(frame_id),int(isnewmodel));
 	cv_bridge::CvImagePtr			mask_ptr;
 	try{							mask_ptr = cv_bridge::toCvCopy(req.mask, sensor_msgs::image_encodings::MONO8);}
 	catch (cv_bridge::Exception& e){ROS_ERROR("cv_bridge exception: %s", e.what());return false;}
@@ -649,10 +649,10 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 //exit(0);
 		bool run_search = false;
 		for(unsigned int m = 0; run_search && m < modeldatabase->models.size(); m++){
-			printf("looking at: %i\n",modeldatabase->models[m]->last_changed);
+            printf("looking at: %i\n",int(modeldatabase->models[m]->last_changed));
 			reglib::Model * currentTest = modeldatabase->models[m];
 			if(currentTest->last_changed > current_model_update_before){
-				printf("changed: %i\n",m);
+                printf("changed: %i\n",int(m));
 
 				double start = getTime();
                 double timelimit = 1;//30;
@@ -664,8 +664,8 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
                     ros::spinOnce();
 					if(new_search_result){
 
-						for(int i = 0; i < sresult.retrieved_images.size(); i++){
-							for(int j = 0; j < 1 && j < sresult.retrieved_images[i].images.size(); j++){
+                        for(unsigned int i = 0; i < sresult.retrieved_images.size(); i++){
+                            for(unsigned int j = 0; j < 1 && j < sresult.retrieved_images[i].images.size(); j++){
 
 								cv_bridge::CvImagePtr ret_image_ptr;
 								try {ret_image_ptr = cv_bridge::toCvCopy(sresult.retrieved_images[i].images[j], sensor_msgs::image_encodings::BGR8);}
@@ -721,7 +721,7 @@ int main(int argc, char **argv){
 	ros::NodeHandle n;
 
 	cameras[0]		= new reglib::Camera();
-	registration	= new reglib::RegistrationGOICP();
+    registration	= new reglib::RegistrationRandom();
 	modeldatabase	= new ModelDatabaseBasic();
 
 	models_new_pub		= n.advertise<quasimodo_msgs::model>("/models/new",		1000);

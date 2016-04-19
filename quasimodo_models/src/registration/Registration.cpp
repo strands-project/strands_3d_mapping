@@ -1,4 +1,4 @@
-#include "Registration.h"
+#include "registration/Registration.h"
 //#include "ICP.h"
 namespace reglib
 {

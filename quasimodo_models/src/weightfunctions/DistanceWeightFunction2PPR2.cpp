@@ -1,4 +1,4 @@
-#include "DistanceWeightFunction2PPR2.h"
+#include "weightfunctions/DistanceWeightFunction2PPR2.h"
 
 namespace reglib{
 
@@ -220,8 +220,8 @@ void blurHistogram2(std::vector<float> & blur_hist,  std::vector<float> & hist, 
 		double v = tmphist[i];
 		if(v == 0){continue;}
 
-		unsigned int start	= std::max(0,i-offset);
-		unsigned int stop	= std::min(nr_data2,i+offset+1);
+        int start	= std::max(0,i-offset);
+        int stop	= std::min(nr_data2,i+offset+1);
 
 		for(int j = start; j < stop; j++){tmphist_blur[j] += v*weights[abs(i-j)];}
 	}
@@ -568,9 +568,9 @@ if(!fixed_histogram_size){
 	}
 
 	if(debugg_print){printf("hist = [");				for(int k = 0; k < 300 && k < histogram_size; k++){printf("%i ",int(histogram[k]));}		printf("];\n");}
-	if(debugg_print){printf("noise = [");				for(int k = 0; k < 300 && k < noise.size(); k++){printf("%i ",int(noise[k]));}			printf("];\n");}
-	if(debugg_print){printf("hist_smooth = [");			for(int k = 0; k < 300 && k < blur_histogram.size(); k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
-	if(debugg_print){printf("new_histogram = [");		for(int k = 0; k < 300 && k < new_histogram.size(); k++){printf("%i ",int(new_histogram[k]));}	printf("];\n");}
+    if(debugg_print){printf("noise = [");				for(int k = 0; k < 300 && k < int(noise.size()); k++){printf("%i ",int(noise[k]));}			printf("];\n");}
+    if(debugg_print){printf("hist_smooth = [");			for(int k = 0; k < 300 && k < int(blur_histogram.size()); k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
+    if(debugg_print){printf("new_histogram = [");		for(int k = 0; k < 300 && k < int(new_histogram.size()); k++){printf("%i ",int(new_histogram[k]));}	printf("];\n");}
 	if(false){printf("meanoffset: %f stdval2: %f stdval: %f regularization: %f\n",meanval2,stdval2,noiseval,regularization);}
 	if(!fixed_histogram_size && update_size ){
 		double next_maxd  = meanval2 + (stdval2 + regularization)*target_length;
@@ -643,7 +643,7 @@ bool DistanceWeightFunction2PPR2::update(){
 		std::vector<float> new_blur_histogram = blur_histogram;
 
 		float old_sum_prob = 0;
-		for(unsigned int k = 0; k < histogram_size; k++){old_sum_prob += prob[k] * histogram[k];}
+        for(int k = 0; k < histogram_size; k++){old_sum_prob += prob[k] * histogram[k];}
 
 		Gaussian3 g = Gaussian3(mulval,meanval,stdval);//getModel(stdval,blur_histogram,uniform_bias);
 

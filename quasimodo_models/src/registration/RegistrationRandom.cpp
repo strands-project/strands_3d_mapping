@@ -1,12 +1,10 @@
-#include "RegistrationRandom.h"
-
-#include "ICP.h"
-#include "GoICP_V1.3/src/jly_goicp.h"
+#include "registration/RegistrationRandom.h"
+#include "registration/ICP.h"
 
 #include <iostream>
 #include <fstream>
 
-#include "myhull.h"
+#include "registration/myhull.h"
 
 //#include <pcl/surface/convex_hull.h>
 

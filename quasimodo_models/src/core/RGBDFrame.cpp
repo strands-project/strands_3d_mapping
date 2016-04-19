@@ -1,4 +1,4 @@
-#include "RGBDFrame.h"
+#include "core/RGBDFrame.h"
 
 #include <pcl/console/parse.h>
 #include <pcl/point_cloud.h>
@@ -7,7 +7,6 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/segmentation/supervoxel_clustering.h>
 
-//VTK include needed for drawing graph lines
 #include <vtkPolyLine.h>
 
 #include <iostream>
@@ -21,24 +20,15 @@
 #include <pcl/filters/passthrough.h>
 #include <pcl/segmentation/region_growing.h>
 
-//#include "seeds3.cpp"
-//#include "seeds2.cpp"
 #include <vector>
 #include <string>
-
-//#include "seeds2.h"
 
 #include <cv.h>
 #include <highgui.h>
 #include <fstream>
 
-
-#include "helper.h"
-
 #include <ctime>
 
-#include <iostream>
-#include <fstream>
 
 namespace reglib
 {
@@ -83,17 +73,11 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 
 	nr_labels = 1;
 	labels = new int[width*height];
-	for(unsigned int i = 0; i < width*height; i++){labels[i] = 0;}
-
-//	printf("Image loaded %d\n",img->nChannels);
+    for(int i = 0; i < width*height; i++){labels[i] = 0;}
 
 
 	unsigned short * depthdata = (unsigned short *)depth.data;
 	unsigned char * rgbdata = (unsigned char *)rgb.data;
-
-	//unsigned short * oriframe = (unsigned short *)depth.data;
-	//for(int i = 10000; i < 640*480; i+=10000){printf("%i depth %i\n",i,oriframe[i]);}
-	//exit(0);
 
 	depthedges.create(height,width,CV_8UC1);
 	unsigned char * depthedgesdata = (unsigned char *)depthedges.data;
@@ -162,47 +146,9 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 		}
 	}
 
-//	for(unsigned int w = 0; w < width; w++){
-//		for(unsigned int h = 0; h < height;h++){
-//			int ind = h*width+w;
-//			double z = idepth*double(depthdata[ind]);
-//			if(w > 0		&& depthedgesdata[ind-1] > 0){		depthedgesdata[ind] = 255;}
-//			if(h > 0		&& depthedgesdata[ind-width] > 0){	depthedgesdata[ind] = 255;}
-//			if(w < width-1	&& depthedgesdata[ind+1] > 0){		depthedgesdata[ind] = 255;}
-//			if(h < height-1 && depthedgesdata[ind+width] > 0){	depthedgesdata[ind] = 255;}
-//		}
-//	}
-
-/*
-	cv::namedWindow( "rgb", cv::WINDOW_AUTOSIZE );			cv::imshow( "rgb", rgb );
-	cv::namedWindow( "normals", cv::WINDOW_AUTOSIZE );		cv::imshow( "normals", normals );
-	cv::namedWindow( "depth", cv::WINDOW_AUTOSIZE );		cv::imshow( "depth", depth );
-	cv::namedWindow( "depthedges", cv::WINDOW_AUTOSIZE );	cv::imshow( "depthedges", depthedges );
-	cv::namedWindow( "erosion_mask", cv::WINDOW_AUTOSIZE );	cv::imshow( "erosion_mask", erosion_mask );
-	cv::waitKey(0);
-*/
-
-/*
-	unsigned char * erosion_maskdata = (unsigned char *)erosion_mask.data;
-	for(unsigned int w = 1; w < 639; w++){
-		for(unsigned int h = 1; h < 479; h++){
-			if(erosion_maskdata[h*640+w] != 0){
-				testw.push_back(w);
-				testh.push_back(h);
-			}
-		}
-	}
-*/
-
 	if(compute_normals){
-
-
 		normals.create(height,width,CV_32FC3);
 		float * normalsdata = (float *)normals.data;
-
-
-
-		//printf("idepth: %f\n",idepth);
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr	cloud	(new pcl::PointCloud<pcl::PointXYZ>);
 		pcl::PointCloud<pcl::Normal>::Ptr	normals (new pcl::PointCloud<pcl::Normal>);
@@ -214,17 +160,11 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
             for(int h = 0; h < height;h++){
 				int ind = h*width+w;
 				pcl::PointXYZ & p = cloud->points[ind];
-				//p.b = rgbdata[3*ind+0];
-				//p.g = rgbdata[3*ind+1];
-				//p.r = rgbdata[3*ind+2];
 				double z = idepth*double(depthdata[ind]);
-				//if(w % 10 == 0 && h % 10 == 0){printf("%i %i -> %f\n",w,h,z);}
-
 				if(z > 0){
 					p.x = (double(w) - cx) * z * ifx;
 					p.y = (double(h) - cy) * z * ify;
 					p.z = z;
-					//cloud->points[ind] = p;
 				}else{
 					p.x = NAN;
 					p.y = NAN;
@@ -233,11 +173,8 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 			}
 		}
 
-		//pcl::io::savePCDFileASCII ("test_pcd.pcd", *cloud);
-
 		pcl::IntegralImageNormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
 		ne.setInputCloud(cloud);
-
 
 		bool tune = false;
 		unsigned char * combidata;
@@ -309,8 +246,8 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 				}
 
 
-				for(unsigned int w = 0; w < width; w++){
-					for(unsigned int h = 0; h < height;h++){
+                for(int w = 0; w < width; w++){
+                    for(int h = 0; h < height;h++){
 						int ind = h*width+w;
 						int indn = h*2*width+(w+width);
 						int indc = h*2*width+(w);
@@ -330,7 +267,7 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 					}
 				}
 				char buf [1024];
-				sprintf(buf,"combined%i.png",id);
+                sprintf(buf,"combined%i.png",int(id));
 				cv::imwrite( buf, combined );
 				printf("saving: %s\n",buf);
 				cv::imshow( "combined", combined );

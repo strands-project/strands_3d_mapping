@@ -1,8 +1,8 @@
-#include "RegistrationRefinement.h"
+#include "registration/RegistrationRefinement.h"
 #include <iostream>
 #include <fstream>
 
-#include "myhull.h"
+#include "registration/myhull.h"
 
 //#include <pcl/surface/convex_hull.h>
 
@@ -79,7 +79,7 @@ Eigen::Affine3d point_to_plane(Eigen::MatrixBase<Derived1>& X,
 #pragma omp parallel
 	{
 #pragma omp for
-		for(int i=0; i<X.cols(); i++) {
+        for(int i=0; i<X.cols(); i++) {
 			C.col(i) = X.col(i).cross(N.col(i));
 		}
 #pragma omp sections nowait
@@ -257,7 +257,7 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 					case PointToPoint:	{residuals = X-Qp;} 						break;
 					case PointToPlane:	{
 						residuals		= Eigen::MatrixXd::Zero(1,	xcols);
-						for(int i=0; i<xcols; ++i) {
+                        for(unsigned int i=0; i<xcols; ++i) {
 							float dx = X(0,i)-Qp(0,i);
 							float dy = X(1,i)-Qp(1,i);
 							float dz = X(2,i)-Qp(2,i);
@@ -270,7 +270,7 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 					}break;
 					default:			{printf("type not set\n");}					break;
 				}
-				for(int i=0; i<xcols; ++i) {residuals.col(i) *= rangeW(i);}
+                for(unsigned int i=0; i<xcols; ++i) {residuals.col(i) *= rangeW(i);}
 
 //				printf("//////////////////////////////////////////////////////////////\n");
 //				printf("//////////////////////////////////////////////////////////////\n");
@@ -319,7 +319,7 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 								case PointToPoint:	{residuals = X-Qp;} 						break;
 								case PointToPlane:	{
 									residuals		= Eigen::MatrixXd::Zero(1,	xcols);
-									for(int i=0; i< xcols; ++i) {
+                                    for(unsigned int i=0; i< xcols; ++i) {
 										float dx = X(0,i)-Qp(0,i);
 										float dy = X(1,i)-Qp(1,i);
 										float dz = X(2,i)-Qp(2,i);
@@ -332,14 +332,14 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 								}break;
 								default:			{printf("type not set\n");}					break;
 							}
-							for(int i=0; i<xcols; ++i) {residuals.col(i) *= rangeW(i);}
+                            for(unsigned int i=0; i<xcols; ++i) {residuals.col(i) *= rangeW(i);}
 						}
 
 						switch(type) {
 							case PointToPoint:	{W = func->getProbs(residuals); } 					break;
 							case PointToPlane:	{
 								W = func->getProbs(residuals);
-								for(int i=0; i<xcols; ++i) {W(i) = W(i)*float((Xn(0,i)*Qn(0,i) + Xn(1,i)*Qn(1,i) + Xn(2,i)*Qn(2,i)) > 0.0);}
+                                for(unsigned int i=0; i<xcols; ++i) {W(i) = W(i)*float((Xn(0,i)*Qn(0,i) + Xn(1,i)*Qn(1,i) + Xn(2,i)*Qn(2,i)) > 0.0);}
 							}	break;
 							default:			{printf("type not set\n");} break;
 						}

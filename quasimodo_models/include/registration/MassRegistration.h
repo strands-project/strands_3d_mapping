@@ -26,8 +26,6 @@
 #include "../core/RGBDFrame.h"
 #include "../model/Model.h"
 
-#include "lum2.h"
-
 namespace reglib
 {
 /*

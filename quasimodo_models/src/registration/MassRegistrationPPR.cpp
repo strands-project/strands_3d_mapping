@@ -1,6 +1,6 @@
-#include "MassRegistrationPPR.h"
+#include "registration/MassRegistrationPPR.h"
 
-#include "ICP.h"
+#include "registration/ICP.h"
 
 #include <iostream>
 #include <fstream>
@@ -394,7 +394,6 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 						tXn(1,c)	= m10*xn + m11*yn + m12*zn;
 						tXn(2,c)	= m20*xn + m21*yn + m22*zn;
 
-						//printf("c: %i count: %i\n",c,count);
 						information(c) = 1.0/(z*z);
 
 						C(0,c) = rgbdata[3*ind+0];
@@ -627,11 +626,11 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 						unsigned int nr_match = 0;
 						for(unsigned int j = 0; j < nr_frames; j++){
 							std::vector<int> & matchidj = matchids[j][i];
-							unsigned int matchesj = matchidj.size();
+                            int matchesj = matchidj.size();
 							std::vector<int> & matchidi = matchids[i][j];
-							unsigned int matchesi = matchidi.size();
+                            int matchesi = matchidi.size();
 
-							for(unsigned int ki = 0; ki < matchesi; ki++){
+                            for(int ki = 0; ki < matchesi; ki++){
 								int kj = matchidi[ki];
 								if( kj == -1 ){continue;}
 								if( kj >=  matchesj){continue;}
@@ -661,11 +660,11 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 							Eigen::VectorXd & informationj					= informations[j];
 
 							std::vector<int> & matchidj = matchids[j][i];
-							unsigned int matchesj = matchidj.size();
+                            int matchesj = matchidj.size();
 							std::vector<int> & matchidi = matchids[i][j];
-							unsigned int matchesi = matchidi.size();
+                            int matchesi = matchidi.size();
 
-							for(unsigned int ki = 0; ki < matchesi; ki++){
+                            for(int ki = 0; ki < matchesi; ki++){
 								int kj = matchidi[ki];
 								if( kj == -1 ){continue;}
 								if( kj >=  matchesj){continue;}
@@ -712,7 +711,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 								case PointToPoint:	{W = func->getProbs(residuals); } 					break;
 								case PointToPlane:	{
 									W = func->getProbs(residuals);
-									for(int k=0; k<nr_match; ++k) {W(k) = W(k)*float((Xn(0,k)*Qn(0,k) + Xn(1,k)*Qn(1,k) + Xn(2,k)*Qn(2,k)) > 0.0);}
+                                    for(unsigned int k=0; k<nr_match; ++k) {W(k) = W(k)*float((Xn(0,k)*Qn(0,k) + Xn(1,k)*Qn(1,k) + Xn(2,k)*Qn(2,k)) > 0.0);}
 								}	break;
 								default:			{printf("type not set\n");} break;
 							}
@@ -736,7 +735,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 //										Qparams[c] = 0;
 //									}
 //									for(unsigned int c = 0; c < nr_match; c++){
-//CostFunction * func = new NumericDiffCostFunction<PointNormalCostFunctor, CENTRAL, 2, 6, 6> (new PointNormalCostFunctor(Xp(0,c),Xp(1,c),Xp(2,c),Xn(0,c),Xn(1,c),Xn(2,c),Qp(0,c),Qp(1,c),Qp(2,c),Qn(0,c),Qn(1,c),Qn(2,c),sqrt(W(c))));
+//CostFunction * func = new NumericDiffCostFuunsignednction<PointNormalCostFunctor, CENTRAL, 2, 6, 6> (new PointNormalCostFunctor(Xp(0,c),Xp(1,c),Xp(2,c),Xn(0,c),Xn(1,c),Xn(2,c),Qp(0,c),Qp(1,c),Qp(2,c),Qn(0,c),Qn(1,c),Qn(2,c),sqrt(W(c))));
 //problem.AddResidualBlock(func, NULL ,Xparams,Qparams);
 //									}
 //									Solve(options, &problem, &summary);
@@ -846,7 +845,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 
 				double change_trans = 0;
 				double change_rot = 0;
-				for(unsigned int i = 0; i < nr_frames; i++){
+                for(unsigned int i = 0; i < nr_frames; i++){
 					for(unsigned int j = i+1; j < nr_frames; j++){
 						Eigen::Matrix4d diff_before = poses2b[i].inverse()*poses2b[j];
 						Eigen::Matrix4d diff_after	= poses[i].inverse()*poses[j];
@@ -924,7 +923,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 	}
 
 	Eigen::Matrix4d firstinv = poses.front().inverse();
-	for(int i = 0; i < nr_frames; i++){
+    for(unsigned int i = 0; i < nr_frames; i++){
 		poses[i] = firstinv*poses[i];
 	}
 //if(nr_frames >= 3){exit(0);}

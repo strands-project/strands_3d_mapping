@@ -1,13 +1,12 @@
-#include "MassRegistrationPPRColor.h"
+#include "registration/MassRegistrationPPRColor.h"
 
-#include "ICP.h"
+#include "registration/ICP.h"
 
 #include <iostream>
 #include <fstream>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include "lum2.cpp"
 #include <pcl/correspondence.h>
 
 namespace reglib
@@ -249,10 +248,6 @@ MassRegistrationPPRColor::MassRegistrationPPRColor(double startreg, bool visuali
 	funcB->starthistogram_size      = 2*255;
 	funcB->startreg                 = 60.0;
 	funcB->debugg_print             = false;
-
-	LUM2 = new pcl::registration::LUM2<pcl::PointXYZ>();
-	LUM2->setMaxIterations (1);
-	LUM2->setConvergenceThreshold (0.0);
 
 	sp = nanoflann2::SearchParams(10);
     sp.eps = 0.5;
@@ -543,7 +538,7 @@ void MassRegistrationPPRColor::showMatches(int to, int from, Eigen::MatrixXd pos
 	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 
-	for(unsigned int i = 0; i < to_nr_points; i++){
+    for(int i = 0; i < to_nr_points; i++){
 		pcl::PointXYZRGBNormal pi;
 		pi.x = to_cloud[3*i+0];
 		pi.y = to_cloud[3*i+1];
@@ -565,7 +560,7 @@ void MassRegistrationPPRColor::showMatches(int to, int from, Eigen::MatrixXd pos
 	float m10 = po(1,0); float m11 = po(1,1); float m12 = po(1,2); float m13 = po(1,3);
 	float m20 = po(2,0); float m21 = po(2,1); float m22 = po(2,2); float m23 = po(2,3);
 
-	for(size_t ii = 0; ii < from_nr_points; ii+=1){
+    for(int ii = 0; ii < from_nr_points; ii+=1){
 		double x = from_cloud[3*ii+0];
 		double y = from_cloud[3*ii+1];
 		double z = from_cloud[3*ii+2];
@@ -590,11 +585,10 @@ void MassRegistrationPPRColor::showMatches(int to, int from, Eigen::MatrixXd pos
 	}
 
 	std::vector< PointMatch > & matches = all_matches[to][from];
-	for(int m = 0; m < matches.size(); m++){
+    for(unsigned int m = 0; m < matches.size(); m++){
 		char buf [1024];
-		for(int k = 0; k < matches[m].dst.size(); k++){
+        for(unsigned int k = 0; k < matches[m].dst.size(); k++){
 			sprintf(buf,"line%i_%i",m,k);
-
 			if(to_edges[matches[m].dst.front()]){
 				viewer->addLine<pcl::PointXYZRGBNormal>(dcloud->points[matches[m].dst[k]],scloud->points[matches[m].src],255,0,0,buf);
 			}else{
@@ -667,7 +661,7 @@ double startTime = getTime();
 
 	const bool debugg_matches = false;
 	if(debugg_matches){
-		for(unsigned int i = 0; i < to_nr_points; i++){
+        for(int i = 0; i < to_nr_points; i++){
 			pcl::PointXYZRGBNormal pi;
 			pi.x = to_cloud[3*i+0];
 			pi.y = to_cloud[3*i+1];
@@ -687,7 +681,7 @@ double startTime = getTime();
 	matches.reserve(max_matches);
 
 	const size_t num_results = 5;
-	for(size_t ii = rand()%step; ii < from_nr_points; ii+=step){
+    for(int ii = rand()%step; ii < from_nr_points; ii+=step){
 		double x = from_cloud[3*ii+0];
 		double y = from_cloud[3*ii+1];
 		double z = from_cloud[3*ii+2];
@@ -719,7 +713,7 @@ double startTime = getTime();
 
 			char buf [1024];
 			//printf("%i -> %f %f %f -> %f %f %f -> %f\n",ii,tx,ty,tz,to_cloud[3*ret_indexes[0]+0],to_cloud[3*ret_indexes[0]+1],to_cloud[3*ret_indexes[0]+2],sqrt(out_dists_sqr[0]));
-			for(int k = 0; k < ret_indexes.size(); k++){
+            for(unsigned int k = 0; k < ret_indexes.size(); k++){
 				sprintf(buf,"line%i_%i",ii,k);
 				viewer->addLine<pcl::PointXYZRGBNormal>(dcloud->points[ret_indexes[k]],pi,buf);
 			}
@@ -773,7 +767,7 @@ void MassRegistrationPPRColor::recomputeFunctions(std::vector<Eigen::MatrixXd> p
 	double startTime = getTime();
 
 	int count = 0;
-	for(int c = 0; c < connections.size(); c++){
+    for(unsigned int c = 0; c < connections.size(); c++){
 		int i = connections[c].first;
 		int j = connections[c].second;
 		count += all_matches[i][j].size();
@@ -793,7 +787,7 @@ void MassRegistrationPPRColor::recomputeFunctions(std::vector<Eigen::MatrixXd> p
 	}
 
 	int current = 0;
-	for(int c = 0; c < connections.size(); c++){
+    for(unsigned int c = 0; c < connections.size(); c++){
 		int i = connections[c].first;
 		int j = connections[c].second;
 
@@ -1043,7 +1037,7 @@ pcl::CorrespondencesPtr MassRegistrationPPRColor::getCorrs(int i, int j, Eigen::
 
 		double nj = noisej(src,0);
 
-		int parts = match.dst.size();
+        unsigned int parts = match.dst.size();
 		for(unsigned int k = 0; k < parts; k++){
 			size_t dst = match.dst[k];
 
@@ -1214,7 +1208,7 @@ std::vector<CostFunction*> MassRegistrationPPRColor::getCostFunctions(int i, int
 
 			double nj = noisej(src,0);
 
-			int parts = match.dst.size();
+            unsigned int parts = match.dst.size();
 			for(unsigned int k = 0; k < parts; k++){
 				size_t dst = match.dst[k];
 
@@ -1295,7 +1289,7 @@ show(poses, true);
 	double startTime = getTime();
 
 	double ** posesv = new double*[poses.size()];
-	for(int f = 0; f < poses.size(); f++){
+    for(unsigned int f = 0; f < poses.size(); f++){
 		posesv[f] = getCamera(getPoseTransform(poses[f]));
 	}
 
@@ -1352,7 +1346,7 @@ show(poses, true);
 */
 
 
-		for(int c = 0; c < connections.size(); c++){
+        for(unsigned int c = 0; c < connections.size(); c++){
 			int i = connections[c].first;
 			int j = connections[c].second;
 
@@ -1379,7 +1373,7 @@ show(poses, true);
 		std::cout << summary.FullReport() << "\n";
 //exit(0);
 		std::vector<Eigen::Matrix4d> transforms;
-		for(int f = 0; f < poses.size(); f++){
+        for(unsigned int f = 0; f < poses.size(); f++){
 			Eigen::Matrix4d mat = (getMatTest(posesv[0]).inverse()*getMatTest(posesv[f]));
 			transforms.push_back(mat);
 			setPoseTransform(mat, poses[f]);
@@ -1508,7 +1502,7 @@ void MassRegistrationPPRColor::show(std::vector<Eigen::MatrixXd> guess, bool col
 	viewer->removeAllShapes();
 
 	std::vector<pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr> cls;
-	for(int ii = 0; ii < guess.size(); ii++){
+    for(unsigned int ii = 0; ii < guess.size(); ii++){
 		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 
 		Eigen::Matrix4d po = getPoseTransform(guess[ii]);
@@ -1521,7 +1515,7 @@ void MassRegistrationPPRColor::show(std::vector<Eigen::MatrixXd> guess, bool col
 		int b = 256*(1+(rand()%4))/4 - 1;//255*(xi & 1);
 
 		double * datas = clouddatas[ii];
-		int nr_points = nrdatas[ii];
+        unsigned int nr_points = nrdatas[ii];
 		for(unsigned int i = 0; i < nr_points; i++){
 			double dx = datas[3*i+0];
 			double dy = datas[3*i+1];
@@ -1571,7 +1565,7 @@ void MassRegistrationPPRColor::showTP(){
 	viewer->removeAllShapes();
 
 	std::vector<pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr> cls;
-	for(int ii = 0; ii < transformed_points.size(); ii++){
+    for(unsigned int ii = 0; ii < transformed_points.size(); ii++){
 		Eigen::Matrix<double, 3, Eigen::Dynamic> & tX	= transformed_points[ii];
 		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 
@@ -1579,7 +1573,7 @@ void MassRegistrationPPRColor::showTP(){
 		int g = 256*(1+(rand()%4))/4 - 1;//255*((xi+1) & 1);
 		int b = 256*(1+(rand()%4))/4 - 1;//255*(xi & 1);
 
-		for(unsigned int i = 0; i < tX.cols(); i++){
+        for(int i = 0; i < tX.cols(); i++){
 			pcl::PointXYZRGBNormal pi;
 			pi.x = tX(0,i);
 			pi.y = tX(1,i);
@@ -1633,7 +1627,7 @@ MassFusionResults MassRegistrationPPRColor::getTransforms(std::vector<Eigen::Mat
 		Eigen::Matrix<double, 3, Eigen::Dynamic> & tX	= transformed_points[i];
 		Eigen::Matrix<double, 3, Eigen::Dynamic> & tXn	= transformed_normals[i];
 
-		for(unsigned int c = 0; c < X.cols(); c++){
+        for(int c = 0; c < X.cols(); c++){
 			float xn = Xn(0,c);
 			float yn = Xn(1,c);
 			float zn = Xn(2,c);
@@ -1772,11 +1766,11 @@ MassFusionResults MassRegistrationPPRColor::getTransforms(std::vector<Eigen::Mat
 						unsigned int nr_match = 0;
 						for(unsigned int j = 0; j < nr_frames; j++){
 							std::vector<int> & matchidj = matchids[j][i];
-							unsigned int matchesj = matchidj.size();
+                            int matchesj = matchidj.size();
 							std::vector<int> & matchidi = matchids[i][j];
-							unsigned int matchesi = matchidi.size();
+                            int matchesi = matchidi.size();
 
-							for(unsigned int ki = 0; ki < matchesi; ki++){
+                            for(int ki = 0; ki < matchesi; ki++){
 								int kj = matchidi[ki];
 								if( kj == -1 ){continue;}
 								if( kj >=  matchesj){continue;}
@@ -1806,11 +1800,11 @@ MassFusionResults MassRegistrationPPRColor::getTransforms(std::vector<Eigen::Mat
 							Eigen::VectorXd & informationj					= informations[j];
 
 							std::vector<int> & matchidj = matchids[j][i];
-							unsigned int matchesj = matchidj.size();
+                            int matchesj = matchidj.size();
 							std::vector<int> & matchidi = matchids[i][j];
-							unsigned int matchesi = matchidi.size();
+                            int matchesi = matchidi.size();
 
-							for(unsigned int ki = 0; ki < matchesi; ki++){
+                            for(int ki = 0; ki < matchesi; ki++){
 								int kj = matchidi[ki];
 								if( kj == -1 ){continue;}
 								if( kj >=  matchesj){continue;}
@@ -1837,7 +1831,7 @@ MassFusionResults MassRegistrationPPRColor::getTransforms(std::vector<Eigen::Mat
 								case PointToPoint:	{residuals = Xp-Qp;} 						break;
 								case PointToPlane:	{
 									residuals		= Eigen::MatrixXd::Zero(1,	nr_match);
-									for(int i=0; i<nr_match; ++i) {
+                                    for(unsigned int i=0; i<nr_match; ++i) {
 										float dx = Xp(0,i)-Qp(0,i);
 										float dy = Xp(1,i)-Qp(1,i);
 										float dz = Xp(2,i)-Qp(2,i);
@@ -1858,7 +1852,7 @@ MassFusionResults MassRegistrationPPRColor::getTransforms(std::vector<Eigen::Mat
 								case PointToPoint:	{W = func->getProbs(residuals); } 					break;
 								case PointToPlane:	{
 									W = func->getProbs(residuals);
-									for(int k=0; k<nr_match; ++k) {
+                                    for(unsigned int k=0; k<nr_match; ++k) {
 										double angle = Xn(0,k)*Qn(0,k) + Xn(1,k)*Qn(1,k) + Xn(2,k)*Qn(2,k);
 										W(k) = W(k)*float(angle > 0.0);
 									}
@@ -1935,7 +1929,7 @@ MassFusionResults MassRegistrationPPRColor::getTransforms(std::vector<Eigen::Mat
 	if(visualizationLvl > 0){showTP();}
 
 	Eigen::Matrix4d firstinv = poses.front().inverse();
-	for(int i = 0; i < nr_frames; i++){poses[i] = firstinv*poses[i];}
+    for(unsigned int i = 0; i < nr_frames; i++){poses[i] = firstinv*poses[i];}
 
 	printf("stop MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> guess)\n");
 	return MassFusionResults(poses,-1);

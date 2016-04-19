@@ -1,8 +1,8 @@
-#include "RegistrationRefinementColor.h"
+#include "registration/RegistrationRefinementColor.h"
 #include <iostream>
 #include <fstream>
 
-#include "myhull.h"
+#include "registration/myhull.h"
 
 //#include <pcl/surface/convex_hull.h>
 #include <pcl/registration/lum.h>
