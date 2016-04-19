@@ -56,9 +56,13 @@ int colormap[][3] = {
 
 ros::Publisher pub;
 double threshold;
+dynamic_object_retrieval::data_summary data_summary;
+boost::filesystem::path data_path;
 
 void segmentation_callback(const std_msgs::String::ConstPtr& msg)
 {
+    data_summary.load(data_path);
+
     boost::filesystem::path sweep_xml(msg->data);
     boost::filesystem::path surfel_path = sweep_xml.parent_path() / "surfel_map.pcd";
 
@@ -124,10 +128,12 @@ void segmentation_callback(const std_msgs::String::ConstPtr& msg)
     summary.nbr_segments = convex_segments.size();
 
     int i = 0;
+    vector<string> segment_paths;
     for (CloudT::Ptr& c : convex_segments) {
         std::stringstream ss;
         ss << "segment" << std::setw(4) << std::setfill('0') << i;
         boost::filesystem::path segment_path = segments_path / (ss.str() + ".pcd");
+        segment_paths.push_back(segment_path.string());
         pcl::io::savePCDFileBinary(segment_path.string(), *c);
         summary.segment_indices.push_back(i); // counter
         ++i;
@@ -138,6 +144,13 @@ void segmentation_callback(const std_msgs::String::ConstPtr& msg)
     std_msgs::String done_msg;
     done_msg.data = msg->data;
     pub.publish(done_msg);
+
+    data_summary.nbr_sweeps++;
+    data_summary.nbr_convex_segments += convex_segments.size();
+    data_summary.index_convex_segment_paths.insert(data_summary.index_convex_segment_paths.end(),
+                                                   segment_paths.begin(), segment_paths.end());
+
+    data_summary.save(data_path);
 }
 
 void bypass_callback(const std_msgs::String::ConstPtr& msg)
@@ -156,6 +169,16 @@ int main(int argc, char** argv)
     pn.param<double>("threshold", threshold, 0.4);
     bool bypass;
     pn.param<bool>("bypass", bypass, 0);
+    string temp_path;
+    pn.param<string>("data_path", temp_path, "~/.semanticMap");
+    data_path = boost::filesystem::path(temp_path);
+
+    data_summary = dynamic_object_retrieval::data_summary();
+    data_summary.nbr_sweeps = 0;
+    data_summary.nbr_convex_segments = 0;
+    data_summary.nbr_subsegments = 0;
+    data_summary.subsegment_type = "convex_segment";
+    data_summary.save(data_path);
 
     pub = n.advertise<std_msgs::String>("/segmentation_done", 1);
 

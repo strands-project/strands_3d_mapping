@@ -1,7 +1,8 @@
 <launch>
-    <arg name="vocabulary_path" default="~/.semanticMap/vocabulary"/>
+    <arg name="vocabulary_path" default="/media/nbore/My Passport/ICRA_data/controlled_experiments/vocabulary"/>
+    <!-- <arg name="vocabulary_path" default="~/.semanticMap/vocabulary"/> -->
 
-    <node pkg="surfelize_it" type="surfelize_it" name="surfelize_it" output="screen" respawn="true"/>
+    <node pkg="surfelize_it" type="surfelize_it" name="topic_processor" output="screen" respawn="true"/>
     <node pkg="quasimodo_retrieval" type="quasimodo_retrieval_node" name="quasimodo_retrieval_node" output="screen" respawn="true">
         <param name="vocabulary_path" value="$(arg vocabulary_path)"/>
     </node>
