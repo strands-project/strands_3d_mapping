@@ -116,15 +116,25 @@ This package controlls the flow of data in the quasimodo system and maintains th
 roslaunch quasimodo_brain modelserver.launch
 ```
 
+```
+roslaunch quasimodo_brain robot_listener.launch
+```
+
 ### Nodes
 
 * `preload_object_data` - Reads data in the metarooms format. Uppon requests publishes data for the `modelserver`. Input: paths to a set of folders containing data. 
+
+
+* `robot_listener` - Listenes to topic. Whenever it recieves the path to an xml file it reads data in the metarooms format from the file and publishes data for the `modelserver`. Input: topicname to listen at. 
+
 
 * `modelserver` - Listens to data from input modules, uses the `quasimodo_models` package to register and merge models into more complete models and thereby maintain the database of objects. Input: '-v' for visualization, '-p /path/to/folder' to set a folder where the database is read/stored, '-m' initializes the database with the data from /path/to/folder, '-massreg_timeout value' sets the stopping time for the multiview registration, '-occlusion_penalty value' sets the penalty value for occlusions(controlling how likeley the database is to merge models).
 
 ### Launch files
 
 * `modelserver.launch` - this file launches the modelserver node without the visualization flag.
+
+* `robot_listener.launch` - this file launches the robot_listener node without the topicname set to "/some/topic".
 
 * `brain.launch` - Launches the modelserver and the preload_object_data nodes. On automatic restart.
 
