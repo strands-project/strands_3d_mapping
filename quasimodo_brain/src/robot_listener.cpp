@@ -308,10 +308,10 @@ int main(int argc, char** argv){
 
     model_from_frame_client	= n.serviceClient<quasimodo_msgs::model_from_frame>("model_from_frame");
     fuse_models_client		= n.serviceClient<quasimodo_msgs::fuse_models>(		"fuse_models");
-    get_model_client			= n.serviceClient<quasimodo_msgs::get_model>(		"get_model");
+    get_model_client			= n.serviceClient<quasimodo_msgs::get_model>(	"get_model");
     index_frame_client		= n.serviceClient<quasimodo_msgs::index_frame>(		"index_frame");
 
-    ros::Subscriber sub = n.subscribe("/some/stupid/topic", 1000, chatterCallback);
+    ros::Subscriber sub = n.subscribe(listentopic, 1000, chatterCallback);
 
     ros::spin();
 }

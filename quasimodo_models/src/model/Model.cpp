@@ -353,6 +353,34 @@ void Model::save(std::string path){
 	}
 
     raresfile.close();
+
+
+    for(unsigned int f = 0; f < frames.size(); f++){
+        char buf [1024];
+
+        sprintf(buf,"%s/views/cloud_%08i.pcd",path.c_str(),f);
+        frames[f]->savePCD(std::string(buf));
+
+        sprintf(buf,"%s/views/pose_%08i.txt",path.c_str(),f);
+        ofstream posefile;
+        posefile.open (buf);
+
+        Eigen::Matrix4f eigen_tr(relativeposes[f].cast<float>());
+        Eigen::IOFormat CommaInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, " ", " ", "", "", "", "");
+        posefile << eigen_tr.format(CommaInitFmt)<<endl;
+        posefile.close();
+
+        bool * maskvec = modelmasks[f]->maskvec;
+        sprintf(buf,"%s/views/object_indices_%08i.txt",path.c_str(),f);
+        ofstream indfile;
+        indfile.open (buf);
+        for(int i = 0; i < 640*480; i++){
+            if(maskvec[i]){indfile << i << std::endl;}
+        }
+        indfile.close();
+        //object_indices_00000030.txt
+
+    }
 }
 
 Model * Model::load(Camera * cam, std::string path){
