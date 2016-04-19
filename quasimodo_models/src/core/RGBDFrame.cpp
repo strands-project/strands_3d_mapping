@@ -360,6 +360,38 @@ void RGBDFrame::save(std::string path){
 	cv::imwrite( path+"_rgb.png", rgb );
 	cv::imwrite( path+"_depth.png", depth );
 
+    unsigned char * rgbdata = (unsigned char *)rgb.data;
+    unsigned short * depthdata = (unsigned short *)depth.data;
+
+    const unsigned int width	= camera->width; const unsigned int height	= camera->height;
+    const double idepth			= camera->idepth_scale;
+    const double cx				= camera->cx;		const double cy				= camera->cy;
+    const double ifx			= 1.0/camera->fx;	const double ify			= 1.0/camera->fy;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr	cloud	(new pcl::PointCloud<pcl::PointXYZRGB>);
+    cloud->width	= width;
+    cloud->height	= height;
+    cloud->points.resize(width*height);
+
+    for(unsigned int w = 0; w < width; w++){
+        for(unsigned int h = 0; h < height;h++){
+            int ind = h*width+w;
+            double z = idepth*double(depthdata[ind]);
+            if(z > 0){
+                pcl::PointXYZRGB p;
+                p.x = (double(w) - cx) * z * ifx;
+                p.y = (double(h) - cy) * z * ify;
+                p.z = z;
+                p.b = rgbdata[3*ind+0];
+                p.g = rgbdata[3*ind+1];
+                p.r = rgbdata[3*ind+2];
+                cloud->points[ind] = p;
+            }
+        }
+    }
+
+
+
 	unsigned long buffersize = 19*sizeof(double);
 	char* buffer = new char[buffersize];
 	double * buffer_double = (double *)buffer;
