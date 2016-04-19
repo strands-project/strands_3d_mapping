@@ -1,4 +1,4 @@
-#include "DistanceWeightFunction2PPR.h"
+#include "weightfunctions/DistanceWeightFunction2PPR.h"
 
 namespace reglib{
 
@@ -134,8 +134,8 @@ void blurHistogram(std::vector<float> & blur_hist,  std::vector<float> & hist, f
 		double v = tmphist[i];
 		if(v == 0){continue;}
 
-		unsigned int start	= std::max(0,i-offset);
-		unsigned int stop	= std::min(nr_data2,i+offset+1);
+        int start	= std::max(0,i-offset);
+        int stop	= std::min(nr_data2,i+offset+1);
 
 		//double sum = 1;
 		//for(int j = start; j < stop; j++){sum += weights[abs(i-j)];}
@@ -251,7 +251,7 @@ double fitStdval(double bias, double mul, double mean, std::vector<float> & X, s
 	double std_max = std_mid*2;
 	double std_min = 0;
 
-	for(int i = 0; i < step_iter; i++){
+    for(unsigned int i = 0; i < step_iter; i++){
 		std_mid = (std_max+std_min)/2;
 		double std_neg = scoreCurrent(bias,mul,mean,std_mid-step_h,X,Y,nr_data);
 		double std_pos = scoreCurrent(bias,mul,mean,std_mid+step_h,X,Y,nr_data);
@@ -486,10 +486,10 @@ if(!bidir){
 	if(debugg_print){printf("estimated = %f;\n",maxd*stdval/float(histogram_size));}
 	//if(debugg_print){printf("meanoffset: %f\n",meanoffset);}
     //if(debugg_print){printf("X = [");				for(unsigned int k = 0; k < histogram_size; k++){printf("%5.5f ",double(2*k)*maxd/double(histogram_size) -maxd);}		printf("];\n");}
-	if(debugg_print){printf("hist = [");			for(unsigned int k = 0; k < 1000 && k < histogram_size; k++){printf("%i ",int(histogram[k]));}		printf("];\n");}
-	if(debugg_print){printf("noise = [");			for(unsigned int k = 0; k < 1000 && k < histogram_size; k++){printf("%i ",int(noise[k]));}			printf("];\n");}
-	if(debugg_print){printf("hist_smooth = [");		for(unsigned int k = 0; k < 1000 && k < histogram_size; k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
-	if(debugg_print){printf("prob = [");			for(unsigned int k = 0; k < 1000 && k < histogram_size; k++){printf("%2.2f ",prob[k]);}				printf("];\n");}
+    if(debugg_print){printf("hist = [");			for(int k = 0; k < 1000 && k < histogram_size; k++){printf("%i ",int(histogram[k]));}		printf("];\n");}
+    if(debugg_print){printf("noise = [");			for(int k = 0; k < 1000 && k < histogram_size; k++){printf("%i ",int(noise[k]));}			printf("];\n");}
+    if(debugg_print){printf("hist_smooth = [");		for(int k = 0; k < 1000 && k < histogram_size; k++){printf("%i ",int(blur_histogram[k]));}	printf("];\n");}
+    if(debugg_print){printf("prob = [");			for(int k = 0; k < 1000 && k < histogram_size; k++){printf("%2.2f ",prob[k]);}				printf("];\n");}
 	//if(debugg_print){printf("###############################################################################################################\n");}
 
 	if(update_size ){
@@ -670,7 +670,7 @@ bool DistanceWeightFunction2PPR::update(){
 		std::vector<float> new_blur_histogram = blur_histogram;
 
 		float old_sum_prob = 0;
-		for(unsigned int k = 0; k < histogram_size; k++){old_sum_prob += prob[k] * histogram[k];}
+        for(int k = 0; k < histogram_size; k++){old_sum_prob += prob[k] * histogram[k];}
 
 		//double maxp = 0.99;
 		Gaussian g = Gaussian(mulval,meanval,stdval);//getModel(stdval,blur_histogram,uniform_bias);

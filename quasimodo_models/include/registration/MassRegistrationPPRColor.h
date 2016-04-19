@@ -4,7 +4,6 @@
 #include "MassRegistration.h"
 #include "../core/Util.h"
 
-#include "lum2.h"
 
 //#include "DistanceWeightFunction2.h"
 //#include "ICP.h"
@@ -37,9 +36,6 @@ namespace reglib
 		unsigned steps;
 
 		int max_matches;
-
-		pcl::registration::LUM2<pcl::PointXYZ> * LUM2;
-		std::vector<pcl::registration::LUM2< pcl::PointXYZ >::Vertex> verts;
 
 		DistanceWeightFunction2PPR2 * func;
 		DistanceWeightFunction2PPR2 * funcR;

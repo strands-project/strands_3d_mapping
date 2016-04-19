@@ -89,7 +89,6 @@ namespace reglib
 
 #include "RegistrationSICP.h"
 #include "RegistrationPPR.h"
-#include "RegistrationGOICP.h"
 #include "RegistrationRefinement.h"
 #include "RegistrationRefinementColor.h"
 #include "RegistrationRandom.h"

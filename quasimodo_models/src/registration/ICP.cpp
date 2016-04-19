@@ -17,8 +17,9 @@
 //#ifndef ICP_H
 //#define ICP_H
 //#pragma once
-#include "ICP.h"
-#include "nanoflann.hpp"
+//#include " ICP.h"
+#include "../../include/registration/ICP.h"
+#include "../../include/registration/nanoflann.hpp"
 #include <Eigen/Dense>
 ///////////////////////////////////////////////////////////////////////////////
 

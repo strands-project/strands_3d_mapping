@@ -1,6 +1,5 @@
-#include "RegistrationSICP.h"
-
-#include "ICP.h"
+#include "registration/RegistrationSICP.h"
+#include "registration/ICP.h"
 
 namespace reglib
 {

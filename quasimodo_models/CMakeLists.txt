@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(quasimodo_models)
 
 #find_package(catkin REQUIRED)# quasimodo_msgs)# COMPONENTS quasimodo_msgs)
-set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3 -w")
-#set(CMAKE_CXX_FLAGS "-O1 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3")
+set(CMAKE_CXX_FLAGS "-O4 -g -pg -Wunknown-pragmas -Wno-unknown-pragmas -Wsign-compare -fPIC -std=c++0x -o popcnt -mssse3")
 
 
 find_package(catkin REQUIRED COMPONENTS
@@ -15,9 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
 ##############################################
 ##################### INCLUDES ###############
 ##############################################
-
-# Temp: g2o
-#include_directories(/home/nbore/Workspace/dynamic_objects/g2o)
 
 # PCL
 find_package(PCL 1.7 REQUIRED)
@@ -33,25 +29,7 @@ find_package(OpenCV)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 include_directories(src)
-include_directories(src/registration)
-include_directories(src/weightfunctions)
-include_directories(src/core)
-include_directories(src/model)
-include_directories(src/modelupdater)
-include_directories(src/modelupdater2)
-
-include_directories(include/)
-include_directories(include/registration)
-include_directories(include/weightfunctions)
-include_directories(include/core)
-include_directories(include/model)
-include_directories(include/Mesher)
-include_directories(include/modelupdater)
-include_directories(include/modelupdater2)
-
-#QT
-#find_package(Qt4 REQUIRED)
-#INCLUDE(${QT_USE_FILE})
+include_directories(include)
 
 #ROS INDIGO STUFF
 include_directories(/opt/ros/indigo/include)
@@ -60,7 +38,6 @@ link_directories(/opt/ros/indigo/lib)
 #g2o
 link_directories(/usr/local/lib/)
 include_directories(/usr/local/include/)
-
 
 #Ceres
 FIND_PACKAGE(Ceres REQUIRED)
@@ -76,15 +53,7 @@ target_link_libraries(quasimodo_weightlib quasimodo_SICP ceres glog ${catkin_LIB
 add_library(quasimodo_myhull src/registration/myhull.cpp)
 target_link_libraries(quasimodo_myhull ${catkin_LIBRARIES})
 
-add_library(quasimodo_reglib src/registration/Registration.cpp src/registration/RegistrationSICP.cpp src/registration/RegistrationPPR.cpp src/registration/RegistrationGOICP.cpp src/registration/RegistrationRandom.cpp src/registration/RegistrationRefinement.cpp src/registration/RegistrationRefinementColor.cpp
-	#src/registration/GoICP_V1.3/src/jly_main.cpp
-	src/registration/GoICP_V1.3/src/jly_goicp.cpp
-	src/registration/GoICP_V1.3/src/jly_3ddt.cpp
-	src/registration/GoICP_V1.3/src/matrix.cpp
-	src/registration/GoICP_V1.3/src/ConfigMap.cpp
-	src/registration/GoICP_V1.3/src/StringTokenizer.cpp
-	#src/registration/GoICP_V1.3/src/CostAndWeight.cpp
-)
+add_library(quasimodo_reglib src/registration/Registration.cpp src/registration/RegistrationSICP.cpp src/registration/RegistrationPPR.cpp src/registration/RegistrationRandom.cpp src/registration/RegistrationRefinement.cpp src/registration/RegistrationRefinementColor.cpp)
 target_link_libraries(quasimodo_reglib quasimodo_myhull quasimodo_SICP quasimodo_weightlib ceres glog ${catkin_LIBRARIES})
 
 add_library(quasimodo_core src/core/Util.cpp src/core/Camera.cpp src/core/RGBDFrame.cpp)
@@ -114,4 +83,24 @@ catkin_package(
 #  LIBRARIES quasimodo_models
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
+)
+
+#############
+## Install ##
+#############
+
+# all install targets should use catkin DESTINATION variables
+# See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
+
+
+
+# Mark executables and/or libraries for installation
+install(TARGETS quasimodo_SICP quasimodo_weightlib quasimodo_myhull quasimodo_reglib quasimodo_core quasimodo_massreglib quasimodo_modelmask quasimodo_model quasimodo_Mesher quasimodo_ModelUpdater
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

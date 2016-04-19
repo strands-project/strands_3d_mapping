@@ -1,6 +1,6 @@
-#include "RegistrationPPR.h"
+#include "registration/RegistrationPPR.h"
 
-#include "ICP.h"
+#include "registration/ICP.h"
 
 #include <Eigen/Core>
 #include <pcl/point_types.h>
@@ -134,7 +134,7 @@ FusionResults RegistrationPPR::getTransform(Eigen::MatrixXd guess){
 			Eigen::MatrixXd xf	= Eigen::MatrixXd(1+end-start,s_nr_data);
 			Eigen::MatrixXd qf	= Eigen::MatrixXd(1+end-start,s_nr_data);
 			Eigen::MatrixXd yf	= Eigen::MatrixXd(1+end-start,d_nr_data);
-			for(unsigned int k = start; k <= end; k++){
+            for(int k = start; k <= end; k++){
 				int ki = k-start;
 				for(unsigned int i = 0; i < s_nr_data; i++){xf(ki,i)	= src->data(k,i);}
 				for(unsigned int i = 0; i < d_nr_data; i++){yf(ki,i)	= dst->data(k,i);}

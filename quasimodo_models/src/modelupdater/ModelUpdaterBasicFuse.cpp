@@ -1,11 +1,11 @@
-#include "ModelUpdaterBasicFuse.h"
+#include "modelupdater/ModelUpdaterBasicFuse.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
 #include <sys/time.h>
 #include <emmintrin.h>
 
-#include "MassRegistration.h"
+#include "registration/MassRegistration.h"
 
 namespace reglib
 {
@@ -25,7 +25,7 @@ ModelUpdaterBasicFuse::~ModelUpdaterBasicFuse(){}
 
 FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix4d guess, double uncertanity){
 	if(model->frames.size() > 0){
-		printf("registerModel(%i %i)\n",model->id,model2->id);
+        printf("registerModel(%i %i)\n",int(model->id),int(model2->id));
 		registration->viewer	= viewer;
 		int step1 = std::max(int(model->frames.size())/1,1);
 		int step2 = std::max(int(model2->frames.size())/1,1);//int step2 = 5;//std::min(int(model2->frames.size()),5);
@@ -46,14 +46,14 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 			//std::vector<cv::Mat>			current_masks;
 			std::vector<ModelMask * >		current_modelmasks;
 
-            for(int i = 0; i < model->frames.size(); i++){
+            for(unsigned int i = 0; i < model->frames.size(); i++){
 				current_poses.push_back(				model->relativeposes[i]);
 				current_frames.push_back(				model->frames[i]);
 				//current_masks.push_back(				model->masks[i]);
 				current_modelmasks.push_back(			model->modelmasks[i]);
             }
 
-            for(int i = 0; i < model2->frames.size(); i++){
+            for(unsigned int i = 0; i < model2->frames.size(); i++){
                 current_poses.push_back(	pose	*	model2->relativeposes[i]);
                 current_frames.push_back(				model2->frames[i]);
 				//current_masks.push_back(				model2->masks[i]);
@@ -66,16 +66,16 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
             std::vector<int> partition = getPartition(scores,2,5,2);
 
             double sumscore1 = 0;
-            for(int i = 0; i < scores.size(); i++){
-                for(int j = 0; j < scores.size(); j++){
+            for(unsigned int i = 0; i < scores.size(); i++){
+                for(unsigned int j = 0; j < scores.size(); j++){
                     if(i < model->frames.size() && j < model->frames.size()){sumscore1 += scores[i][j];}
                     if(i >= model->frames.size() && j >= model->frames.size()){sumscore1 += scores[i][j];}
                 }
             }
 
             double sumscore2 = 0;
-            for(int i = 0; i < scores.size(); i++){
-                for(int j = 0; j < scores.size(); j++){
+            for(unsigned int i = 0; i < scores.size(); i++){
+                for(unsigned int j = 0; j < scores.size(); j++){
                     if(partition[i] == partition[j]){sumscore2 += scores[i][j];}
                 }
             }
@@ -124,13 +124,10 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
     Eigen::Matrix4d pose = f->guess;
 
 	std::vector<Eigen::Matrix4d>	current_poses;
-	std::vector<RGBDFrame*>			current_frames;
-//	std::vector<cv::Mat>			current_masks;
+    std::vector<RGBDFrame*>			current_frames;
 	std::vector<ModelMask*>			current_modelmasks;
 
-	//printf("model1 %i %i %i %i\n",model1->relativeposes.size(),model1->frames.size(),model1->masks.size(),model1->modelmasks.size());
-
-	for(int i = 0; i < model1->frames.size(); i++){
+    for(unsigned int i = 0; i < model1->frames.size(); i++){
 		current_poses.push_back(				model1->relativeposes[i]);
 		current_frames.push_back(				model1->frames[i]);
 
@@ -138,15 +135,12 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 //		cv::imshow(		"mask",	model1->masks[i]);
 //		cv::waitKey(0);
 
-//		current_masks.push_back(				model1->masks[i]);//model1->modelmasks[i]->getMask());//model1->masks[i]);
 		current_modelmasks.push_back(			model1->modelmasks[i]);
 	}
 
-	//printf("model2 %i %i %i %i\n",model2->relativeposes.size(),model2->frames.size(),model2->masks.size(),model2->modelmasks.size());
-	for(int i = 0; i < model2->frames.size(); i++){
+    for(unsigned int i = 0; i < model2->frames.size(); i++){
 		current_poses.push_back(	pose	*	model2->relativeposes[i]);
-		current_frames.push_back(				model2->frames[i]);
-//		current_masks.push_back(				model2->masks[i]);//model2->modelmasks[i]->getMask());//model2->masks[i])
+        current_frames.push_back(				model2->frames[i]);
 		current_modelmasks.push_back(			model2->modelmasks[i]);
 	}
 
@@ -159,8 +153,8 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 
 //	printf("model1\n");
 	double sumscore1 = 0;
-	for(int i = 0; i < model1->scores.size(); i++){
-		for(int j = 0; j < model1->scores.size(); j++){
+    for(unsigned int i = 0; i < model1->scores.size(); i++){
+        for(unsigned int j = 0; j < model1->scores.size(); j++){
 			sumscore1 += model1->scores[i][j];
 		}
 	}
@@ -168,37 +162,15 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 
 //	printf("model2\n");
 	double sumscore2 = 0;
-	for(int i = 0; i < model2->scores.size(); i++){
-		for(int j = 0; j < model2->scores.size(); j++){
+    for(unsigned int i = 0; i < model2->scores.size(); i++){
+        for(unsigned int j = 0; j < model2->scores.size(); j++){
 			sumscore2 += model2->scores[i][j];
 		}
 	}
 
-//	printf("model1\n");
-//	for(int i = 0; i < model1->scores.size(); i++){
-//		for(int j = 0; j < model1->scores.size(); j++){
-//			printf("%3.3f ",model1->scores[i][j]*0.0001);
-//		}
-//		printf("\n");
-//	}
-
-//	printf("model2\n");
-//	for(int i = 0; i < model2->scores.size(); i++){
-//		for(int j = 0; j < model2->scores.size(); j++){
-//			printf("%3.3f ",model2->scores[i][j]*0.0001);
-//		}
-//		printf("\n");
-//	}
-
-//	printf("combined\n");
-//	for(int i = 0; i < scores.size(); i++){
-//		for(int j = 0; j < scores.size(); j++){printf("%3.3f ",scores[i][j]*0.0001);}
-//		printf("\n");
-//	}
-
 	double sumscore = 0;
-	for(int i = 0; i < scores.size(); i++){
-		for(int j = 0; j < scores.size(); j++){
+    for(unsigned int i = 0; i < scores.size(); i++){
+        for(unsigned int j = 0; j < scores.size(); j++){
 			if(partition[i] == partition[j]){sumscore += scores[i][j];}
 		}
 	}
@@ -211,17 +183,15 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 
 	std::vector<int> count;
 	for(unsigned int i = 0; i < partition.size(); i++){
-		if(count.size() <= partition[i]){count.resize(partition[i]+1);}
+        if(int(count.size()) <= partition[i]){count.resize(partition[i]+1);}
 		count[partition[i]]++;
 	}
 
 	int minpart = count[0];
 	for(unsigned int i = 1; i < count.size(); i++){minpart = std::min(minpart,count[i]);}
 
-//	printf("----------------------------\n");
-	printf("partition: ");for(unsigned int i = 0; i < partition.size(); i++){printf("%i ",partition[i]);}printf("\n");
-//	for(unsigned int i = 0; i < count.size(); i++){printf("count %i -> %i\n",i,count[i]);}
-//exit(0);
+    printf("partition: ");for(unsigned int i = 0; i < partition.size(); i++){printf("%i ",int(partition[i]));}printf("\n");
+
 	if(count.size() == 1){
 		model1->merge(model2,pose);
 		model1->recomputeModelPoints();
@@ -241,14 +211,14 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 
 		int model1_ind = partition.front();
 		bool model1_same = true;
-		for(int i = 0; i < model1->frames.size(); i++){
+        for(unsigned int i = 0; i < model1->frames.size(); i++){
 			if(partition[c] != model1_ind){model1_same = false;}
 			c++;
 		}
 
 		int model2_ind = partition.back();
 		bool model2_same = true;
-		for(int i = 0; i < model2->frames.size(); i++){
+        for(unsigned int i = 0; i < model2->frames.size(); i++){
 			if(partition[c] != model2_ind){model2_same = false;}
 			c++;
 		}
@@ -256,7 +226,7 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 		if(!model1_same || !model2_same){//If something changed, update models
 //			printf("SOMETHING CHANGED\n");
 //exit(0);
-			for(int i = 0; i < count.size(); i++){retval.new_models.push_back(new Model());}
+            for(unsigned int i = 0; i < count.size(); i++){retval.new_models.push_back(new Model());}
 			for(unsigned int i = 0; i < partition.size(); i++){
 				retval.new_models[partition[i]]->frames.push_back(current_frames[i]);
 				retval.new_models[partition[i]]->relativeposes.push_back(current_poses[i]);
@@ -268,31 +238,31 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 //				cv::waitKey(0);
 			}
 
-			for(int part = 0; part < retval.new_models.size(); part++){
+            for(unsigned int part = 0; part < retval.new_models.size(); part++){
 				Model * m = retval.new_models[part];
 				m->recomputeModelPoints();
 				m->scores.resize(m->frames.size());
-				for(int i = 0; i < m->scores.size(); i++){
+                for(unsigned int i = 0; i < m->scores.size(); i++){
 					m->scores[i].resize(m->scores.size());
-					for(int j = 0; j < m->scores.size(); j++){
+                    for(unsigned int j = 0; j < m->scores.size(); j++){
 						m->scores[i][j] = 0;
 					}
 				}
 
 				std::vector<int> inds;
 				for(unsigned int i = 0; i < partition.size(); i++){
-					if(partition[i] == part){inds.push_back(i);}
+                    if(partition[i] == int(part)){inds.push_back(i);}
 				}
 
-				for(int i = 0; i < m->scores.size(); i++){
-					for(int j = 0; j < m->scores.size(); j++){
+                for(unsigned int i = 0; i < m->scores.size(); i++){
+                    for(unsigned int j = 0; j < m->scores.size(); j++){
 						 m->scores[i][j] += scores[inds[i]][inds[j]];
 					}
 				}
 
 				m->total_scores = 0;
-				for(int i = 0; i < m->scores.size(); i++){
-					for(int j = 0; j < m->scores.size(); j++){
+                for(unsigned int i = 0; i < m->scores.size(); i++){
+                    for(unsigned int j = 0; j < m->scores.size(); j++){
 						m->total_scores += m->scores[i][j];
 					}
 				}

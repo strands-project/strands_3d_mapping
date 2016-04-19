@@ -112,7 +112,7 @@ std::vector<Eigen::Matrix4f> getRegisteredViewPoses(const std::string& poses_fil
 	}
 	cout<<"Loading additional view registered poses from "<<poses_file<<endl;
 
-	for (size_t i=0; i<no_transforms+1; i++){
+    for (int i=0; i<no_transforms+1; i++){
 		Eigen::Matrix4f transform;
 		float temp;
 		for (size_t j=0; j<4; j++){
@@ -130,10 +130,10 @@ void chatterCallback(const std_msgs::String::ConstPtr& msg)
 {
   ROS_INFO("I heard: [%s]", msg->data.c_str());
 
-  for(int i = 0; i < rgbs.size(); i++){
+  for(unsigned int i = 0; i < rgbs.size(); i++){
       std::vector<int> fid;
       std::vector<int> fadded;
-      for(int j = 0; j < rgbs[i].size(); j++){
+      for(unsigned int j = 0; j < rgbs[i].size(); j++){
           printf("%i %i\n",i,j);
 
           //cv::Mat maskimage		= masks[i][j];
@@ -189,7 +189,7 @@ void chatterCallback(const std_msgs::String::ConstPtr& msg)
           printf("stop adding frame %i\n",i);
       }
 
-      for(int j = 0; j < fadded.size(); j++){
+      for(unsigned int j = 0; j < fadded.size(); j++){
           printf("start adding mask %i\n",i);
           cv::Mat mask	= masks[i][fadded[j]];
 
@@ -257,7 +257,7 @@ int main(int argc, char** argv){
 
 	//if(rgbs.size() > 0){break;}
 	pg->removeAllPointClouds();
-				printf("%i\n",object.vAdditionalViews.size());
+                printf("%i\n",int(object.vAdditionalViews.size()));
 
 				std::vector<cv::Mat> viewrgbs;
 				std::vector<cv::Mat> viewdepths;
@@ -353,7 +353,7 @@ int main(int argc, char** argv){
 		}
 	}
 
-	for(int i = 0; i < rgbs.size(); i++){
+    for(unsigned int i = 0; i < rgbs.size(); i++){
 		int ind = rand()%rgbs.size();
 		std::iter_swap(rgbs.begin()+i,rgbs.begin()+ind);
 		std::iter_swap(depths.begin()+i,depths.begin()+ind);

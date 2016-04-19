@@ -1,4 +1,4 @@
-#include "Camera.h"
+#include "core/Camera.h"
 
 namespace reglib
 {
