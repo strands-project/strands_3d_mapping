@@ -116,6 +116,12 @@ target_link_libraries(	preload_object_data ${catkin_LIBRARIES} ${PCL_LIBRARIES} 
 add_dependencies(		preload_object_data roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	preload_object_data quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
+add_executable(		robot_listener src/robot_listener.cpp)
+target_link_libraries(	robot_listener ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${QT_LIBRARIES} metaroom_xml_parser)
+add_dependencies(	robot_listener roscpp quasimodo_msgs_generate_messages_cpp)
+target_link_libraries(	robot_listener quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+
+
 #add_executable(			load_additional_views src/load_additional_views.cpp)
 #add_dependencies(		load_additional_views roscpp quasimodo_msgs_generate_messages_cpp)
 #target_link_libraries(	load_additional_views quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
@@ -198,7 +204,7 @@ target_link_libraries(	modelserver quasimodo_ModelDatabase quasimodo_ModelUpdate
 #install(TARGETS quasimodo_ModelDatabase test_ModelDatabase brain_test_msgs preload_data preload_chair_data preload_object_data preload_test_data
 #                usepreload modelserver MeshTest modelserver2 kinect_node build_dataset_node load_dataset_node pcd_node
 #                graph_part super bag_reader make_ply2pcd fb_node test_noise test_align
-install(TARGETS quasimodo_ModelDatabase preload_object_data modelserver
+install(TARGETS quasimodo_ModelDatabase preload_object_data modelserver robot_listener
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
