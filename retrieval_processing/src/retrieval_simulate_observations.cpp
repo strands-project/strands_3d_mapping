@@ -8,6 +8,7 @@
 #include <pcl/filters/approximate_voxel_grid.h>
 
 #include <metaroom_xml_parser/load_utilities.h>
+#include <semantic_map/RoomObservation.h>
 #include <dynamic_object_retrieval/definitions.h>
 
 #include <ros/ros.h>
@@ -27,7 +28,9 @@ using HistCloudT = pcl::PointCloud<HistT>;
 using SurfelT = SurfelType;
 using SurfelCloudT = pcl::PointCloud<SurfelT>;
 
-ros::Publisher pub;
+ros::Publisher room_pub;
+ros::Publisher string_pub;
+bool bypass_surfelize;
 double threshold;
 vector<string> sweep_xmls;
 int sweep_ind;
@@ -37,9 +40,17 @@ void callback(const std_msgs::String::ConstPtr& msg)
     if (sweep_ind >= sweep_xmls.size()) {
         exit(0);
     }
-    std_msgs::String sweep_msg;
-    sweep_msg.data = sweep_xmls[sweep_ind++];
-    pub.publish(sweep_msg);
+
+    if (bypass_surfelize) {
+        std_msgs::String sweep_msg;
+        sweep_msg.data = sweep_xmls[sweep_ind++];
+        string_pub.publish(sweep_msg);
+    }
+    else {
+        semantic_map::RoomObservation sweep_msg;
+        sweep_msg.xml_file_name = sweep_xmls[sweep_ind++];
+        room_pub.publish(sweep_msg);
+    }
 }
 
 int main(int argc, char** argv)
@@ -51,24 +62,31 @@ int main(int argc, char** argv)
     string data_path;
     pn.param<string>("data_path", data_path, "");
 
-    bool bypass_surfelize;
     pn.param<bool>("bypass_surfelize", bypass_surfelize, true);
 
     sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path, true);
     sweep_ind = 0;
 
     if (bypass_surfelize) {
-        pub = n.advertise<std_msgs::String>("/surfelization_done", 1);
+        string_pub = n.advertise<std_msgs::String>("/surfelization_done", 1);
     }
     else {
-        pub = n.advertise<std_msgs::String>("/local_metric_map/status", 1);
+        room_pub = n.advertise<semantic_map::RoomObservation>("/local_metric_map/room_observations", 1);
     }
     ros::Subscriber sub = n.subscribe("/vocabulary_done", 1, callback);
 
-    std_msgs::String sweep_msg;
-    sweep_msg.data = sweep_xmls[sweep_ind++];
     ros::Duration(1.0).sleep();
-    pub.publish(sweep_msg);
+
+    if (bypass_surfelize) {
+        std_msgs::String sweep_msg;
+        sweep_msg.data = sweep_xmls[sweep_ind++];
+        string_pub.publish(sweep_msg);
+    }
+    else {
+        semantic_map::RoomObservation sweep_msg;
+        sweep_msg.xml_file_name = sweep_xmls[sweep_ind++];
+        room_pub.publish(sweep_msg);
+    }
 
     ros::spin();
 

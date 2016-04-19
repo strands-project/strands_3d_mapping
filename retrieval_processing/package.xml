@@ -49,6 +49,7 @@
   <build_depend>tf_conversions</build_depend>
   <build_depend>tf</build_depend>
   <build_depend>metaroom_xml_parser</build_depend>
+  <build_depend>semantic_map</build_depend>
   <build_depend>pcl_ros</build_depend>
   <build_depend>k_means_tree</build_depend>
   <build_depend>dynamic_object_retrieval</build_depend>
@@ -64,6 +65,7 @@
   <run_depend>tf_conversions</run_depend>
   <run_depend>tf</run_depend>
   <run_depend>metaroom_xml_parser</run_depend>
+  <run_depend>semantic_map</run_depend>
   <run_depend>pcl_ros</run_depend>
   <run_depend>k_means_tree</run_depend>
   <run_depend>dynamic_object_retrieval</run_depend>
