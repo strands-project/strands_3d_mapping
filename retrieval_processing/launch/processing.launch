@@ -1,10 +1,11 @@
 <launch>
-    <!-- <arg name="data_path" default="/media/nbore/My Passport/ICRA_data/controlled_experiments"/> -->
-    <arg name="data_path" default="~/.semanticMap"/>
+    <arg name="data_path" default="/media/nbore/My Passport/ICRA_data/controlled_experiments"/>
+    <!-- <arg name="data_path" default="~/.semanticMap"/> -->
 
     <node pkg="surfelize_it" type="run_map_processor.py" name="run_map_processor" output="screen" respawn="true"/>
     <node pkg="retrieval_processing" type="retrieval_segmentation" name="retrieval_segmentation" output="screen" respawn="false">
         <param name="threshold" value="0.3"/>
+        <param name="data_path" value="$(arg data_path)"/>
         <param name="bypass" value="false" type="bool"/>
     </node>
     <node pkg="retrieval_processing" type="retrieval_features" name="retrieval_features" output="screen" respawn="false">
@@ -18,6 +19,6 @@
     </node>
     <node pkg="retrieval_processing" type="retrieval_simulate_observations" name="retrieval_simulate_observations" output="screen" respawn="false">
         <param name="data_path" value="$(arg data_path)"/>
-        <param name="bypass_surfelize" value="false" type="bool"/>
+        <param name="bypass_surfelize" value="true" type="bool"/>
     </node>
 </launch>
