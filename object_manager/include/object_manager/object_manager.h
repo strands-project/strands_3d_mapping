@@ -763,17 +763,18 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         double center_y = camParamOrig[0].cy();
         double cx = 0.001 / fx;
         double cy = 0.001 / fy;
+	ROS_INFO_STREAM("ObjectManager :: Camera parameters "<<fx<<" "<<fy<<" "<<center_x<<" "<<center_y);
 
         CloudPtr reprojected_cloud(new Cloud);
         RegistrationFeatures reg;
 
         std::pair<cv::Mat,cv::Mat> rgbAndDepth = reg.createRGBandDepthFromPC(transformedCloud);
-
+/*
         pcl::PointXYZRGB point;
         for (size_t y = 0; y < rgbAndDepth.first.rows; ++y) {
            for (size_t x = 0; x < rgbAndDepth.first.cols; ++x) {
 
-              uint16_t depth = rgbAndDepth.second.at<u_int16_t>(y, x)/* * 1000*/;
+              uint16_t depth = rgbAndDepth.second.at<u_int16_t>(y, x);
               if (!(depth != 0))
               {
                   point.x = point.y = point.z = std::numeric_limits<float>::quiet_NaN();
@@ -789,6 +790,7 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
            }
         }
         *transformedCloud = *reprojected_cloud;
+*/
 
         cv::Mat cluster_image = cv::Mat::zeros(480, 640, CV_8UC3);
         int top_y = -1, bottom_y = 640, top_x = -1, bottom_x = 640;
