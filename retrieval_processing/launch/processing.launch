@@ -14,11 +14,11 @@
     <node pkg="retrieval_processing" type="retrieval_vocabulary" name="retrieval_vocabulary" output="screen" respawn="false">
         <param name="vocabulary_path" value="$(arg data_path)/vocabulary"/>
         <param name="data_path" value="$(arg data_path)"/>
-        <param name="min_training_sweeps" value="3"/>
+        <param name="min_training_sweeps" value="20"/>
         <param name="bypass" value="false" type="bool"/>
     </node>
     <node pkg="retrieval_processing" type="retrieval_simulate_observations" name="retrieval_simulate_observations" output="screen" respawn="false">
         <param name="data_path" value="$(arg data_path)"/>
-        <param name="bypass_surfelize" value="true" type="bool"/>
+        <param name="bypass_surfelize" value="false" type="bool"/>
     </node>
 </launch>
