@@ -114,25 +114,17 @@ void train_vocabulary(const boost::filesystem::path& data_path)
     summary.noise_data_path = data_path.string();
     summary.annotated_data_path = data_path.string();
 
-    cout << __FILE__ << ", " << __LINE__ << endl;
-
     size_t min_segment_features = summary.min_segment_features;
     size_t max_training_features = summary.max_training_features;
     size_t max_append_features = summary.max_append_features;
 
-    cout << __FILE__ << ", " << __LINE__ << endl;
-
     vt = new VocT(vocabulary_path.string());
     vt->set_min_match_depth(3);
-
-    cout << __FILE__ << ", " << __LINE__ << endl;
 
     HistCloudT::Ptr features(new HistCloudT);
     //CloudT::Ptr centroids(new CloudT);
     AdjacencyT adjacencies;
     vector<IndexT> indices;
-
-    cout << __FILE__ << ", " << __LINE__ << endl;
 
     size_t counter = 0; // index among all segments
     size_t sweep_i; // index of sweep
@@ -144,23 +136,17 @@ void train_vocabulary(const boost::filesystem::path& data_path)
     // but! add an iterator with the sweep nbr!
     for (auto tup : dynamic_object_retrieval::zip(segment_features, segment_keypoints, sweep_indices, segment_paths, last_segments)) {
 
-        cout << __FILE__ << ", " << __LINE__ << endl;
-
         HistCloudT::Ptr features_i;
         CloudT::Ptr keypoints_i;
         boost::filesystem::path last_segment = segment_path;
         bool islast;
         tie(features_i, keypoints_i, sweep_i, segment_path, islast) = tup;
 
-        cout << __FILE__ << ", " << __LINE__ << endl;
-
         //cout << "Sweep: " << sweep_i << endl;
 
         // train on a subset of the provided features
         if (sweep_i != last_sweep) {
             adjacencies.push_back(compute_group_adjacencies(last_segment.parent_path()));
-
-            cout << __FILE__ << ", " << __LINE__ << endl;
 
             if (training && last_sweep >= min_training_sweeps - 1) {// features->size() > max_training_features) {
                 vt->set_input_cloud(features, indices);
@@ -170,8 +156,6 @@ void train_vocabulary(const boost::filesystem::path& data_path)
                 adjacencies.clear();
                 training = false;
             }
-
-            cout << __FILE__ << ", " << __LINE__ << endl;
 
             if (!training && features->size() > max_append_features) {
                 cout << "Appending " << features->size() << " points in " << adjacencies.size() << " groups" << endl;
@@ -183,13 +167,9 @@ void train_vocabulary(const boost::filesystem::path& data_path)
                 adjacencies.clear();
             }
 
-            cout << __FILE__ << ", " << __LINE__ << endl;
-
             last_sweep = sweep_i;
             sweep_counter = 0;
         }
-
-        cout << __FILE__ << ", " << __LINE__ << endl;
 
         if (features_i->size() < min_segment_features) {
             ++counter;
@@ -200,22 +180,16 @@ void train_vocabulary(const boost::filesystem::path& data_path)
             continue;
         }
 
-        cout << __FILE__ << ", " << __LINE__ << endl;
-
         //Eigen::Vector4f point;
         //pcl::compute3DCentroid(*keypoints_i, point);
         //centroids->push_back(PointT());
         //centroids->back().getVector4fMap() = point;
         features->insert(features->end(), features_i->begin(), features_i->end());
 
-        cout << __FILE__ << ", " << __LINE__ << endl;
-
         IndexT index(sweep_i, counter, sweep_counter);
         for (size_t i = 0; i < features_i->size(); ++i) {
             indices.push_back(index);
         }
-
-        cout << __FILE__ << ", " << __LINE__ << endl;
 
         ++counter;
         ++sweep_counter;
@@ -223,8 +197,6 @@ void train_vocabulary(const boost::filesystem::path& data_path)
             break;
         }
     }
-
-    cout << __FILE__ << ", " << __LINE__ << endl;
 
     // append the rest
     cout << "Appending " << features->size() << " points in " << adjacencies.size() << " groups" << endl;
@@ -234,14 +206,10 @@ void train_vocabulary(const boost::filesystem::path& data_path)
         vt->append_cloud(features, indices, adjacencies, false);
     }
 
-    cout << __FILE__ << ", " << __LINE__ << endl;
-
     summary.nbr_noise_segments = counter;
     summary.nbr_noise_sweeps = sweep_counter;
     summary.nbr_annotated_segments = 0;
     summary.nbr_annotated_sweeps = 0;
-
-    cout << __FILE__ << ", " << __LINE__ << endl;
 
     summary.save(vocabulary_path);
     dynamic_object_retrieval::save_vocabulary(*vt, vocabulary_path);
@@ -318,60 +286,41 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
         return;
     }
 
-    cout << __FILE__ << ", " << __LINE__ << endl;
-
     size_t offset; // same thing here, index among segments, can't take this from vocab, instead parse everything?
     size_t sweep_offset;
     // how do we get this to not require anything
     tie(sweep_offset, offset) = get_offsets_in_data(sweep_xml.parent_path());
 
-    cout << __FILE__ << ", " << __LINE__ << endl;
-
     size_t counter = 0; // this is important to change as its the index within all segments
     size_t sweep_i; // index among sweeps, how do we get this?
-
-    cout << __FILE__ << ", " << __LINE__ << endl;
 
     HistCloudT::Ptr features(new HistCloudT);
     AdjacencyT adjacencies;
     vector<IndexT> indices;
 
-    cout << __FILE__ << ", " << __LINE__ << endl;
-
     dynamic_object_retrieval::sweep_convex_segment_cloud_map clouds(sweep_xml.parent_path());
     dynamic_object_retrieval::sweep_convex_feature_cloud_map segment_features(sweep_xml.parent_path());
     dynamic_object_retrieval::sweep_convex_keypoint_cloud_map segment_keypoints(sweep_xml.parent_path());
-    cout << __FILE__ << ", " << __LINE__ << endl;
     for (auto tup : dynamic_object_retrieval::zip(segment_features, segment_keypoints, clouds)) {
         HistCloudT::Ptr features_i;
         CloudT::Ptr keypoints_i;
         CloudT::Ptr segment;
         tie(features_i, keypoints_i, segment) = tup;
 
-        cout << __FILE__ << ", " << __LINE__ << endl;
-
         features->insert(features->end(), features_i->begin(), features_i->end());
-
-        cout << __FILE__ << ", " << __LINE__ << endl;
 
         IndexT index(sweep_offset + sweep_i, offset + counter, counter);
         for (size_t i = 0; i < features_i->size(); ++i) {
             indices.push_back(index);
         }
 
-        cout << __FILE__ << ", " << __LINE__ << endl;
-
         ++counter;
     }
-
-    cout << __FILE__ << ", " << __LINE__ << endl;
 
     if (features->size() > 0) {
         adjacencies.push_back(compute_group_adjacencies(segments_path));
         vt->append_cloud(features, indices, adjacencies, false);
     }
-
-    cout << __FILE__ << ", " << __LINE__ << endl;
 
     std_msgs::String done_msg;
     done_msg.data = msg->data;
