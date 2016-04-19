@@ -3,6 +3,7 @@ import rospy
 import os
 import sys
 from learn_objects_action.machine import LearnObjectActionMachineRAL16, LearnObjectActionMachineInfoGain
+from learn_objects_action.machine_y3 import LearnObjectActionMachineYear3
 from smach_ros import ActionServerWrapper
 from learn_objects_action.msg import LearnObjectAction
 
@@ -12,7 +13,7 @@ model_path = rospy.get_param("~model_path","~/models")
 model_path = os.path.expanduser(model_path)
 rospy.loginfo("Model path set to: "+model_path)
 if not os.path.isdir(model_path) and not os.path.isdir(os.path.join(model_path,"reconstruct")):
-    rospy.logerr("The chosen model path does not exist. Make sure that " + model_path + 
+    rospy.logerr("The chosen model path does not exist. Make sure that " + model_path +
                  " and " + os.path.join(model_path,"reconstruct") +" exist,"
                  " or set ~model_path properly.")
     sys.exit(1)
@@ -39,6 +40,9 @@ if planning_method == "ral16":
     pass
 elif planning_method == "infogain":
     sm = LearnObjectActionMachineInfoGain(model_path, debug_mode)
+elif planning_method == "year3":
+    sm = LearnObjectActionMachineYear3(model_path, debug_mode)
+
 else:
     rospyt.logerr("The chosen planning method is not available.")
     sys.exit(1)
@@ -49,9 +53,9 @@ asw = ActionServerWrapper(
     'learn_object',
     LearnObjectAction,
     wrapped_container = sm,
-    succeeded_outcomes = ['succeded'], 
+    succeeded_outcomes = ['succeded'],
     aborted_outcomes = ['failed'],
-    preempted_outcomes = ['preempted'], 
+    preempted_outcomes = ['preempted'],
     goal_key = 'action_goal',
     result_key='action_result' )
 
