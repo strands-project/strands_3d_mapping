@@ -21,7 +21,7 @@ ModelMask::ModelMask(cv::Mat mask_){
 	width = 640;
 	height = 480;
 	maskvec = new bool[width*height];
-	for(unsigned int i = 0; i < width*height; i++){maskvec[i] = maskdata[i] != 0;}
+    for(int i = 0; i < width*height; i++){maskvec[i] = maskdata[i] != 0;}
 
 
 
@@ -58,7 +58,7 @@ cv::Mat ModelMask::getMask(){
 	cv::Mat fullmask;
 	fullmask.create(height,width,CV_8UC1);
 	unsigned char * maskdata = (unsigned char *)fullmask.data;
-	for(unsigned int j = 0; j < width*height; j++){maskdata[j] = 255*maskvec[j];}
+    for(int j = 0; j < width*height; j++){maskdata[j] = 255*maskvec[j];}
 	return fullmask;
 }
 

@@ -78,7 +78,7 @@ void MassRegistration::show(std::vector<Eigen::MatrixXd> Xv, bool save, std::str
 	viewer->removeAllPointClouds();
 
 	srand(0);
-	for(int xi = 0; xi < Xv.size(); xi++){
+    for(unsigned int xi = 0; xi < Xv.size(); xi++){
 		Eigen::MatrixXd X = Xv[xi];
 		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 		int r = 256*(1+(rand()%4))/4 - 1;//255*((xi+1) & 1);

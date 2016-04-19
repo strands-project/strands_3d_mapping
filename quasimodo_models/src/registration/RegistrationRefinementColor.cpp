@@ -187,7 +187,7 @@ void RegistrationRefinementColor::setDst(CloudData * dst_){
 	ycols = Y.cols();
 	total_dweight.resize(ycols);
 
-	printf("stepy: %i\n",stepy);
+    printf("stepy: %i\n",int(stepy));
 
     for(unsigned int i = 0; i < d_nr_data/stepy; i++){
         Y(0,i)	= dst->data(0,i*stepy);
@@ -261,14 +261,11 @@ Eigen::MatrixXd align(Eigen::VectorXd W, Eigen::MatrixXd X, Eigen::MatrixXd Y, E
 }
 
 double test(Eigen::VectorXd W, Eigen::MatrixXd X, Eigen::MatrixXd Y){
-    printf("X %i %i\n",X.rows(),X.cols());
-    printf("Y %i %i\n",Y.rows(),Y.cols());
 
    Eigen::MatrixXd err = X-Y;
    double sum = 0;
    double sumWi = 0;
 
-   printf("%i %i\n",err.rows(),err.cols());
    for(int j = 0; j < err.cols(); j++){
        for(int i = 0; i < err.rows(); i++){
            double Wi = W(i);
@@ -330,7 +327,7 @@ exit(0);
 	X.resize(Eigen::NoChange,s_nr_data/stepx);
 	Xn.resize(Eigen::NoChange,s_nr_data/stepx);
 	unsigned int xcols = X.cols();
-	printf("xcols: %i\n",xcols);
+    printf("xcols: %i\n",int(xcols));
 
 	/// Buffers
 	Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	xcols);
@@ -410,7 +407,7 @@ exit(0);
 					case PointToPoint:	{residuals = X-Qp;} 						break;
 					case PointToPlane:	{
 						residuals		= Eigen::MatrixXd::Zero(1,	xcols);
-						for(int i=0; i<xcols; ++i) {
+                        for(unsigned int i=0; i<xcols; ++i) {
 							float dx = X(0,i)-Qp(0,i);
 							float dy = X(1,i)-Qp(1,i);
 							float dz = X(2,i)-Qp(2,i);
@@ -423,7 +420,7 @@ exit(0);
 					}break;
 					default:			{printf("type not set\n");}					break;
 				}
-				for(int i=0; i<xcols; ++i) {residuals.col(i) *= rangeW(i);}
+                for(unsigned int i=0; i<xcols; ++i) {residuals.col(i) *= rangeW(i);}
 
 				switch(type) {
 					case PointToPoint:	{func->computeModel(residuals);} 	break;
@@ -454,7 +451,7 @@ exit(0);
 								case PointToPoint:	{residuals = X-Qp;} 						break;
 								case PointToPlane:	{
 									residuals		= Eigen::MatrixXd::Zero(1,	xcols);
-									for(int i=0; i< xcols; ++i) {
+                                    for(unsigned int i=0; i< xcols; ++i) {
 										float dx = X(0,i)-Qp(0,i);
 										float dy = X(1,i)-Qp(1,i);
 										float dz = X(2,i)-Qp(2,i);
@@ -467,14 +464,14 @@ exit(0);
 								}break;
 								default:			{printf("type not set\n");}					break;
 							}
-							for(int i=0; i<xcols; ++i) {residuals.col(i) *= rangeW(i);}
+                            for(unsigned int i=0; i<xcols; ++i) {residuals.col(i) *= rangeW(i);}
 						}
 
 						switch(type) {
 							case PointToPoint:	{W = func->getProbs(residuals); } 					break;
 							case PointToPlane:	{
 								W = func->getProbs(residuals);
-								for(int i=0; i<xcols; ++i) {W(i) = W(i)*float((Xn(0,i)*Qn(0,i) + Xn(1,i)*Qn(1,i) + Xn(2,i)*Qn(2,i)) > 0.0);}
+                                for(unsigned int i=0; i<xcols; ++i) {W(i) = W(i)*float((Xn(0,i)*Qn(0,i) + Xn(1,i)*Qn(1,i) + Xn(2,i)*Qn(2,i)) > 0.0);}
 							}	break;
 							default:			{printf("type not set\n");} break;
 						}
