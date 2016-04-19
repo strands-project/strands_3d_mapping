@@ -338,7 +338,7 @@ int main(int argc, char** argv){
 	//					PointCloudColorHandlerCustom<PointType> intermediate_h (transformed_cloud, 255, 0, 0);
 	//					pg->addPointCloud(transformed_cloud, intermediate_h, (complete_av_mask_name+"av").c_str());
 	//					pg->spin();
-	//				}
+    //				}
 				}
 
 				if(viewrgbs.size() > 0){
@@ -354,13 +354,13 @@ int main(int argc, char** argv){
 	}
 
     for(unsigned int i = 0; i < rgbs.size(); i++){
-		int ind = rand()%rgbs.size();
-		std::iter_swap(rgbs.begin()+i,rgbs.begin()+ind);
-		std::iter_swap(depths.begin()+i,depths.begin()+ind);
-		std::iter_swap(masks.begin()+i,masks.begin()+ind);
-		std::iter_swap(tfs.begin()+i,tfs.begin()+ind);
-		std::iter_swap(initposes.begin()+i,initposes.begin()+ind);
-	}
+        int ind = rand()%rgbs.size();
+        std::iter_swap(rgbs.begin()+i,rgbs.begin()+ind);
+        std::iter_swap(depths.begin()+i,depths.begin()+ind);
+        std::iter_swap(masks.begin()+i,masks.begin()+ind);
+        std::iter_swap(tfs.begin()+i,tfs.begin()+ind);
+        std::iter_swap(initposes.begin()+i,initposes.begin()+ind);
+    }
 
     model_from_frame_client	= n.serviceClient<quasimodo_msgs::model_from_frame>("model_from_frame");
     fuse_models_client		= n.serviceClient<quasimodo_msgs::fuse_models>(		"fuse_models");
