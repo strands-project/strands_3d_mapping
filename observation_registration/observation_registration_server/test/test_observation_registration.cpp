@@ -103,7 +103,7 @@ int main(int argc, char** argv)
 CloudPtr rebuildCloud(std::vector<CloudPtr> intermediate_clouds, std::vector<tf::StampedTransform> intermediate_transforms){
     CloudPtr mergedCloud(new Cloud);
 
-    for (size_t i=0; i<intermediate_clouds.size()/3; i++)
+    for (size_t i=0; i<intermediate_clouds.size(); i++)
     {
         Cloud transformed_cloud;
         pcl_ros::transformPointCloud(*intermediate_clouds[i], transformed_cloud,intermediate_transforms[i]);

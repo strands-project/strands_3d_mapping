@@ -6,7 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(PkgConfig)
 pkg_check_modules(GLEW REQUIRED glew)
-find_package(CUDA 6.5 REQUIRED)
+find_package(CUDA 5.5 REQUIRED)
 
 set(GENCODE_SM20 -gencode=arch=compute_20,code=sm_20)
 set(GENCODE_SM30 -gencode=arch=compute_30,code=sm_30)
