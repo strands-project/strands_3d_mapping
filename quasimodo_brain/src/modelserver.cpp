@@ -553,6 +553,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
             std_msgs::String msg;
             msg.data = "Added search result to DB!";
             chatter_pub.publish(msg);
+            publishDatabasePCD();
         }
         addToDB(database, it->second);
     }
@@ -561,6 +562,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
             std_msgs::String msg;
             msg.data = "Added search result to DB!";
             chatter_pub.publish(msg);
+            publishDatabasePCD();
         }
         addToDB(database, it->second);
     }
@@ -740,7 +742,7 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
                     }
                 }
             }
-            exit(0);
+            //exit(0);
         }
         newmodel = 0;
         sweepid_counter++;
