@@ -1,0 +1,5 @@
+string object_xml
+string observation_xml
+---
+bool result
+
