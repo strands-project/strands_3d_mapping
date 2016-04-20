@@ -65,7 +65,7 @@ void compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT:
     if (is_query || volume < density_threshold_volume) {
 
         // Fill in the model cloud
-        double model_resolution = 0.007; // 0.003 before
+        double model_resolution = 0.003; // 0.007 before
 
         // Compute model_resolution
         iss_salient_radius_ = 6 * model_resolution;
@@ -134,7 +134,7 @@ void compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT:
     se.setIndices(indices); //keypoints
     se.setInputCloud(cloud);
     se.setInputNormals(normals);
-    se.setRadiusSearch(0.04); //support 0.06 orig, 0.04 still seems too big, takes time
+    se.setRadiusSearch(0.06); //support 0.06 orig, 0.04 still seems too big, takes time
 
     pcl::PointCloud<pcl::PFHRGBSignature250> pfhrgb_cloud;
     se.compute(pfhrgb_cloud); //descriptors
