@@ -12,6 +12,7 @@
 #include <fstream>
 
 #include "../model/Model.h"
+#include <pcl/visualization/pcl_visualizer.h>
 
 namespace reglib
 {
@@ -45,9 +46,10 @@ class Mesh{
         std::vector<Triangle*> triangles;
 
         Mesh();
-        Mesh(Model * model);
-
         ~Mesh();
+
+        void build(Model * model, int type);
+        void show(pcl::visualization::PCLVisualizer * viewer);
         //void save(std::string path = "");
         //void print();
         //static Camera * load(std::string path);

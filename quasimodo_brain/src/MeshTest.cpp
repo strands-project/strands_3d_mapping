@@ -43,8 +43,16 @@ typedef pcl::PointXYZRGB PointType;
 typedef pcl::PointCloud<PointType> Cloud;
 typedef typename Cloud::Ptr CloudPtr;
 
+pcl::visualization::PCLVisualizer* viewer;
+
 
 int main(int argc, char** argv){
+
+
+    viewer = new pcl::visualization::PCLVisualizer (argc, argv, "MeshTest");
+    viewer->addCoordinateSystem();
+    viewer->setBackgroundColor(1, 1, 1);
+
     reglib::Camera * camera = new reglib::Camera();
 	for(int ar = 1; ar < argc; ar++){
         string path = std::string(argv[ar]);
@@ -77,17 +85,19 @@ int main(int argc, char** argv){
             depthdata[j]	= short(5000.0 * p.z);
         }
 
-        cv::namedWindow("rgbimage",	cv::WINDOW_AUTOSIZE);
-        cv::imshow(		"rgbimage",	rgb);
-        cv::namedWindow("depthimage",	cv::WINDOW_AUTOSIZE);
-        cv::imshow(		"depthimage",	depth);
-        cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
-        cv::imshow(		"mask",	mask);
-        cv::waitKey(0);
+//        cv::namedWindow("rgbimage",	cv::WINDOW_AUTOSIZE);
+//        cv::imshow(		"rgbimage",	rgb);
+//        cv::namedWindow("depthimage",	cv::WINDOW_AUTOSIZE);
+//        cv::imshow(		"depthimage",	depth);
+//        cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
+//        cv::imshow(		"mask",	mask);
+//        cv::waitKey(0);
 
         reglib::RGBDFrame * frame   = new reglib::RGBDFrame(camera,rgb, depth);
         reglib::Model * model       = new reglib::Model(frame,mask);
-        reglib::Mesh  * mesh        = new reglib::Mesh(model);
+        reglib::Mesh  * mesh        = new reglib::Mesh();
+        mesh->build(model,0);
+        mesh->show(viewer);
 
     }
 }

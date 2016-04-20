@@ -43,6 +43,13 @@
 
 #include <sys/time.h>
 
+#include <sys/types.h>
+#include <dirent.h>
+#include <errno.h>
+#include <vector>
+#include <string>
+#include <iostream>
+
 bool visualization = false;
 
 
@@ -720,6 +727,21 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 
 bool fuseModels(quasimodo_msgs::fuse_models::Request  & req, quasimodo_msgs::fuse_models::Response & res){}
 
+int getdir (std::string dir, std::vector<std::string> & files){
+    DIR *dp;
+    struct dirent *dirp;
+    if((dp  = opendir(dir.c_str())) == NULL) {
+        cout << "Error(" << errno << ") opening " << dir << endl;
+        return errno;
+    }
+
+    while ((dirp = readdir(dp)) != NULL) {
+        files.push_back(std::string(dirp->d_name));
+    }
+    closedir(dp);
+    return 0;
+}
+
 int main(int argc, char **argv){
 	ros::init(argc, argv, "quasimodo_model_server");
 	ros::NodeHandle n;
@@ -757,22 +779,29 @@ int main(int argc, char **argv){
 	for(int i = 1; i < argc;i++){
 		printf("input: %s\n",argv[i]);
 		if(		std::string(argv[i]).compare("-c") == 0){	printf("camera input state\n"); inputstate = 1;}
+        else if(std::string(argv[i]).compare("-l") == 0){	printf("reading all models at %s (the path defined from -p)\n",savepath.c_str());
+            std::vector<std::string> folderdata;
+            int r = getdir(savepath+"/",folderdata);
+            for(unsigned int fnr = 0; fnr < folderdata.size(); fnr++){
+                printf("%s\n",folderdata[fnr].c_str());
+            }
+            exit(0);}
 		else if(std::string(argv[i]).compare("-m") == 0){	printf("model input state\n");	inputstate = 2;}
         else if(std::string(argv[i]).compare("-p") == 0){	printf("path input state\n");	inputstate = 3;}
         else if(std::string(argv[i]).compare("-occlusion_penalty") == 0){printf("occlusion_penalty input state\n");inputstate = 4;}
         else if(std::string(argv[i]).compare("-massreg_timeout") == 0){printf("massreg_timeout input state\n");inputstate = 5;}
         else if(std::string(argv[i]).compare("-v") == 0){	printf("visualization turned on\n");	visualization = true;}
 		else if(inputstate == 1){
-			//reglib::Camera * cam = reglib::Camera::load(std::string(argv[i]));
-			//delete cameras[0];
-			//cameras[0] = cam;
+            reglib::Camera * cam = reglib::Camera::load(std::string(argv[i]));
+            delete cameras[0];
+            cameras[0] = cam;
 		}else if(inputstate == 2){
-			//reglib::Model * model = reglib::Model::load(cameras[0],std::string(argv[i]));
-			//sweepid_counter = std::max(int(model->modelmasks[0]->sweepid + 1), sweepid_counter);
-			//modeldatabase->add(model);
-			//addToDB(modeldatabase, model,false);
-			//model->last_changed = ++current_model_update;
-			//show_sorted();
+            reglib::Model * model = reglib::Model::load(cameras[0],std::string(argv[i]));
+            sweepid_counter = std::max(int(model->modelmasks[0]->sweepid + 1), sweepid_counter);
+            modeldatabase->add(model);
+            //addToDB(modeldatabase, model,false);
+            model->last_changed = ++current_model_update;
+            show_sorted();
 		}else if(inputstate == 3){
 			savepath = std::string(argv[i]);
         }else if(inputstate == 4){

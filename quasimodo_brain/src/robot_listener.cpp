@@ -127,6 +127,154 @@ void chatterCallback(const std_msgs::String::ConstPtr& msg)
 
     ROS_INFO("I heard: [%s]", msg->data.c_str());
 
+    ObjectData object = semantic_map_load_utilties::loadDynamicObjectFromSingleSweep<PointType>(msg->data.c_str());
+
+    printf("number of inds: %i",int(object.objectScanIndices.size()));
+    printf("AVs: %i\n",int(object.vAdditionalViews.size()));
+    if (!object.vAdditionalViews.size()){return;}
+
+
+
+    std::vector<cv::Mat> viewrgbs;
+    std::vector<cv::Mat> viewdepths;
+    std::vector<cv::Mat> viewmasks;
+    std::vector<tf::StampedTransform > viewtfs;
+    std::vector<Eigen::Matrix4f> viewposes;
+
+    int step = std::max(1,int(0.5+double(object.vAdditionalViews.size())/10.0));
+
+    for (unsigned int i=0; i < 2000 && i<object.vAdditionalViews.size(); i+=step){
+        CloudPtr cloud = object.vAdditionalViews[i];
+
+        cv::Mat mask;
+        mask.create(cloud->height,cloud->width,CV_8UC1);
+        unsigned char * maskdata = (unsigned char *)mask.data;
+
+        cv::Mat rgb;
+        rgb.create(cloud->height,cloud->width,CV_8UC3);
+        unsigned char * rgbdata = (unsigned char *)rgb.data;
+
+        cv::Mat depth;
+        depth.create(cloud->height,cloud->width,CV_16UC1);
+        unsigned short * depthdata = (unsigned short *)depth.data;
+
+        unsigned int nr_data = cloud->height * cloud->width;
+        for(unsigned int j = 0; j < nr_data; j++){
+            maskdata[j] = 0;
+            PointType p = cloud->points[j];
+            rgbdata[3*j+0]	= p.b;
+            rgbdata[3*j+1]	= p.g;
+            rgbdata[3*j+2]	= p.r;
+            depthdata[j]	= short(5000.0 * p.z);
+        }
+
+        std::vector<int> & inds = object.vAdditionalViewMaskIndices[i];
+
+        for(unsigned int j = 0; j < inds.size(); j++){
+            maskdata[inds[j]] = 255;
+        }
+
+        cout<<"Processing AV "<<i<<endl;
+
+        viewrgbs.push_back(rgb);
+        viewdepths.push_back(depth);
+        viewmasks.push_back(mask);
+        viewtfs.push_back(object.vAdditionalViewsTransformsRegistered[i]);
+
+
+//        cv::namedWindow("rgbimage",	cv::WINDOW_AUTOSIZE);
+//        cv::imshow(		"rgbimage",	rgb);
+//        cv::namedWindow("depthimage",	cv::WINDOW_AUTOSIZE);
+//        cv::imshow(		"depthimage",	depth);
+//        cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
+//        cv::imshow(		"mask",	mask);
+//        cv::imshow(		"raresmask",object.vAdditionalViewMaskImages[i]);
+//        cv::waitKey(0);
+    }
+
+
+    if(viewrgbs.size() > 0){
+        std::vector<int> fid;
+        std::vector<int> fadded;
+        for(unsigned int j = 0; j < viewrgbs.size(); j++){
+            cv::Mat rgbimage		= viewrgbs[j];
+            cv::Mat depthimage		= viewdepths[j];
+            tf::StampedTransform tf	= viewtfs[j];
+            //            Eigen::Matrix4f m		= viewposes[j];
+            geometry_msgs::TransformStamped tfstmsg;
+            tf::transformStampedTFToMsg (tf, tfstmsg);
+
+            geometry_msgs::Transform tfmsg = tfstmsg.transform;
+
+            printf("start adding frame %i\n",j);
+
+            //            Eigen::Quaternionf q = Eigen::Quaternionf(Eigen::Affine3f(m).rotation());
+
+            geometry_msgs::Pose		pose;
+            pose.orientation		= tfmsg.rotation;
+            pose.position.x		= tfmsg.translation.x;
+            pose.position.y		= tfmsg.translation.y;
+            pose.position.z		= tfmsg.translation.z;
+            //            pose.orientation.x	= q.x();
+            //            pose.orientation.y	= q.y();
+            //            pose.orientation.z	= q.z();
+            //            pose.orientation.w	= q.w();
+            //            pose.position.x		= m(0,3);
+            //            pose.position.y		= m(1,3);
+            //            pose.position.z		= m(2,3);
+
+
+            cv_bridge::CvImage rgbBridgeImage;
+            rgbBridgeImage.image = rgbimage;
+            rgbBridgeImage.encoding = "bgr8";
+
+            cv_bridge::CvImage depthBridgeImage;
+            depthBridgeImage.image = depthimage;
+            depthBridgeImage.encoding = "mono16";
+
+            quasimodo_msgs::index_frame ifsrv;
+            ifsrv.request.frame.capture_time = ros::Time();
+            ifsrv.request.frame.pose		= pose;
+            ifsrv.request.frame.frame_id	= -1;
+            ifsrv.request.frame.rgb			= *(rgbBridgeImage.toImageMsg());
+            ifsrv.request.frame.depth		= *(depthBridgeImage.toImageMsg());
+
+            if (index_frame_client.call(ifsrv)){//Add frame to model server
+                int frame_id = ifsrv.response.frame_id;
+                fadded.push_back(j);
+                fid.push_back(frame_id);
+                ROS_INFO("frame_id%i", frame_id );
+            }else{ROS_ERROR("Failed to call service index_frame");}
+        }
+
+        for(unsigned int j = 0; j < fadded.size(); j++){
+            cv::Mat mask	= viewmasks[fadded[j]];
+
+            cv_bridge::CvImage maskBridgeImage;
+            maskBridgeImage.image = mask;
+            maskBridgeImage.encoding = "mono8";
+
+            quasimodo_msgs::model_from_frame mff;
+            mff.request.mask		= *(maskBridgeImage.toImageMsg());
+            mff.request.isnewmodel	= (j == (fadded.size()-1));
+            mff.request.frame_id	= fid[j];
+
+            if (model_from_frame_client.call(mff)){//Build model from frame
+                int model_id = mff.response.model_id;
+                if(model_id > 0){
+                    ROS_INFO("model_id%i", model_id );
+                }
+            }else{ROS_ERROR("Failed to call service index_frame");}
+        }
+    }
+
+}
+
+void chatterCallback2(const std_msgs::String::ConstPtr& msg)
+{
+
+    ROS_INFO("I heard: [%s]", msg->data.c_str());
+
     vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(msg->data.c_str());
 
     for (auto sweep_xml : sweep_xmls) {
