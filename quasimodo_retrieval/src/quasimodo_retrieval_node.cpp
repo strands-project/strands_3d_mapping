@@ -74,6 +74,10 @@ public:
         string vocabulary_string;
         pn.param<std::string>("vocabulary_path", vocabulary_string, std::string(""));
         vocabulary_path = boost::filesystem::path(vocabulary_string);
+        while (!boost::filesystem::exists(vocabulary_path / "grouped_vocabulary.cereal")) {
+            cout << "Vocabulary " << vocabulary_path.string() << " does not exist yet, sleeping for 60s" << endl;
+            ros::Duration(60.0).sleep();
+        }
         cout << "Vocabulary path: " << vocabulary_path.string() << endl;
 
         //string data_string;
@@ -507,11 +511,8 @@ public:
 
             for (int j = 0; j < nbr_images; ++j) {
                 //res.result.retrieved_initial_poses[i][j] = geometry_msgs::Pose();
-                cout << "RGB size: (" << images[i][j].rows << ", " << images[i][j].cols << ")" << endl;
                 convert_to_img_msg(images[i][j], res.retrieved_images[i].images[j]);
-                cout << "Depth size: (" << depths[i][j].rows << ", " << depths[i][j].cols << ")" << endl;
                 convert_to_depth_msg(depths[i][j], res.retrieved_depths[i].images[j]);
-                cout << "Mask size: (" << masks[i][j].rows << ", " << masks[i][j].cols << ")" << endl;
                 convert_to_mask_msg(masks[i][j], res.retrieved_masks[i].images[j]);
                 res.retrieved_image_paths[i].strings[j] = paths[i][j];
             }

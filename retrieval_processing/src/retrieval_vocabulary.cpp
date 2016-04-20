@@ -100,8 +100,6 @@ void train_vocabulary(const boost::filesystem::path& data_path)
     dynamic_object_retrieval::convex_segment_map segment_paths(data_path);
     dynamic_object_retrieval::islast_convex_segment_map last_segments(data_path);
 
-    cout << __FILE__ << ", " << __LINE__ << endl;
-
     // this is really the last thing we need to add.
 
     dynamic_object_retrieval::vocabulary_summary summary;
@@ -186,6 +184,7 @@ void train_vocabulary(const boost::filesystem::path& data_path)
         //centroids->back().getVector4fMap() = point;
         features->insert(features->end(), features_i->begin(), features_i->end());
 
+        // index of sweep, global index of segment, sweep index of segment
         IndexT index(sweep_i, counter, sweep_counter);
         for (size_t i = 0; i < features_i->size(); ++i) {
             indices.push_back(index);
