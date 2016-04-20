@@ -130,20 +130,24 @@ void publishObject(int id){
 
 void dumpDatabase(std::string path = "."){
 	char command [1024];
-	sprintf(command,"rm -r %s/model*",path.c_str());
+    sprintf(command,"rm -r -f %s/quasimodo_model*",path.c_str());
 	printf("%s\n",command);
     int r = system(command);
 
-	sprintf(command,"rm %s/camera*",path.c_str());
+    sprintf(command,"rm -f %s/quasimodo_camera*",path.c_str());
 	printf("%s\n",command);
     r = system(command);
 
-	cameras[0]->save(path+"/camera0");
+    cameras[0]->save(path+"/quasimodo_camera0");
 	for(unsigned int m = 0; m < modeldatabase->models.size(); m++){
 		char buf [1024];
-		sprintf(buf,"%s/model%i",path.c_str(),m);
+        sprintf(buf,"%s/quasimodo_model%i",path.c_str(),m);
 		sprintf(command,"mkdir -p %s",buf);
         r = system(command);
+
+        sprintf(command,"mkdir -p %s/views",buf);
+        r = system(command);
+
 		modeldatabase->models[m]->save(std::string(buf));
 	}
 }

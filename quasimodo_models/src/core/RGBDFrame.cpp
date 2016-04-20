@@ -354,12 +354,7 @@ pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr RGBDFrame::getPCLcloud(){
 	return cloud_ptr;
 }
 
-void RGBDFrame::save(std::string path){
-	//printf("saving frame %i to %s\n",id,path.c_str());
-
-	cv::imwrite( path+"_rgb.png", rgb );
-	cv::imwrite( path+"_depth.png", depth );
-
+void RGBDFrame::savePCD(std::string path){
     unsigned char * rgbdata = (unsigned char *)rgb.data;
     unsigned short * depthdata = (unsigned short *)depth.data;
 
@@ -389,8 +384,14 @@ void RGBDFrame::save(std::string path){
             }
         }
     }
+    int success = pcl::io::savePCDFileBinaryCompressed(path,*cloud);
+}
 
+void RGBDFrame::save(std::string path){
+	//printf("saving frame %i to %s\n",id,path.c_str());
 
+	cv::imwrite( path+"_rgb.png", rgb );
+	cv::imwrite( path+"_depth.png", depth );
 
 	unsigned long buffersize = 19*sizeof(double);
 	char* buffer = new char[buffersize];
