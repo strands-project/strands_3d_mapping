@@ -181,6 +181,8 @@ pair<size_t, size_t> add_segments_grouped(SegmentMapT& segment_features, Keypoin
             centroids->clear();
 
             if (training && features->size() > max_training_features) {
+                cout << "Training using features from " << sweep_i << " sweeps" << endl;
+
                 vt.set_input_cloud(features, indices);
                 vt.add_points_from_input_cloud(adjacencies, false);
                 features->clear();
