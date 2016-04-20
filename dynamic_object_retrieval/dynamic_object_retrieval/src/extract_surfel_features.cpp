@@ -65,7 +65,7 @@ void compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT:
     if (is_query || volume < density_threshold_volume) {
 
         // Fill in the model cloud
-        double model_resolution = 0.003; // 0.007 before
+        double model_resolution = 0.007; // 0.003 before
 
         // Compute model_resolution
         iss_salient_radius_ = 6 * model_resolution;
