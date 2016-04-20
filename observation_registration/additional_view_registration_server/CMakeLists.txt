@@ -3,14 +3,14 @@ project(additional_view_registration_server)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
 
-find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs geometry_msgs sensor_msgs observation_registration_services metaroom_xml_parser semantic_map tf pcl_ros qt_build siftgpu)
+find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs geometry_msgs sensor_msgs observation_registration_services metaroom_xml_parser semantic_map tf pcl_ros qt_build siftgpu object_manager)
 
 
 catkin_package(
    INCLUDE_DIRS 
-   CATKIN_DEPENDS std_msgs geometry_msgs sensor_msgs observation_registration_services metaroom_xml_parser semantic_map qt_build libqt4-dev pcl_ros siftgpu
+   CATKIN_DEPENDS std_msgs geometry_msgs sensor_msgs observation_registration_services metaroom_xml_parser semantic_map qt_build libqt4-dev pcl_ros siftgpu object_manager
    DEPENDS libceres-dev suitesparse
-   LIBRARIES #observation_registration_optimizer
+   LIBRARIES additional_view_registration_optimizer
 )
 
 find_package(PCL 1.7 REQUIRED)

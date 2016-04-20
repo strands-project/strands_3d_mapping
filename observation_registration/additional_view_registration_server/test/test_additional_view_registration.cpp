@@ -7,6 +7,7 @@
 #include <ros/ros.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl_ros/transforms.h>
+#include <object_manager/dynamic_object_xml_parser.h>
 
 typedef pcl::PointXYZRGB PointType;
 typedef pcl::PointCloud<PointType> Cloud;
@@ -127,6 +128,26 @@ int main(int argc, char** argv)
         pg->spin();
         pg->removeAllPointClouds();
     }
+
+    // set registered transforms to object
+    unsigned found = object_xml.find_last_of("/");
+    std::string obs_folder = object_xml.substr(0,found+1);
+    DynamicObjectXMLParser parser(obs_folder, true);
+    DynamicObject::Ptr original_object = parser.loadFromXML(object_xml,true);
+    original_object->m_vAdditionalViewsTransformsRegistered.clear();
+    for (auto tr : srv.response.additional_view_transforms){
+        tf::Transform transform;
+        tf::transformMsgToTF(tr, transform);
+        tf::StampedTransform stamped_transform(transform, ros::Time::now(), "", "");
+        original_object->m_vAdditionalViewsTransformsRegistered.push_back(stamped_transform);
+    }
+
+    tf::Transform obs_transform;
+    tf::transformMsgToTF(srv.response.observation_transform, obs_transform);
+    tf::StampedTransform obs_stamped_transform(obs_transform, ros::Time::now(), "", "");
+    original_object->m_AdditionalViewsTransformToObservation = obs_stamped_transform;
+    std::string xml_file = parser.saveAsXML(original_object);
+    ROS_INFO_STREAM("Object saved at "<<xml_file);
 
 
     /************************************************ TEST SECOND SERVICE ********************************************************/
