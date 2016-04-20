@@ -6,6 +6,7 @@
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/filters/approximate_voxel_grid.h>
+#include <pcl_ros/point_cloud.h>
 
 #include <metaroom_xml_parser/load_utilities.h>
 #include <dynamic_object_retrieval/definitions.h>
@@ -13,7 +14,7 @@
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 
-#define VISUALIZE 0
+#define VISUALIZE 1
 
 using namespace std;
 
@@ -55,6 +56,7 @@ int colormap[][3] = {
 };
 
 ros::Publisher pub;
+ros::Publisher vis_cloud_pub;
 double threshold;
 dynamic_object_retrieval::data_summary data_summary;
 boost::filesystem::path data_path;
@@ -102,7 +104,6 @@ void segmentation_callback(const std_msgs::String::ConstPtr& msg)
 
 #if VISUALIZE
     CloudT::Ptr colored_segments(new CloudT);
-    *colored_segments += *cloud;
     colored_segments->reserve(cloud->size());
     int counter = 0;
     for (CloudT::Ptr& c : convex_segments) {
@@ -114,7 +115,10 @@ void segmentation_callback(const std_msgs::String::ConstPtr& msg)
         }
         ++counter;
     }
-    dynamic_object_retrieval::visualize(colored_segments);
+    //dynamic_object_retrieval::visualize(colored_segments);
+    sensor_msgs::PointCloud2 vis_msg;
+    pcl::toROSMsg(*colored_segments, vis_msg);
+    vis_cloud_pub.publish(vis_msg);
 #endif
 
     boost::filesystem::path segments_path = sweep_xml.parent_path() / "convex_segments";
@@ -186,6 +190,7 @@ int main(int argc, char** argv)
     }
 
     pub = n.advertise<std_msgs::String>("/segmentation_done", 1);
+    vis_cloud_pub = n.advertise<sensor_msgs::PointCloud2>("/metric_map_segmentation_vis");
 
     ros::Subscriber sub;
     if (bypass) {
