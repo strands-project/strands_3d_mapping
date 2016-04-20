@@ -118,6 +118,7 @@ void segmentation_callback(const std_msgs::String::ConstPtr& msg)
     //dynamic_object_retrieval::visualize(colored_segments);
     sensor_msgs::PointCloud2 vis_msg;
     pcl::toROSMsg(*colored_segments, vis_msg);
+    vis_msg.header.frame_id = "/map";
     vis_cloud_pub.publish(vis_msg);
 #endif
 
@@ -190,7 +191,7 @@ int main(int argc, char** argv)
     }
 
     pub = n.advertise<std_msgs::String>("/segmentation_done", 1);
-    vis_cloud_pub = n.advertise<sensor_msgs::PointCloud2>("/metric_map_segmentation_vis");
+    vis_cloud_pub = n.advertise<sensor_msgs::PointCloud2>("/metric_map_segmentation_vis", 1);
 
     ros::Subscriber sub;
     if (bypass) {
