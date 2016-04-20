@@ -211,23 +211,23 @@ CloudPtr compute_mask_per_view_conv_seg(CloudPtr view, CloudPtr object, CloudPtr
         std::vector<int> nn_indices (1);
         std::vector<float> nn_distances (1);
         typename pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
-        tree->setInputCloud (view);
+        tree->setInputCloud (mask);
 
         // Iterate through the source data set
-        for (int i = 0; i < static_cast<int> (mask->points.size ()); ++i)
+        for (int i = 0; i < static_cast<int> (view->points.size ()); ++i)
         {
-            if (!isFinite (mask->points[i]))
+            if (!isFinite (view->points[i]))
                 continue;
             // Search for the closest point in the target data set (number of neighbors to find = 1)
-            if (!tree->nearestKSearch (mask->points[i], 1, nn_indices, nn_distances))
+            if (!tree->nearestKSearch (view->points[i], 1, nn_indices, nn_distances))
             {
-                PCL_WARN ("No neighbor found for point %zu (%f %f %f)!\n", i, mask->points[i].x, mask->points[i].y, mask->points[i].z);
+                PCL_WARN ("No neighbor found for point %zu (%f %f %f)!\n", i, view->points[i].x, view->points[i].y, view->points[i].z);
                 continue;
             }
 
             if (nn_distances[0] < 0.001)
             {
-                mask_indices.push_back (nn_indices[0]);
+                mask_indices.push_back (i);
             }
         }
 
