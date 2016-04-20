@@ -157,7 +157,7 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh) : m_TransformListene
 
     m_PublisherRequestedObjectCloud = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/object_manager/requested_object", 1, true);
     m_PublisherRequestedObjectImage = m_NodeHandle.advertise<sensor_msgs::Image>("/object_manager/requested_object_mask", 1, true);
-    m_PublisherLearnedObjectXml = m_NodeHandle.advertise<std_msgs::String>("/object_learning/learned_object_xml", 1, true);
+    m_PublisherLearnedObjectXml = m_NodeHandle.advertise<std_msgs::String>("/object_learning/learned_object_xml", 1, false);
 
     m_DynamicObjectsServiceServer = m_NodeHandle.advertiseService("ObjectManager/DynamicObjectsService", &ObjectManager::dynamicObjectsServiceCallback, this);
     m_GetDynamicObjectServiceServer = m_NodeHandle.advertiseService("ObjectManager/GetDynamicObjectService", &ObjectManager::getDynamicObjectServiceCallback, this);
