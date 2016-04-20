@@ -43,7 +43,10 @@ bool updated = true;
 void on_trackbar( int, void* ){updated = true;}
 
 RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capturetime_, Eigen::Matrix4d pose_, bool compute_normals){
-	sweepid = -1;
+
+    printf("%s LINE:%i\n",__FILE__,__LINE__);
+
+    sweepid = -1;
 	id = RGBDFrame_id_counter++;
 	camera = camera_;
 	rgb = rgb_;
@@ -53,6 +56,8 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 
 	IplImage iplimg = rgb_;
 	IplImage* img = &iplimg;
+
+    printf("%s LINE:%i\n",__FILE__,__LINE__);
 
     int width = img->width;
     int height = img->height;
@@ -76,6 +81,7 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
     for(int i = 0; i < width*height; i++){labels[i] = 0;}
 
 
+    printf("%s LINE:%i\n",__FILE__,__LINE__);
 	unsigned short * depthdata = (unsigned short *)depth.data;
 	unsigned char * rgbdata = (unsigned char *)rgb.data;
 
@@ -146,6 +152,7 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 		}
 	}
 
+    printf("%s LINE:%i\n",__FILE__,__LINE__);
 	if(compute_normals){
 		normals.create(height,width,CV_32FC3);
 		float * normalsdata = (float *)normals.data;
@@ -173,6 +180,7 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 			}
 		}
 
+        printf("%s LINE:%i\n",__FILE__,__LINE__);
 		pcl::IntegralImageNormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
 		ne.setInputCloud(cloud);
 
@@ -206,6 +214,7 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 			}
 		}
 
+        printf("%s LINE:%i\n",__FILE__,__LINE__);
 		if(tune){
 			combined.create(height,2*width,CV_8UC3);
 			combidata = (unsigned char *)combined.data;
@@ -276,8 +285,12 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 				updated = false;
 			//}
 		}
+
+        printf("%s LINE:%i\n",__FILE__,__LINE__);
 	}
 	//show(true);
+
+    printf("%s LINE:%i\n",__FILE__,__LINE__);
 }
 
 RGBDFrame::~RGBDFrame(){}

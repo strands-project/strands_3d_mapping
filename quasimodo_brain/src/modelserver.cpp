@@ -386,7 +386,9 @@ bool indexFrame(quasimodo_msgs::index_frame::Request  & req, quasimodo_msgs::ind
     Eigen::Affine3d epose;
     tf::poseMsgToEigen(pose, epose);
 
+    printf("%s LINE:%i\n",__FILE__,__LINE__);
     reglib::RGBDFrame * frame = new reglib::RGBDFrame(cameras[0],rgb, depth, double(capture_time.sec)+double(capture_time.nsec)/1000000000.0, epose.matrix());
+    printf("%s LINE:%i\n",__FILE__,__LINE__);
     frames[frame->id] = frame;
     res.frame_id = frame->id;
     return true;
