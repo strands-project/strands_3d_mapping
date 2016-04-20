@@ -23,6 +23,13 @@
 #include <object_manager/DynamicObjectsService.h>
 #include <object_manager/GetDynamicObjectService.h>
 
+// Registration service
+#include <observation_registration_services/ObjectAdditionalViewRegistrationService.h>
+
+// Additional view mask service
+#include <object_manager/DynamicObjectComputeMaskService.h>
+
+
 // Custom messages
 #include <object_manager/DynamicObjectTracks.h>
 
@@ -111,6 +118,7 @@ private:
     ros::Publisher                                                              m_PublisherDynamicClusters;
     ros::Publisher                                                              m_PublisherRequestedObjectCloud;
     ros::Publisher                                                              m_PublisherRequestedObjectImage;
+    ros::Publisher                                                              m_PublisherLearnedObjectXml;
     ros::Subscriber                                                             m_SubscriberDynamicObjectTracks;
     ros::Subscriber                                                             m_SubscriberAdditionalObjectViews;
     ros::Subscriber                                                             m_SubscriberAdditionalObjectViewsStatus;
@@ -149,6 +157,7 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh) : m_TransformListene
 
     m_PublisherRequestedObjectCloud = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/object_manager/requested_object", 1, true);
     m_PublisherRequestedObjectImage = m_NodeHandle.advertise<sensor_msgs::Image>("/object_manager/requested_object_mask", 1, true);
+    m_PublisherLearnedObjectXml = m_NodeHandle.advertise<std_msgs::String>("/object_learning/learned_object_xml", 1, true);
 
     m_DynamicObjectsServiceServer = m_NodeHandle.advertiseService("ObjectManager/DynamicObjectsService", &ObjectManager::dynamicObjectsServiceCallback, this);
     m_GetDynamicObjectServiceServer = m_NodeHandle.advertiseService("ObjectManager/GetDynamicObjectService", &ObjectManager::getDynamicObjectServiceCallback, this);
@@ -173,7 +182,7 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh) : m_TransformListene
     m_NodeHandle.param<int>("min_object_size",m_MinClusterSize,500);
     ROS_INFO_STREAM("ObjectManager:: min object size set to "<<m_MinClusterSize);
     
-m_NodeHandle.param<std::string>("additional_views_topic",m_additionalViewsTopic,"/object_learning/object_view");
+    m_NodeHandle.param<std::string>("additional_views_topic",m_additionalViewsTopic,"/object_learning/object_view");
     ROS_INFO_STREAM("The additional views topic is "<<m_additionalViewsTopic);
     m_SubscriberAdditionalObjectViews = m_NodeHandle.subscribe(m_additionalViewsTopic,1, &ObjectManager<PointType>::additionalViewsCallback,this);
 
@@ -210,22 +219,88 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
         m_bTrackingStarted = true;
     }
 
+    // save object
+    unsigned found = m_objectTrackedObservation.find_last_of("/");
+    std::string obs_folder = m_objectTrackedObservation.substr(0,found+1);
+    DynamicObjectXMLParser parser(obs_folder, true);
+    std::string xml_file = parser.saveAsXML(m_objectTracked);
+    ROS_INFO_STREAM("Object saved at "<<xml_file);
+
     if (controlString.data == "stop_viewing")
     {
         ROS_INFO_STREAM("Stopping viewing of object "<<m_objectTracked->m_label);
         m_bTrackingStarted = false;
-        // save object
-        unsigned found = m_objectTrackedObservation.find_last_of("/");
-        std::string obs_folder = m_objectTrackedObservation.substr(0,found+1);
-        DynamicObjectXMLParser parser(obs_folder, true);
-        std::string xml_file = parser.saveAsXML(m_objectTracked);
-        ROS_INFO_STREAM("Object saved at "<<xml_file);
+        // register object
+        if (m_objectTracked->m_vAdditionalViews.size()){
+            ros::ServiceClient client = m_NodeHandle.serviceClient<observation_registration_services::ObjectAdditionalViewRegistrationService>("object_additional_view_registration_server");
+            observation_registration_services::ObjectAdditionalViewRegistrationService srv;
+            srv.request.observation_xml = m_objectTrackedObservation;
+            srv.request.object_xml = xml_file;
+
+            std::vector<tf::Transform> registered_transforms;
+
+            ROS_INFO_STREAM("Using object_additional_view_registration_server service");
+            if (client.call(srv))
+            {
+                int total_constraints = 0;
+                std::for_each(srv.response.additional_view_correspondences.begin(), srv.response.additional_view_correspondences.end(), [&] (int n) {
+                    total_constraints += n;
+                });
+
+                ROS_INFO_STREAM("Registration done. Number of additional view registration constraints "<<total_constraints<<". Number of additional view transforms "<<srv.response.additional_view_transforms.size());
+                if (total_constraints <= 0){
+                    ROS_INFO_STREAM("Additional view Registration unsuccessful due to insufficient constraints.");
+                } else {
+                    m_objectTracked->m_vAdditionalViewsTransformsRegistered.clear();
+                    for (auto tr : srv.response.additional_view_transforms){
+                        tf::Transform transform;
+                        tf::transformMsgToTF(tr, transform);
+                        tf::StampedTransform stamped_transform(transform, ros::Time::now(), "", "");
+                        m_objectTracked->m_vAdditionalViewsTransformsRegistered.push_back(stamped_transform);
+                    }
+
+                    tf::Transform obs_transform;
+                    tf::transformMsgToTF(srv.response.observation_transform, obs_transform);
+                    tf::StampedTransform obs_stamped_transform(obs_transform, ros::Time::now(), "", "");
+                    m_objectTracked->m_AdditionalViewsTransformToObservation = obs_stamped_transform;
+                }
+            } else {
+                ROS_ERROR_STREAM("Could not call object_additional_view_registration_server to register object views");
+            }
+        }
+
+
+        if (m_objectTracked->m_vAdditionalViewsTransformsRegistered.size()){
+            // we got some registered transforms -> save object again
+            parser.saveAsXML(m_objectTracked);
+            ROS_INFO_STREAM("Object saved after registering additional views at "<<xml_file);
+        }
+
 
         if (m_bLogToDB)
         {
                 DynamicObjectMongodbInterface mongo_inteface(m_NodeHandle, true);
                 mongo_inteface.logToDB(m_objectTracked, xml_file);
         }
+
+        // create additional view masks
+        ros::ServiceClient client_masks = m_NodeHandle.serviceClient<object_manager::DynamicObjectComputeMaskService>("dynamic_object_compute_mask_server");
+        object_manager::DynamicObjectComputeMaskService srv_masks;
+        srv_masks.request.observation_xml = m_objectTrackedObservation;
+        srv_masks.request.object_xml = xml_file;
+
+        ROS_INFO_STREAM("Using dynamic_object_compute_mask_server service");
+        if (client_masks.call(srv_masks))
+        {
+              ROS_INFO_STREAM("Service dynamic_object_compute_mask_server finished. Masks computed (hopefully).");
+        } else {
+            ROS_ERROR_STREAM("Could not call dynamic_object_compute_mask_server to create masks for the object views");
+        }
+
+        // publish object xml
+        std_msgs::String object_xml_msg;
+        object_xml_msg.data = xml_file;
+        m_PublisherLearnedObjectXml.publish(object_xml_msg);
 
         // reset object
         m_objectTracked = NULL;
