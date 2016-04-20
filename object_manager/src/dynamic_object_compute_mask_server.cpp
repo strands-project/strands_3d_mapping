@@ -68,7 +68,7 @@ bool dynamic_object_compute_mask_service(
     for (size_t i=0; i<object.vAdditionalViews.size();i++){
         CloudPtr transformedCloud1(new Cloud);
         pcl_ros::transformPointCloud(*object.vAdditionalViews[i], *transformedCloud1,object.vAdditionalViewsTransformsRegistered[i]);
-        pcl_ros::transformPointCloud(*transformedCloud1, *transformedCloud1,object.additionalViewsTransformToObservation);
+//        pcl_ros::transformPointCloud(*transformedCloud1, *transformedCloud1,object.additionalViewsTransformToObservation);
         registered_object_views.push_back(transformedCloud1);
     }
 
@@ -167,6 +167,21 @@ CloudPtr compute_mask_per_view_conv_seg(CloudPtr view, CloudPtr object, CloudPtr
     map<size_t, size_t> indices;
     std::tie(g, convex_g, supervoxels, convex_segments, indices) = ss.compute_convex_oversegmentation(view, false);// normals, false);
 
+    // visualize segments
+//    for (auto seg : convex_segments){
+//        //        // visualize mask
+//        p->addPointCloud(view, "view");
+//        pcl::visualization::PointCloudColorHandlerCustom<PointType> seg_handler(seg, 0, 255,0);
+//        p->addPointCloud (seg,seg_handler,"seg");
+
+//        pcl::visualization::PointCloudColorHandlerCustom<PointType> mask_handler(object, 255, 0,0);
+//        p->addPointCloud (object,mask_handler,"mask");
+
+//        p->spin();
+//        p->removeAllPointClouds();
+//    }
+
+
     CloudPtr mask(new Cloud);
     for (int i = 0; i < convex_segments.size(); ++i) {
         pcl::SegmentDifferences<PointType> segment;
@@ -178,7 +193,7 @@ CloudPtr compute_mask_per_view_conv_seg(CloudPtr view, CloudPtr object, CloudPtr
         segment.setSearchMethod(tree);
         CloudPtr remainder(new Cloud);
         segment.segment(*remainder);
-        if (remainder->points.size() != object->points.size()){
+        if (remainder->points.size() < object->points.size()*0.9){
             *mask += *convex_segments[i];
         }
     }
@@ -196,7 +211,7 @@ CloudPtr compute_mask_per_view_conv_seg(CloudPtr view, CloudPtr object, CloudPtr
                 segment.setSearchMethod(tree);
                 CloudPtr remainder(new Cloud);
                 segment.segment(*remainder);
-                if (remainder->points.size() != object->points.size()){
+                if (remainder->points.size() < object->points.size() * 0.9){
                     *mask += *convex_segments[i];
                 }
             }
