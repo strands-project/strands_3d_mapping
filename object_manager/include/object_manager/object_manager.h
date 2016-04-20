@@ -232,7 +232,7 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
         m_bTrackingStarted = false;
         // register object
         if (m_objectTracked->m_vAdditionalViews.size()){
-            ros::ServiceClient client = m_NodeHandle.serviceClient<observation_registration_services::ObjectAdditionalViewRegistrationService>("object_additional_view_registration_server");
+            ros::ServiceClient client = m_NodeHandle.serviceClient<observation_registration_services::ObjectAdditionalViewRegistrationService>("/object_additional_view_registration_server");
             observation_registration_services::ObjectAdditionalViewRegistrationService srv;
             srv.request.observation_xml = m_objectTrackedObservation;
             srv.request.object_xml = xml_file;
@@ -284,7 +284,7 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
         }
 
         // create additional view masks
-        ros::ServiceClient client_masks = m_NodeHandle.serviceClient<object_manager::DynamicObjectComputeMaskService>("dynamic_object_compute_mask_server");
+        ros::ServiceClient client_masks = m_NodeHandle.serviceClient<object_manager::DynamicObjectComputeMaskService>("/dynamic_object_compute_mask_server");
         object_manager::DynamicObjectComputeMaskService srv_masks;
         srv_masks.request.observation_xml = m_objectTrackedObservation;
         srv_masks.request.object_xml = xml_file;
