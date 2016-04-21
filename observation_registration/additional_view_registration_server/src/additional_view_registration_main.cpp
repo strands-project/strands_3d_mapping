@@ -1,6 +1,8 @@
 #include <ros/ros.h>
 #include <observation_registration_services/AdditionalViewRegistrationService.h>
 #include <observation_registration_services/ObjectAdditionalViewRegistrationService.h>
+#include <observation_registration_services/GetLastAdditionalViewRegistrationResultService.h>
+
 #include <semantic_map/room_xml_parser.h>
 #include <metaroom_xml_parser/load_utilities.h>
 #include <metaroom_xml_parser/simple_dynamic_object_parser.h>
@@ -15,6 +17,10 @@ typedef semantic_map_load_utilties::DynamicObjectData<PointType> ObjectData;
 
 using namespace std;
 
+observation_registration_services::GetLastAdditionalViewRegistrationResultService::Response last_res;
+
+void clear_last_registration_result();
+
 bool optimize(const vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& additional_views,
               const vector<tf::StampedTransform>& additional_views_odometry_transforms,
               const vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& observation_intermediate_clouds,
@@ -25,6 +31,21 @@ bool optimize(const vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& addit
               int& observation_constraints,
               tf::StampedTransform& observation_transform);
 
+bool get_last_additional_view_registration_results_service(
+        observation_registration_services::GetLastAdditionalViewRegistrationResultService::Request& req,
+        observation_registration_services::GetLastAdditionalViewRegistrationResultService::Response& res)
+{
+    ROS_INFO("Received a get last additional view registration result request");
+    ROS_INFO_STREAM("Last result containted:");
+    ROS_INFO_STREAM("Additional Views: "<<last_res.additional_views.size());
+    ROS_INFO_STREAM("Additional Views transforms: "<<last_res.additional_view_transforms.size());
+    ROS_INFO_STREAM("Observation transform correspondences "<<last_res.observation_correspondences);
+
+    res = last_res;
+
+    return true;
+}
+
 bool additional_view_registration_service(
         observation_registration_services::AdditionalViewRegistrationService::Request  &req,
         observation_registration_services::AdditionalViewRegistrationService::Response &res)
@@ -33,6 +54,7 @@ bool additional_view_registration_service(
     ROS_INFO_STREAM("Observation " << req.observation_xml);
     ROS_INFO_STREAM("Number of AV: "<<req.additional_views.size());
     ROS_INFO_STREAM("Number of AV odometry transforms: "<<req.additional_views_odometry_transforms.size());
+    clear_last_registration_result();
 
     // check additional view data
     if ((!req.additional_views.size())){
@@ -133,6 +155,13 @@ bool additional_view_registration_service(
     tf::transformTFToMsg(observation_transform, observation_transform_msg);
     res.observation_transform = observation_transform_msg;
 
+    // set last service call results
+    last_res.additional_view_correspondences.assign(res.additional_view_correspondences.begin(), res.additional_view_correspondences.end());
+    last_res.observation_correspondences = res.observation_correspondences;
+    last_res.additional_view_transforms.assign(res.additional_view_transforms.begin(), res.additional_view_transforms.end());
+    last_res.observation_transform = res.observation_transform;
+    last_res.additional_views.assign(req.additional_views.begin(), req.additional_views.end());
+
     return true;
 }
 
@@ -143,6 +172,7 @@ bool object_additional_view_registration_service(
     ROS_INFO("Received an object additional view registration request");
     ROS_INFO_STREAM("Observation " << req.observation_xml);
     ROS_INFO_STREAM("Object " << req.object_xml);
+    clear_last_registration_result();
 
     // load object
     ObjectData object = semantic_map_load_utilties::loadDynamicObjectFromSingleSweep<PointType>(req.object_xml);
@@ -234,6 +264,16 @@ bool object_additional_view_registration_service(
     tf::transformTFToMsg(observation_transform, observation_transform_msg);
     res.observation_transform = observation_transform_msg;
 
+    // set last service call results
+    last_res.additional_view_correspondences.assign(res.additional_view_correspondences.begin(), res.additional_view_correspondences.end());
+    last_res.observation_correspondences = res.observation_correspondences;
+    last_res.additional_view_transforms.assign(res.additional_view_transforms.begin(), res.additional_view_transforms.end());
+    last_res.observation_transform = res.observation_transform;
+    for (auto input_view : object.vAdditionalViews){
+        sensor_msgs::PointCloud2 view_msg;
+        pcl::toROSMsg(*input_view, view_msg);
+        last_res.additional_views.push_back(view_msg);
+    }
 
     return true;
 }
@@ -281,10 +321,21 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "additional_view_registration_server");
     ros::NodeHandle n;
 
-    ros::ServiceServer service = n.advertiseService("additional_view_registration_server", additional_view_registration_service);
+    last_res.observation_correspondences = 0; // initialize this
+
+    ros::ServiceServer service =  n.advertiseService("additional_view_registration_server", additional_view_registration_service);
     ros::ServiceServer service2 = n.advertiseService("object_additional_view_registration_server", object_additional_view_registration_service);
+    ros::ServiceServer service3 = n.advertiseService("get_last_additional_view_registration_results_server", get_last_additional_view_registration_results_service);
+
     ROS_INFO("additional_view_registration_server started.");
     ros::spin();
 
     return 0;
+}
+
+void clear_last_registration_result(){
+    last_res.additional_views.clear();
+    last_res.additional_view_correspondences.clear();
+    last_res.additional_view_transforms.clear();
+    last_res.observation_correspondences = 0;
 }
