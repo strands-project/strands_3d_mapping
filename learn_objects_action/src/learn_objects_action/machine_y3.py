@@ -65,7 +65,7 @@ class LearnObjectActionMachineYear3(smach.StateMachine):
             self._stop_static_tf = StopSendingTransformation(debug_mode, self._debug_services)
             smach.StateMachine.add('STOP_TRANSFORM', self._stop_static_tf,
                 transitions={'error':'failed',
-                             'success':'succeeded' })
+                             'success':'LEARN_MODEL' })
             smach.StateMachine.add('LEARN_MODEL', LearnObjectModelYear3(model_path,debug_mode, self._debug_services),
                transitions={'error':'failed',
                             'done':'succeeded',

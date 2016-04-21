@@ -54,7 +54,14 @@ class LearnObjectModelYear3(smach.StateMachine):
                     return 'preempted'
 
             # Wait for the processing of the object
-
+            try:
+                object_xml_msg = rospy.wait_for_message("/object_learning/learned_object_xml", String,
+                                                timeout=120)
+            except rospy.ROSException,  e:
+                rospy.logwarn("Never got a message to say that an object "
+                              "map was recorded / registered. Exitting.")
+                return 'failed'
+            rospy.loginfo("Object xml: %s"%object_xml_msg.data)
 
             # tracks = self._get_tracking_results()
             registration_data = self.get_last_additional_view_registration_results()
@@ -62,6 +69,9 @@ class LearnObjectModelYear3(smach.StateMachine):
             rospy.loginfo("Number of keyframes:%d"%len(registration_data.additional_views))
             rospy.loginfo("Number of registered transforms:%d"%len(registration_data.additional_view_transforms))
             rospy.loginfo("Transforms:")
+            if len(registration_data.additional_views) == 0 or len(registration_data.additional_view_transforms) :
+                rospy.logerr("Object number of views or number of registered transforms is 0. Aborting.")
+                return 'failed'            
             # transforms=[Transform()]
             # transforms[0].rotation.w=1 # this was z ! why was it z?
             transforms=[userdata.dynamic_object.transform_to_map * registration_data.observation_transform.inverse()]
@@ -83,7 +93,7 @@ class LearnObjectModelYear3(smach.StateMachine):
             self._tracks_publisher.publish(tracks_msg)
             rospy.sleep(1)
             self._status_publisher.publish(String("stop_viewing"))
-            split it for message store size limit
+            # split it for message store size limit
             for img, trans in zip(frames,transforms):
                 track_msg = DynamicObjectTracks()
                 track_msg.poses=[trans]
