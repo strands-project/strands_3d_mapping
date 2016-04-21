@@ -8,6 +8,7 @@
 #include <metaroom_xml_parser/simple_dynamic_object_parser.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/filters/voxel_grid.h>
 #include <tf/tf.h>
 #include <geometry_msgs/Transform.h>
 #include "additional_view_registration_server/additional_view_registration_optimizer.h"
@@ -18,6 +19,36 @@ typedef semantic_map_load_utilties::DynamicObjectData<PointType> ObjectData;
 using namespace std;
 
 observation_registration_services::GetLastAdditionalViewRegistrationResultService::Response last_res;
+ros::Publisher pubRegistrationResult;
+
+void publishRegistrationResult(const vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& additional_views,
+                               const vector<tf::StampedTransform>& additional_views_transforms,
+                               const tf::StampedTransform& observation_transform){
+
+    boost::shared_ptr<pcl::PointCloud<PointType>> registered_cloud(new pcl::PointCloud<PointType>);
+
+    for (size_t i=0; i<additional_views.size();i++){
+        boost::shared_ptr<pcl::PointCloud<PointType>> transformedCloud1(new pcl::PointCloud<PointType>);
+        pcl_ros::transformPointCloud(*additional_views[i], *transformedCloud1,additional_views_transforms[i]);
+        pcl_ros::transformPointCloud(*transformedCloud1, *transformedCloud1,observation_transform);
+
+        *registered_cloud+= *transformedCloud1;
+    }
+
+    // downsample
+    boost::shared_ptr<pcl::PointCloud<PointType>> registered_cloud_downsampled(new pcl::PointCloud<PointType>);
+    pcl::VoxelGrid<PointType> vg;
+    double leaf_size = 0.03;
+    vg.setInputCloud (registered_cloud);
+    vg.setLeafSize (leaf_size,leaf_size,leaf_size);
+    vg.filter (*registered_cloud_downsampled);
+
+    ROS_INFO_STREAM("Publishing registered view cloud - no points "<<registered_cloud_downsampled->points.size()<<" on topic /additional_view_registration/registered_view_cloud");
+    sensor_msgs::PointCloud2 msg_cloud;
+    pcl::toROSMsg(*registered_cloud_downsampled, msg_cloud);
+    msg_cloud.header.frame_id = "/map";
+    pubRegistrationResult.publish(msg_cloud);
+}
 
 void clear_last_registration_result();
 
@@ -162,6 +193,11 @@ bool additional_view_registration_service(
     last_res.observation_transform = res.observation_transform;
     last_res.additional_views.assign(req.additional_views.begin(), req.additional_views.end());
 
+    // publish data (debug)
+    publishRegistrationResult(additional_views,
+                              additional_view_registered_transforms,
+                              observation_transform);
+
     return true;
 }
 
@@ -275,6 +311,11 @@ bool object_additional_view_registration_service(
         last_res.additional_views.push_back(view_msg);
     }
 
+    // publish data (debug)
+    publishRegistrationResult(additional_views,
+                              additional_view_registered_transforms,
+                              observation_transform);
+
     return true;
 }
 
@@ -326,6 +367,7 @@ int main(int argc, char **argv)
     ros::ServiceServer service =  n.advertiseService("additional_view_registration_server", additional_view_registration_service);
     ros::ServiceServer service2 = n.advertiseService("object_additional_view_registration_server", object_additional_view_registration_service);
     ros::ServiceServer service3 = n.advertiseService("get_last_additional_view_registration_results_server", get_last_additional_view_registration_results_service);
+    pubRegistrationResult = n.advertise<sensor_msgs::PointCloud2>("/additional_view_registration/registered_view_cloud", 1);
 
     ROS_INFO("additional_view_registration_server started.");
     ros::spin();
