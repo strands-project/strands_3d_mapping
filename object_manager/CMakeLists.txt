@@ -80,7 +80,7 @@ add_executable(load_objects_from_mongo ${HDRS} ${SRCS} src/load_objects_from_mon
 add_dependencies(load_objects_from_mongo load_objects_from_mongo_generate_messages_cpp)
 
 add_executable(dynamic_object_compute_mask_server ${HDRS} ${SRCS} src/dynamic_object_compute_mask_server.cpp)
-#add_dependencies(dynamic_object_compute_mask_server load_objects_from_mongo_generate_messages_cpp)
+add_dependencies(dynamic_object_compute_mask_server object_manager_generate_messages_cpp)
 
  target_link_libraries(dynamic_object
    ${catkin_LIBRARIES}
@@ -109,7 +109,7 @@ add_executable(dynamic_object_compute_mask_server ${HDRS} ${SRCS} src/dynamic_ob
 
 ############################# INSTALL TARGETS
 
-install(TARGETS dynamic_object object_manager_node load_objects_from_mongo
+install(TARGETS dynamic_object object_manager_node load_objects_from_mongo dynamic_object_compute_mask_server
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

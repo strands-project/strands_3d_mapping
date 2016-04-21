@@ -157,7 +157,7 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh) : m_TransformListene
 
     m_PublisherRequestedObjectCloud = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/object_manager/requested_object", 1, true);
     m_PublisherRequestedObjectImage = m_NodeHandle.advertise<sensor_msgs::Image>("/object_manager/requested_object_mask", 1, true);
-    m_PublisherLearnedObjectXml = m_NodeHandle.advertise<std_msgs::String>("/object_learning/learned_object_xml", 1, true);
+    m_PublisherLearnedObjectXml = m_NodeHandle.advertise<std_msgs::String>("/object_learning/learned_object_xml", 1, false);
 
     m_DynamicObjectsServiceServer = m_NodeHandle.advertiseService("ObjectManager/DynamicObjectsService", &ObjectManager::dynamicObjectsServiceCallback, this);
     m_GetDynamicObjectServiceServer = m_NodeHandle.advertiseService("ObjectManager/GetDynamicObjectService", &ObjectManager::getDynamicObjectServiceCallback, this);
@@ -898,6 +898,8 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
 //        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
 
 
+        // transform back into room complete cloud frame
+        best_transform = roomTransform.inverse() * best_transform;
         const Eigen::Affine3d eigenTr(best_transform.cast<double>());
         tf::transformEigenToTF(eigenTr,returned_object.transform_to_map);
         returned_object.object_cloud = CloudPtr(new Cloud());
