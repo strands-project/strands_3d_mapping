@@ -43,7 +43,7 @@ public:
     void convert_to_depth_msg(const cv::Mat& cv_image, sensor_msgs::Image& ros_image)
     {
         cv_bridge::CvImagePtr cv_pub_ptr(new cv_bridge::CvImage);
-        cv_pub_ptr->image = cv_image;
+        cv_pub_ptr->image = 5*cv_image;
         cv_pub_ptr->encoding = "mono16";
         ros_image = *cv_pub_ptr->toImageMsg();
     }
@@ -51,7 +51,7 @@ public:
     void convert_to_mask_msg(const cv::Mat& cv_image, sensor_msgs::Image& ros_image)
     {
         cv_bridge::CvImagePtr cv_pub_ptr(new cv_bridge::CvImage);
-        cv_pub_ptr->image = 5*cv_image;
+        cv_pub_ptr->image = cv_image;
         cv_pub_ptr->encoding = "mono8";
         ros_image = *cv_pub_ptr->toImageMsg();
     }
@@ -107,8 +107,17 @@ public:
             pair<cv::Mat, cv::Mat> images = SimpleXMLParser<PointT>::createRGBandDepthFromPC(data.vAdditionalViews[i]);
             convert_to_img_msg(images.first, model.frames[i].rgb);
             convert_to_depth_msg(images.second, model.frames[i].depth);
-            convert_to_mask_msg(data.vAdditionalViewMaskImages[i], model.masks[i]);
+
+            cv::Mat mask = cv::Mat::zeros(cv::Size(640, 480), CV_8UC1);
+            for (int index : data.vAdditionalViewMaskIndices[i]) {
+                int y = index / 640;
+                int x = index - y*640;
+                mask.at<uchar>(y, x) = 255;
+            }
+            //convert_to_mask_msg(data.vAdditionalViewMaskImages[i], model.masks[i]);
+            convert_to_mask_msg(mask, model.masks[i]);
             model.frames[i].capture_time = ros::Time::now();
+            //tf::poseTFToMsg(data.vAdditionalViewsTransformsRegistered[i], model.frames[i].pose);
             tf::poseTFToMsg(data.vAdditionalViewsTransformsRegistered[i], model.local_poses[i]);
             model.frames[i].frame_id = 0; // random number!
         }
