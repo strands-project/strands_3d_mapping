@@ -248,7 +248,7 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
                 });
 
                 ROS_INFO_STREAM("Registration done. Number of additional view registration constraints "<<total_constraints<<". Number of additional view transforms "<<srv.response.additional_view_transforms.size());
-                if (total_constraints <= 0){
+                if ((total_constraints <= 0) && (m_objectTracked->m_vAdditionalViews.size() != 1)){
                     ROS_INFO_STREAM("Additional view Registration unsuccessful due to insufficient constraints.");
                 } else {
                     m_objectTracked->m_vAdditionalViewsTransformsRegistered.clear();
