@@ -39,6 +39,11 @@ public:
         CloudPtr                         m_points;
         std::vector<CloudPtr>            m_vAdditionalViews;
         std::vector<tf::StampedTransform> m_vAdditionalViewsTransforms;
+        std::vector<tf::StampedTransform> m_vAdditionalViewsTransformsRegistered;
+        tf::StampedTransform              m_AdditionalViewsTransformToObservation;
+        std::vector<std::vector<int>>     m_vAdditionalViewMaskIndices;
+        std::vector<cv::Mat>              m_vAdditionalViewMaskImages;
+
 
     };
 
@@ -178,13 +183,33 @@ public:
                 if (xmlReader->name() == "AdditonalViewTransform")
                 {
                     bool errorReading = false;
-//                    tf::StampedTransform transform = readTfStampedTransformFromXml(xmlReader, "AdditonalViewTransform", errorReading);
                     tf::StampedTransform transform = SimpleXMLParser<PointType>::readTfStampedTransformFromXml(xmlReader, "AdditonalViewTransform", errorReading);
                     if (!errorReading)
                     {
                         toRet.m_vAdditionalViewsTransforms.push_back(transform);
                     }
                 }
+
+                if (xmlReader->name() == "AdditonalViewTransformRegistered")
+                {
+                    bool errorReading = false;
+                    tf::StampedTransform transform = SimpleXMLParser<PointType>::readTfStampedTransformFromXml(xmlReader, "AdditonalViewTransformRegistered", errorReading);
+                    if (!errorReading)
+                    {
+                        toRet.m_vAdditionalViewsTransformsRegistered.push_back(transform);
+                    }
+                }
+
+                if (xmlReader->name() == "AdditionalViewsToObservationTransform")
+                {
+                    bool errorReading = false;
+                    tf::StampedTransform transform = SimpleXMLParser<PointType>::readTfStampedTransformFromXml(xmlReader, "AdditionalViewsToObservationTransform", errorReading);
+                    if (!errorReading)
+                    {
+                        toRet.m_AdditionalViewsTransformToObservation = transform;
+                    }
+                }
+
             }
         }
 
@@ -196,6 +221,23 @@ public:
         if (verbose)
         {
             cout<<"Loaded object from: "<<filename<<endl;
+        }
+
+        // load masks
+        for (size_t i=0; i<toRet.m_vAdditionalViews.size();i++){
+            stringstream ss;ss<<i;
+            string view_image_mask_path = objectFolder.toStdString() + "/" + toRet.m_label + "_additional_view_mask_image_"+ss.str()+".jpg";
+            cv::Mat mask_image  = cv::imread(view_image_mask_path.c_str());
+            string view_image_mask_indices_path = objectFolder.toStdString() + "/" + toRet.m_label + "_additional_view_mask_indices_"+ss.str()+".txt";
+            ifstream in_file; in_file.open(view_image_mask_indices_path.c_str());
+            int index;
+            std::vector<int> indices;
+            while (in_file >> index){
+                indices.push_back(index);
+            }
+            in_file.close();
+            toRet.m_vAdditionalViewMaskImages.push_back(mask_image);
+            toRet.m_vAdditionalViewMaskIndices.push_back(indices);
         }
 
         delete xmlReader;

@@ -25,6 +25,10 @@
   <build_depend>cv_bridge</build_depend>
   <build_depend>semantic_map</build_depend>
   <build_depend>metaroom_xml_parser</build_depend>
+  <build_depend>convex_segmentation</build_depend>
+  <build_depend>k_means_tree</build_depend>
+  <build_depend>observation_registration_services</build_depend>
+
 
   <run_depend>roscpp</run_depend>
   <run_depend>std_msgs</run_depend>
@@ -39,6 +43,11 @@
   <run_depend>semantic_map</run_depend>
   <run_depend>metaroom_xml_parser</run_depend>
   <run_depend>qt_build</run_depend>
+  <run_depend>convex_segmentation</run_depend>
+  <run_depend>k_means_tree</run_depend>
+  <run_depend>observation_registration_services</run_depend>
+
+
 
   <export>
   </export>

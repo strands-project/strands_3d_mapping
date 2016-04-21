@@ -1,5 +1,5 @@
 #import vision
-import machine
+import machine_y3
 #import ptu_track
 #import control
 #import util

@@ -34,7 +34,6 @@
   <build_depend>tf_conversions</build_depend>
   <build_depend>pcl_ros</build_depend>
   <build_depend>metaroom_xml_parser</build_depend>
-  <build_depend>object_manager</build_depend>
   <build_depend>k_means_tree</build_depend>
   <run_depend>libpcl-all</run_depend>
   <run_depend>libopencv-dev</run_depend>
@@ -43,7 +42,6 @@
   <run_depend>tf_conversions</run_depend>
   <run_depend>pcl_ros</run_depend>
   <run_depend>metaroom_xml_parser</run_depend>
-  <run_depend>object_manager</run_depend>
   <run_depend>k_means_tree</run_depend>
 
   <!-- The export tag contains other, unspecified, tags -->

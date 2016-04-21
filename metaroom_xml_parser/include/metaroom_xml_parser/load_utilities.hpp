@@ -369,7 +369,11 @@ DynamicObjectData<PointType> loadDynamicObjectFromSingleSweep(std::string object
     toRet.time = object.m_time;
     toRet.vAdditionalViews = object.m_vAdditionalViews;
     toRet.vAdditionalViewsTransforms = object.m_vAdditionalViewsTransforms;
+    toRet.vAdditionalViewsTransformsRegistered = object.m_vAdditionalViewsTransformsRegistered;
+    toRet.additionalViewsTransformToObservation = object.m_AdditionalViewsTransformToObservation;
     toRet.intermediateCloud = boost::shared_ptr<pcl::PointCloud<PointType>>(new pcl::PointCloud<PointType>());
+    toRet.vAdditionalViewMaskIndices = object.m_vAdditionalViewMaskIndices;
+    toRet.vAdditionalViewMaskImages = object.m_vAdditionalViewMaskImages;
 
     return toRet;
 }

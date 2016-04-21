@@ -40,7 +40,7 @@ class MetricSweep(smach.State):
 
 
         self._goal = SweepGoal()
-        self._goal.type = "shortest"
+        self._goal.type = "medium"
 
         self._debug_mode = debug_mode
         self._debug_services = debug_services
