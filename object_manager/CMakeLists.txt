@@ -4,7 +4,7 @@ project(object_manager)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs geometry_msgs pcl_ros message_generation qt_build cv_bridge semantic_map metaroom_xml_parser)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs geometry_msgs pcl_ros message_generation qt_build cv_bridge semantic_map metaroom_xml_parser convex_segmentation k_means_tree observation_registration_services)
 
 set(CMAKE_CXX_FLAGS "-O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
 
@@ -29,6 +29,7 @@ add_service_files(
    FILES
    DynamicObjectsService.srv
    GetDynamicObjectService.srv
+   DynamicObjectComputeMaskService.srv
 )
 
 add_message_files(
@@ -46,7 +47,7 @@ generate_messages(
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES dynamic_object
-   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge semantic_map metaroom_xml_parser qt_build geometry_msgs pcl_ros
+   CATKIN_DEPENDS message_runtime sensor_msgs std_msgs cv_bridge semantic_map metaroom_xml_parser qt_build geometry_msgs pcl_ros observation_registration_services
    DEPENDS PCL
 )
 
@@ -78,6 +79,9 @@ add_dependencies(object_manager_node object_manager_node_generate_messages_cpp)
 add_executable(load_objects_from_mongo ${HDRS} ${SRCS} src/load_objects_from_mongo.cpp)
 add_dependencies(load_objects_from_mongo load_objects_from_mongo_generate_messages_cpp)
 
+add_executable(dynamic_object_compute_mask_server ${HDRS} ${SRCS} src/dynamic_object_compute_mask_server.cpp)
+add_dependencies(dynamic_object_compute_mask_server object_manager_generate_messages_cpp)
+
  target_link_libraries(dynamic_object
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
@@ -96,9 +100,16 @@ add_dependencies(load_objects_from_mongo load_objects_from_mongo_generate_messag
    ${QT_LIBRARIES}
   )
 
+ target_link_libraries(dynamic_object_compute_mask_server
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+  )
+
+
 ############################# INSTALL TARGETS
 
-install(TARGETS dynamic_object object_manager_node load_objects_from_mongo
+install(TARGETS dynamic_object object_manager_node load_objects_from_mongo dynamic_object_compute_mask_server
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

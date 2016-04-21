@@ -84,6 +84,34 @@ std::string DynamicObjectXMLParser::saveAsXML(DynamicObject::Ptr object, std::st
     }
     xmlWriter->writeEndElement();
 
+
+    // save additional view transforms registered
+    xmlWriter->writeStartElement("AdditionalViewsTransformsRegistered");
+    for (auto transform : object->m_vAdditionalViewsTransformsRegistered)
+    {
+        saveTfStampedTransfromToXml(transform, xmlWriter, "AdditonalViewTransformRegistered");
+    }
+    xmlWriter->writeEndElement();
+
+    // save object mask images (only to disk)
+    for (size_t i=0; i<object->m_vAdditionalViewMaskImages.size(); i++){
+        stringstream ss;ss<<i;
+        string view_image_mask_path = m_rootFolderPath + "/" + object->m_label + "_additional_view_mask_image_"+ss.str()+".jpg";
+        cv::imwrite(view_image_mask_path,object->m_vAdditionalViewMaskImages[i]);
+    }
+
+    // save object mask indices (only to disk)
+    for (size_t i=0; i<object->m_vAdditionalViewMaskIndices.size(); i++){
+        stringstream ss;ss<<i;
+        string view_image_mask_indices_path = m_rootFolderPath + "/" + object->m_label + "_additional_view_mask_indices_"+ss.str()+".txt";
+        ofstream out; out.open(view_image_mask_indices_path.c_str());
+        for (auto index : object->m_vAdditionalViewMaskIndices[i]){
+            out<<index<<" ";
+        }
+        out.close();
+    }
+
+
     // save object tracks
     xmlWriter->writeStartElement("ObjectTracks");
     for (size_t i=0; i<object->m_vObjectTracks.size(); i++)
@@ -105,6 +133,8 @@ std::string DynamicObjectXMLParser::saveAsXML(DynamicObject::Ptr object, std::st
     boost::posix_time::ptime logTime = object->m_time;
     xmlWriter->writeCharacters(boost::posix_time::to_simple_string(logTime).c_str());
     xmlWriter->writeEndElement();// LogTime
+
+    saveTfStampedTransfromToXml(object->m_AdditionalViewsTransformToObservation, xmlWriter, "AdditionalViewsToObservationTransform");
 
     xmlWriter->writeEndElement(); // DynamicObject
 
@@ -284,6 +314,25 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool loa
                     object->addAdditionalViewTransform(transform);
                 }
             }
+            if (xmlReader->name() == "AdditonalViewTransformRegistered")
+            {
+                bool errorReading = false;
+                tf::StampedTransform transform = readTfStampedTransformFromXml(xmlReader, "AdditonalViewTransformRegistered", errorReading);
+                if (!errorReading)
+                {
+                    object->addAdditionalViewTransformRegistered(transform);
+                }
+            }
+            if (xmlReader->name() == "AdditionalViewsToObservationTransform")
+            {
+                bool errorReading = false;
+                tf::StampedTransform transform = readTfStampedTransformFromXml(xmlReader, "AdditionalViewsToObservationTransform", errorReading);
+                if (!errorReading)
+                {
+                    object->setAdditionalViewsToObservationTransform(transform);
+                }
+            }
+
         }
     }
 
@@ -295,6 +344,22 @@ DynamicObject::Ptr DynamicObjectXMLParser::loadFromXML(string filename, bool loa
     if (m_verbose)
     {
         cout<<"Loaded object from: "<<filename<<endl;
+    }
+
+    // load masks
+    for (size_t i=0; i<object->m_vAdditionalViews.size();i++){
+        stringstream ss;ss<<i;
+        string view_image_mask_path = objectFolder.toStdString() + "/" + object->m_label + "_additional_view_mask_image_"+ss.str()+".jpg";
+        cv::Mat mask_image = cv::imread(view_image_mask_path.c_str());
+        string view_image_mask_indices_path = objectFolder.toStdString() + "/" + object->m_label + "_additional_view_mask_indices_"+ss.str()+".txt";
+        ifstream in_file; in_file.open(view_image_mask_indices_path.c_str());
+        int index;
+        std::vector<int> indices;
+        while (in_file >> index){
+            indices.push_back(index);
+        }
+        in_file.close();
+        object->addAdditionalViewMask(mask_image, indices);
     }
 
     delete xmlReader;

@@ -91,6 +91,10 @@ namespace semantic_map_load_utilties
         boost::posix_time::ptime                                    time;
         std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>  vAdditionalViews;
         std::vector<tf::StampedTransform>                           vAdditionalViewsTransforms;
+        std::vector<tf::StampedTransform>                           vAdditionalViewsTransformsRegistered;
+        tf::StampedTransform                                        additionalViewsTransformToObservation;
+        std::vector<std::vector<int>>                               vAdditionalViewMaskIndices;
+        std::vector<cv::Mat>                                        vAdditionalViewMaskImages;
 
     };
 

@@ -19,6 +19,7 @@ DynamicObject::DynamicObject(bool verbose) : m_points(new Cloud()), m_normals(ne
     m_roomLogString = "";
     m_roomStringId = "";
     m_noAdditionalViews = 0;
+    m_AdditionalViewsTransformToObservation.setIdentity();
 }
 
 DynamicObject::~DynamicObject()
@@ -61,6 +62,14 @@ void DynamicObject::addAdditionalViewTransform(tf::StampedTransform transform)
     m_vAdditionalViewsTransforms.push_back(transform);
 }
 
+void DynamicObject::setAdditionalViewsToObservationTransform(tf::StampedTransform transform){
+    m_AdditionalViewsTransformToObservation = transform;
+}
+
+void DynamicObject::addAdditionalViewTransformRegistered(tf::StampedTransform transform){
+    m_vAdditionalViewsTransformsRegistered.push_back(transform);
+}
+
 void DynamicObject::updateAllData()
 {
     computeCentroid();
@@ -69,6 +78,15 @@ void DynamicObject::updateAllData()
 
 }
 
+void DynamicObject::addAdditionalViewMask(cv::Mat& mask_image, std::vector<int> mask_indices){
+    m_vAdditionalViewMaskImages.push_back(mask_image.clone());
+    m_vAdditionalViewMaskIndices.push_back(mask_indices);
+}
+
+void DynamicObject::clearAdditionalViewMasks(){
+    m_vAdditionalViewMaskImages.clear();
+    m_vAdditionalViewMaskIndices.clear();
+}
 
 void DynamicObject::computeCentroid()
 {
