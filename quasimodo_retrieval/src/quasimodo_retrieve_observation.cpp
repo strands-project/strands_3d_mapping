@@ -51,7 +51,7 @@ public:
     void convert_to_mask_msg(const cv::Mat& cv_image, sensor_msgs::Image& ros_image)
     {
         cv_bridge::CvImagePtr cv_pub_ptr(new cv_bridge::CvImage);
-        cv_pub_ptr->image = cv_image;
+        cv_pub_ptr->image = 5*cv_image;
         cv_pub_ptr->encoding = "mono8";
         ros_image = *cv_pub_ptr->toImageMsg();
     }
