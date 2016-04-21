@@ -898,6 +898,8 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
 //        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
 
 
+        // transform back into room complete cloud frame
+        best_transform = roomTransform.inverse() * best_transform;
         const Eigen::Affine3d eigenTr(best_transform.cast<double>());
         tf::transformEigenToTF(eigenTr,returned_object.transform_to_map);
         returned_object.object_cloud = CloudPtr(new Cloud());
