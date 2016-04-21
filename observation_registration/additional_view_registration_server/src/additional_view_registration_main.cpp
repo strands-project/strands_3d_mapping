@@ -189,9 +189,19 @@ bool additional_view_registration_service(
     // set last service call results
     last_res.additional_view_correspondences.assign(res.additional_view_correspondences.begin(), res.additional_view_correspondences.end());
     last_res.observation_correspondences = res.observation_correspondences;
-    last_res.additional_view_transforms.assign(res.additional_view_transforms.begin(), res.additional_view_transforms.end());
+//    last_res.additional_view_transforms.assign(res.additional_view_transforms.begin(), res.additional_view_transforms.end());
     last_res.observation_transform = res.observation_transform;
     last_res.additional_views.assign(req.additional_views.begin(), req.additional_views.end());
+
+    Eigen::Affine3d observation_transform_eigen; tf::transformTFToEigen(observation_transform, observation_transform_eigen);
+    for (auto transform : additional_view_registered_transforms){
+        Eigen::Affine3d transform_eigen; tf::transformTFToEigen(transform, transform_eigen);
+        Eigen::Affine3d combined_eigen = observation_transform_eigen * transform_eigen;
+        tf::Transform combined; tf::transformEigenToTF(combined_eigen, combined);
+        geometry_msgs::Transform combined_msg;
+        tf::transformTFToMsg(tf::StampedTransform(combined,ros::Time::now(), "",""), combined_msg);
+        last_res.additional_view_transforms.push_back(combined_msg);
+    }
 
     // publish data (debug)
     publishRegistrationResult(additional_views,
@@ -303,12 +313,21 @@ bool object_additional_view_registration_service(
     // set last service call results
     last_res.additional_view_correspondences.assign(res.additional_view_correspondences.begin(), res.additional_view_correspondences.end());
     last_res.observation_correspondences = res.observation_correspondences;
-    last_res.additional_view_transforms.assign(res.additional_view_transforms.begin(), res.additional_view_transforms.end());
+//    last_res.additional_view_transforms.assign(res.additional_view_transforms.begin(), res.additional_view_transforms.end());
     last_res.observation_transform = res.observation_transform;
     for (auto input_view : object.vAdditionalViews){
         sensor_msgs::PointCloud2 view_msg;
         pcl::toROSMsg(*input_view, view_msg);
         last_res.additional_views.push_back(view_msg);
+    }
+    Eigen::Affine3d observation_transform_eigen; tf::transformTFToEigen(observation_transform, observation_transform_eigen);
+    for (auto transform : additional_view_registered_transforms){
+        Eigen::Affine3d transform_eigen; tf::transformTFToEigen(transform, transform_eigen);
+        Eigen::Affine3d combined_eigen = observation_transform_eigen * transform_eigen;
+        tf::Transform combined; tf::transformEigenToTF(combined_eigen, combined);
+        geometry_msgs::Transform combined_msg;
+        tf::transformTFToMsg(tf::StampedTransform(combined,ros::Time::now(), "",""), combined_msg);
+        last_res.additional_view_transforms.push_back(combined_msg);
     }
 
     // publish data (debug)
