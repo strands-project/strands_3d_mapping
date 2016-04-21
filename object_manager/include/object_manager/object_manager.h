@@ -529,6 +529,12 @@ bool ObjectManager<PointType>::getDynamicObjectServiceCallback(GetDynamicObjectS
     if (!trackedUpdated)
     {
         ROS_ERROR_STREAM("Could not find object for viewing");
+    } else {
+        // check if this object doesn't have any additional views -> if not, add the intermediate cloud & its transform
+        if (!m_objectTracked->m_vAdditionalViews.size()){
+            m_objectTracked->addAdditionalView(object.object_cloud);
+            m_objectTracked->addAdditionalViewTransform(object.transform_to_map);
+        }
     }
 
     return true;
