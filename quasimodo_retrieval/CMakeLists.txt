@@ -176,12 +176,14 @@ add_executable(quasimodo_retrieval_publisher src/quasimodo_retrieval_publisher.c
 add_executable(quasimodo_visualization_server src/quasimodo_visualization_server.cpp)
 add_executable(quasimodo_visualize_model src/quasimodo_visualize_model.cpp)
 add_executable(quasimodo_retrieval_node src/quasimodo_retrieval_node.cpp)
+add_executable(quasimodo_retrieve_observation src/quasimodo_retrieve_observation.cpp)
 
 add_dependencies(quasimodo_retrieval_server quasimodo_msgs_generate_messages_cpp)
 add_dependencies(quasimodo_retrieval_publisher quasimodo_msgs_generate_messages_cpp)
 add_dependencies(quasimodo_visualization_server quasimodo_msgs_generate_messages_cpp)
 add_dependencies(quasimodo_visualize_model quasimodo_msgs_generate_messages_cpp)
 add_dependencies(quasimodo_retrieval_node quasimodo_msgs_generate_messages_cpp)
+add_dependencies(quasimodo_retrieve_observation quasimodo_msgs_generate_messages_cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -245,6 +247,15 @@ target_link_libraries(quasimodo_retrieval_node
   ${catkin_LIBRARIES}
 )
 
+target_link_libraries(quasimodo_retrieve_observation
+#  ${retrieval_libraries}
+#  ${benchmark_libraries}
+  ${OpenCV_LIBS}
+  ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
 #############
 ## Install ##
 #############
@@ -259,7 +270,7 @@ install(
 
 # Mark executables and/or libraries for installation
 install(TARGETS quasimodo_retrieval_server quasimodo_retrieval_publisher quasimodo_visualization_server
-                quasimodo_visualize_model quasimodo_retrieval_node
+                quasimodo_visualize_model quasimodo_retrieval_node quasimodo_retrieve_observation
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

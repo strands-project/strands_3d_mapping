@@ -115,6 +115,17 @@ public:
         */
     }
 
+    pair<cv::Mat, cv::Mat> sweep_get_rgbd_at(const boost::filesystem::path& sweep_xml, int i)
+    {
+        stringstream ss;
+        ss << "intermediate_cloud" << std::setfill('0') << std::setw(4) << i << ".pcd";
+        boost::filesystem::path cloud_path = sweep_xml.parent_path() / ss.str();
+        CloudT::Ptr cloud(new CloudT);
+        pcl::io::loadPCDFile(cloud_path.string(), *cloud);
+        pair<cv::Mat, cv::Mat> images = SimpleXMLParser<PointT>::createRGBandDepthFromPC(cloud);
+        return images;
+    }
+
     tuple<vector<cv::Mat>, vector<cv::Mat>, vector<cv::Mat>, vector<int> >
     generate_images_for_object(const CloudT::Ptr& cloud, const Eigen::Matrix3f& K,
         const boost::filesystem::path& sweep_xml,
@@ -155,8 +166,11 @@ public:
 
 
             get<0>(images).push_back(mask);
-            get<1>(images).push_back(benchmark_retrieval::sweep_get_rgb_at(sweep_xml, i));
-            get<2>(images).push_back(benchmark_retrieval::sweep_get_depth_at(sweep_xml, i));
+            pair<cv::Mat, cv::Mat> intermediate_images = sweep_get_rgbd_at(sweep_xml, i);
+            get<1>(images).push_back(intermediate_images.first);
+            get<2>(images).push_back(intermediate_images.second);
+            //get<1>(images).push_back(benchmark_retrieval::sweep_get_rgb_at(sweep_xml, i));
+            //get<2>(images).push_back(benchmark_retrieval::sweep_get_depth_at(sweep_xml, i));
             get<3>(images).push_back(i);
 
             /*
@@ -333,7 +347,7 @@ public:
         vector<vector<cv::Mat> > depths(retrieved_clouds.size());
         vector<vector<string> > paths(retrieved_clouds.size());
         Eigen::Matrix3f K;
-        K << 0, 0, 0, 0, 0, 0, 0, 0, 0;
+        K << 525.0f, 0.0f, 319.5f, 0.0f, 525.0f, 239.5f, 0.0f, 0.0f, 1.0f;
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
             vector<int> inds;
             auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
@@ -373,7 +387,7 @@ public:
         cam_model.fromCameraInfo(query_msg->camera);
         cv::Matx33d cvK = cam_model.intrinsicMatrix();
         Eigen::Matrix3f K = Eigen::Map<Eigen::Matrix3d>(cvK.val).cast<float>();
-        K << 525.0f, 0.0f, 319.5f, 0.0f, 525.0f, 239.5f, 0.0f, 0.0f, 1.0f;
+        K << 525.0f, 0.0f, 319.5f, 0.0f, 525.0f, 239.5f, 0.0f, 0.0f, 1.0f; // should be removed if Johan returns K?
 
         HistCloudT::Ptr features(new HistCloudT);
         CloudT::Ptr keypoints(new CloudT);
