@@ -53,6 +53,37 @@ void callback(const std_msgs::String::ConstPtr& msg)
     }
 }
 
+int get_correct_sweep_ind(const boost::filesystem::path& data_path)
+{
+    boost::filesystem::path segment_summary_path = data_path / "segments_summary.json";
+    if (!boost::filesystem::exists(segment_summary_path)) {
+        return 0;
+    }
+    dynamic_object_retrieval::data_summary data_summary;
+    data_summary.load(data_path);
+    if (data_summary.index_convex_segment_paths.empty()) {
+        return 0;
+    }
+
+    boost::filesystem::path last_path =
+            boost::filesystem::path(data_summary.index_convex_segment_paths.back())
+            .parent_path().parent_path();
+
+    int counter = 0;
+    for (const string& xml : sweep_xmls) {
+        if (boost::filesystem::path(xml).parent_path() == last_path) {
+            ++counter;
+            break;
+        }
+        ++counter;
+    }
+
+    if (counter < sweep_xmls.size()) {
+        return counter;
+    }
+    exit(0);
+}
+
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "retrieval_simulate_observations");
@@ -65,7 +96,7 @@ int main(int argc, char** argv)
     pn.param<bool>("bypass_surfelize", bypass_surfelize, true);
 
     sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path, true);
-    sweep_ind = 0;
+    sweep_ind = get_correct_sweep_ind(data_path); // 0;
 
     if (bypass_surfelize) {
         string_pub = n.advertise<std_msgs::String>("/surfelization_done", 1);
