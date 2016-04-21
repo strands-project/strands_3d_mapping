@@ -134,7 +134,7 @@ void compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT:
     se.setIndices(indices); //keypoints
     se.setInputCloud(cloud);
     se.setInputNormals(normals);
-    se.setRadiusSearch(0.04); //support 0.06 orig, 0.04 still seems too big, takes time
+    se.setRadiusSearch(0.06); //support 0.06 orig, 0.04 still seems too big, takes time
 
     pcl::PointCloud<pcl::PFHRGBSignature250> pfhrgb_cloud;
     se.compute(pfhrgb_cloud); //descriptors
