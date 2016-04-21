@@ -97,6 +97,8 @@ int main(int argc, char** argv)
 
     sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path, true);
     sweep_ind = get_correct_sweep_ind(data_path); // 0;
+    cout << "Starting at sweep number: " << sweep_ind << endl;
+
 
     if (bypass_surfelize) {
         string_pub = n.advertise<std_msgs::String>("/surfelization_done", 1);
