@@ -109,7 +109,7 @@ add_dependencies(dynamic_object_compute_mask_server object_manager_node_generate
 
 ############################# INSTALL TARGETS
 
-install(TARGETS dynamic_object object_manager_node load_objects_from_mongo
+install(TARGETS dynamic_object object_manager_node load_objects_from_mongo dynamic_object_compute_mask_server
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
