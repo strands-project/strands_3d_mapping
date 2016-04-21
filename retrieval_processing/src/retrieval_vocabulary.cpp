@@ -321,6 +321,15 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
         vt->append_cloud(features, indices, adjacencies, false);
     }
 
+    // This part is new!
+    dynamic_object_retrieval::vocabulary_summary summary;
+    summary.load(vocabulary_path);
+    summary.nbr_noise_segments += counter;
+    summary.nbr_noise_sweeps++;
+    summary.save(vocabulary_path);
+    dynamic_object_retrieval::save_vocabulary(*vt, vocabulary_path);
+    // End of new part!
+
     std_msgs::String done_msg;
     done_msg.data = msg->data;
     pub.publish(done_msg);
