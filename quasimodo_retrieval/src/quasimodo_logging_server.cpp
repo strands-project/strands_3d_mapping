@@ -49,7 +49,10 @@ public:
             boost::posix_time::ptime start_time = data.roomLogStartTime;
             boost::posix_time::ptime time_t_epoch(boost::gregorian::date(1970,1,1));
             boost::posix_time::time_duration diff = start_time - time_t_epoch;
-            soma_req.objects[i].cloud = res.result.retrieved_clouds[i];
+            Eigen::Affine3d AT;
+            tf::transformTFToEigen(data.vIntermediateRoomCloudTransforms[0], AT);
+            pcl_ros::transformPointCloud(AT.matrix().cast<float>(), res.result.retrieved_clouds[i], soma_req.objects[i].cloud);
+            //soma_req.objects[i].cloud = res.result.retrieved_clouds[i];
             soma_req.objects[i].pose = res.result.retrieved_initial_poses[i].poses[0];
             soma_req.objects[i].logtimestamp = diff.total_seconds(); //   ros::Time::now().sec;
             soma_req.objects[i].id = res.result.retrieved_image_paths[i].strings[0];
