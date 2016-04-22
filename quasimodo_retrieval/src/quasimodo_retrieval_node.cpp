@@ -449,6 +449,7 @@ public:
             for (int j = 0; j < inds.size(); ++j) {
                 paths[i].push_back(sweep_paths[i].string() + " " + to_string(inds[j]));
             }
+
             //Eigen::Affine3d AT;
             //tf::transformTFToEigen(sweep_data.vIntermediateRoomCloudTransforms[0], AT);
             //pcl::transformPointCloud(*retrieved_clouds[i], *retrieved_clouds[i], AT);
