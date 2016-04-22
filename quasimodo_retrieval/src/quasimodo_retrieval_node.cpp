@@ -410,7 +410,6 @@ public:
         auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, number_query, vocabulary_path, summary);
         tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
-        //using room_data = typename SimpleXMLParser<PointT>::SimpleDynamicObjectParser::RoomData;
         auto data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[0].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
         tf::StampedTransform room_transform = data.vIntermediateRoomCloudTransforms[0];
         room_transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
@@ -455,7 +454,6 @@ public:
         //cv::Mat full_query_image = benchmark_retrieval::sweep_get_rgb_at(sweep_xml, scan_index);
         quasimodo_msgs::retrieval_query_result result;
         result.query = *query_msg;
-        //result.query.room_transform = ;
 
         tf::transformTFToMsg(room_transform, result.query.room_transform);
         result.result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices);
