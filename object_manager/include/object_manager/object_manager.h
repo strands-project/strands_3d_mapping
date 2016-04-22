@@ -336,17 +336,24 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
         // also save data to the disk
         int index = m_objectTrackedObservation.find_last_of("/");
         std::string sweep_folder = m_objectTrackedObservation.substr(0,index+1);
-        std::string poses_file = sweep_folder+"/poses.txt";
-        ofstream out(poses_file, ios::out | ios::trunc);
-        ROS_INFO_STREAM("Saving "<<object.vAdditionalViewsTransformsRegistered.size()<<" registered additional view poses at "<<poses_file);
-        for (tf::Transform tr : object.vAdditionalViewsTransformsRegistered){
+//        std::string poses_file = sweep_folder+"/poses.txt";
+
+
+//        for (tf::Transform tr : object.vAdditionalViewsTransformsRegistered){
+        for (size_t i=0; i < object.vAdditionalViewsTransformsRegistered.size(); i++){
+            tf::Transform tr = object.vAdditionalViewsTransformsRegistered[i];
+            std::stringstream ss;ss<<i;
+            std::string poses_file = sweep_folder + "/pose_" + object.objectLabel + "_additional_view_"+ss.str()+".txt";
+            ofstream out(poses_file, ios::out | ios::trunc);
+            ROS_INFO_STREAM("Saving additional view pose "<<i<<" at "<<poses_file);
+
             Eigen::Affine3d eigen_affine; tf::transformTFToEigen(tr, eigen_affine);
             Eigen::Matrix4f eigen_tr(eigen_affine.matrix().cast<float>());
             Eigen::IOFormat CommaInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, " ", " ", "", "", "", "");
             std::cout<<eigen_tr.format(CommaInitFmt)<<std::endl;
             out<<eigen_tr.format(CommaInitFmt)<<std::endl;
+            out.close();
         }
-        out.close();
     }
 }
 
