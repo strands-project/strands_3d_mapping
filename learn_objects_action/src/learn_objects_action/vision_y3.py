@@ -13,7 +13,7 @@ from util import get_ros_service
 from world_state.observation import MessageStoreObject, Observation, TransformationStore
 from world_state.identification import ObjectIdentification
 from world_state.state import World, Object
-from object_manager.msg import DynamicObjectTracks
+from object_manager.msg import DynamicObjectTracks, DynamicObjectTrackingData
 from geometry_msgs.msg import TransformStamped
 from static_transform_manager.srv import SetTransformation, StopTransformation
 import tf
@@ -27,7 +27,7 @@ class LearnObjectModelYear3(smach.StateMachine):
 
         self._model_path = model_path
         # self._get_tracking_results = get_ros_service("/camera_tracker/get_results", get_tracking_results)
-        self._get_additional_view_registration_results = get_ros_service("get_last_additional_view_registration_results_server", GetLastAdditionalViewRegistrationResultService)
+        self._get_additional_view_registration_results = get_ros_service("/get_last_additional_view_registration_results_server", GetLastAdditionalViewRegistrationResultService)
         ## Object learning
         self._learn_object_model = get_ros_service("/incremental_object_learning/learn_object", learn_object)
         self._save_object_model = get_ros_service("/incremental_object_learning/save_model", save_model)
@@ -52,33 +52,36 @@ class LearnObjectModelYear3(smach.StateMachine):
                 proceed = self._debug_services.get_proceed(("OK",))
                 if proceed == "PREEMPT":
                     return 'preempted'
-
+	    
+            self._status_publisher.publish(String("stop_viewing"))
             # Wait for the processing of the object
             try:
-                object_xml_msg = rospy.wait_for_message("/object_learning/learned_object_xml", String,
+                object_tracking_data = rospy.wait_for_message("/object_learning/learned_object_tracking_data", DynamicObjectTrackingData,
                                                 timeout=120)
             except rospy.ROSException,  e:
                 rospy.logwarn("Never got a message to say that an object "
                               "map was recorded / registered. Exitting.")
-                return 'failed'
-            rospy.loginfo("Object xml: %s"%object_xml_msg.data)
+                return 'error'
+            # rospy.loginfo("Object xml: %s"%object_xml_msg.data)
 
             # tracks = self._get_tracking_results()
-            registration_data = self.get_last_additional_view_registration_results()
+            #registration_data = self._get_additional_view_registration_results()
             rospy.loginfo("Got some registration results!")
-            rospy.loginfo("Number of keyframes:%d"%len(registration_data.additional_views))
-            rospy.loginfo("Number of registered transforms:%d"%len(registration_data.additional_view_transforms))
-            rospy.loginfo("Transforms:")
-            if len(registration_data.additional_views) == 0 or len(registration_data.additional_view_transforms) :
-                rospy.logerr("Object number of views or number of registered transforms is 0. Aborting.")
-                return 'failed'            
+            rospy.loginfo("Number of keyframes:%d"%len(object_tracking_data.additional_views))
+            rospy.loginfo("Number of registered transforms:%d"%len(object_tracking_data.additional_view_transforms))
+            # rospy.loginfo("Transforms:")
+            #if len(registration_data.additional_views) == 0 or len(registration_data.additional_view_transforms) == 0 :
+            #    rospy.logerr("Object number of views or number of registered transforms is 0. Aborting.")
+            #    return 'error'            
             # transforms=[Transform()]
             # transforms[0].rotation.w=1 # this was z ! why was it z?
-            transforms=[userdata.dynamic_object.transform_to_map * registration_data.observation_transform.inverse()]
-            transforms.extend(registration_data.additional_view_transforms)
-            frames = [userdata.dynamic_object.object_cloud]
-            frames.extend(registration_data.additional_views)
-            rospy.loginfo(registration_data.additional_views)
+            # transforms=[userdata.dynamic_object.transform_to_map * registration_data.observation_transform.inverse()]
+            # transforms=[userdata.dynamic_object.transform_to_map]
+            transforms=[]
+            transforms.extend(object_tracking_data.additional_view_transforms)
+            # frames = [userdata.dynamic_object.object_cloud]
+            frames = []
+            frames.extend(object_tracking_data.additional_views)
             print "About to call object learning"
             #print userdata.dynamic_object.object_mask
             for f in frames:
@@ -90,9 +93,9 @@ class LearnObjectModelYear3(smach.StateMachine):
             tracks_msg = DynamicObjectTracks()
             tracks_msg.poses = transforms
             tracks_msg.clouds = frames
-            self._tracks_publisher.publish(tracks_msg)
-            rospy.sleep(1)
-            self._status_publisher.publish(String("stop_viewing"))
+            #self._tracks_publisher.publish(tracks_msg)
+            #rospy.sleep(1)
+            #self._status_publisher.publish(String("stop_viewing"))
             # split it for message store size limit
             for img, trans in zip(frames,transforms):
                 track_msg = DynamicObjectTracks()
@@ -103,13 +106,17 @@ class LearnObjectModelYear3(smach.StateMachine):
 
             # Get the mask and store it, stupid fool
             mask = Int32MultiArray()
-            mask.data = userdata.dynamic_object.object_mask
+            # mask.data = userdata.dynamic_object.object_mask
+	    mask.data = object_tracking_data.object_mask
             stored = MessageStoreObject.create(mask)
             userdata['object'].add_msg_store(stored)
             print "Stored the mask"
 
+            # self._learn_object_model(frames, transforms,
+            #                         userdata.dynamic_object.object_mask)
+
             self._learn_object_model(frames, transforms,
-                                     userdata.dynamic_object.object_mask)
+                                     object_tracking_data.object_mask)
             rospy.loginfo("Saving learnt model..")
             self._save_object_model(String(userdata['object'].name),
                                     String(self._model_path))
