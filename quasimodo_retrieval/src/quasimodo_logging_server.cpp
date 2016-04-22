@@ -42,18 +42,33 @@ public:
         soma_manager::SOMA2InsertObjs::Request soma_req;
 
         size_t N = res.result.retrieved_clouds.size();
-        soma_req.objects.resize(N+1);
+        soma_req.objects.resize(N);
         for (size_t i = 0; i < N; ++i) {
+            boost::filesystem::path sweep_xml = boost::filesystem::path(res.result.retrieved_image_paths[i].strings[0]).parent_path() / "room.xml";
+            auto data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_xml.string(), vector<string>(), false, false);
+            boost::posix_time::ptime start_time = data.roomLogStartTime;
+            boost::posix_time::ptime time_t_epoch(boost::gregorian::date(1970,1,1));
+            boost::posix_time::time_duration diff = start_time - time_t_epoch;
             soma_req.objects[i].cloud = res.result.retrieved_clouds[i];
             soma_req.objects[i].pose = res.result.retrieved_initial_poses[i].poses[0];
-            soma_req.objects[i].logtimestamp = ros::Time::now().sec;
+            soma_req.objects[i].logtimestamp = diff.total_seconds(); //   ros::Time::now().sec;
             soma_req.objects[i].id = res.result.retrieved_image_paths[i].strings[0];
         }
 
+        std::sort(soma_req.objects.begin(), soma_req.objects.end(), [](const soma2_msgs::SOMA2Object& o1, const soma2_msgs::SOMA2Object& o2) {
+            return o1.logtimestamp < o2.logtimestamp;
+        });
+
+        for (size_t i = 0; i < N; ++i) {
+            soma_req.objects[i].timestep = i;
+        }
+
+        /*
         soma_req.objects[N].cloud = res.query.cloud;
-        soma_req.objects[N].pose = res.query.room_transform;
+        //soma_req.objects[N].pose = res.query.room_transform;
         soma_req.objects[N].logtimestamp = ros::Time::now().sec;
         soma_req.objects[N].id = "retrieval_query";
+        */
 
         ros::ServiceClient soma_service = n.serviceClient<soma_manager::SOMA2InsertObjs>("/soma2/insert_objects");
         soma_manager::SOMA2InsertObjs::Response soma_resp;
