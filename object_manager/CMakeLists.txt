@@ -29,7 +29,6 @@ add_service_files(
    FILES
    DynamicObjectsService.srv
    GetDynamicObjectService.srv
-   GetDynamicObjectTrackingService.srv
    DynamicObjectComputeMaskService.srv
 )
 
