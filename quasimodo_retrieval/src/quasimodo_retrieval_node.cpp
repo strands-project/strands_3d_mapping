@@ -451,6 +451,9 @@ public:
             }
             Eigen::Affine3d AT;
             tf::transformTFToEigen(sweep_data.vIntermediateRoomCloudTransforms[0], AT);
+
+            cout << "First transform: \n" << AT.matrix() << endl;
+            cout << "Room transform: \n" << sweep_data.roomTransform << endl;
             pcl::transformPointCloud(*retrieved_clouds[i], *retrieved_clouds[i], AT);
         }
 
