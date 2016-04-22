@@ -449,7 +449,9 @@ public:
             for (int j = 0; j < inds.size(); ++j) {
                 paths[i].push_back(sweep_paths[i].string() + " " + to_string(inds[j]));
             }
-            pcl::transformPointCloud(*retrieved_clouds[i], *retrieved_clouds[i], sweep_data.vIntermediateRoomCloudTransforms[0]);
+            Eigen::Affine3d AT;
+            tf::transformTFToEigen(sweep_data.vIntermediateRoomCloudTransforms[0], AT);
+            pcl::transformPointCloud(*retrieved_clouds[i], *retrieved_clouds[i], AT);
         }
 
         //cv::Mat full_query_image = benchmark_retrieval::sweep_get_rgb_at(sweep_xml, scan_index);
