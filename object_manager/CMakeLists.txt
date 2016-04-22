@@ -29,12 +29,14 @@ add_service_files(
    FILES
    DynamicObjectsService.srv
    GetDynamicObjectService.srv
+   GetDynamicObjectTrackingService.srv
    DynamicObjectComputeMaskService.srv
 )
 
 add_message_files(
   FILES
   DynamicObjectTracks.msg
+  DynamicObjectTrackingData.msg
 )
 
 generate_messages(
