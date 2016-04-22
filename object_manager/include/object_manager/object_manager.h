@@ -29,9 +29,9 @@
 // Additional view mask service
 #include <object_manager/DynamicObjectComputeMaskService.h>
 
-
 // Custom messages
 #include <object_manager/DynamicObjectTracks.h>
+#include <object_manager/DynamicObjectTrackingData.h>
 
 // PCL includes
 #include <pcl_ros/point_cloud.h>
@@ -66,6 +66,7 @@ class ObjectManager {
 public:
     typedef pcl::PointCloud<PointType> Cloud;
     typedef typename Cloud::Ptr CloudPtr;
+    typedef semantic_map_load_utilties::DynamicObjectData<PointType> ObjectData;
 
     typedef typename object_manager::DynamicObjectsService::Request DynamicObjectsServiceRequest;
     typedef typename object_manager::DynamicObjectsService::Response DynamicObjectsServiceResponse;
@@ -119,6 +120,7 @@ private:
     ros::Publisher                                                              m_PublisherRequestedObjectCloud;
     ros::Publisher                                                              m_PublisherRequestedObjectImage;
     ros::Publisher                                                              m_PublisherLearnedObjectXml;
+    ros::Publisher                                                              m_PublisherLearnedObjectTrackingData;
     ros::Subscriber                                                             m_SubscriberDynamicObjectTracks;
     ros::Subscriber                                                             m_SubscriberAdditionalObjectViews;
     ros::Subscriber                                                             m_SubscriberAdditionalObjectViewsStatus;
@@ -158,6 +160,7 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh) : m_TransformListene
     m_PublisherRequestedObjectCloud = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/object_manager/requested_object", 1, true);
     m_PublisherRequestedObjectImage = m_NodeHandle.advertise<sensor_msgs::Image>("/object_manager/requested_object_mask", 1, true);
     m_PublisherLearnedObjectXml = m_NodeHandle.advertise<std_msgs::String>("/object_learning/learned_object_xml", 1, false);
+    m_PublisherLearnedObjectTrackingData = m_NodeHandle.advertise<object_manager::DynamicObjectTrackingData>("/object_learning/learned_object_tracking_data", 1, false);
 
     m_DynamicObjectsServiceServer = m_NodeHandle.advertiseService("ObjectManager/DynamicObjectsService", &ObjectManager::dynamicObjectsServiceCallback, this);
     m_GetDynamicObjectServiceServer = m_NodeHandle.advertiseService("ObjectManager/GetDynamicObjectService", &ObjectManager::getDynamicObjectServiceCallback, this);
@@ -304,6 +307,31 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
 
         // reset object
         m_objectTracked = NULL;
+
+        // re-load object and publish tracks data
+        ObjectData object = semantic_map_load_utilties::loadDynamicObjectFromSingleSweep<PointType>(xml_file);
+        object_manager::DynamicObjectTrackingData tracking_data_msg;
+
+        // views
+        for (auto obj_view : object.vAdditionalViews){
+            sensor_msgs::PointCloud2 view_msg;
+            pcl::toROSMsg(*obj_view, view_msg);
+            tracking_data_msg.additional_views.push_back(view_msg);
+        }
+
+        // transforms
+        for (auto reg_tf : object.vAdditionalViewsTransformsRegistered){
+            geometry_msgs::Transform registered_transform_msg;
+            tf::transformTFToMsg(reg_tf, registered_transform_msg);
+            tracking_data_msg.additional_view_transforms.push_back(registered_transform_msg);
+        }
+
+        // mask
+        if (object.vAdditionalViews.size()){
+            tracking_data_msg.object_mask.assign(object.vAdditionalViewMaskIndices[0].begin(), object.vAdditionalViewMaskIndices[0].end());
+        }
+
+        m_PublisherLearnedObjectTrackingData.publish(tracking_data_msg);
     }
 }
 
@@ -531,10 +559,10 @@ bool ObjectManager<PointType>::getDynamicObjectServiceCallback(GetDynamicObjectS
         ROS_ERROR_STREAM("Could not find object for viewing");
     } else {
         // check if this object doesn't have any additional views -> if not, add the intermediate cloud & its transform
-        if (!m_objectTracked->m_vAdditionalViews.size()){
-            m_objectTracked->addAdditionalView(object.object_cloud);
-            m_objectTracked->addAdditionalViewTransform(object.transform_to_map);
-        }
+//        if (!m_objectTracked->m_vAdditionalViews.size()){
+//            m_objectTracked->addAdditionalView(object.object_cloud);
+//            m_objectTracked->addAdditionalViewTransform(object.transform_to_map);
+//        }
     }
 
     return true;
