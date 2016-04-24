@@ -23,6 +23,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <tf_conversions/tf_eigen.h>
+#include <tf/transform_datatypes.h>
 
 #include <dynamic_reconfigure/server.h>
 #include <quasimodo_retrieval/parametersConfig.h>
@@ -409,6 +410,10 @@ public:
         auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, number_query, vocabulary_path, summary);
         tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
+        auto data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[0].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
+        tf::StampedTransform room_transform = data.vIntermediateRoomCloudTransforms[0];
+        room_transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
+
         cout << "Query cloud size: " << cloud->size() << endl;
         for (CloudT::Ptr& c : retrieved_clouds) {
             cout << "Retrieved cloud size: " << c->size() << endl;
@@ -444,11 +449,17 @@ public:
             for (int j = 0; j < inds.size(); ++j) {
                 paths[i].push_back(sweep_paths[i].string() + " " + to_string(inds[j]));
             }
+
+            //Eigen::Affine3d AT;
+            //tf::transformTFToEigen(sweep_data.vIntermediateRoomCloudTransforms[0], AT);
+            //pcl::transformPointCloud(*retrieved_clouds[i], *retrieved_clouds[i], AT);
         }
 
         //cv::Mat full_query_image = benchmark_retrieval::sweep_get_rgb_at(sweep_xml, scan_index);
         quasimodo_msgs::retrieval_query_result result;
         result.query = *query_msg;
+
+        tf::transformTFToMsg(room_transform, result.query.room_transform);
         result.result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices);
         pub.publish(result);
 
