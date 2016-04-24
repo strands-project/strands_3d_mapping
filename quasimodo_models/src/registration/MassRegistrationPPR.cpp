@@ -187,7 +187,7 @@ double getTime(){
 }
 
 MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses){
-	//printf("start MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses)\n");
+	printf("start MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses)\n");
 
 	unsigned int nr_frames = frames.size();
 	if(poses.size() != nr_frames){
@@ -199,214 +199,215 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 	std::vector<Eigen::Matrix4d> poses2; poses2.resize(poses.size());
 	std::vector<Eigen::Matrix4d> poses2b; poses2b.resize(poses.size());
 	std::vector<Eigen::Matrix4d> poses3; poses3.resize(poses.size());
-	std::vector<Eigen::Matrix4d> poses4; poses4.resize(poses.size());
+    std::vector<Eigen::Matrix4d> poses4; poses4.resize(poses.size());
 
-	nr_matches.resize(nr_frames);
-	matchids.resize(nr_frames);
-	nr_datas.resize(nr_frames);
-	points.resize(nr_frames);
-	colors.resize(nr_frames);
-	normals.resize(nr_frames);
-	transformed_points.resize(nr_frames);
-	transformed_normals.resize(nr_frames);
-	informations.resize(nr_frames);
+    nr_matches.resize(nr_frames);
+    matchids.resize(nr_frames);
+    nr_datas.resize(nr_frames);
+    points.resize(nr_frames);
+    colors.resize(nr_frames);
+    normals.resize(nr_frames);
+    transformed_points.resize(nr_frames);
+    transformed_normals.resize(nr_frames);
+    informations.resize(nr_frames);
 
-	for(unsigned int i = 0; i < nr_frames; i++){
-		bool * maskvec		= mmasks[i]->maskvec;
-		unsigned char  * rgbdata		= (unsigned char	*)(frames[i]->rgb.data);
-		unsigned short * depthdata		= (unsigned short	*)(frames[i]->depth.data);
-		float		   * normalsdata	= (float			*)(frames[i]->normals.data);
+    for(unsigned int i = 0; i < nr_frames; i++){
+        printf("loading data for %i\n",i);
+        bool * maskvec		= mmasks[i]->maskvec;
+        unsigned char  * rgbdata		= (unsigned char	*)(frames[i]->rgb.data);
+        unsigned short * depthdata		= (unsigned short	*)(frames[i]->depth.data);
+        float		   * normalsdata	= (float			*)(frames[i]->normals.data);
 
-		Eigen::Matrix4d p = poses[i];
-		float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
-		float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
-		float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
+        Eigen::Matrix4d p = poses[i];
+        float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
+        float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
+        float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
 
-		Camera * camera				= frames[i]->camera;
-		const unsigned int width	= camera->width;
-		const unsigned int height	= camera->height;
-		const float idepth			= camera->idepth_scale;
-		const float cx				= camera->cx;
-		const float cy				= camera->cy;
-		const float ifx				= 1.0/camera->fx;
-		const float ify				= 1.0/camera->fy;
+        Camera * camera				= frames[i]->camera;
+        const unsigned int width	= camera->width;
+        const unsigned int height	= camera->height;
+        const float idepth			= camera->idepth_scale;
+        const float cx				= camera->cx;
+        const float cy				= camera->cy;
+        const float ifx				= 1.0/camera->fx;
+        const float ify				= 1.0/camera->fy;
 
-		int count = 0;
-		for(unsigned int w = 0; w < width; w+=maskstep){
-			for(unsigned int h = 0; h < height; h+=maskstep){
-				int ind = h*width+w;
-				if(maskvec[ind]){
-					float z = idepth*float(depthdata[ind]);
-					float xn = normalsdata[3*ind+0];
-					if(z > 0.2 && xn != 2){count++;}
-				}
-			}
-		}
+        int count = 0;
+        for(unsigned int w = 0; w < width; w+=maskstep){
+            for(unsigned int h = 0; h < height; h+=maskstep){
+                int ind = h*width+w;
+                if(maskvec[ind]){
+                    float z = idepth*float(depthdata[ind]);
+                    float xn = normalsdata[3*ind+0];
+                    if(z > 0.2 && xn != 2){count++;}
+                }
+            }
+        }
 
-		nr_datas[i] = count;
-		matchids[i].resize(nr_frames);
-		points[i].resize(Eigen::NoChange,count);
-		colors[i].resize(Eigen::NoChange,count);
-		normals[i].resize(Eigen::NoChange,count);
-		transformed_points[i].resize(Eigen::NoChange,count);
-		transformed_normals[i].resize(Eigen::NoChange,count);
-
-
-		Eigen::Matrix<double, 3, Eigen::Dynamic> & X	= points[i];
-		Eigen::Matrix<double, 3, Eigen::Dynamic> & C	= colors[i];
-		Eigen::Matrix<double, 3, Eigen::Dynamic> & Xn	= normals[i];
-		Eigen::Matrix<double, 3, Eigen::Dynamic> & tX	= transformed_points[i];
-		Eigen::Matrix<double, 3, Eigen::Dynamic> & tXn	= transformed_normals[i];
-		Eigen::VectorXd information (count);
-
-		int c = 0;
-		for(unsigned int w = 0; w < width; w+=maskstep){
-			for(unsigned int h = 0; h < height;h+=maskstep){
-				if(c == count){continue;}
-				int ind = h*width+w;
-				if(maskvec[ind]){
-					float z = idepth*float(depthdata[ind]);
-					float xn = normalsdata[3*ind+0];
-
-					if(z > 0.2 && xn != 2){
-						float yn = normalsdata[3*ind+1];
-						float zn = normalsdata[3*ind+2];
-
-						float x = (w - cx) * z * ifx;
-						float y = (h - cy) * z * ify;
-
-						X(0,c)	= x;
-						X(1,c)	= y;
-						X(2,c)	= z;
-						Xn(0,c)	= xn;
-						Xn(1,c)	= yn;
-						Xn(2,c)	= zn;
-
-						tX(0,c)		= m00*x + m01*y + m02*z + m03;
-						tX(1,c)		= m10*x + m11*y + m12*z + m13;
-						tX(2,c)		= m20*x + m21*y + m22*z + m23;
-						tXn(0,c)	= m00*xn + m01*yn + m02*zn;
-						tXn(1,c)	= m10*xn + m11*yn + m12*zn;
-						tXn(2,c)	= m20*xn + m21*yn + m22*zn;
-
-						information(c) = 1.0/(z*z);
-
-						C(0,c) = rgbdata[3*ind+0];
-						C(1,c) = rgbdata[3*ind+1];
-						C(2,c) = rgbdata[3*ind+2];
-						c++;
-					}
-				}
-			}
-		}
-		informations[i] = information;
-		trees.push_back(new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X));
-	}
-
-	background_nr_matches.resize(nr_frames);
-	background_matchids.resize(nr_frames);
-	background_nr_datas.resize(nr_frames);
-	background_points.resize(nr_frames);
-	background_colors.resize(nr_frames);
-	background_normals.resize(nr_frames);
-	background_transformed_points.resize(nr_frames);
-	background_transformed_normals.resize(nr_frames);
-	background_informations.resize(nr_frames);
-
-	for(unsigned int i = 0; i < nr_frames; i++){
-		//printf("start local : data loaded successfully\n");
-		//printf("background loading data for %i\n",i);
-
-		bool * maskvec		= mmasks[i]->maskvec;
-		unsigned char  * rgbdata		= (unsigned char	*)(frames[i]->rgb.data);
-		unsigned short * depthdata		= (unsigned short	*)(frames[i]->depth.data);
-		float		   * normalsdata	= (float			*)(frames[i]->normals.data);
-
-		Eigen::Matrix4d p = poses[i];
-		float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
-		float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
-		float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
-
-		Camera * camera				= frames[i]->camera;
-		const unsigned int width	= camera->width;
-		const unsigned int height	= camera->height;
-		const float idepth			= camera->idepth_scale;
-		const float cx				= camera->cx;
-		const float cy				= camera->cy;
-		const float ifx				= 1.0/camera->fx;
-		const float ify				= 1.0/camera->fy;
-
-		int count = 0;
-		for(unsigned int w = 0; w < width; w+=nomaskstep){
-			for(unsigned int h = 0; h < height; h+=nomaskstep){
-				int ind = h*width+w;
-				if(maskvec[ind]){
-					float z = idepth*float(depthdata[ind]);
-					float xn = normalsdata[3*ind+0];
-					if(z > 0.2 && xn != 2){count++;}
-				}
-			}
-		}
-
-		background_nr_datas[i] = count;
-		background_matchids[i].resize(nr_frames);
-		background_points[i].resize(Eigen::NoChange,count);
-		background_colors[i].resize(Eigen::NoChange,count);
-		background_normals[i].resize(Eigen::NoChange,count);
-		background_transformed_points[i].resize(Eigen::NoChange,count);
-		background_transformed_normals[i].resize(Eigen::NoChange,count);
+        nr_datas[i] = count;
+        matchids[i].resize(nr_frames);
+        points[i].resize(Eigen::NoChange,count);
+        colors[i].resize(Eigen::NoChange,count);
+        normals[i].resize(Eigen::NoChange,count);
+        transformed_points[i].resize(Eigen::NoChange,count);
+        transformed_normals[i].resize(Eigen::NoChange,count);
 
 
-		Eigen::Matrix<double, 3, Eigen::Dynamic> & X	= background_points[i];
-		Eigen::Matrix<double, 3, Eigen::Dynamic> & C	= background_colors[i];
-		Eigen::Matrix<double, 3, Eigen::Dynamic> & Xn	= background_normals[i];
-		Eigen::Matrix<double, 3, Eigen::Dynamic> & tX	= background_transformed_points[i];
-		Eigen::Matrix<double, 3, Eigen::Dynamic> & tXn	= background_transformed_normals[i];
-		Eigen::VectorXd information (count);
+        Eigen::Matrix<double, 3, Eigen::Dynamic> & X	= points[i];
+        Eigen::Matrix<double, 3, Eigen::Dynamic> & C	= colors[i];
+        Eigen::Matrix<double, 3, Eigen::Dynamic> & Xn	= normals[i];
+        Eigen::Matrix<double, 3, Eigen::Dynamic> & tX	= transformed_points[i];
+        Eigen::Matrix<double, 3, Eigen::Dynamic> & tXn	= transformed_normals[i];
+        Eigen::VectorXd information (count);
 
-		int c = 0;
-		for(unsigned int w = 0; w < width; w+=nomaskstep){
-			for(unsigned int h = 0; h < height; h+=nomaskstep){
-				if(c == count){continue;}
-				int ind = h*width+w;
-				if(maskvec[ind]){
-					float z = idepth*float(depthdata[ind]);
-					float xn = normalsdata[3*ind+0];
+        int c = 0;
+        for(unsigned int w = 0; w < width; w+=maskstep){
+            for(unsigned int h = 0; h < height;h+=maskstep){
+                if(c == count){continue;}
+                int ind = h*width+w;
+                if(maskvec[ind]){
+                    float z = idepth*float(depthdata[ind]);
+                    float xn = normalsdata[3*ind+0];
 
-					if(z > 0.2 && xn != 2){
-						float yn = normalsdata[3*ind+1];
-						float zn = normalsdata[3*ind+2];
+                    if(z > 0.2 && xn != 2){
+                        float yn = normalsdata[3*ind+1];
+                        float zn = normalsdata[3*ind+2];
 
-						float x = (w - cx) * z * ifx;
-						float y = (h - cy) * z * ify;
+                        float x = (w - cx) * z * ifx;
+                        float y = (h - cy) * z * ify;
 
-						X(0,c)	= x;
-						X(1,c)	= y;
-						X(2,c)	= z;
-						Xn(0,c)	= xn;
-						Xn(1,c)	= yn;
-						Xn(2,c)	= zn;
+                        X(0,c)	= x;
+                        X(1,c)	= y;
+                        X(2,c)	= z;
+                        Xn(0,c)	= xn;
+                        Xn(1,c)	= yn;
+                        Xn(2,c)	= zn;
 
-						tX(0,c)		= m00*x + m01*y + m02*z + m03;
-						tX(1,c)		= m10*x + m11*y + m12*z + m13;
-						tX(2,c)		= m20*x + m21*y + m22*z + m23;
-						tXn(0,c)	= m00*xn + m01*yn + m02*zn;
-						tXn(1,c)	= m10*xn + m11*yn + m12*zn;
-						tXn(2,c)	= m20*xn + m21*yn + m22*zn;
+                        tX(0,c)		= m00*x + m01*y + m02*z + m03;
+                        tX(1,c)		= m10*x + m11*y + m12*z + m13;
+                        tX(2,c)		= m20*x + m21*y + m22*z + m23;
+                        tXn(0,c)	= m00*xn + m01*yn + m02*zn;
+                        tXn(1,c)	= m10*xn + m11*yn + m12*zn;
+                        tXn(2,c)	= m20*xn + m21*yn + m22*zn;
 
-						information(c) = 1.0/(z*z);
+                        information(c) = 1.0/(z*z);
+                        C(0,c) = rgbdata[3*ind+0];
+                        C(1,c) = rgbdata[3*ind+1];
+                        C(2,c) = rgbdata[3*ind+2];
+                        c++;
+                    }
+                }
+            }
+        }
+        informations[i] = information;
+        trees.push_back(new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X));
+    }
 
-						C(0,c) = rgbdata[3*ind+0];
-						C(1,c) = rgbdata[3*ind+1];
-						C(2,c) = rgbdata[3*ind+2];
-						c++;
-					}
-				}
-			}
-		}
-		background_informations[i] = information;
-		background_trees.push_back(new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X));
-	}
+    background_nr_matches.resize(nr_frames);
+    background_matchids.resize(nr_frames);
+    background_nr_datas.resize(nr_frames);
+    background_points.resize(nr_frames);
+    background_colors.resize(nr_frames);
+    background_normals.resize(nr_frames);
+    background_transformed_points.resize(nr_frames);
+    background_transformed_normals.resize(nr_frames);
+    background_informations.resize(nr_frames);
+
+    for(unsigned int i = 0; i < nr_frames; i++){
+        //printf("start local : data loaded successfully\n");
+        printf("background loading data for %i\n",i);
+
+        bool * maskvec		= mmasks[i]->maskvec;
+        unsigned char  * rgbdata		= (unsigned char	*)(frames[i]->rgb.data);
+        unsigned short * depthdata		= (unsigned short	*)(frames[i]->depth.data);
+        float		   * normalsdata	= (float			*)(frames[i]->normals.data);
+
+        Eigen::Matrix4d p = poses[i];
+        float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
+        float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
+        float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
+
+        Camera * camera				= frames[i]->camera;
+        const unsigned int width	= camera->width;
+        const unsigned int height	= camera->height;
+        const float idepth			= camera->idepth_scale;
+        const float cx				= camera->cx;
+        const float cy				= camera->cy;
+        const float ifx				= 1.0/camera->fx;
+        const float ify				= 1.0/camera->fy;
+
+        int count = 0;
+        for(unsigned int w = 0; w < width; w+=nomaskstep){
+            for(unsigned int h = 0; h < height; h+=nomaskstep){
+                int ind = h*width+w;
+                if(maskvec[ind]){
+                    float z = idepth*float(depthdata[ind]);
+                    float xn = normalsdata[3*ind+0];
+                    if(z > 0.2 && xn != 2){count++;}
+                }
+            }
+        }
+
+        background_nr_datas[i] = count;
+        background_matchids[i].resize(nr_frames);
+        background_points[i].resize(Eigen::NoChange,count);
+        background_colors[i].resize(Eigen::NoChange,count);
+        background_normals[i].resize(Eigen::NoChange,count);
+        background_transformed_points[i].resize(Eigen::NoChange,count);
+        background_transformed_normals[i].resize(Eigen::NoChange,count);
+
+
+        Eigen::Matrix<double, 3, Eigen::Dynamic> & X	= background_points[i];
+        Eigen::Matrix<double, 3, Eigen::Dynamic> & C	= background_colors[i];
+        Eigen::Matrix<double, 3, Eigen::Dynamic> & Xn	= background_normals[i];
+        Eigen::Matrix<double, 3, Eigen::Dynamic> & tX	= background_transformed_points[i];
+        Eigen::Matrix<double, 3, Eigen::Dynamic> & tXn	= background_transformed_normals[i];
+        Eigen::VectorXd information (count);
+
+        int c = 0;
+        for(unsigned int w = 0; w < width; w+=nomaskstep){
+            for(unsigned int h = 0; h < height; h+=nomaskstep){
+                if(c == count){continue;}
+                int ind = h*width+w;
+                if(maskvec[ind]){
+                    float z = idepth*float(depthdata[ind]);
+                    float xn = normalsdata[3*ind+0];
+
+                    if(z > 0.2 && xn != 2){
+                        float yn = normalsdata[3*ind+1];
+                        float zn = normalsdata[3*ind+2];
+
+                        float x = (w - cx) * z * ifx;
+                        float y = (h - cy) * z * ify;
+
+                        X(0,c)	= x;
+                        X(1,c)	= y;
+                        X(2,c)	= z;
+                        Xn(0,c)	= xn;
+                        Xn(1,c)	= yn;
+                        Xn(2,c)	= zn;
+
+                        tX(0,c)		= m00*x + m01*y + m02*z + m03;
+                        tX(1,c)		= m10*x + m11*y + m12*z + m13;
+                        tX(2,c)		= m20*x + m21*y + m22*z + m23;
+                        tXn(0,c)	= m00*xn + m01*yn + m02*zn;
+                        tXn(1,c)	= m10*xn + m11*yn + m12*zn;
+                        tXn(2,c)	= m20*xn + m21*yn + m22*zn;
+
+                        //printf("c: %i count: %i\n",c,count);
+                        information(c) = 1.0/(z*z);
+
+                        C(0,c) = rgbdata[3*ind+0];
+                        C(1,c) = rgbdata[3*ind+1];
+                        C(2,c) = rgbdata[3*ind+2];
+                        c++;
+                    }
+                }
+            }
+        }
+        background_informations[i] = information;
+        background_trees.push_back(new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X));
+    }
 
 
 	func->reset();
@@ -417,6 +418,9 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 
 	double good_rematches = 0;
 	double total_rematches = 0;
+
+    double good_opt = 0;
+    double bad_opt = 0;
 
 	double rematch_time = 0;
 	double residuals_time = 0;
@@ -446,7 +450,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 		}
 
 		//printf("funcupdate: %i\n",funcupdate);
-		for(int rematching=0; rematching < 20; ++rematching) {
+		for(int rematching=0; rematching < 40; ++rematching) {
 			//printf("funcupdate: %i rematching: %i\n",funcupdate,rematching);
 
 			if(visualizationLvl == 3){
@@ -459,6 +463,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 
 
 			}
+//exit(0);
 			for(unsigned int i = 0; i < nr_frames; i++){poses1[i] = poses[i];}
 
 			double rematch_time_start = getTime();
@@ -473,7 +478,6 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 					Eigen::Matrix<double, 3, Eigen::Dynamic> tY	= irp*points[j];
 
 					nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * treex = trees[j];
-					nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * treey = trees[i];
 
 
 					unsigned int nr_data = nr_datas[i];
@@ -482,20 +486,33 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 					for(unsigned int k = 0; k < nr_data; ++k) {
 						int prev = matchid[k];
 						int current =  treex->closest(tX.col(k).data());
-						//int invcurrent =  treey->closest(tY.col(current).data());
-						//if(k != invcurrent){current = 0;}
-						//printf("k: %i current: %i, invcurrent: %i\n",k,current,invcurrent);
 						good_rematches += prev != current;
 						total_rematches++;
 						matchid[k] = current;
 					}
-					//exit(0);
 					nr_matches[i] += matchid.size();
+
+//                    Eigen::Matrix<double, 3, Eigen::Dynamic> background_tX	= rp*background_points[i];
+//                    Eigen::Matrix<double, 3, Eigen::Dynamic> background_tY	= irp*background_points[j];
+
+//                    nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * background_treex = background_trees[j];
+//                    unsigned int background_nr_data = background_nr_datas[i];
+//                    std::vector<int> & background_matchid = background_matchids[i][j];
+//                    background_matchid.resize(background_nr_data);
+//                    for(unsigned int k = 0; k < background_nr_data; ++k) {
+//                        int prev = background_matchid[k];
+//                        int current =  background_treex->closest(background_tX.col(k).data());
+//                        //good_rematches += prev != current;
+//                        //total_rematches++;
+//                        background_matchid[k] = current;
+//                    }
+                    //nr_matches[i] += matchid.size();
 				}
 			}
 			rematch_time += getTime()-rematch_time_start;
-//			printf("rematch_time: %f\n",rematch_time);
-//			printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_rematches/total_rematches,good_rematches,total_rematches);
+			printf("rematch_time: %f\n",rematch_time);
+
+printf("percentage: %5.5f (good_rematches: %f total_rematches: %f)\n",good_rematches/total_rematches,good_rematches,total_rematches);
 
 			for(unsigned int i = 0; i < nr_frames; i++){
 				nr_matches[i] = 0;
@@ -507,7 +524,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 			int total_matches = 0;
 			for(unsigned int i = 0; i < nr_frames; i++){
 				for(unsigned int j = 0; j < nr_frames; j++){
-					total_matches += matchids[i][j].size();
+                    total_matches += matchids[i][j].size();// + background_matchids[i][j].size();
 				}
 			}
 
@@ -534,110 +551,157 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 					case PointToPlane:	{all_residuals = Eigen::MatrixXd::Zero(1,total_matches);}break;
 					default:			{printf("type not set\n");}					break;
 				}
-//printf("LINE: %i\n",__LINE__);
+
 				int count = 0;
 
 				for(unsigned int i = 0; i < nr_frames; i++){
 					Eigen::Matrix<double, 3, Eigen::Dynamic> & tXi	= transformed_points[i];
 					Eigen::Matrix<double, 3, Eigen::Dynamic> & tXni	= transformed_normals[i];
 					Eigen::VectorXd & informationi					= informations[i];
-//printf("LINE: %i\n",__LINE__);
 					for(unsigned int j = 0; j < nr_frames; j++){
-						if(i == j){continue;}
-						std::vector<int> & matchidi = matchids[i][j];
-						unsigned int matchesi = matchidi.size();
+                        if(i == j){continue;}
+                        std::vector<int> & matchidi = matchids[i][j];
+                        unsigned int matchesi = matchidi.size();
+                        Eigen::Matrix<double, 3, Eigen::Dynamic> & tXj	= transformed_points[j];
+                        Eigen::Matrix<double, 3, Eigen::Dynamic> & tXnj	= transformed_normals[j];
+                        Eigen::VectorXd & informationj					= informations[j];
+                        Eigen::Matrix3Xd Xp		= Eigen::Matrix3Xd::Zero(3,	matchesi);
+                        Eigen::Matrix3Xd Xn		= Eigen::Matrix3Xd::Zero(3,	matchesi);
+                        Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	matchesi);
+                        Eigen::Matrix3Xd Qn		= Eigen::Matrix3Xd::Zero(3,	matchesi);
+                        Eigen::VectorXd  rangeW	= Eigen::VectorXd::Zero(	matchesi);
 
-						//if(matchesi > informationi.rows()){printf("WTF %i > %i \n",matchesi,informationi.rows());exit(0);}
-
-						Eigen::Matrix<double, 3, Eigen::Dynamic> & tXj	= transformed_points[j];
-						Eigen::Matrix<double, 3, Eigen::Dynamic> & tXnj	= transformed_normals[j];
-						Eigen::VectorXd & informationj					= informations[j];
-
-						Eigen::Matrix3Xd Xp		= Eigen::Matrix3Xd::Zero(3,	matchesi);
-						Eigen::Matrix3Xd Xn		= Eigen::Matrix3Xd::Zero(3,	matchesi);
-
-						Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	matchesi);
-						Eigen::Matrix3Xd Qn		= Eigen::Matrix3Xd::Zero(3,	matchesi);
-						Eigen::VectorXd  rangeW	= Eigen::VectorXd::Zero(	matchesi);
-
-						for(unsigned int ki = 0; ki < matchesi; ki++){
-							int kj = matchidi[ki];
-							//if(kj == -1){continue;}
-							if( ki >= Qp.cols() || kj < 0 || kj >= tXj.cols() ){continue;}
-
-							//printf("%i %i / %i %i\n",ki,kj,Qp.cols(),tXj.cols());
-
-							Qp.col(ki) = tXj.col(kj);
-							Qn.col(ki) = tXnj.col(kj);
-
-							Xp.col(ki) = tXi.col(ki);
-							Xn.col(ki) = tXni.col(ki);
-
-							//printf("%i %i / %i %i\n",ki,kj,informationi.rows(),informationj.rows());
-							rangeW(ki) = 1.0/(1.0/informationi(ki)+1.0/informationj(kj));
-						}
-
-						Eigen::MatrixXd residuals;
-						switch(type) {
-							case PointToPoint:	{residuals = Xp-Qp;} 						break;
-							case PointToPlane:	{
-								residuals		= Eigen::MatrixXd::Zero(1,	Xp.cols());
-								for(int i=0; i<Xp.cols(); ++i) {
-									float dx = Xp(0,i)-Qp(0,i);
-									float dy = Xp(1,i)-Qp(1,i);
-									float dz = Xp(2,i)-Qp(2,i);
-									float qx = Qn(0,i);
-									float qy = Qn(1,i);
-									float qz = Qn(2,i);
-									float di = qx*dx + qy*dy + qz*dz;
-
-									residuals(0,i) = di;
-								}
-							}break;
-							default:			{printf("type not set\n");}					break;
-						}
-
-						for(unsigned int k=0; k < matchesi; ++k) {residuals.col(k) *= rangeW(k);}
-
-						all_residuals.block(0,count,residuals.rows(),residuals.cols()) = residuals;
-						count += residuals.cols();
+                        for(unsigned int ki = 0; ki < matchesi; ki++){
+                            int kj = matchidi[ki];
+                            if( ki >= Qp.cols() || kj < 0 || kj >= tXj.cols() ){continue;}
+                            Qp.col(ki) = tXj.col(kj);
+                            Qn.col(ki) = tXnj.col(kj);
+                            Xp.col(ki) = tXi.col(ki);
+                            Xn.col(ki) = tXni.col(ki);
+                            rangeW(ki) = 1.0/(1.0/informationi(ki)+1.0/informationj(kj));
+                        }
+                        Eigen::MatrixXd residuals;
+                        switch(type) {
+                            case PointToPoint:	{residuals = Xp-Qp;} 						break;
+                            case PointToPlane:	{
+                                residuals		= Eigen::MatrixXd::Zero(1,	Xp.cols());
+                                for(int i=0; i<Xp.cols(); ++i) {
+                                    float dx = Xp(0,i)-Qp(0,i);
+                                    float dy = Xp(1,i)-Qp(1,i);
+                                    float dz = Xp(2,i)-Qp(2,i);
+                                    float qx = Qn(0,i);
+                                    float qy = Qn(1,i);
+                                    float qz = Qn(2,i);
+                                    float di = qx*dx + qy*dy + qz*dz;
+                                    residuals(0,i) = di;
+                                }
+                            }break;
+                            default:			{printf("type not set\n");}					break;
+                        }
+                        for(unsigned int k=0; k < matchesi; ++k) {residuals.col(k) *= rangeW(k);}
+                        all_residuals.block(0,count,residuals.rows(),residuals.cols()) = residuals;
+                        count += residuals.cols();
 					}
 				}
-//printf("LINE: %i\n",__LINE__);
+
+//                for(unsigned int i = 0; i < nr_frames; i++){
+//                    Eigen::Matrix<double, 3, Eigen::Dynamic> & tXi	= background_transformed_points[i];
+//                    Eigen::Matrix<double, 3, Eigen::Dynamic> & tXni	= background_transformed_normals[i];
+//                    Eigen::VectorXd & informationi					= background_informations[i];
+//                    for(unsigned int j = 0; j < nr_frames; j++){
+//                        if(i == j){continue;}
+//                        std::vector<int> & matchidi = matchids[i][j];
+//                        unsigned int matchesi = matchidi.size();
+//                        Eigen::Matrix<double, 3, Eigen::Dynamic> & tXj	= background_transformed_points[j];
+//                        Eigen::Matrix<double, 3, Eigen::Dynamic> & tXnj	= background_transformed_normals[j];
+//                        Eigen::VectorXd & informationj					= background_informations[j];
+//                        Eigen::Matrix3Xd Xp		= Eigen::Matrix3Xd::Zero(3,	matchesi);
+//                        Eigen::Matrix3Xd Xn		= Eigen::Matrix3Xd::Zero(3,	matchesi);
+//                        Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	matchesi);
+//                        Eigen::Matrix3Xd Qn		= Eigen::Matrix3Xd::Zero(3,	matchesi);
+//                        Eigen::VectorXd  rangeW	= Eigen::VectorXd::Zero(	matchesi);
+//                        for(unsigned int ki = 0; ki < matchesi; ki++){
+//                            int kj = matchidi[ki];
+//                            if( ki >= Qp.cols() || kj < 0 || kj >= tXj.cols() ){continue;}
+//                            Qp.col(ki) = tXj.col(kj);
+//                            Qn.col(ki) = tXnj.col(kj);
+//                            printf("ki: %i kj: %i tXi cols: %i matchesi: %i\n",ki, kj,tXi.cols(),matchesi);
+//                            Xp.col(ki) = tXi.col(ki);
+//                            Xn.col(ki) = tXni.col(ki);
+//                            rangeW(ki) = 1.0/(1.0/informationi(ki)+1.0/informationj(kj));
+//                        }
+//                        Eigen::MatrixXd residuals;
+//                        switch(type) {
+//                            case PointToPoint:	{residuals = Xp-Qp;} 						break;
+//                            case PointToPlane:	{
+//                                residuals		= Eigen::MatrixXd::Zero(1,	Xp.cols());
+//                                for(int i=0; i<Xp.cols(); ++i) {
+//                                    float dx = Xp(0,i)-Qp(0,i);
+//                                    float dy = Xp(1,i)-Qp(1,i);
+//                                    float dz = Xp(2,i)-Qp(2,i);
+//                                    float qx = Qn(0,i);
+//                                    float qy = Qn(1,i);
+//                                    float qz = Qn(2,i);
+//                                    float di = qx*dx + qy*dy + qz*dz;
+//                                    residuals(0,i) = di;
+//                                }
+//                            }break;
+//                            default:			{printf("type not set\n");}					break;
+//                        }
+//                        for(unsigned int k=0; k < matchesi; ++k) {residuals.col(k) *= rangeW(k);}
+//                        all_residuals.block(0,count,residuals.rows(),residuals.cols()) = residuals;
+//                        count += residuals.cols();
+//                    }
+//                }
+
 				residuals_time += getTime()-residuals_time_start;
 
 				double computeModel_time_start = getTime();
-				switch(type) {
-					case PointToPoint:	{func->computeModel(all_residuals);} 	break;
-					case PointToPlane:	{func->computeModel(all_residuals);}	break;
-					default:  			{printf("type not set\n");} break;
-				}
+//				switch(type) {
+//					case PointToPoint:	{func->computeModel(all_residuals);} 	break;
+//					case PointToPlane:	{func->computeModel(all_residuals);}	break;
+//					default:  			{printf("type not set\n");} break;
+//				}
+                func->computeModel(all_residuals);
 				computeModel_time += getTime()-computeModel_time_start;
-				//func->debugg_print = false;
-//printf("LINE: %i\n",__LINE__);
+
 				for(int outer=0; outer < 30; ++outer) {
                     if(getTime()-total_time_start > timeout){break;}
-					//printf("funcupdate: %i rematching: %i lala: %i outer: %i\n",funcupdate,rematching,lala,outer);
+					printf("funcupdate: %i rematching: %i lala: %i outer: %i\n",funcupdate,rematching,lala,outer);
 					for(unsigned int i = 0; i < nr_frames; i++){poses2[i] = poses[i];}
-
-					//printf("funcupdate: %i rematching: %i outer: %i\n",funcupdate,rematching,outer);
 					for(unsigned int i = 0; i < nr_frames; i++){
                         if(getTime()-total_time_start > timeout){break;}
 						unsigned int nr_match = 0;
-						for(unsigned int j = 0; j < nr_frames; j++){
-							std::vector<int> & matchidj = matchids[j][i];
-                            int matchesj = matchidj.size();
-							std::vector<int> & matchidi = matchids[i][j];
-                            int matchesi = matchidi.size();
+                        {
+                            for(unsigned int j = 0; j < nr_frames; j++){
+                                std::vector<int> & matchidj = matchids[j][i];
+                                unsigned int matchesj = matchidj.size();
+                                std::vector<int> & matchidi = matchids[i][j];
+                                unsigned int matchesi = matchidi.size();
 
-                            for(int ki = 0; ki < matchesi; ki++){
-								int kj = matchidi[ki];
-								if( kj == -1 ){continue;}
-								if( kj >=  matchesj){continue;}
-								if(!onetoone || matchidj[kj] == ki){	nr_match++;}
-							}
-						}
+                                for(unsigned int ki = 0; ki < matchesi; ki++){
+                                    int kj = matchidi[ki];
+                                    if( kj == -1 ){continue;}
+                                    if( kj >=  matchesj){continue;}
+                                    if(!onetoone || matchidj[kj] == ki){	nr_match++;}
+                                }
+                            }
+                        }
 
+//                        {
+//                            for(unsigned int j = 0; j < nr_frames; j++){
+//                                std::vector<int> & matchidj = background_matchids[j][i];
+//                                unsigned int matchesj = matchidj.size();
+//                                std::vector<int> & matchidi = background_matchids[i][j];
+//                                unsigned int matchesi = matchidi.size();
+//                                for(unsigned int ki = 0; ki < matchesi; ki++){
+//                                    int kj = matchidi[ki];
+//                                    if( kj == -1 ){continue;}
+//                                    if( kj >=  matchesj){continue;}
+//                                    if(!onetoone || matchidj[kj] == ki){	nr_match++;}
+//                                }
+//                            }
+//                        }
 						Eigen::Matrix3Xd Xp		= Eigen::Matrix3Xd::Zero(3,	nr_match);
 						Eigen::Matrix3Xd Xp_ori	= Eigen::Matrix3Xd::Zero(3,	nr_match);
 						Eigen::Matrix3Xd Xn		= Eigen::Matrix3Xd::Zero(3,	nr_match);
@@ -660,11 +724,11 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 							Eigen::VectorXd & informationj					= informations[j];
 
 							std::vector<int> & matchidj = matchids[j][i];
-                            int matchesj = matchidj.size();
+							unsigned int matchesj = matchidj.size();
 							std::vector<int> & matchidi = matchids[i][j];
-                            int matchesi = matchidi.size();
+							unsigned int matchesi = matchidi.size();
 
-                            for(int ki = 0; ki < matchesi; ki++){
+							for(unsigned int ki = 0; ki < matchesi; ki++){
 								int kj = matchidi[ki];
 								if( kj == -1 ){continue;}
 								if( kj >=  matchesj){continue;}
@@ -684,6 +748,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 
 						if(count == 0){break;}
 
+                        //showMatches(Xp,Qp);
 						for(int inner=0; inner < 5; ++inner) {
 							Eigen::MatrixXd residuals;
 							switch(type) {
@@ -711,10 +776,16 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 								case PointToPoint:	{W = func->getProbs(residuals); } 					break;
 								case PointToPlane:	{
 									W = func->getProbs(residuals);
-                                    for(unsigned int k=0; k<nr_match; ++k) {W(k) = W(k)*float((Xn(0,k)*Qn(0,k) + Xn(1,k)*Qn(1,k) + Xn(2,k)*Qn(2,k)) > 0.0);}
+									for(int k=0; k<nr_match; ++k) {W(k) = W(k)*float((Xn(0,k)*Qn(0,k) + Xn(1,k)*Qn(1,k) + Xn(2,k)*Qn(2,k)) > 0.0);}
 								}	break;
 								default:			{printf("type not set\n");} break;
 							}
+
+
+                            for(int k=0; k<nr_match; ++k) {
+                                if(W(k) > 0.1){good_opt++;}
+                                else{bad_opt++;}
+                            }
 
 							W = W.array()*rangeW.array()*rangeW.array();
 							Xo1 = Xp;
@@ -735,7 +806,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 //										Qparams[c] = 0;
 //									}
 //									for(unsigned int c = 0; c < nr_match; c++){
-//CostFunction * func = new NumericDiffCostFuunsignednction<PointNormalCostFunctor, CENTRAL, 2, 6, 6> (new PointNormalCostFunctor(Xp(0,c),Xp(1,c),Xp(2,c),Xn(0,c),Xn(1,c),Xn(2,c),Qp(0,c),Qp(1,c),Qp(2,c),Qn(0,c),Qn(1,c),Qn(2,c),sqrt(W(c))));
+//CostFunction * func = new NumericDiffCostFunction<PointNormalCostFunctor, CENTRAL, 2, 6, 6> (new PointNormalCostFunctor(Xp(0,c),Xp(1,c),Xp(2,c),Xn(0,c),Xn(1,c),Xn(2,c),Qp(0,c),Qp(1,c),Qp(2,c),Qn(0,c),Qn(1,c),Qn(2,c),sqrt(W(c))));
 //problem.AddResidualBlock(func, NULL ,Xparams,Qparams);
 //									}
 //									Solve(options, &problem, &summary);
@@ -845,7 +916,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 
 				double change_trans = 0;
 				double change_rot = 0;
-                for(unsigned int i = 0; i < nr_frames; i++){
+				for(unsigned int i = 0; i < nr_frames; i++){
 					for(unsigned int j = i+1; j < nr_frames; j++){
 						Eigen::Matrix4d diff_before = poses2b[i].inverse()*poses2b[j];
 						Eigen::Matrix4d diff_after	= poses[i].inverse()*poses[j];
@@ -912,6 +983,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 	printf("total_time:   %5.5f\n",getTime()-total_time_start);
 	printf("rematch_time: %5.5f\n",rematch_time);
 	printf("computeModel: %5.5f\n",computeModel_time);
+    printf("good opt: %f bad opt: %f ratio: %f\n",good_opt,bad_opt,good_opt/(good_opt+bad_opt));
 
 
 	if(visualizationLvl > 0){
@@ -923,7 +995,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 	}
 
 	Eigen::Matrix4d firstinv = poses.front().inverse();
-    for(unsigned int i = 0; i < nr_frames; i++){
+	for(int i = 0; i < nr_frames; i++){
 		poses[i] = firstinv*poses[i];
 	}
 //if(nr_frames >= 3){exit(0);}
