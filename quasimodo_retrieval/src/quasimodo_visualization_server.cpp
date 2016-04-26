@@ -35,7 +35,7 @@ public:
         pn.param<std::string>("image_output", image_output, std::string("visualization_image"));
         pn.param<std::string>("topic_input", topic_input, std::string("/retrieval_result"));
 
-        image_pub = n.advertise<sensor_msgs::Image>(image_output, 1);
+        image_pub = n.advertise<sensor_msgs::Image>(image_output, 1, true);
         label_pub = n.advertise<quasimodo_msgs::string_array>("/retrieved_labels", 1);
 
         service = n.advertiseService(name, &visualization_server::service_callback, this);
