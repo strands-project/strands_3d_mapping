@@ -16,9 +16,54 @@
 
 // for convenience
 #include <boost/filesystem.hpp>
+#include <locale>
 #include <fstream>
 
+namespace boost { namespace filesystem {
+
+template <> path& path::append<path::iterator>(path::iterator begin, path::iterator end, const codecvt_type& cvt)
+{
+    for( ; begin != end ; ++begin )
+        *this /= *begin;
+    return *this;
+}
+
+// Return path when appended to root will resolve to same as p
+boost::filesystem::path make_relative(boost::filesystem::path p, boost::filesystem::path root)
+{
+    if (p == root) {
+        return boost::filesystem::path(".");
+    }
+    root = boost::filesystem::absolute( root ); p = boost::filesystem::absolute( p );
+    boost::filesystem::path ret;
+    boost::filesystem::path::const_iterator itrFrom( root.begin() ), itrTo( p.begin() );
+    // Find common base
+    for( boost::filesystem::path::const_iterator toEnd( p.end() ), fromEnd( root.end() ) ; itrFrom != fromEnd && itrTo != toEnd && *itrFrom == *itrTo; ++itrFrom, ++itrTo );
+    // Navigate backwards in directory to reach previously found base
+    for( boost::filesystem::path::const_iterator fromEnd( root.end() ); itrFrom != fromEnd; ++itrFrom )
+    {
+        if( (*itrFrom) != "." )
+            ret /= "..";
+    }
+    // Now navigate down the directory branch
+    ret.append( itrTo, p.end() );
+    return ret;
+}
+
+} } // namespace boost::filesystem
+
 namespace dynamic_object_retrieval {
+
+bool is_sub_dir(boost::filesystem::path p, const boost::filesystem::path& root)
+{
+    while (p != boost::filesystem::path()) {
+        if (p == root) {
+             return true;
+        }
+        p = p.parent_path();
+    }
+    return false;
+}
 
 struct vocabulary_summary {
 
@@ -47,10 +92,26 @@ struct vocabulary_summary {
             cereal::JSONInputArchive archive_i(in);
             archive_i(*this);
         }
+        if (!boost::filesystem::path(noise_data_path).is_absolute()) {
+            noise_data_path = boost::filesystem::canonical(noise_data_path, data_path.parent_path()).string();
+        }
+        if (!boost::filesystem::path(annotated_data_path).is_absolute()) {
+            annotated_data_path = boost::filesystem::canonical(annotated_data_path, data_path.parent_path()).string();
+        }
     }
 
-    void save(const boost::filesystem::path& data_path) const
+    void save(const boost::filesystem::path& data_path)
     {
+        // we should just have some way of checking if the paths are childs of data_path, in that case replace with relative path
+        // but this is in general not true for this data_path, which is the vocabulary path!
+        // so, instead check if the data paths are children of the parent of data_path, i.e. if they are siblings
+        if (is_sub_dir(boost::filesystem::path(noise_data_path), data_path.parent_path())) {
+            noise_data_path = make_relative(boost::filesystem::path(noise_data_path), data_path.parent_path()).string();
+        }
+        if (is_sub_dir(boost::filesystem::path(annotated_data_path), data_path.parent_path())) {
+            annotated_data_path = make_relative(boost::filesystem::path(annotated_data_path), data_path.parent_path()).string();
+        }
+
         std::ofstream out((data_path / boost::filesystem::path("vocabulary_summary.json")).string());
         {
             cereal::JSONOutputArchive archive_o(out);
@@ -101,10 +162,20 @@ struct data_summary {
             cereal::JSONInputArchive archive_i(in);
             archive_i(*this);
         }
+        if (!boost::filesystem::path(index_convex_segment_paths[0]).is_absolute()) {
+            for (std::string& segment_path : index_convex_segment_paths) {
+                segment_path = boost::filesystem::canonical(segment_path, data_path).string();
+            }
+        }
     }
 
-    void save(const boost::filesystem::path& data_path) const
+    void save(const boost::filesystem::path& data_path)
     {
+        if (is_sub_dir(boost::filesystem::path(index_convex_segment_paths[0]), data_path)) {
+            for (std::string& segment_path : index_convex_segment_paths) {
+                segment_path = make_relative(boost::filesystem::path(segment_path), data_path).string();
+            }
+        }
         std::ofstream out((data_path / boost::filesystem::path("segments_summary.json")).string());
         {
             cereal::JSONOutputArchive archive_o(out);
