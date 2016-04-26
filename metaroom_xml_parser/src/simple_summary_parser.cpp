@@ -145,8 +145,10 @@ std::vector<QString> SimpleSummaryParser::listXmlInFolder(QString qrootFolder, i
 
     for(QString childFolder : childFolders)
     {
-        std::vector<QString> childXmls = listXmlInFolder(qrootFolder+childFolder+"/", depth+1);
-        toRet.insert(toRet.end(),childXmls.begin(), childXmls.end());
+        if (childFolder.indexOf(QString("vocabulary")) == -1){ // avoid vocabulary tree folders
+            std::vector<QString> childXmls = listXmlInFolder(qrootFolder+childFolder+"/", depth+1);
+            toRet.insert(toRet.end(),childXmls.begin(), childXmls.end());
+        }
     }
 
     return toRet;
