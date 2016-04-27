@@ -64,6 +64,8 @@ models and for retrieving point clouds across weeks of exploration.
 
 ## Visualization
 
+### Retrieval component
+
 The easiest way to visualize the output of the retrieval (point cloud history search) pipeline
 is to look at the image published on the `/quasimodo_retrieval/visualization` topic.
 The leftmost image shows the masked RGB image of the query object and to the right are rendered views of the
@@ -79,6 +81,8 @@ and then, in another window specifying the path to the xml of the additional vie
 rostopic pub /object_learning/learned_object_xml std_msgs/String "data: '/path/to/.semanticMap/201422/patrol_run_56/room_0/2016-Apr-22 14:58:33.536964_object_0.xml'"
 ```
 You can also use soma to visualize the queries over time.
+
+### Model building component
 
 # Detailed description of packages, nodes, launch files and messages
 
