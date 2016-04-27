@@ -164,7 +164,8 @@ struct data_summary {
         }
         if (!boost::filesystem::path(index_convex_segment_paths[0]).is_absolute()) {
             for (std::string& segment_path : index_convex_segment_paths) {
-                segment_path = boost::filesystem::canonical(segment_path, data_path).string();
+                //segment_path = boost::filesystem::canonical(segment_path, data_path).string();
+                segment_path = boost::filesystem::absolute(segment_path, data_path).string();
             }
         }
     }
