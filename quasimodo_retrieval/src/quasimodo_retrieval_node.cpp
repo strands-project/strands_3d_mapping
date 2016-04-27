@@ -92,6 +92,16 @@ public:
 
         summary.load(vocabulary_path);
 
+        /*
+        // Load and save data in the relative format
+        summary.save(vocabulary_path);
+        boost::filesystem::path data_path(summary.noise_data_path);
+        dynamic_object_retrieval::data_summary data_summary;
+        data_summary.load(data_path);
+        data_summary.save(data_path);
+        exit(0);
+        */
+
         if (vt.empty()) {
             dynamic_object_retrieval::load_vocabulary(vt, vocabulary_path);
             vt.set_cache_path(vocabulary_path.string());
