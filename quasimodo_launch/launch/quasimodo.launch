@@ -6,11 +6,13 @@
     <arg name="massreg_timeout" default="60"/>
     <arg name="modelpath" default="./"/>
     <arg name="flags" default=""/>
+    <arg name="add_previous_maps" default="false"/>
 
     <arg name="topicname" default="/some/topic"/>
 
     <include file="$(find retrieval_processing)/launch/processing.launch">
         <arg name="data_path" value="$(arg data_path)"/>
+        <arg name="add_previous_maps" value="$(arg add_previous_maps)"/>
     </include>
 
     <include file="$(find quasimodo_retrieval)/launch/retrieval.launch">
