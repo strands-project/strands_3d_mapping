@@ -158,7 +158,7 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-if (CATKIN_ENABLE_TESTING)
-  catkin_add_nosetests(unittests/test_objectmaster.py)
-  catkin_add_nosetests(unittests/test_world.py)
-endif()
+#if (CATKIN_ENABLE_TESTING)
+#  catkin_add_nosetests(unittests/test_objectmaster.py)
+#  catkin_add_nosetests(unittests/test_world.py)
+#endif()

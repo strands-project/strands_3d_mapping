@@ -14,7 +14,7 @@
   <run_depend>geometry_msgs</run_depend>
   <run_depend>rospy</run_depend>
   
-  <test_depend>unittest</test_depend>
+<!--  <test_depend>unittest</test_depend>-->
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
