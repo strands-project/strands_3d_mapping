@@ -1,6 +1,6 @@
 <launch>
 
-    <arg name="data_path" default="~/.semanticMap"/>
+    <arg name="data_path" default="/home/strands/.semanticMap"/>
     <arg name="vocabulary_path" default="$(arg data_path)/vocabulary"/>
     <arg name="occlusion_penalty" default="5"/>
     <arg name="massreg_timeout" default="60"/>
@@ -10,11 +10,11 @@
     <arg name="topicname" default="/some/topic"/>
 
     <include file="$(find retrieval_processing)/launch/processing.launch">
-	       <arg name="data_path" value="$(arg data_path)"/>
+        <arg name="data_path" value="$(arg data_path)"/>
     </include>
 
     <include file="$(find quasimodo_retrieval)/launch/retrieval.launch">
-	       <arg name="vocabulary_path" value="$(arg vocabulary_path)"/>
+        <arg name="vocabulary_path" value="$(arg vocabulary_path)"/>
     </include>
 
     <include file="$(find quasimodo_brain)/launch/modelserver.launch">
@@ -23,7 +23,6 @@
         <arg name="modelpath" value="$(arg modelpath)"/>
         <arg name="flags" value="$(arg flags)"/>
     </include>
-
 
     <include file="$(find quasimodo_brain)/launch/robot_listener.launch">
         <arg name="topicname" value="$(arg topicname)"/>
