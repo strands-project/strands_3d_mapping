@@ -1,6 +1,50 @@
 # quasimodo
 Quasimodo - Qu(erying) A(nd) S(patio-Temporal) I(ncremental) Mod(el building of) O(bjects)
 
+## Build \& Setup
+
+The packes distributed here do note require any special setup, simply build them in your catkin workspace.
+Note that you will need the `2.0` branch of <https://github.com/strands-project/soma>.
+However, our packages require graphics for data fusion and visualization, the following describes how
+to set that up on a computer without display.
+
+### Headless Display \& ElasticFusion
+
+This package is meant to run on a robot with no screen but with Nvidia graphics card.
+This requires some setup every time the package is run (see the last two lines of code).
+
+Right now, this package has a few dependencies that have to be installed manually.
+In the future, our ElasticFusion fork will be replaced by a new version implemented in CUDA.
+For now, you need to clone the repo
+<https://github.com/stevenlovegrove/Pangolin>
+anywhere in your computer home folder. Follow the build instructions in the readme.
+
+Then you need to install our fork of ElasticFusion. For project members, please contact one of
+the maintainers and we will give you access to the code. Note that you need at least
+CUDA version 7 to run ElasticFusion. To get a graphics driver compatible with this version,
+the easiest way (under Ubuntu 14.04) is to `sudo apt-get install nvidia-352`.
+
+To run these programs on a headless computer, we need to perform the following steps.
+First, do
+```
+sudo nvidia-xconfig -a --use-display-device=None --virtual=1280x1024
+```
+and then restart the computer. Further, we need to point to the new display that will be used
+in the X server that will be used by typing
+```
+export DISPLAY=:0
+```
+If you are gonna run the programs multiple times, you might consider putting this in the `.bashrc`.
+Note that this will mean that you have to set the `DISPLAY` again manually if you want to `ssh` with `-X`.
+Then, every time you restarted the computer and run the nodes, you need to run
+```
+sudo service lightdm stop
+sudo /usr/bin/X :0 &
+```
+This will kill the previous X server and start a new one that works in a headless state.
+
+Apart from these acrobatics, all you should need to do is `catkin_make` in your workspace.
+
 ## General Info \& Launching
 
 The packages in this repo provides functionality for building a database of objects from observations
