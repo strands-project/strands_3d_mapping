@@ -191,7 +191,7 @@ int main(int argc, char** argv)
     }
 
     pub = n.advertise<std_msgs::String>("/segmentation_done", 1);
-    vis_cloud_pub = n.advertise<sensor_msgs::PointCloud2>("/metric_map_segmentation_vis", 1);
+    vis_cloud_pub = n.advertise<sensor_msgs::PointCloud2>("/retrieval_processing/segmentation_cloud", 1);
 
     ros::Subscriber sub;
     if (bypass) {
