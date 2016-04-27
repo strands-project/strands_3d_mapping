@@ -92,11 +92,12 @@ public:
 
         summary.load(vocabulary_path);
 
-        /*
         // Load and save data in the relative format
-        summary.save(vocabulary_path);
+        /*
+        //summary.save(vocabulary_path);
         boost::filesystem::path data_path(summary.noise_data_path);
         dynamic_object_retrieval::data_summary data_summary;
+        cout << data_path << endl;
         data_summary.load(data_path);
         data_summary.save(data_path);
         exit(0);
@@ -333,7 +334,27 @@ public:
 
         vector<CloudT::Ptr> retrieved_clouds;
         vector<boost::filesystem::path> sweep_paths;
-        auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, number_query, vocabulary_path, summary);
+        // we should retrieve more than we want and only keep the results with valid files on the system
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, 200, vocabulary_path, summary);
+
+        // This is just to make sure that we have valid results even when some meta rooms have been deleted
+        size_t counter = 0;
+        while (counter < number_query) {
+            if (!boost::filesystem::exists(results.first[counter].first)) {
+                auto iter = std::find_if(results.first.begin()+counter, results.first.end(), [](const pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type>& res) {
+                    return boost::filesystem::exists(res.first);
+                });
+                if (iter == results.first.end()) {
+                    break;
+                }
+                std::swap(results.first[counter], *iter);
+            }
+            else {
+                ++counter;
+            }
+        }
+        results.first.resize(counter);
+
         tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
         cout << "Query cloud size: " << cloud->size() << endl;
@@ -417,7 +438,26 @@ public:
         vector<boost::filesystem::path> sweep_paths;
         //auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth,
         //                                                                   K, number_query, vocabulary_path, summary, false);
-        auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, number_query, vocabulary_path, summary);
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, 200, vocabulary_path, summary);
+
+        // This is just to make sure that we have valid results even when some meta rooms have been deleted
+        size_t counter = 0;
+        while (counter < number_query) {
+            if (!boost::filesystem::exists(results.first[counter].first)) {
+                auto iter = std::find_if(results.first.begin()+counter, results.first.end(), [](const pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type>& v) {
+                    return boost::filesystem::exists(v.first);
+                });
+                if (iter == results.first.end()) {
+                    break;
+                }
+                std::swap(results.first[counter], *iter);
+            }
+            else {
+                ++counter;
+            }
+        }
+        results.first.resize(counter);
+
         tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
         auto data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[0].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
