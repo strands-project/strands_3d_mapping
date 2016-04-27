@@ -1,11 +1,14 @@
 #include <ros/ros.h>
 #include <observation_registration_services/AdditionalViewRegistrationService.h>
 #include <observation_registration_services/ObjectAdditionalViewRegistrationService.h>
+#include <observation_registration_services/GetLastAdditionalViewRegistrationResultService.h>
+
 #include <semantic_map/room_xml_parser.h>
 #include <metaroom_xml_parser/load_utilities.h>
 #include <metaroom_xml_parser/simple_dynamic_object_parser.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/filters/voxel_grid.h>
 #include <tf/tf.h>
 #include <geometry_msgs/Transform.h>
 #include "additional_view_registration_server/additional_view_registration_optimizer.h"
@@ -14,6 +17,40 @@ typedef pcl::PointXYZRGB PointType;
 typedef semantic_map_load_utilties::DynamicObjectData<PointType> ObjectData;
 
 using namespace std;
+
+observation_registration_services::GetLastAdditionalViewRegistrationResultService::Response last_res;
+ros::Publisher pubRegistrationResult;
+
+void publishRegistrationResult(const vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& additional_views,
+                               const vector<tf::StampedTransform>& additional_views_transforms,
+                               const tf::StampedTransform& observation_transform){
+
+    boost::shared_ptr<pcl::PointCloud<PointType>> registered_cloud(new pcl::PointCloud<PointType>);
+
+    for (size_t i=0; i<additional_views.size();i++){
+        boost::shared_ptr<pcl::PointCloud<PointType>> transformedCloud1(new pcl::PointCloud<PointType>);
+        pcl_ros::transformPointCloud(*additional_views[i], *transformedCloud1,additional_views_transforms[i]);
+        pcl_ros::transformPointCloud(*transformedCloud1, *transformedCloud1,observation_transform);
+
+        *registered_cloud+= *transformedCloud1;
+    }
+
+    // downsample
+    boost::shared_ptr<pcl::PointCloud<PointType>> registered_cloud_downsampled(new pcl::PointCloud<PointType>);
+    pcl::VoxelGrid<PointType> vg;
+    double leaf_size = 0.03;
+    vg.setInputCloud (registered_cloud);
+    vg.setLeafSize (leaf_size,leaf_size,leaf_size);
+    vg.filter (*registered_cloud_downsampled);
+
+    ROS_INFO_STREAM("Publishing registered view cloud - no points "<<registered_cloud_downsampled->points.size()<<" on topic /additional_view_registration/registered_view_cloud");
+    sensor_msgs::PointCloud2 msg_cloud;
+    pcl::toROSMsg(*registered_cloud_downsampled, msg_cloud);
+    msg_cloud.header.frame_id = "/map";
+    pubRegistrationResult.publish(msg_cloud);
+}
+
+void clear_last_registration_result();
 
 bool optimize(const vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& additional_views,
               const vector<tf::StampedTransform>& additional_views_odometry_transforms,
@@ -25,6 +62,21 @@ bool optimize(const vector<boost::shared_ptr<pcl::PointCloud<PointType>>>& addit
               int& observation_constraints,
               tf::StampedTransform& observation_transform);
 
+bool get_last_additional_view_registration_results_service(
+        observation_registration_services::GetLastAdditionalViewRegistrationResultService::Request& req,
+        observation_registration_services::GetLastAdditionalViewRegistrationResultService::Response& res)
+{
+    ROS_INFO("Received a get last additional view registration result request");
+    ROS_INFO_STREAM("Last result containted:");
+    ROS_INFO_STREAM("Additional Views: "<<last_res.additional_views.size());
+    ROS_INFO_STREAM("Additional Views transforms: "<<last_res.additional_view_transforms.size());
+    ROS_INFO_STREAM("Observation transform correspondences "<<last_res.observation_correspondences);
+
+    res = last_res;
+
+    return true;
+}
+
 bool additional_view_registration_service(
         observation_registration_services::AdditionalViewRegistrationService::Request  &req,
         observation_registration_services::AdditionalViewRegistrationService::Response &res)
@@ -33,6 +85,7 @@ bool additional_view_registration_service(
     ROS_INFO_STREAM("Observation " << req.observation_xml);
     ROS_INFO_STREAM("Number of AV: "<<req.additional_views.size());
     ROS_INFO_STREAM("Number of AV odometry transforms: "<<req.additional_views_odometry_transforms.size());
+    clear_last_registration_result();
 
     // check additional view data
     if ((!req.additional_views.size())){
@@ -133,6 +186,28 @@ bool additional_view_registration_service(
     tf::transformTFToMsg(observation_transform, observation_transform_msg);
     res.observation_transform = observation_transform_msg;
 
+    // set last service call results
+    last_res.additional_view_correspondences.assign(res.additional_view_correspondences.begin(), res.additional_view_correspondences.end());
+    last_res.observation_correspondences = res.observation_correspondences;
+//    last_res.additional_view_transforms.assign(res.additional_view_transforms.begin(), res.additional_view_transforms.end());
+    last_res.observation_transform = res.observation_transform;
+    last_res.additional_views.assign(req.additional_views.begin(), req.additional_views.end());
+
+    Eigen::Affine3d observation_transform_eigen; tf::transformTFToEigen(observation_transform, observation_transform_eigen);
+    for (auto transform : additional_view_registered_transforms){
+        Eigen::Affine3d transform_eigen; tf::transformTFToEigen(transform, transform_eigen);
+        Eigen::Affine3d combined_eigen = observation_transform_eigen * transform_eigen;
+        tf::Transform combined; tf::transformEigenToTF(combined_eigen, combined);
+        geometry_msgs::Transform combined_msg;
+        tf::transformTFToMsg(tf::StampedTransform(combined,ros::Time::now(), "",""), combined_msg);
+        last_res.additional_view_transforms.push_back(combined_msg);
+    }
+
+    // publish data (debug)
+    publishRegistrationResult(additional_views,
+                              additional_view_registered_transforms,
+                              observation_transform);
+
     return true;
 }
 
@@ -143,6 +218,7 @@ bool object_additional_view_registration_service(
     ROS_INFO("Received an object additional view registration request");
     ROS_INFO_STREAM("Observation " << req.observation_xml);
     ROS_INFO_STREAM("Object " << req.object_xml);
+    clear_last_registration_result();
 
     // load object
     ObjectData object = semantic_map_load_utilties::loadDynamicObjectFromSingleSweep<PointType>(req.object_xml);
@@ -234,6 +310,30 @@ bool object_additional_view_registration_service(
     tf::transformTFToMsg(observation_transform, observation_transform_msg);
     res.observation_transform = observation_transform_msg;
 
+    // set last service call results
+    last_res.additional_view_correspondences.assign(res.additional_view_correspondences.begin(), res.additional_view_correspondences.end());
+    last_res.observation_correspondences = res.observation_correspondences;
+//    last_res.additional_view_transforms.assign(res.additional_view_transforms.begin(), res.additional_view_transforms.end());
+    last_res.observation_transform = res.observation_transform;
+    for (auto input_view : object.vAdditionalViews){
+        sensor_msgs::PointCloud2 view_msg;
+        pcl::toROSMsg(*input_view, view_msg);
+        last_res.additional_views.push_back(view_msg);
+    }
+    Eigen::Affine3d observation_transform_eigen; tf::transformTFToEigen(observation_transform, observation_transform_eigen);
+    for (auto transform : additional_view_registered_transforms){
+        Eigen::Affine3d transform_eigen; tf::transformTFToEigen(transform, transform_eigen);
+        Eigen::Affine3d combined_eigen = observation_transform_eigen * transform_eigen;
+        tf::Transform combined; tf::transformEigenToTF(combined_eigen, combined);
+        geometry_msgs::Transform combined_msg;
+        tf::transformTFToMsg(tf::StampedTransform(combined,ros::Time::now(), "",""), combined_msg);
+        last_res.additional_view_transforms.push_back(combined_msg);
+    }
+
+    // publish data (debug)
+    publishRegistrationResult(additional_views,
+                              additional_view_registered_transforms,
+                              observation_transform);
 
     return true;
 }
@@ -281,10 +381,22 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "additional_view_registration_server");
     ros::NodeHandle n;
 
-    ros::ServiceServer service = n.advertiseService("additional_view_registration_server", additional_view_registration_service);
+    last_res.observation_correspondences = 0; // initialize this
+
+    ros::ServiceServer service =  n.advertiseService("additional_view_registration_server", additional_view_registration_service);
     ros::ServiceServer service2 = n.advertiseService("object_additional_view_registration_server", object_additional_view_registration_service);
+    ros::ServiceServer service3 = n.advertiseService("get_last_additional_view_registration_results_server", get_last_additional_view_registration_results_service);
+    pubRegistrationResult = n.advertise<sensor_msgs::PointCloud2>("/additional_view_registration/registered_view_cloud", 1);
+
     ROS_INFO("additional_view_registration_server started.");
     ros::spin();
 
     return 0;
+}
+
+void clear_last_registration_result(){
+    last_res.additional_views.clear();
+    last_res.additional_view_correspondences.clear();
+    last_res.additional_view_transforms.clear();
+    last_res.observation_correspondences = 0;
 }

@@ -35,6 +35,7 @@ add_service_files(
 add_message_files(
   FILES
   DynamicObjectTracks.msg
+  DynamicObjectTrackingData.msg
 )
 
 generate_messages(

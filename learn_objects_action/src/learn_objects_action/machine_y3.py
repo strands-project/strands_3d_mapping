@@ -8,7 +8,7 @@ import dynamic_reconfigure.client
 from metric_sweep import MetricSweep,  SelectCluster
 from ptu_track import ( TurnPTUToObject,  StartTransformation,
                         StopSendingTransformation, StartPTUTrack, StopPTUTrack)
-# from vision import StartCameraTrack,  StopCameraTrack, LearnObjectModel
+from vision_y3 import LearnObjectModelYear3
 from control import TravelAroundObjectRAL16, TravelAroundObjectInfoGain
 from learn_objects_action.msg import LearnObjectResult
 from std_srvs.srv import Empty
@@ -65,11 +65,11 @@ class LearnObjectActionMachineYear3(smach.StateMachine):
             self._stop_static_tf = StopSendingTransformation(debug_mode, self._debug_services)
             smach.StateMachine.add('STOP_TRANSFORM', self._stop_static_tf,
                 transitions={'error':'failed',
-                             'success':'succeeded' })
-            #smach.StateMachine.add('LEARN_MODEL', LearnObjectModel(model_path,debug_mode, self._debug_services),
-            #    transitions={'error':'failed',
-            #                 'done':'succeeded',
-            #                'preempted': 'preempted' })
+                             'success':'LEARN_MODEL' })
+            smach.StateMachine.add('LEARN_MODEL', LearnObjectModelYear3(model_path,debug_mode, self._debug_services),
+               transitions={'error':'failed',
+                            'done':'succeeded',
+                           'preempted': 'preempted' })
 
             self.set_initial_state(["METRIC_MAP_SWEEP"], userdata=self.userdata)
             self.register_termination_cb(self.finish)

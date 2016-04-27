@@ -14,6 +14,7 @@
 #include <QFile>
 #include <QDir>
 #include <QXmlStreamWriter>
+#include <algorithm>
 
 #include "constants.h"
 #include "semantic_map/metaroom_xml_parser.h"
@@ -251,6 +252,54 @@ public:
                 toRet.push_back(m_vAllRooms[i]);
             }
         }
+
+        // sort according to year, patrol_run_#, room_#
+        sort(toRet.begin(), toRet.end(),
+             [](const EntityStruct& a, const EntityStruct& b )
+        {
+            std::string patrol_string = "patrol_run_";
+            std::string room_string = "room_";
+            std::string date_string = "YYYYMMDD";
+            size_t p_pos_1 = a.roomXmlFile.find(patrol_string);
+            size_t r_pos_1 = a.roomXmlFile.find(room_string) - 1; // remove the / before the room_
+            size_t sl_pos_1 = a.roomXmlFile.find("/",r_pos_1+1);
+
+            size_t p_pos_2 = b.roomXmlFile.find(patrol_string);
+            size_t r_pos_2 = b.roomXmlFile.find(room_string) - 1; // remove the / before the room_
+            size_t sl_pos_2 = b.roomXmlFile.find("/",r_pos_2+1);
+
+            // just in case we have some different folder structure (shouldn't happen)
+            if ((p_pos_1 == std::string::npos) || (r_pos_1 == std::string::npos) || (sl_pos_1 == std::string::npos) ||
+                    (p_pos_2 == std::string::npos) || (r_pos_2 == std::string::npos) || (sl_pos_2 == std::string::npos))
+            {
+                return a.roomXmlFile<b.roomXmlFile;
+            }
+
+            std::string d_1 = a.roomXmlFile.substr(p_pos_1 - date_string.length() -1, date_string.length());
+            std::string p_1 = a.roomXmlFile.substr(p_pos_1 + patrol_string.length(), r_pos_1 - (p_pos_1 + patrol_string.length()));
+            std::string r_1 = a.roomXmlFile.substr(r_pos_1 + 1 + room_string.length(), sl_pos_1 - (r_pos_1 + 1 + room_string.length()));
+            std::string d_2 = b.roomXmlFile.substr(p_pos_2 - date_string.length() -1, date_string.length());
+            std::string p_2 = b.roomXmlFile.substr(p_pos_2 + patrol_string.length(), r_pos_2 - (p_pos_2 + patrol_string.length()));
+            std::string r_2 = b.roomXmlFile.substr(r_pos_2 + 1 + room_string.length(), sl_pos_2 - (r_pos_2 + 1 + room_string.length()));
+
+            if (d_1 == d_2){
+                if (stoi(p_1) == stoi(p_2)){
+                    if (stoi(r_1) == stoi(r_2)){
+                        return a.roomXmlFile<b.roomXmlFile;
+                    } else {
+                        return stoi(r_1) < stoi(r_2);
+                    }
+                } else {
+                    return stoi(p_1) < stoi(p_2);
+                }
+            } else {
+                return d_1<d_2;
+            }
+        }
+        );
+
+        std::reverse(toRet.begin(), toRet.end());
+
 
         return toRet;
     }
@@ -522,8 +571,8 @@ private:
                 if (verbose)
                 {
                     ROS_INFO_STREAM("Skipping folder "<<dateFolders[i].toStdString()<<" as it doesn't have the right format.");
-                    continue;
                 }
+                continue;
             }
 
             QString dateFolder = qrootFolder+dateFolders[i];
@@ -626,14 +675,22 @@ private:
             QDir folder(sourceFolder);
 
             //Delete all the files
-            QFileInfoList files = folder.entryInfoList(QDir::NoDotAndDotDot | QDir::Files);
+            QFileInfoList files = folder.entryInfoList(QDir::NoDotAndDotDot | QDir::Files | QDir::Dirs);
             for(int file = 0; file < files.count(); file++)
             {
 //                folder.remove(files.at(file).fileName());
-                QString sourceFilePath = sourceFolder + "/"+files.at(file).fileName();
+                QString sourceFilePath;
+                if (files.at(file).isDir()){
+                    sourceFilePath = sourceFolder + "/"+files.at(file).fileName();
+                } else {
+                    sourceFilePath = sourceFolder + "/"+files.at(file).fileName();
+                }
                 QString destinationFilePath = destinationFolder + "/"+files.at(file).fileName();
-//                ROS_INFO_STREAM("File to move "<<sourceFilePath.toStdString()<<" to "<<destinationFilePath.toStdString());
-                QDir().rename(sourceFilePath,destinationFilePath);
+
+                if (!QDir().rename(sourceFilePath,destinationFilePath)){
+                    ROS_ERROR_STREAM("File to move "<<sourceFilePath.toStdString()<<" to "<<destinationFilePath.toStdString());
+                }
+
             }
 
 

@@ -29,9 +29,9 @@
 // Additional view mask service
 #include <object_manager/DynamicObjectComputeMaskService.h>
 
-
 // Custom messages
 #include <object_manager/DynamicObjectTracks.h>
+#include <object_manager/DynamicObjectTrackingData.h>
 
 // PCL includes
 #include <pcl_ros/point_cloud.h>
@@ -66,6 +66,7 @@ class ObjectManager {
 public:
     typedef pcl::PointCloud<PointType> Cloud;
     typedef typename Cloud::Ptr CloudPtr;
+    typedef semantic_map_load_utilties::DynamicObjectData<PointType> ObjectData;
 
     typedef typename object_manager::DynamicObjectsService::Request DynamicObjectsServiceRequest;
     typedef typename object_manager::DynamicObjectsService::Response DynamicObjectsServiceResponse;
@@ -119,12 +120,13 @@ private:
     ros::Publisher                                                              m_PublisherRequestedObjectCloud;
     ros::Publisher                                                              m_PublisherRequestedObjectImage;
     ros::Publisher                                                              m_PublisherLearnedObjectXml;
+    ros::Publisher                                                              m_PublisherLearnedObjectTrackingData;
     ros::Subscriber                                                             m_SubscriberDynamicObjectTracks;
     ros::Subscriber                                                             m_SubscriberAdditionalObjectViews;
     ros::Subscriber                                                             m_SubscriberAdditionalObjectViewsStatus;
     ros::ServiceServer                                                          m_DynamicObjectsServiceServer;
     ros::ServiceServer                                                          m_GetDynamicObjectServiceServer;
-    tf::TransformListener                                                       m_TransformListener; // for additional views    
+    tf::TransformListener                                                       m_TransformListener; // for additional views
 
     std::string                                                                 m_additionalViewsTopic;
     std::string                                                                 m_additionalViewsStatusTopic;
@@ -158,6 +160,7 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh) : m_TransformListene
     m_PublisherRequestedObjectCloud = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/object_manager/requested_object", 1, true);
     m_PublisherRequestedObjectImage = m_NodeHandle.advertise<sensor_msgs::Image>("/object_manager/requested_object_mask", 1, true);
     m_PublisherLearnedObjectXml = m_NodeHandle.advertise<std_msgs::String>("/object_learning/learned_object_xml", 1, false);
+    m_PublisherLearnedObjectTrackingData = m_NodeHandle.advertise<object_manager::DynamicObjectTrackingData>("/object_learning/learned_object_tracking_data", 1, false);
 
     m_DynamicObjectsServiceServer = m_NodeHandle.advertiseService("ObjectManager/DynamicObjectsService", &ObjectManager::dynamicObjectsServiceCallback, this);
     m_GetDynamicObjectServiceServer = m_NodeHandle.advertiseService("ObjectManager/GetDynamicObjectService", &ObjectManager::getDynamicObjectServiceCallback, this);
@@ -248,7 +251,7 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
                 });
 
                 ROS_INFO_STREAM("Registration done. Number of additional view registration constraints "<<total_constraints<<". Number of additional view transforms "<<srv.response.additional_view_transforms.size());
-                if (total_constraints <= 0){
+                if ((total_constraints <= 0) && (m_objectTracked->m_vAdditionalViews.size() != 1)){
                     ROS_INFO_STREAM("Additional view Registration unsuccessful due to insufficient constraints.");
                 } else {
                     m_objectTracked->m_vAdditionalViewsTransformsRegistered.clear();
@@ -279,8 +282,8 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
 
         if (m_bLogToDB)
         {
-                DynamicObjectMongodbInterface mongo_inteface(m_NodeHandle, true);
-                mongo_inteface.logToDB(m_objectTracked, xml_file);
+            DynamicObjectMongodbInterface mongo_inteface(m_NodeHandle, true);
+            mongo_inteface.logToDB(m_objectTracked, xml_file);
         }
 
         // create additional view masks
@@ -292,7 +295,7 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
         ROS_INFO_STREAM("Using dynamic_object_compute_mask_server service");
         if (client_masks.call(srv_masks))
         {
-              ROS_INFO_STREAM("Service dynamic_object_compute_mask_server finished. Masks computed (hopefully).");
+            ROS_INFO_STREAM("Service dynamic_object_compute_mask_server finished. Masks computed (hopefully).");
         } else {
             ROS_ERROR_STREAM("Could not call dynamic_object_compute_mask_server to create masks for the object views");
         }
@@ -304,6 +307,53 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
 
         // reset object
         m_objectTracked = NULL;
+
+        // re-load object and publish tracks data
+        ObjectData object = semantic_map_load_utilties::loadDynamicObjectFromSingleSweep<PointType>(xml_file);
+        object_manager::DynamicObjectTrackingData tracking_data_msg;
+
+        // views
+        for (auto obj_view : object.vAdditionalViews){
+            sensor_msgs::PointCloud2 view_msg;
+            pcl::toROSMsg(*obj_view, view_msg);
+            tracking_data_msg.additional_views.push_back(view_msg);
+        }
+
+        // transforms
+        for (auto reg_tf : object.vAdditionalViewsTransformsRegistered){
+            geometry_msgs::Transform registered_transform_msg;
+            tf::transformTFToMsg(reg_tf, registered_transform_msg);
+            tracking_data_msg.additional_view_transforms.push_back(registered_transform_msg);
+        }
+
+        // mask
+        if (object.vAdditionalViews.size()){
+            tracking_data_msg.object_mask.assign(object.vAdditionalViewMaskIndices[0].begin(), object.vAdditionalViewMaskIndices[0].end());
+        }
+
+        m_PublisherLearnedObjectTrackingData.publish(tracking_data_msg);
+
+        // also save data to the disk
+        int index = m_objectTrackedObservation.find_last_of("/");
+        std::string sweep_folder = m_objectTrackedObservation.substr(0,index+1);
+//        std::string poses_file = sweep_folder+"/poses.txt";
+
+
+//        for (tf::Transform tr : object.vAdditionalViewsTransformsRegistered){
+        for (size_t i=0; i < object.vAdditionalViewsTransformsRegistered.size(); i++){
+            tf::Transform tr = object.vAdditionalViewsTransformsRegistered[i];
+            std::stringstream ss;ss<<i;
+            std::string poses_file = sweep_folder + "/pose_" + object.objectLabel + "_additional_view_"+ss.str()+".txt";
+            ofstream out(poses_file, ios::out | ios::trunc);
+            ROS_INFO_STREAM("Saving additional view pose "<<i<<" at "<<poses_file);
+
+            Eigen::Affine3d eigen_affine; tf::transformTFToEigen(tr, eigen_affine);
+            Eigen::Matrix4f eigen_tr(eigen_affine.matrix().cast<float>());
+            Eigen::IOFormat CommaInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, " ", " ", "", "", "", "");
+            std::cout<<eigen_tr.format(CommaInitFmt)<<std::endl;
+            out<<eigen_tr.format(CommaInitFmt)<<std::endl;
+            out.close();
+        }
     }
 }
 
@@ -330,7 +380,7 @@ void ObjectManager<PointType>::additionalViewsCallback(const sensor_msgs::PointC
             m_TransformListener.lookupTransform("/map", new_cloud->header.frame_id,
                                                 msg->header.stamp, transform);
 
-            m_objectTracked->addAdditionalViewTransform(transform);            
+            m_objectTracked->addAdditionalViewTransform(transform);
             m_objectTracked->addAdditionalView(new_cloud);
         }         catch (tf::TransformException ex){
             ROS_ERROR("%s",ex.what());
@@ -365,13 +415,13 @@ void ObjectManager<PointType>::dynamicObjectTracksCallback(const object_manager:
 
         // TESTING
         m_objectTracked->m_bVerbose = true;
-//        SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(m_objectTrackedObservation,true);
-//        auto clouds = aRoom.getIntermediateClouds();
-//        auto transforms = aRoom.getIntermediateCloudTransforms();
-//        for (size_t i=0; i<clouds.size(); i++)
-//        {
-//            m_objectTracked->addObjectTrack(transforms[i], clouds[i]);
-//        }
+        //        SemanticRoom<PointType> aRoom = SemanticRoomXMLParser<PointType>::loadRoomFromXML(m_objectTrackedObservation,true);
+        //        auto clouds = aRoom.getIntermediateClouds();
+        //        auto transforms = aRoom.getIntermediateCloudTransforms();
+        //        for (size_t i=0; i<clouds.size(); i++)
+        //        {
+        //            m_objectTracked->addObjectTrack(transforms[i], clouds[i]);
+        //        }
 
         for (size_t i=0; i<msg->clouds.size(); i++)
         {
@@ -529,6 +579,12 @@ bool ObjectManager<PointType>::getDynamicObjectServiceCallback(GetDynamicObjectS
     if (!trackedUpdated)
     {
         ROS_ERROR_STREAM("Could not find object for viewing");
+    } else {
+        // check if this object doesn't have any additional views -> if not, add the intermediate cloud & its transform
+        //        if (!m_objectTracked->m_vAdditionalViews.size()){
+        //            m_objectTracked->addAdditionalView(object.object_cloud);
+        //            m_objectTracked->addAdditionalViewTransform(object.transform_to_map);
+        //        }
     }
 
     return true;
@@ -547,7 +603,7 @@ bool ObjectManager<PointType>::updateObjectsAtWaypoint(std::string waypoint_id)
 
     ROS_INFO_STREAM("Found "<<matchingObservations.size()<<" matching observations.");
 
-//    sort(matchingObservations.begin(), matchingObservations.end());
+    //    sort(matchingObservations.begin(), matchingObservations.end());
 
 
     reverse(matchingObservations.begin(), matchingObservations.end());
@@ -656,9 +712,9 @@ std::vector<DynamicObject::Ptr>  ObjectManager<PointType>::loadDynamicObjectsFro
         cloud_cluster->is_dense = true;
 
         std::stringstream ss;ss<<"object_";ss<<j;
-//        ObjStruct object;
-//        object.cloud = cloud_cluster;
-//        object.id = ss.str();
+        //        ObjStruct object;
+        //        object.cloud = cloud_cluster;
+        //        object.id = ss.str();
 
 
 
@@ -682,8 +738,8 @@ std::vector<DynamicObject::Ptr>  ObjectManager<PointType>::loadDynamicObjectsFro
 
         if (m_bLogToDB)
         {
-                DynamicObjectMongodbInterface mongo_inteface(m_NodeHandle, true);
-                mongo_inteface.logToDB(roomObject, xml_file);
+            DynamicObjectMongodbInterface mongo_inteface(m_NodeHandle, true);
+            mongo_inteface.logToDB(roomObject, xml_file);
         }
 
         dynamicObjects.push_back(roomObject);
@@ -728,10 +784,10 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
     // load observation and individual clouds
     SemanticRoom<PointType> observation = SemanticRoomXMLParser<PointType>::loadRoomFromXML(observation_xml,true);
 
-//    int argc = 0;
-//    char** argv;
-//    pcl::visualization::PCLVisualizer* p = new pcl::visualization::PCLVisualizer (argc, argv, "object manager");
-//    p->addCoordinateSystem();
+    //    int argc = 0;
+    //    char** argv;
+    //    pcl::visualization::PCLVisualizer* p = new pcl::visualization::PCLVisualizer (argc, argv, "object manager");
+    //    p->addCoordinateSystem();
     CloudPtr object_cloud(new Cloud());
     *object_cloud = *object->m_points;
 
@@ -838,13 +894,13 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         double center_y = camParamOrig[0].cy();
         double cx = 0.001 / fx;
         double cy = 0.001 / fy;
-	ROS_INFO_STREAM("ObjectManager :: Camera parameters "<<fx<<" "<<fy<<" "<<center_x<<" "<<center_y);
+        ROS_INFO_STREAM("ObjectManager :: Camera parameters "<<fx<<" "<<fy<<" "<<center_x<<" "<<center_y);
 
         CloudPtr reprojected_cloud(new Cloud);
         RegistrationFeatures reg;
 
         std::pair<cv::Mat,cv::Mat> rgbAndDepth = reg.createRGBandDepthFromPC(transformedCloud);
-/*
+        /*
         pcl::PointXYZRGB point;
         for (size_t y = 0; y < rgbAndDepth.first.rows; ++y) {
            for (size_t x = 0; x < rgbAndDepth.first.cols; ++x) {
@@ -894,15 +950,17 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         cv::Rect rec(bottom_x,bottom_y,top_x - bottom_x, top_y - bottom_y);
         cv::Mat tmp = cluster_image(rec);
 
-//        cv::imwrite("image.jpg", cluster_image);
-//        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
+        //        cv::imwrite("image.jpg", cluster_image);
+        //        cv::imshow( "Display window", cluster_image );                   // Show our image inside it.
 
 
+        // transform back into room complete cloud frame
+        best_transform = roomTransform.inverse() * best_transform;
         const Eigen::Affine3d eigenTr(best_transform.cast<double>());
         tf::transformEigenToTF(eigenTr,returned_object.transform_to_map);
         returned_object.object_cloud = CloudPtr(new Cloud());
         *returned_object.object_cloud = *allClouds[best_index];
-//        pcl::transformPointCloud (*returned_object.object_cloud, *returned_object.object_cloud, best_transform); // transform to map frame
+        //        pcl::transformPointCloud (*returned_object.object_cloud, *returned_object.object_cloud, best_transform); // transform to map frame
 
         returned_object.object_indices.insert(returned_object.object_indices.begin(), src_indices.begin(),src_indices.end());
         returned_object.object_mask = cluster_image;
@@ -934,14 +992,14 @@ bool ObjectManager<PointType>::returnObjectMask(std::string waypoint, std::strin
         returned_object.tilt_angle = tilt_angle;
 
         // visualization
-//        cv::waitKey(0);                                          // Wait for a keystroke in the window
+        //        cv::waitKey(0);                                          // Wait for a keystroke in the window
 
-//        pcl::visualization::PointCloudColorHandlerCustom<PointType> cluster_handler (object_cloud, 0, 255, 0);
-//        pcl::visualization::PointCloudColorHandlerCustom<PointType> int_handler (transformedCloud, 255, 255, 0);
-//        p->addPointCloud(object_cloud,cluster_handler,"cluster");
-//        p->addPointCloud(transformedCloud,int_handler,"int");
-//        p->spin();
-//        p->removeAllPointClouds();
+        //        pcl::visualization::PointCloudColorHandlerCustom<PointType> cluster_handler (object_cloud, 0, 255, 0);
+        //        pcl::visualization::PointCloudColorHandlerCustom<PointType> int_handler (transformedCloud, 255, 255, 0);
+        //        p->addPointCloud(object_cloud,cluster_handler,"cluster");
+        //        p->addPointCloud(transformedCloud,int_handler,"int");
+        //        p->spin();
+        //        p->removeAllPointClouds();
 
         return true;
     } else {
