@@ -121,6 +121,10 @@ target_link_libraries(	robot_listener ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${QT_
 add_dependencies(	robot_listener roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	robot_listener quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
+add_executable(			preload_object_data2 src/preload_object_data2.cpp)
+target_link_libraries(	preload_object_data2 ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${QT_LIBRARIES} metaroom_xml_parser)
+add_dependencies(		preload_object_data2 roscpp quasimodo_msgs_generate_messages_cpp)
+target_link_libraries(	preload_object_data2 quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 #add_executable(			load_additional_views src/load_additional_views.cpp)
 #add_dependencies(		load_additional_views roscpp quasimodo_msgs_generate_messages_cpp)

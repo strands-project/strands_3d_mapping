@@ -122,12 +122,16 @@ std::vector<Eigen::Matrix4f> getRegisteredViewPoses(const std::string& poses_fil
     return toRet;
 }
 
+void load(std::string path);
 void chatterCallback(const std_msgs::String::ConstPtr& msg)
 {
+	ROS_INFO("I heard: [%s]", msg->data.c_str());
+	load(msg->data.c_str());
+}
 
-    ROS_INFO("I heard: [%s]", msg->data.c_str());
-
-    ObjectData object = semantic_map_load_utilties::loadDynamicObjectFromSingleSweep<PointType>(msg->data.c_str());
+void load(std::string path)
+{
+	ObjectData object = semantic_map_load_utilties::loadDynamicObjectFromSingleSweep<PointType>(path);
 
     printf("number of inds: %i",int(object.objectScanIndices.size()));
     printf("AVs: %i\n",int(object.vAdditionalViews.size()));
@@ -142,13 +146,8 @@ void chatterCallback(const std_msgs::String::ConstPtr& msg)
     std::vector<Eigen::Matrix4f> viewposes;
 
     int step = std::max(1,int(0.5+double(object.vAdditionalViews.size())/10.0));
-	printf("step: %i\n",step);
 
     for (unsigned int i=0; i < 2000 && i<object.vAdditionalViews.size(); i+=step){
-		std::vector<int> & inds = object.vAdditionalViewMaskIndices[i];
-		printf("inds: %i\n",inds.size());
-		if(inds.size() == 0){printf("no inds, ignore this frame\n");continue;} //Dont add empty masks
-
         CloudPtr cloud = object.vAdditionalViews[i];
 
         cv::Mat mask;
@@ -173,7 +172,7 @@ void chatterCallback(const std_msgs::String::ConstPtr& msg)
             depthdata[j]	= short(5000.0 * p.z);
         }
 
-
+        std::vector<int> & inds = object.vAdditionalViewMaskIndices[i];
 
         for(unsigned int j = 0; j < inds.size(); j++){
             maskdata[inds[j]] = 255;
@@ -186,14 +185,15 @@ void chatterCallback(const std_msgs::String::ConstPtr& msg)
         viewmasks.push_back(mask);
         viewtfs.push_back(object.vAdditionalViewsTransformsRegistered[i]);
 
-//		cv::namedWindow("rgbimage",	cv::WINDOW_AUTOSIZE);
-//		cv::imshow(		"rgbimage",	rgb);
-//		cv::namedWindow("depthimage",	cv::WINDOW_AUTOSIZE);
-//		cv::imshow(		"depthimage",	depth);
-//		cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
-//		cv::imshow(		"mask",	mask);
-//		cv::imshow(		"raresmask",object.vAdditionalViewMaskImages[i]);
-//		cv::waitKey(0);
+
+//        cv::namedWindow("rgbimage",	cv::WINDOW_AUTOSIZE);
+//        cv::imshow(		"rgbimage",	rgb);
+//        cv::namedWindow("depthimage",	cv::WINDOW_AUTOSIZE);
+//        cv::imshow(		"depthimage",	depth);
+//        cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
+//        cv::imshow(		"mask",	mask);
+//        cv::imshow(		"raresmask",object.vAdditionalViewMaskImages[i]);
+//        cv::waitKey(0);
     }
 
 
@@ -460,7 +460,7 @@ int main(int argc, char** argv){
 
     model_from_frame_client	= n.serviceClient<quasimodo_msgs::model_from_frame>("model_from_frame");
     fuse_models_client		= n.serviceClient<quasimodo_msgs::fuse_models>(		"fuse_models");
-    get_model_client			= n.serviceClient<quasimodo_msgs::get_model>(	"get_model");
+	get_model_client		= n.serviceClient<quasimodo_msgs::get_model>(	"get_model");
     index_frame_client		= n.serviceClient<quasimodo_msgs::index_frame>(		"index_frame");
 
     ros::Subscriber sub = n.subscribe(listentopic, 1000, chatterCallback);

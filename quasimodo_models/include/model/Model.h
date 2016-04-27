@@ -91,6 +91,7 @@ class superpoint{
 		void print();
 		void save(std::string path = "");
 		static Model * load(Camera * cam, std::string path);
+		bool testFrame(int ind = 0);
 	};
 
 }

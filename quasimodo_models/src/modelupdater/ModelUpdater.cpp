@@ -181,13 +181,13 @@ void ModelUpdater::refine(double reg,bool useFullMask){
 	MassRegistrationPPR * massreg = new MassRegistrationPPR(reg);
     massreg->timeout = massreg_timeout;
 	massreg->viewer = viewer;
-	massreg->visualizationLvl = 0;
+	massreg->visualizationLvl = 1;
 	massreg->maskstep = std::max(1,int(0.5+0.2*double(model->frames.size())));
 	massreg->nomaskstep = std::max(1,int(0.5+1.0*double(model->frames.size())));
 
 	//massreg->type = PointToPoint;
 	if(useFullMask){
-        massreg->visualizationLvl = 0;
+//        massreg->visualizationLvl = 0;
 //		MassRegistrationPPRColor * massregC = new MassRegistrationPPRColor(reg);
 //		massregC->viewer = viewer;
 //		massregC->visualizationLvl = 1;
@@ -200,7 +200,7 @@ void ModelUpdater::refine(double reg,bool useFullMask){
 
 		massreg->setData(model->frames,model->modelmasks);
 		massreg->nomask = false;
-		massreg->visualizationLvl = 0;
+//		massreg->visualizationLvl = 0;
 		massreg->stopval = 0.001;
 		massreg->steps = 10;
 
@@ -218,7 +218,7 @@ void ModelUpdater::refine(double reg,bool useFullMask){
 //		model->relativeposes = mfr.poses;
 
 	}else{
-
+printf("%s::%i\n",__FILE__,__LINE__);
 		exit(0);
 
 		massreg->nomask = true;

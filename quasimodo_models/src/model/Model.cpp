@@ -32,6 +32,10 @@ Model::Model(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d pose){
 }
 
 void Model::recomputeModelPoints(){
+	for(unsigned int i = 0; i < frames.size(); i++){
+		bool res = testFrame(i);
+	}
+
     points.clear();
     for(unsigned int i = 0; i < frames.size(); i++){
         addPointsToModel(frames[i],modelmasks[i],relativeposes[i]);
@@ -93,6 +97,81 @@ void Model::addPointsToModel(RGBDFrame * frame, ModelMask * modelmask, Eigen::Ma
             }
         }
     }
+}
+
+bool Model::testFrame(int ind){
+	printf("testing frame %i\n",ind);
+	Eigen::Matrix3f covMat = Eigen::Matrix3f::Identity();
+
+	ModelMask * modelmask = modelmasks[ind];
+	RGBDFrame * frame = frames[ind];
+
+	bool * maskvec = modelmask->maskvec;
+	unsigned char  * rgbdata		= (unsigned char	*)(frame->rgb.data);
+	unsigned short * depthdata		= (unsigned short	*)(frame->depth.data);
+	float		   * normalsdata	= (float			*)(frame->normals.data);
+
+	Camera * camera				= frame->camera;
+	const unsigned int width	= camera->width;
+	const unsigned int height	= camera->height;
+
+	double tot_w = 0;
+	for(unsigned int w = 0; w < width; w++){
+		for(unsigned int h = 0; h < height;h++){
+			int ind = h*width+w;
+			if(maskvec[ind]){
+				float nx = normalsdata[3*ind+0];
+				if(nx != 2){
+					float ny = normalsdata[3*ind+1];
+					float nz = normalsdata[3*ind+2];
+					covMat(0,0) += nx*nx;
+					covMat(0,1) += nx*ny;
+					covMat(0,2) += nx*nz;
+
+					covMat(1,0) += ny*nx;
+					covMat(1,1) += ny*ny;
+					covMat(1,2) += ny*nz;
+
+
+					covMat(2,0) += nz*nx;
+					covMat(2,1) += nz*ny;
+					covMat(2,2) += nz*nz;
+
+					tot_w++;
+				}
+			}
+		}
+	}
+
+
+
+
+	printf("totw: %f\n",tot_w);
+	if(tot_w < 4){return false;}
+
+	for(int i = 0; i < 3; i++){
+		for(int j = 0; j < 3; j++){
+			covMat(i,j) /= tot_w;
+		}
+	}
+
+	Eigen::JacobiSVD<Matrix3f> svd(covMat, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	Eigen::Vector3f S = svd.singularValues();
+	printf("singular values: %f %f %f",S(0),S(1),S(2));
+//	float weight = (S(0)+S(1)+S(2))/S(2);
+//	if(isnan(weight)){weight = -1;}
+//	MatrixXf U = svd.matrixU();
+//	U = -U;
+
+//	normal_x 			= U(0,2);
+//	normal_y 			= U(1,2);
+//	normal_z 			= U(2,2);
+//	if( normal_z < 0){
+//		normal_x*=-1;
+//		normal_y*=-1;
+//		normal_z*=-1;
+//	}
+	return true;
 }
 
 void Model::print(){
