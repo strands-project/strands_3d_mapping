@@ -360,6 +360,11 @@ int main(int argc, char** argv)
     pn.param<string>("data_path", temp_path, "~/.semanticMap");
     data_path = boost::filesystem::path(temp_path);
 
+    if (!boost::filesystem::exists(vocabulary_path.parent_path())) {
+        cout << "Vocabulary parent path (typically data_path) does not exist, exiting..." << endl;
+        return 0;
+    }
+
     boost::filesystem::create_directory(vocabulary_path);
     bool bypass;
     pn.param<bool>("bypass", bypass, 0);
