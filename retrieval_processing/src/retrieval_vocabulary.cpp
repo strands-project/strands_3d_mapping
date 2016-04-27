@@ -113,7 +113,7 @@ void train_vocabulary(const boost::filesystem::path& data_path)
     summary.annotated_data_path = data_path.string();
 
     size_t min_segment_features = summary.min_segment_features;
-    size_t max_training_features = summary.max_training_features;
+    //size_t max_training_features = summary.max_training_features;
     size_t max_append_features = summary.max_append_features;
 
     vt = new VocT(vocabulary_path.string());
@@ -205,8 +205,8 @@ void train_vocabulary(const boost::filesystem::path& data_path)
         vt->append_cloud(features, indices, adjacencies, false);
     }
 
-    summary.nbr_noise_segments = counter;
-    summary.nbr_noise_sweeps = sweep_counter;
+    summary.nbr_noise_segments = counter; // correct
+    summary.nbr_noise_sweeps = sweep_i + 1; // sweep_counter not correct, this is the number of of segments in a sweep
     summary.nbr_annotated_segments = 0;
     summary.nbr_annotated_sweeps = 0;
 
@@ -229,6 +229,11 @@ pair<size_t, size_t> get_offsets_in_data(const boost::filesystem::path& sweep_pa
     size_t sweep_i;
     size_t last_sweep = 0;
     boost::filesystem::path segment_path;
+    // ok, I will have to use something else here
+    // most importantly, I need to keep track of all the previously added
+    // number of sweeps and segments
+    // the question is how to do that if the node is restarted...
+    // maybe add a couple of more fields in the vocabulary_summary?
     for (auto tup : dynamic_object_retrieval::zip(sweep_indices, segment_paths)) {
 
         boost::tie(sweep_i, segment_path) = tup;
