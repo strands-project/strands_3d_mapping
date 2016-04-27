@@ -4,7 +4,8 @@ Quasimodo - Qu(erying) A(nd) S(patio-Temporal) I(ncremental) Mod(el building of)
 ## Build \& Setup
 
 The packes distributed here do note require any special setup, simply build them in your catkin workspace.
-Note that you will need the `2.0` branch of <https://github.com/strands-project/soma>.
+Note that you will need the `2.0` branch of <https://github.com/strands-project/soma>
+(which in turn requires an up-to-date version of <https://github.com/strands-project/mongodb_store>).
 However, our packages require graphics for data fusion and visualization, the following describes how
 to set that up on a computer without display.
 
@@ -54,8 +55,10 @@ used for retrieving point clouds from several weeks of data collection can be fo
 
 For launching the pipeline for building the representation and querying on the robot, do
 ```
-roslaunch quasimodo_launch quasimodo.launch
+roslaunch quasimodo_launch quasimodo.launch data_folder:=/path/to/.semanticMap
 ```
+Here, `/path/to/.semanticMap` is typically located in `~/.semanticMap`.
+Please type the complete path.
 This will launch the necessary nodes and launch files, both for maintaining a data base of object
 models and for retrieving point clouds across weeks of exploration.
 
