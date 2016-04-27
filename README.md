@@ -84,6 +84,8 @@ You can also use soma to visualize the queries over time.
 
 ### Model building component
 
+@jekekrantz Add some stuff here!
+
 # Detailed description of packages, nodes, launch files and messages
 
 ## retrieval_processing
