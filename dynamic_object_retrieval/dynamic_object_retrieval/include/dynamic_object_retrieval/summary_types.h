@@ -162,16 +162,17 @@ struct data_summary {
             cereal::JSONInputArchive archive_i(in);
             archive_i(*this);
         }
-        if (!boost::filesystem::path(index_convex_segment_paths[0]).is_absolute()) {
+        if (!index_convex_segment_paths.empty() && !boost::filesystem::path(index_convex_segment_paths[0]).is_absolute()) {
             for (std::string& segment_path : index_convex_segment_paths) {
-                segment_path = boost::filesystem::canonical(segment_path, data_path).string();
+                //segment_path = boost::filesystem::canonical(segment_path, data_path).string();
+                segment_path = boost::filesystem::absolute(segment_path, data_path).string();
             }
         }
     }
 
     void save(const boost::filesystem::path& data_path)
     {
-        if (is_sub_dir(boost::filesystem::path(index_convex_segment_paths[0]), data_path)) {
+        if (!index_convex_segment_paths.empty() && is_sub_dir(boost::filesystem::path(index_convex_segment_paths[0]), data_path)) {
             for (std::string& segment_path : index_convex_segment_paths) {
                 segment_path = make_relative(boost::filesystem::path(segment_path), data_path).string();
             }
