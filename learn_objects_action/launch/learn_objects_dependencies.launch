@@ -13,9 +13,9 @@
 
     <node machine="$(arg machine)" pkg="ptu_follow_frame" type="ptu_follow.py" name="ptu_follow" output="screen" respawn="true"/>
 
-    <node machine="$(arg machine)" pkg="semantic_map_to_2d" type="semantic_map_to_2d" name="semantic_map_to_2d" output="screen" respawn="true"/>
+    <node machine="$(arg machine)" pkg="semantic_map_to_2d" type="semantic_map_2d_server" name="semantic_map_2d_server" output="screen" respawn="true"/>
 
-    <node machine="$(arg machine)" pkg="camera_tracker" type="camera_track_service" name="camera_track_service" output="screen" respawn="true">
+    <node machine="$(arg machine)" pkg="camera_tracker" type="camera_tracker_service" name="camera_tracker_service" output="screen" respawn="true">
 	<param name="camera_tracker_topic" value="$(arg camera_tracker_topic)"/>
     </node>
 
