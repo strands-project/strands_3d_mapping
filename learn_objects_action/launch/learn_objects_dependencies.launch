@@ -6,10 +6,13 @@
   <arg name="camera_tracker_topic" default="/head_xtion/depth_registered" />
   <arg name="model_path" default="/home/strands/models/" />
   <arg name="planning_method" default="ral16" />
+  <arg name="object_view_map_topic" default="/waypoint_map" />
 
   <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true" />
 
-    <node machine="$(arg machine)" pkg="object_view_generator" type="view_points_service.py" name="view_points_service" output="screen" respawn="true"/>
+    <node machine="$(arg machine)" pkg="object_view_generator" type="view_points_service.py" name="object_view_generator" output="screen" respawn="true">
+	<param name="object_view_map_topic" value="$(arg object_view_map_topic)"/>
+    </node>
 
     <node machine="$(arg machine)" pkg="ptu_follow_frame" type="ptu_follow.py" name="ptu_follow_frame" output="screen" respawn="true"/>
 
