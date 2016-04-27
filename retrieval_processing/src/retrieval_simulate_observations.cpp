@@ -96,6 +96,11 @@ int main(int argc, char** argv)
     pn.param<bool>("bypass_surfelize", bypass_surfelize, true);
 
     sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path, true);
+    if (sweep_xmls.empty()) {
+        cout << "Found now sweeps in " << data_path << ", exiting..." << endl;
+        return 0;
+    }
+
     sweep_ind = get_correct_sweep_ind(data_path); // 0;
     cout << "Starting at sweep number: " << sweep_ind << endl;
 
