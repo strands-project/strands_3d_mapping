@@ -11,15 +11,17 @@
 
     <node machine="$(arg machine)" pkg="object_view_generator" type="view_points_service.py" name="view_points_service" output="screen" respawn="true"/>
 
-    <node machine="$(arg machine)" pkg="ptu_follow_frame" type="ptu_follow.py" name="ptu_follow" output="screen" respawn="true"/>
+    <node machine="$(arg machine)" pkg="ptu_follow_frame" type="ptu_follow.py" name="ptu_follow_frame" output="screen" respawn="true"/>
 
     <node machine="$(arg machine)" pkg="semantic_map_to_2d" type="semantic_map_2d_server" name="semantic_map_2d_server" output="screen" respawn="true"/>
 
-    <node machine="$(arg machine)" pkg="camera_tracker" type="camera_tracker_service" name="camera_tracker_service" output="screen" respawn="true">
+    <node machine="$(arg machine)" pkg="static_transform_manager" type="static_tf_services.py" name="static_transforms_manager" output="screen" respawn="true"/>
+
+    <node machine="$(arg machine)" pkg="camera_tracker" type="camera_tracker_service" name="camera_tracker" output="screen" respawn="true">
 	<param name="camera_tracker_topic" value="$(arg camera_tracker_topic)"/>
     </node>
 
-    <node machine="$(arg machine)" pkg="incremental_object_learning" type="incremental_object_learning_service" name="incremental_object_learning_service" output="screen" respawn="true">
+    <node machine="$(arg machine)" pkg="incremental_object_learning" type="incremental_object_learning_service" name="incremental_object_learning" output="screen" respawn="true">
     </node>
 
     <node machine="$(arg machine)" pkg="learn_objects_action" type="server.py" name="learn_objects_action_server" output="screen" respawn="true">
