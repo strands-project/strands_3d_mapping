@@ -123,6 +123,7 @@ where the vocabulary is most often located in `~/.semanticMap/vocabulary`.
 
 * `quasimodo_retrieval_node` - provides the service `/query_normal_cloud` and subscribes to the topic `/models/new`. If something is published on the topic, it returns the result on `/retrieval_result`.
 * `quasimodo_visualization_server` - this node simply subscribes to `/retrieval_result` and visualizes the query result using the tools in the package `object_3d_benchmark`, <https://github.com/strands-project/strands_3d_mapping/tree/hydro-devel/dynamic_object_retrieval/benchmark>. The resulting image is published on `/visualization_image`.
+* `quasimodo_retrieve_observation` - allows the system to bypass the model building component, instead searching for results directly using the retrieval framework. Simply publish something like `rostopic pub /object_learning/learned_object_xml std_msgs/String "data: '/path/to/.semanticMap/201422/patrol_run_56/room_0/2016-Apr-22 14:58:33.536964_object_0.xml'"` to retrieve more views of that object.
 
 ### Other Nodes
 
