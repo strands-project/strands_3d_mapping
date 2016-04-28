@@ -42,15 +42,17 @@ set(SRCS
 
 add_library(metaroom_xml_parser ${HDRS}  ${SRCS})
 
-add_executable(load_single_file src/load_single_file_main.cpp )
+# APPS
 
-add_executable(load_multiple_files src/load_multiple_files_main.cpp)
+add_executable(load_single_file apps/load_single_file_main.cpp )
 
-add_executable(load_labelled_data src/load_labelled_data.cpp )
+add_executable(load_multiple_files apps/load_multiple_files_main.cpp)
 
-add_executable(test_dynamic_object_parser src/test_dynamic_object_parser.cpp )
+add_executable(load_labelled_data apps/load_labelled_data.cpp )
 
-add_executable(load_additional_views src/load_additional_views_main.cpp )
+add_executable(test_dynamic_object_parser apps/test_dynamic_object_parser.cpp )
+
+add_executable(load_additional_views apps/load_additional_views_main.cpp )
 
  target_link_libraries(metaroom_xml_parser
    ${catkin_LIBRARIES}
