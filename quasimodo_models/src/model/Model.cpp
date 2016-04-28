@@ -147,34 +147,25 @@ bool Model::testFrame(int ind){
 
 
 	printf("totw: %f\n",tot_w);
-	if(tot_w < 4){return false;}
+	double threshold = 500;
+	if(tot_w < threshold){return false;}
 
-	for(int i = 0; i < 3; i++){
-		for(int j = 0; j < 3; j++){
-			covMat(i,j) /= tot_w;
-		}
-	}
+//	for(int i = 0; i < 3; i++){
+//		for(int j = 0; j < 3; j++){
+//			covMat(i,j) /= tot_w;
+//		}
+//	}
 
 	Eigen::EigenSolver<Eigen::Matrix3f> es(covMat, false);
-	cout << "The eigenvalues of the 3x3 matrix of ones are:"
-		 << endl << es.eigenvalues() << endl;
+	auto e = es.eigenvalues();
 
-//	Eigen::JacobiSVD<Matrix3f> svd(covMat, Eigen::ComputeThinU | Eigen::ComputeThinV);
-//	Eigen::Vector3f S = svd.singularValues();
-//	printf("singular values: %f %f %f",S(0),S(1),S(2));
-//	float weight = (S(0)+S(1)+S(2))/S(2);
-//	if(isnan(weight)){weight = -1;}
-//	MatrixXf U = svd.matrixU();
-//	U = -U;
+	double e1 = e(0).real();
+	double e2 = e(1).real();
+	double e3 = e(2).real();
 
-//	normal_x 			= U(0,2);
-//	normal_y 			= U(1,2);
-//	normal_z 			= U(2,2);
-//	if( normal_z < 0){
-//		normal_x*=-1;
-//		normal_y*=-1;
-//		normal_z*=-1;
-//	}
+	printf("%f %f %f\n",e1,e2,e3);
+
+	if(e1 > threshold || e2 > threshold || e3 > threshold){return false;}
 	return true;
 }
 
