@@ -273,7 +273,7 @@ int main(int argc, char** argv){
 				//std::vector<Eigen::Matrix4f> rp = getRegisteredViewPoses(const std::string& poses_file, const int& no_transforms)
 				// view AV clouds and masks
 
-				int step = std::max(1,int(0.5+double(object.vAdditionalViews.size())/10.0));
+				int step = std::max(1,int(0.5+double(object.vAdditionalViews.size())/20.0));
 				for (unsigned int i=0; i < 2000 && i<object.vAdditionalViews.size(); i+=step){
 					CloudPtr cloud = object.vAdditionalViews[i];
 

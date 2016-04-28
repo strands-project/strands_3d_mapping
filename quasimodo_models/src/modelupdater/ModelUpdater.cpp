@@ -142,7 +142,7 @@ std::vector<int> ModelUpdater::getPartition(std::vector< std::vector< float > > 
 }
 
 ModelUpdater::ModelUpdater(){
-    occlusion_penalty = 5;
+	occlusion_penalty = 10;
     massreg_timeout = 60;
     model = 0;
 }
@@ -181,7 +181,7 @@ void ModelUpdater::refine(double reg,bool useFullMask){
 	MassRegistrationPPR * massreg = new MassRegistrationPPR(reg);
     massreg->timeout = massreg_timeout;
 	massreg->viewer = viewer;
-	massreg->visualizationLvl = 1;
+	massreg->visualizationLvl = 0;
 	massreg->maskstep = std::max(1,int(0.5+0.2*double(model->frames.size())));
 	massreg->nomaskstep = std::max(1,int(0.5+1.0*double(model->frames.size())));
 

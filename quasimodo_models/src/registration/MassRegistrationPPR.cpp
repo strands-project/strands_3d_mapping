@@ -24,7 +24,7 @@ MassRegistrationPPR::MassRegistrationPPR(double startreg, bool visualize){
 	dwf->debugg_print		= false;
 	func					= dwf;
 	
-	fast_opt				= false;
+	fast_opt				= true;
 
 	nomask = true;
 	maskstep = 1;
@@ -234,7 +234,7 @@ Eigen::Matrix4d constructTransformationMatrix (const double & alpha, const doubl
 	transformation_matrix (3, 3) = 1;
 	return transformation_matrix;
 }
-
+int testcount = 0;
 MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses){
 	printf("start MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses)\n");
 
@@ -243,7 +243,9 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 		printf("ERROR: poses.size() != nr_frames\n");
 		return MassFusionResults();
 	}
+bool internatldebug = testcount++ > 2;
 
+	fast_opt = false;
 	if(fast_opt){
 		printf("debugging... setting nr frames to 3: %s :: %i\n",__FILE__,__LINE__);
 		nr_frames = 3;
@@ -264,6 +266,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 	transformed_points.resize(nr_frames);
 	transformed_normals.resize(nr_frames);
 	informations.resize(nr_frames);
+	trees.resize(nr_frames);
 
 	for(unsigned int i = 0; i < nr_frames; i++){
 		printf("loading data for %i\n",i);
@@ -286,6 +289,21 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 		const float ifx				= 1.0/camera->fx;
 		const float ify				= 1.0/camera->fy;
 
+
+		int count1 = 0;
+		for(unsigned int w = 0; w < width; w++){
+			for(unsigned int h = 0; h < height; h++){
+				int ind = h*width+w;
+				if(maskvec[ind]){
+					float z = idepth*float(depthdata[ind]);
+					float xn = normalsdata[3*ind+0];
+					if(z > 0.2 && xn != 2){count1++;}
+				}
+			}
+		}
+		//printf("count1:%i\n",count1);
+
+
 		int count = 0;
 		for(unsigned int w = 0; w < width; w+=maskstep){
 			for(unsigned int h = 0; h < height; h+=maskstep){
@@ -297,6 +315,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				}
 			}
 		}
+		//printf("count:%i\n",count);
 
 		if(count < 10){
 			is_ok.push_back(false);
@@ -360,17 +379,18 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 			}
 		}
 		informations[i] = information;
-		printf("%i %i\n",X.rows(),X.cols());
+		//printf("%i %i\n",X.rows(),X.cols());
+//		cv::namedWindow( "rgb", cv::WINDOW_AUTOSIZE );			cv::imshow( "rgb", frames[i]->rgb);
+//		cv::namedWindow( "normals", cv::WINDOW_AUTOSIZE );		cv::imshow( "normals", frames[i]->normals);
+//		cv::namedWindow( "depth", cv::WINDOW_AUTOSIZE );		cv::imshow( "depth", frames[i]->depth);
+//		cv::namedWindow( "depthedges", cv::WINDOW_AUTOSIZE );	cv::imshow( "depthedges", frames[i]->depthedges);
+//		cv::namedWindow( "mask", cv::WINDOW_AUTOSIZE );			cv::imshow( "mask", mmasks[i]->getMask());
+//		cv::waitKey(0);
 
-		cv::namedWindow( "rgb", cv::WINDOW_AUTOSIZE );			cv::imshow( "rgb", frames[i]->rgb);
-		cv::namedWindow( "normals", cv::WINDOW_AUTOSIZE );		cv::imshow( "normals", frames[i]->normals);
-		cv::namedWindow( "depth", cv::WINDOW_AUTOSIZE );		cv::imshow( "depth", frames[i]->depth);
-		cv::namedWindow( "depthedges", cv::WINDOW_AUTOSIZE );	cv::imshow( "depthedges", frames[i]->depthedges);
-		cv::namedWindow( "mask", cv::WINDOW_AUTOSIZE );			cv::imshow( "mask", mmasks[i]->getMask());
-		cv::waitKey(0);
 
-		//trees.push_back(new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X));
+		trees[i] = new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(X);
 	}
+
 
 	//	background_nr_matches.resize(nr_frames);
 	//	background_matchids.resize(nr_frames);
@@ -539,6 +559,9 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				for(unsigned int j = 0; j < nr_frames; j++){
 					if(!is_ok[j]){continue;}
 					if(i == j){continue;}
+
+					//printf("matching frame %i to %i\n",i,j);
+
 					Eigen::Affine3d rp = Eigen::Affine3d(poses[j].inverse()*poses[i]);
 					Eigen::Affine3d irp = rp.inverse();
 
@@ -547,20 +570,29 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 
 					nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * treex = trees[j];
 
-
 					unsigned int nr_data = nr_datas[i];
 					std::vector<int> & matchid = matchids[i][j];
 					matchid.resize(nr_data);
+
 					for(unsigned int k = 0; k < nr_data; ++k) {
+
 						int prev = matchid[k];
+
 						int current =  treex->closest(tX.col(k).data());
+
 						good_rematches += prev != current;
+
 						total_rematches++;
+
 						matchid[k] = current;
+
 					}
+
 					nr_matches[i] += matchid.size();
+
 				}
 			}
+
 			rematch_time += getTime()-rematch_time_start;
 			printf("rematch_time: %f\n",rematch_time);
 
@@ -659,7 +691,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				double computeModel_time_start = getTime();
 				func->computeModel(all_residuals);
 				computeModel_time += getTime()-computeModel_time_start;
-				
+
 				if(fast_opt){
 					double setup_matches_time_start = getTime();
 
@@ -1143,6 +1175,7 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				}else{
 					for(int outer=0; outer < 30; ++outer) {
 						if(getTime()-total_time_start > timeout){break;}
+
 						printf("funcupdate: %i rematching: %i lala: %i outer: %i\n",funcupdate,rematching,lala,outer);
 						for(unsigned int i = 0; i < nr_frames; i++){poses2[i] = poses[i];}
 						for(unsigned int i = 0; i < nr_frames; i++){

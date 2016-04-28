@@ -32,9 +32,9 @@ Model::Model(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d pose){
 }
 
 void Model::recomputeModelPoints(){
-	for(unsigned int i = 0; i < frames.size(); i++){
-		bool res = testFrame(i);
-	}
+//	for(unsigned int i = 0; i < frames.size(); i++){
+//		bool res = testFrame(i);
+//	}
 
     points.clear();
     for(unsigned int i = 0; i < frames.size(); i++){
@@ -155,9 +155,13 @@ bool Model::testFrame(int ind){
 		}
 	}
 
-	Eigen::JacobiSVD<Matrix3f> svd(covMat, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	Eigen::Vector3f S = svd.singularValues();
-	printf("singular values: %f %f %f",S(0),S(1),S(2));
+	Eigen::EigenSolver<Eigen::Matrix3f> es(covMat, false);
+	cout << "The eigenvalues of the 3x3 matrix of ones are:"
+		 << endl << es.eigenvalues() << endl;
+
+//	Eigen::JacobiSVD<Matrix3f> svd(covMat, Eigen::ComputeThinU | Eigen::ComputeThinV);
+//	Eigen::Vector3f S = svd.singularValues();
+//	printf("singular values: %f %f %f",S(0),S(1),S(2));
 //	float weight = (S(0)+S(1)+S(2))/S(2);
 //	if(isnan(weight)){weight = -1;}
 //	MatrixXf U = svd.matrixU();
