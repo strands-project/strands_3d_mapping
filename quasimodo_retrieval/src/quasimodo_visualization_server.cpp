@@ -32,7 +32,7 @@ public:
     visualization_server(const std::string& name)
     {
         ros::NodeHandle pn("~");
-        pn.param<std::string>("image_output", image_output, std::string("visualization_image"));
+        pn.param<std::string>("image_output", image_output, std::string("/quasimodo_retrieval/visualization"));
         pn.param<std::string>("topic_input", topic_input, std::string("/retrieval_result"));
 
         image_pub = n.advertise<sensor_msgs::Image>(image_output, 1, true);
