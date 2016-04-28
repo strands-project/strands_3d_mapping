@@ -11,6 +11,15 @@ find_package(catkin REQUIRED COMPONENTS
 	pcl_ros
 )
 
+
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES quasimodo_ModelUpdater quasimodo_SICP quasimodo_reglib quasimodo_massreglib quasimodo_model quasimodo_core quasimodo_myhull quasimodo_Mesher quasimodo_weightlib quasimodo_modelmask
+#  CATKIN_DEPENDS other_catkin_pkg
+#  DEPENDS system_lib
+)
+
+
 ##############################################
 ##################### INCLUDES ###############
 ##############################################
@@ -51,7 +60,7 @@ add_library(quasimodo_weightlib src/weightfunctions/DistanceWeightFunction2.cpp 
 target_link_libraries(quasimodo_weightlib quasimodo_SICP ceres glog ${catkin_LIBRARIES})
 
 add_library(quasimodo_myhull src/registration/myhull.cpp)
-target_link_libraries(quasimodo_myhull ${catkin_LIBRARIES})
+target_link_libraries(quasimodo_myhull ${catkin_LIBROBARIES})
 
 add_library(quasimodo_reglib src/registration/Registration.cpp src/registration/RegistrationSICP.cpp src/registration/RegistrationPPR.cpp src/registration/RegistrationRandom.cpp src/registration/RegistrationRefinement.cpp src/registration/RegistrationRefinementColor.cpp)
 target_link_libraries(quasimodo_reglib quasimodo_myhull quasimodo_SICP quasimodo_weightlib ceres glog ${catkin_LIBRARIES})
@@ -78,12 +87,6 @@ add_library(quasimodo_ModelUpdater src/modelupdater/ModelUpdater.cpp src/modelup
 target_link_libraries(quasimodo_ModelUpdater quasimodo_model quasimodo_reglib quasimodo_massreglib ${catkin_LIBRARIES})
 
 
-catkin_package(
-  INCLUDE_DIRS include
-#  LIBRARIES quasimodo_models
-#  CATKIN_DEPENDS other_catkin_pkg
-#  DEPENDS system_lib
-)
 
 #############
 ## Install ##
