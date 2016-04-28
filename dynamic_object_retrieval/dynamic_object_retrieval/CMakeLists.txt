@@ -118,11 +118,11 @@ target_link_libraries(shot_estimation ${PCL_LIBRARIES})
 
 # This executable visualizes the convex segmentation, interactively
 add_executable(demo_convex_segmentation src/demo_convex_segmentation.cpp)
-target_link_libraries(demo_convex_segmentation supervoxel_segmentation pfhrgb_estimation shot_estimation ${PCL_LIBRARIES})
+target_link_libraries(demo_convex_segmentation ${ROS_LIBRARIES} pfhrgb_estimation shot_estimation ${PCL_LIBRARIES})
 
 # This executable demos the convex segmentation on a merged room sweep
 add_executable(demo_sweep_segmentation src/demo_sweep_segmentation.cpp)
-target_link_libraries(demo_sweep_segmentation supervoxel_segmentation pfhrgb_estimation shot_estimation
+target_link_libraries(demo_sweep_segmentation pfhrgb_estimation shot_estimation
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 configure_file(scripts/menu.py menu.py COPYONLY)
@@ -133,7 +133,7 @@ configure_file(scripts/querying_menu.py querying_menu.py COPYONLY)
 
 add_library(dynamic_visualize src/visualize.cpp include/dynamic_object_retrieval/visualize.h)
 add_dependencies(dynamic_visualize k_means_tree_project)
-target_link_libraries(dynamic_visualize k_means_tree vocabulary_tree ${PCL_LIBRARIES})
+target_link_libraries(dynamic_visualize ${ROS_LIBRARIES}  ${PCL_LIBRARIES})
 
 add_library(extract_sift src/extract_sift.cpp include/extract_sift/extract_sift.h)
 target_link_libraries(extract_sift dynamic_visualize sift ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
@@ -141,7 +141,7 @@ target_link_libraries(extract_sift dynamic_visualize sift ${ROS_LIBRARIES} ${Ope
 add_library(dynamic_retrieval src/dynamic_retrieval.cpp include/dynamic_object_retrieval/dynamic_retrieval.h
             include/dynamic_object_retrieval/summary_types.h include/dynamic_object_retrieval/summary_iterators.h)
 add_dependencies(dynamic_retrieval k_means_tree_project)
-target_link_libraries(dynamic_retrieval k_means_tree vocabulary_tree grouped_vocabulary_tree extract_sift ${PCL_LIBRARIES})
+target_link_libraries(dynamic_retrieval ${ROS_LIBRARIES}   extract_sift ${PCL_LIBRARIES})
 
 add_library(extract_surfel_features src/extract_surfel_features.cpp include/dynamic_object_retrieval/extract_surfel_features.h)
 target_link_libraries(extract_surfel_features ${OpenCV_LIBS} ${PCL_LIBRARIES})
@@ -150,10 +150,10 @@ add_executable(dynamic_init_folders src/dynamic_init_folders.cpp)
 target_link_libraries(dynamic_init_folders ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_convex_segmentation src/dynamic_convex_segmentation.cpp)
-target_link_libraries(dynamic_convex_segmentation supervoxel_segmentation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(dynamic_convex_segmentation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_supervoxel_convex_segmentation src/dynamic_supervoxel_convex_segmentation.cpp)
-target_link_libraries(dynamic_supervoxel_convex_segmentation supervoxel_segmentation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(dynamic_supervoxel_convex_segmentation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_extract_convex_features src/dynamic_extract_convex_features.cpp)
 target_link_libraries(dynamic_extract_convex_features extract_surfel_features pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
@@ -168,10 +168,10 @@ add_executable(dynamic_init_vocabulary src/dynamic_init_vocabulary.cpp)
 target_link_libraries(dynamic_init_vocabulary ${PCL_LIBRARIES})
 
 add_executable(dynamic_train_vocabulary src/dynamic_train_vocabulary.cpp)
-target_link_libraries(dynamic_train_vocabulary k_means_tree vocabulary_tree grouped_vocabulary_tree dynamic_visualize supervoxel_segmentation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(dynamic_train_vocabulary ${ROS_LIBRARIES}   dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(dynamic_query_vocabulary src/dynamic_query_vocabulary.cpp)
-target_link_libraries(dynamic_query_vocabulary k_means_tree vocabulary_tree grouped_vocabulary_tree register_objects dynamic_visualize dynamic_retrieval extract_sift ${PCL_LIBRARIES})
+target_link_libraries(dynamic_query_vocabulary ${ROS_LIBRARIES}   register_objects dynamic_visualize dynamic_retrieval extract_sift ${PCL_LIBRARIES})
 
 add_executable(dynamic_extract_sift src/dynamic_extract_sift.cpp)
 target_link_libraries(dynamic_extract_sift extract_sift  ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
@@ -182,19 +182,19 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-old-st
 ############### TESTING PROGRAMS ##################
 
 add_executable(test_added_count test/test_added_count.cpp)
-target_link_libraries(test_added_count k_means_tree vocabulary_tree grouped_vocabulary_tree dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(test_added_count ${ROS_LIBRARIES}  dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_feature_keypoint_match test/test_feature_keypoint_match.cpp)
 target_link_libraries(test_feature_keypoint_match ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_segmentation test/test_segmentation.cpp)
-target_link_libraries(test_segmentation supervoxel_segmentation dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(test_segmentation  dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_surfel_segmentation test/test_surfel_segmentation.cpp)
-target_link_libraries(test_surfel_segmentation supervoxel_segmentation dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(test_surfel_segmentation  dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_gt_labelled_data test/test_gt_labelled_data.cpp)
-target_link_libraries(test_gt_labelled_data supervoxel_segmentation dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(test_gt_labelled_data  dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_supervoxel_keypoints test/test_supervoxel_keypoints.cpp)
 target_link_libraries(test_supervoxel_keypoints dynamic_visualize ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
@@ -213,7 +213,7 @@ target_link_libraries(test_adjacencies dynamic_visualize ${ROS_LIBRARIES} ${Open
 
 add_executable(test_top_match_one_map test/test_top_match_one_map.cpp)
 target_link_libraries(test_top_match_one_map extract_sift register_objects pfhrgb_estimation
-                      k_means_tree vocabulary_tree grouped_vocabulary_tree dynamic_visualize
+                         dynamic_visualize
                       ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 if (catkin_FOUND)
