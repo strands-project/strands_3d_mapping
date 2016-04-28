@@ -60,6 +60,8 @@
         <node name="do_sweep" pkg="cloud_merge" type="do_sweep.py" output="screen" respawn="true">
         </node>
 
+        <node name="dynamic_object_compute_mask_server" pkg="object_manager" type="dynamic_object_compute_mask_server" output="screen" respawn="true">
+        </node>
 	
     <!-- Action server for executing the PTU sweeps -->
     <include file="$(find scitos_ptu)/launch/ptu_action_server_metric_map.launch"> 
