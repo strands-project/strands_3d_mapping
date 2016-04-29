@@ -379,7 +379,14 @@ public:
         vector<vector<cv::Mat> > depths(retrieved_clouds.size());
         vector<vector<string> > paths(retrieved_clouds.size());
         Eigen::Matrix3f K;
-        K << 525.0f, 0.0f, 319.5f, 0.0f, 525.0f, 239.5f, 0.0f, 0.0f, 1.0f;
+        // The new parameters in surfelize_it: 528, 525, 317, 245
+        // The old parameters in surfelize_it: 540, 540, 320, 240
+
+        // The old parameters in this node:
+        // K << 525.0f, 0.0f, 319.5f, 0.0f, 525.0f, 239.5f, 0.0f, 0.0f, 1.0f;
+
+        // Just for johan to test:
+        K << 540.0f, 0.0f, 320.0f, 0.0f, 540.0f, 240.0f, 0.0f, 0.0f, 1.0f;
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
             vector<int> inds;
             auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
