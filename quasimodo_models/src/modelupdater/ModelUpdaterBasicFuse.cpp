@@ -37,6 +37,7 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 		registration->setSrc(cd2);
 		FusionResults fr = registration->getTransform(guess);
 
+		printf("%i registerModel(%i %i)\n",__LINE__,int(model->id),int(model2->id));
         double best = -99999999999999;
         int best_id = -1;
 		for(unsigned int ca = 0; ca < fr.candidates.size() && ca < 15; ca++){
@@ -147,7 +148,8 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 	double beforescore = model1->total_scores+model2->total_scores;
 //	printf("beforescore: %f\n",beforescore);
 	//std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_masks,current_modelmasks,false);
-	std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_modelmasks,false);
+	//std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_modelmasks,false);
+	std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_modelmasks,true);
     std::vector<std::vector < float > > scores = getScores(ocs);
 	std::vector<int> partition = getPartition(scores,2,5,2);
 

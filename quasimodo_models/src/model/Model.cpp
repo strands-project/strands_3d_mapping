@@ -32,6 +32,10 @@ Model::Model(RGBDFrame * frame, cv::Mat mask, Eigen::Matrix4d pose){
 }
 
 void Model::recomputeModelPoints(){
+//	for(unsigned int i = 0; i < frames.size(); i++){
+//		bool res = testFrame(i);
+//	}
+
     points.clear();
     for(unsigned int i = 0; i < frames.size(); i++){
         addPointsToModel(frames[i],modelmasks[i],relativeposes[i]);
@@ -93,6 +97,76 @@ void Model::addPointsToModel(RGBDFrame * frame, ModelMask * modelmask, Eigen::Ma
             }
         }
     }
+}
+
+bool Model::testFrame(int ind){
+	printf("testing frame %i\n",ind);
+	Eigen::Matrix3f covMat = Eigen::Matrix3f::Identity();
+
+	ModelMask * modelmask = modelmasks[ind];
+	RGBDFrame * frame = frames[ind];
+
+	bool * maskvec = modelmask->maskvec;
+	unsigned char  * rgbdata		= (unsigned char	*)(frame->rgb.data);
+	unsigned short * depthdata		= (unsigned short	*)(frame->depth.data);
+	float		   * normalsdata	= (float			*)(frame->normals.data);
+
+	Camera * camera				= frame->camera;
+	const unsigned int width	= camera->width;
+	const unsigned int height	= camera->height;
+
+	double tot_w = 0;
+	for(unsigned int w = 0; w < width; w++){
+		for(unsigned int h = 0; h < height;h++){
+			int ind = h*width+w;
+			if(maskvec[ind]){
+				float nx = normalsdata[3*ind+0];
+				if(nx != 2){
+					float ny = normalsdata[3*ind+1];
+					float nz = normalsdata[3*ind+2];
+					covMat(0,0) += nx*nx;
+					covMat(0,1) += nx*ny;
+					covMat(0,2) += nx*nz;
+
+					covMat(1,0) += ny*nx;
+					covMat(1,1) += ny*ny;
+					covMat(1,2) += ny*nz;
+
+
+					covMat(2,0) += nz*nx;
+					covMat(2,1) += nz*ny;
+					covMat(2,2) += nz*nz;
+
+					tot_w++;
+				}
+			}
+		}
+	}
+
+
+
+
+	printf("totw: %f\n",tot_w);
+	double threshold = 500;
+	if(tot_w < threshold){return false;}
+
+//	for(int i = 0; i < 3; i++){
+//		for(int j = 0; j < 3; j++){
+//			covMat(i,j) /= tot_w;
+//		}
+//	}
+
+	Eigen::EigenSolver<Eigen::Matrix3f> es(covMat, false);
+	auto e = es.eigenvalues();
+
+	double e1 = e(0).real();
+	double e2 = e(1).real();
+	double e3 = e(2).real();
+
+	printf("%f %f %f\n",e1,e2,e3);
+
+	if(e1 > threshold || e2 > threshold || e3 > threshold){return false;}
+	return true;
 }
 
 void Model::print(){

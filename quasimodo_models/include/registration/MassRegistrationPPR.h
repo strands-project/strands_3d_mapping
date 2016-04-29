@@ -15,6 +15,7 @@ namespace reglib
 
 		MatchType type;
 
+		bool fast_opt;
 		bool use_PPR_weight;
 		bool use_features;
 		bool normalize_matchweights;
@@ -24,6 +25,7 @@ namespace reglib
 
 		std::vector<int> nr_datas;
 
+		std::vector< bool > is_ok;
 		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > points;
 		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > colors;
 		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > normals;
