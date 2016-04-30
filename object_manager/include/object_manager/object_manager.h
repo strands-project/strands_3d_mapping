@@ -121,6 +121,7 @@ private:
     ros::Publisher                                                              m_PublisherRequestedObjectImage;
     ros::Publisher                                                              m_PublisherLearnedObjectXml;
     ros::Publisher                                                              m_PublisherLearnedObjectTrackingData;
+    ros::Publisher                                                              m_PublisherLearnedObjectModel;
     ros::Subscriber                                                             m_SubscriberDynamicObjectTracks;
     ros::Subscriber                                                             m_SubscriberAdditionalObjectViews;
     ros::Subscriber                                                             m_SubscriberAdditionalObjectViewsStatus;
@@ -161,6 +162,7 @@ ObjectManager<PointType>::ObjectManager(ros::NodeHandle nh) : m_TransformListene
     m_PublisherRequestedObjectImage = m_NodeHandle.advertise<sensor_msgs::Image>("/object_manager/requested_object_mask", 1, true);
     m_PublisherLearnedObjectXml = m_NodeHandle.advertise<std_msgs::String>("/object_learning/learned_object_xml", 1, false);
     m_PublisherLearnedObjectTrackingData = m_NodeHandle.advertise<object_manager::DynamicObjectTrackingData>("/object_learning/learned_object_tracking_data", 1, false);
+    m_PublisherLearnedObjectModel = m_NodeHandle.advertise<sensor_msgs::PointCloud2>("/object_learning/learned_object_model", 1, false);
 
     m_DynamicObjectsServiceServer = m_NodeHandle.advertiseService("ObjectManager/DynamicObjectsService", &ObjectManager::dynamicObjectsServiceCallback, this);
     m_GetDynamicObjectServiceServer = m_NodeHandle.advertiseService("ObjectManager/GetDynamicObjectService", &ObjectManager::getDynamicObjectServiceCallback, this);
@@ -331,6 +333,9 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
             tracking_data_msg.object_mask.assign(object.vAdditionalViewMaskIndices[0].begin(), object.vAdditionalViewMaskIndices[0].end());
         }
 
+        sensor_msgs::PointCloud2 learned_object_model = srv_masks.response.segmented_object;
+        learned_object_model.header.frame_id = "/map";
+        m_PublisherLearnedObjectModel.publish(learned_object_model);
         m_PublisherLearnedObjectTrackingData.publish(tracking_data_msg);
 
         // also save data to the disk
@@ -339,7 +344,6 @@ void ObjectManager<PointType>::additionalViewsStatusCallback(const std_msgs::Str
 //        std::string poses_file = sweep_folder+"/poses.txt";
 
 
-//        for (tf::Transform tr : object.vAdditionalViewsTransformsRegistered){
         for (size_t i=0; i < object.vAdditionalViewsTransformsRegistered.size(); i++){
             tf::Transform tr = object.vAdditionalViewsTransformsRegistered[i];
             std::stringstream ss;ss<<i;
