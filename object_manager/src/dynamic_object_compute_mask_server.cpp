@@ -414,6 +414,7 @@ CloudPtr find_object_using_metaroom(std::string observation_xml, std::string obj
         registered_transform = room_transform;
     }
 
+    bool reg_server_called = false;
     if (registration_client.call(srv))
     {
         ROS_INFO_STREAM("Registration done using the observation_registration_server service. Number of constraints "<<srv.response.total_correspondences);
@@ -424,12 +425,13 @@ CloudPtr find_object_using_metaroom(std::string observation_xml, std::string obj
             tf::Transform tf_registered_transform;
             tf::transformMsgToTF(srv.response.transform, tf_registered_transform);
             pcl_ros::transformAsMatrix(tf_registered_transform, registered_transform);
+            reg_server_called = true;
         }
     } else {
         ROS_ERROR_STREAM("Could not call observation_registration_server service.");
     }
 
-    if (registered_transform.isIdentity(0.001)){
+    if (registered_transform.isIdentity(0.001) && !reg_server_called){
         ROS_ERROR_STREAM("Registration failed while constructing meta-room");
         return built_object_cloud;
     }
@@ -437,6 +439,17 @@ CloudPtr find_object_using_metaroom(std::string observation_xml, std::string obj
     CloudPtr observation_interior_cloud = MetaRoom<PointType>::downsampleCloud(observation_data.completeRoomCloud->makeShared());
     CloudPtr previous_interior_cloud = MetaRoom<PointType>::downsampleCloud(previous_observation_data.completeRoomCloud->makeShared());
     pcl::transformPointCloud(*previous_interior_cloud, *previous_interior_cloud,registered_transform);
+
+//    {
+//        pcl::visualization::PointCloudColorHandlerCustom<PointType> room_handler(observation_interior_cloud, 255, 0,0);
+//        p->addPointCloud (observation_interior_cloud,room_handler,"room");
+//        pcl::visualization::PointCloudColorHandlerCustom<PointType> views_handler(registered_views_cloud, 0, 255,0);
+//        p->addPointCloud (registered_views_cloud,views_handler,"views");
+//        pcl::visualization::PointCloudColorHandlerCustom<PointType> prev_handler(previous_interior_cloud, 0, 0, 255);
+//        p->addPointCloud (previous_interior_cloud,prev_handler,"clusters");
+//        p->spin();
+//        p->removeAllPointClouds();
+//    }
 
     // compute differences and update metaroom
     CloudPtr differenceRoomToPrevRoom(new Cloud);
