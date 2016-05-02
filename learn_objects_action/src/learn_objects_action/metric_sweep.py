@@ -15,6 +15,7 @@ from world_state.observation import MessageStoreObject, Observation, Transformat
 from world_state.identification import ObjectIdentification
 from world_state.state import World, Object
 from cloud_merge.msg import SweepAction, SweepActionGoal, SweepGoal
+from semantic_map.msg import RoomObservation
 import os
 
 class MetricSweep(smach.State):

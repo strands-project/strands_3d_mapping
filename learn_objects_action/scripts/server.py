@@ -31,6 +31,9 @@ if debug_mode:
 
 
 # Construct state machine
+record_run = rospy.get_param("~record_run", False)
+if record_run:
+    rospy.loginfo("Will record the camera topics as the robot navigates around the object")
 
 planning_method = rospy.get_param("~view_planner", "ral16")
 if planning_method == "ral16":
@@ -43,7 +46,6 @@ else:
     rospyt.logerr("The chosen planning method is not available.")
     sys.exit(1)
 
-record_run = rospy.get_param("~record_run", False)
 
 # Construct action server wrapper
 asw = ActionServerWrapper(

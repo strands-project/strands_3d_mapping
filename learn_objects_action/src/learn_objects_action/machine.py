@@ -138,9 +138,9 @@ class LearnObjectActionMachineRAL16(smach.StateMachine):
 	print "Stopping camera tracker."
         self._stop_cam_track.execute(userdata) # this is such an uggly way of doing this!
 
-    if self._record_run:
-        print "Stopping recoring camera topics"
-            self._stop_recording(userdata) # this should already be triggered, but just to double check
+    	if self._record_run:
+       		print "Stopping recoring camera topics"
+	        self._stop_recording.execute(userdata) # this should already be triggered, but just to double check
 
         # Ensure the PTU has zero velocity
 	print "Stopping PTU tracker."
