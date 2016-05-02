@@ -1,5 +1,4 @@
 string object_xml
 string observation_xml
 ---
-bool result
-
+sensor_msgs/PointCloud2 segmented_object

@@ -1,0 +1,5 @@
+sensor_msgs/PointCloud2[] registered_views
+geometry_msgs/Transform[] registered_views_transforms
+std_msgs/Float32[]	  intrinsics # can be empty
+---
+sensor_msgs/PointCloud2 processed_cloud

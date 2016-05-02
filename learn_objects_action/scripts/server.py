@@ -35,7 +35,7 @@ if debug_mode:
 planning_method = rospy.get_param("~view_planner", "ral16")
 if planning_method == "ral16":
     rospy.loginfo("Using the RAL-16 method for learning the object.")
-    sm = LearnObjectActionMachineRAL16(model_path, rois_file, debug_mode)
+    sm = LearnObjectActionMachineRAL16(model_path, rois_file, debug_mode, record_run)
     pass
 elif planning_method == "infogain":
     sm = LearnObjectActionMachineInfoGain(model_path, debug_mode)
@@ -43,6 +43,7 @@ else:
     rospyt.logerr("The chosen planning method is not available.")
     sys.exit(1)
 
+record_run = rospy.get_param("~record_run", False)
 
 # Construct action server wrapper
 asw = ActionServerWrapper(

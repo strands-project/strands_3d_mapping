@@ -42,15 +42,23 @@ set(SRCS
 
 add_library(metaroom_xml_parser ${HDRS}  ${SRCS})
 
-add_executable(load_single_file src/load_single_file_main.cpp )
+# APPS
 
-add_executable(load_multiple_files src/load_multiple_files_main.cpp)
+add_executable(load_single_file apps/load_single_file_main.cpp )
 
-add_executable(load_labelled_data src/load_labelled_data.cpp )
+add_executable(load_multiple_files apps/load_multiple_files_main.cpp)
 
-add_executable(test_dynamic_object_parser src/test_dynamic_object_parser.cpp )
+add_executable(load_labelled_data apps/load_labelled_data.cpp )
 
-add_executable(load_additional_views src/load_additional_views_main.cpp )
+add_executable(test_dynamic_object_parser apps/test_dynamic_object_parser.cpp )
+
+add_executable(load_additional_views apps/load_additional_views_main.cpp )
+
+add_executable(print_objects_with_views apps/print_objects_with_views.cpp )
+
+add_executable(print_sweep_xmls_at_waypoint apps/print_sweep_xmls_at_waypoint.cpp )
+
+add_executable(print_sweep_xmls apps/print_sweep_xmls.cpp )
 
  target_link_libraries(metaroom_xml_parser
    ${catkin_LIBRARIES}
@@ -93,11 +101,32 @@ add_executable(load_additional_views src/load_additional_views_main.cpp )
    metaroom_xml_parser
  )
 
+ target_link_libraries(print_objects_with_views
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+   metaroom_xml_parser
+ )
+
+ target_link_libraries(print_sweep_xmls_at_waypoint
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+   metaroom_xml_parser
+ )
+
+ target_link_libraries(print_sweep_xmls
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+   metaroom_xml_parser
+ )
+
 
 
 ############################# INSTALL TARGETS
 
-install(TARGETS metaroom_xml_parser  load_single_file load_multiple_files load_labelled_data test_dynamic_object_parser load_additional_views
+install(TARGETS metaroom_xml_parser  load_single_file load_multiple_files load_labelled_data test_dynamic_object_parser load_additional_views print_objects_with_views print_sweep_xmls_at_waypoint print_sweep_xmls
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
