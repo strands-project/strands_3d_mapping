@@ -30,6 +30,7 @@ add_service_files(
    DynamicObjectsService.srv
    GetDynamicObjectService.srv
    DynamicObjectComputeMaskService.srv
+   ProcessDynamicObjectService.srv
 )
 
 add_message_files(
