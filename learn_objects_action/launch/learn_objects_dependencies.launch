@@ -3,7 +3,7 @@
 
   <arg name="machine" default="localhost" />
   <arg name="user" default="" />
-  <arg name="camera_tracker_topic" default="/head_xtion/depth_registered" />
+  <arg name="camera_topic" default="/head_xtion/depth_registered" />
   <arg name="model_path" default="/home/strands/models/" />
   <arg name="planning_method" default="ral16" />
   <arg name="object_view_map_topic" default="/waypoint_map" />
@@ -20,11 +20,11 @@
     <node machine="$(arg machine)" pkg="semantic_map_to_2d" type="semantic_map_2d_server" name="semantic_map_2d_server" output="screen" respawn="true"/>
 
     <node machine="$(arg machine)" pkg="static_transform_manager" type="static_tf_services.py" name="static_transforms_manager" output="screen" respawn="true"/>
-<!--
+
     <node machine="$(arg machine)" pkg="camera_tracker" type="camera_tracker_service" name="camera_tracker" output="screen" respawn="true">
-	<param name="camera_tracker_topic" value="$(arg camera_tracker_topic)"/>
+	<param name="camera_topic" value="$(arg camera_topic)"/>
     </node>
--->
+
 
     <node machine="$(arg machine)" pkg="incremental_object_learning" type="incremental_object_learning_service" name="incremental_object_learning" output="screen" respawn="true">
     </node>
