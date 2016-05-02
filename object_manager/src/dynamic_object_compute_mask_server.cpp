@@ -38,7 +38,7 @@ CloudPtr compute_mask_per_view_from_object(CloudPtr view, CloudPtr object,
                                            cv::Mat& mask_image, vector<int>& mask_indices, double neighbor_distance);
 
 
-CloudPtr find_object_using_metaroom(std::string sweep_xml, std::string object_xml, CloudPtr registered_views_cloud, CloudPtr object_cloud);
+CloudPtr find_object_using_metaroom(std::string sweep_xml, std::string object_xml, CloudPtr registered_views_cloud, CloudPtr object_cloud, const double& cluster_tolerance);
 CloudPtr find_object_using_conv_seg(CloudPtr reg_views_at_origin, pcl::PointCloud<pcl::Normal>::Ptr reg_views_at_origin_normals, CloudPtr object_cloud_at_origin);
 
 bool dynamic_object_compute_mask_service(
@@ -149,7 +149,7 @@ bool dynamic_object_compute_mask_service(
         *object_views = *surfelized_object_views;
         surfelized = true;
     } else {
-        ROS_ERROR_STREAM("Could not call surfelize_server to process the object views. Will proceed with the unfiltered views.");
+        ROS_INFO_STREAM("Could not call surfelize_server to process the object views. Will proceed with the unfiltered views.");
         for (CloudPtr view: registered_object_views){
             *object_views += *view;
         }
@@ -174,7 +174,11 @@ bool dynamic_object_compute_mask_service(
     } else {
         // default -> metaroom
         ROS_INFO_STREAM("Segmenting object using the metaroom segmentation");
-        segmented_object_cloud = find_object_using_metaroom(req.observation_xml, req.object_xml, object_views, object.objectCloud);
+        double cluster_tolerance = 0.02;
+        if (!surfelized){
+            cluster_tolerance = 0.03;
+        }
+        segmented_object_cloud = find_object_using_metaroom(req.observation_xml, req.object_xml, object_views, object.objectCloud, cluster_tolerance);
     }
 
     // compute the mask per view
@@ -215,15 +219,21 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "dynamic_object_compute_mask_service");
     ros::NodeHandle n;
+    ros::NodeHandle n_private("~");
     surfel_client = n.serviceClient<observation_registration_services::ProcessRegisteredViews>("/surfelize_server");
     registration_client = n.serviceClient<observation_registration_services::ObservationRegistrationService>("/observation_registration_server");
+    n_private.param<string>("segmentation_method",g_segmentation_method,"meta_room");
 //    g_segmentation_method = "convex_segmentation";
-    g_segmentation_method = "meta_room";
+//    g_segmentation_method = "meta_room";
 
 //    p = new pcl::visualization::PCLVisualizer (argc, argv, "Labelled data");
 //    p->addCoordinateSystem();
 
     ros::ServiceServer service = n.advertiseService("dynamic_object_compute_mask_server", dynamic_object_compute_mask_service);
+
+     if (g_segmentation_method != "convex_segmentation"){
+             g_segmentation_method = "meta_room";
+     }
 
     ROS_INFO("dynamic_object_compute_mask_server started.");
     ROS_INFO_STREAM("Object segmentation method is "<<g_segmentation_method);
@@ -353,7 +363,7 @@ CloudPtr find_object_using_conv_seg(CloudPtr reg_views_at_origin, pcl::PointClou
     return built_object_cloud;
 }
 
-CloudPtr find_object_using_metaroom(std::string observation_xml, std::string object_xml, CloudPtr registered_views_cloud, CloudPtr object_cloud){
+CloudPtr find_object_using_metaroom(std::string observation_xml, std::string object_xml, CloudPtr registered_views_cloud, CloudPtr object_cloud, const double& cluster_tolerance){
     using namespace std;
     CloudPtr built_object_cloud(new Cloud);
     // load observation
@@ -470,7 +480,7 @@ CloudPtr find_object_using_metaroom(std::string observation_xml, std::string obj
     segment.segment(*dynamic_clusters);
 
     // find object cluster
-    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(dynamic_clusters,0.02,50,1000000);
+    std::vector<CloudPtr> vClusters = MetaRoom<PointType>::clusterPointCloud(dynamic_clusters,cluster_tolerance,50,1000000);
     for (int i = 0; i < vClusters.size(); ++i) {
         segment.setInputCloud(object_cloud);
         segment.setTargetCloud(vClusters[i]);
