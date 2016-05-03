@@ -12,10 +12,8 @@ This launches the metric mapping / semantic mapping nodes from the `strands_3d_m
 * `semantic_map_publisher`
 * `objcet_manager`
 * `do_sweep`
+* `ptu_action_server_metric_map`
 
-Note: the  `ptu_action_server_metric_map` node needs to be started separetely with:
-
-```rosrun scitos_ptu ptu_action_server_metric_map.py```
 
 ## Parameters
 
