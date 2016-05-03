@@ -2,6 +2,7 @@
 #include "dynamic_object_retrieval/visualize.h"
 #include "extract_sift/extract_sift.h"
 
+#define VT_PRECOMPILE
 #include <vocabulary_tree/vocabulary_tree.h>
 #include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
 

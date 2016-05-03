@@ -11,6 +11,7 @@
 
 #include <Stopwatch.h>
 
+#define VT_PRECOMPILE
 #include <vocabulary_tree/vocabulary_tree.h>
 #include <object_3d_retrieval/register_objects.h>
 #include <boost/filesystem.hpp>
