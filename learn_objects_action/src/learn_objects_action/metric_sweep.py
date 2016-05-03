@@ -15,12 +15,14 @@ from world_state.observation import MessageStoreObject, Observation, Transformat
 from world_state.identification import ObjectIdentification
 from world_state.state import World, Object
 from cloud_merge.msg import SweepAction, SweepActionGoal, SweepGoal
+from semantic_map.msg import RoomObservation
 import os
 
 class MetricSweep(smach.State):
     def __init__(self, debug_mode, debug_services):
-        smach.State.__init__( self, outcomes=['done', 'failed', 'preempted'], 
-                              input_keys=['action_goal'] )
+        smach.State.__init__( self, outcomes=['done', 'failed', 'preempted'],
+                              input_keys=['action_goal'],
+                              output_keys=['sweep_folder'] )
 
 #        self._metric_sweep_action = actionlib.SimpleActionClient(
 #            '/ptu_pan_tilt_metric_map',
@@ -38,13 +40,14 @@ class MetricSweep(smach.State):
         self._set_waypoint_map = get_ros_service("/set_waypoint",
                                       ChangeWaypoint)
 
+        self._latest_observation = ''
 
         self._goal = SweepGoal()
         self._goal.type = "medium"
 
         self._debug_mode = debug_mode
         self._debug_services = debug_services
-        
+
     def execute(self, userdata):
         try:
             if self._debug_mode:
@@ -64,6 +67,20 @@ class MetricSweep(smach.State):
                     self.service_preempt()
                     break
             else:
+                # wait for the message that the sweep has finished
+                try:
+                    latest_observation = rospy.wait_for_message("/local_metric_map/room_observations", RoomObservation,
+                                                    timeout=120)
+                    self._latest_observation = latest_observation.xml_file_name
+                    print 'Latest observation ', self._latest_observation
+                    slash = self._latest_observation.rfind('/')
+                    self._obs_folder = self._latest_observation[0:slash+1]
+                    print 'Observation folder ', self._obs_folder
+                    userdata['sweep_folder'] = self._obs_folder
+                except rospy.ROSException,  e:
+                    rospy.logwarn("Never got a message to say that a metric "
+                                  "map was recorded. Learn objects action failed.")
+
                 # wait for the message that it has been processed...
                 try:
                     status = rospy.wait_for_message("/local_metric_map/status", String,
@@ -74,7 +91,7 @@ class MetricSweep(smach.State):
                     return 'failed'
                 if status.data !=  "finished_processing_observation":
                     return 'failed'
-                
+
                 # Update the local waypoint 2d map
                 resp =  self._set_waypoint_map(userdata.action_goal.waypoint)
                 if not resp.is_ok:
@@ -94,10 +111,10 @@ class MetricSweep(smach.State):
 class SelectCluster(smach.State):
     def __init__(self, rois_file, debug_mode, debug_services):
         smach.State.__init__( self, outcomes=['selected', 'none'],
-                              input_keys=['action_goal','object'],
+                              input_keys=['action_goal','object','sweep_folder'],
                               #input_keys=['waypoint'],
                               output_keys=['dynamic_object', 'dynamic_object_centroid',
-                                           'dynamic_object_points','dynamic_object_id', 'object'])
+                                           'dynamic_object_points','dynamic_object_id', 'object', 'sweep_folder'])
         self._get_clusters = get_ros_service("/object_manager_node/ObjectManager/DynamicObjectsService",
                                              DynamicObjectsService)
         self._get_specific_cluster = get_ros_service("/object_manager_node/ObjectManager/GetDynamicObjectService",
@@ -114,7 +131,7 @@ class SelectCluster(smach.State):
             # Load the waypoint to soma from file
             if self._rois_file != "NONE":
                 with open(self._rois_file, "r") as f:
-                    somas = yaml.load(f.read())	
+                    somas = yaml.load(f.read())
                 soma_region = somas[userdata.action_goal.waypoint]
             else:
                 soma_region = ""
@@ -140,10 +157,10 @@ class SelectCluster(smach.State):
                     p =  Pose()
                     p.position.x = pnt.x
                     p.position.y = pnt.y
-                    poses = self._get_plan_points(min_dist=1.0, 
+                    poses = self._get_plan_points(min_dist=1.0,
                                                   max_dist=1.5,
                                                   number_views=25,
-                                                  inflation_radius=0.3, 
+                                                  inflation_radius=0.3,
                                                   target_pose=p,
                                                   SOMA_region=soma_region,
                                                   return_as_trajectory=True)
@@ -172,5 +189,3 @@ class SelectCluster(smach.State):
             rospy.logwarn("Failed to select a cluster!!!!")
             rospy.logwarn("-> Exceptions was: %s" % str(e))
             return "none"
-        
-        

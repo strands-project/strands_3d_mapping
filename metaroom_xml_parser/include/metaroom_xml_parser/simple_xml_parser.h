@@ -82,6 +82,38 @@ public:
     {}
 
 
+    static std::string getRootFolderFromSweepXml(const std::string& xml_file){
+        std::string root_folder = "";
+        bool valid_path = true;
+        std::string patrol_string = "patrol_run_";
+        std::string room_string = "room_";
+        std::string date_string = "YYYYMMDD";
+
+        size_t p_pos_1 = xml_file.find(patrol_string);
+        size_t r_pos_1 = xml_file.find(room_string) - 1; // remove the / before the room_
+        if ((p_pos_1 == std::string::npos) || ( r_pos_1 == std::string::npos)){
+            // not a valid path
+            return root_folder;
+        }
+
+        std::string d_1 = xml_file.substr(p_pos_1 - date_string.length() -1, date_string.length());
+        QString d_1_q(d_1.c_str());
+        for (size_t i=0; i<d_1_q.size(); i++){
+            if (!d_1_q.at(i).isDigit()){
+                // not a valid path
+                return root_folder;
+            }
+        }
+
+        // valid path
+        root_folder = xml_file.substr(0, (p_pos_1 - date_string.length() - 2));
+        return root_folder;
+    }
+
+    static std::string getRootFolderFromObjectXml(const std::string& xml_file){
+        return getRootFolderFromSweepXml(xml_file);
+    }
+
     static std::pair<cv::Mat, cv::Mat> createRGBandDepthFromPC(boost::shared_ptr<pcl::PointCloud<PointType>> cloud)
     {
         std::pair<cv::Mat, cv::Mat> toRet;

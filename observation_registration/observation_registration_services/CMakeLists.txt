@@ -10,6 +10,8 @@ add_service_files(
    ObservationRegistrationService.srv
    AdditionalViewRegistrationService.srv
    ObjectAdditionalViewRegistrationService.srv
+   GetLastAdditionalViewRegistrationResultService.srv
+   ProcessRegisteredViews.srv
 )
 
 generate_messages(

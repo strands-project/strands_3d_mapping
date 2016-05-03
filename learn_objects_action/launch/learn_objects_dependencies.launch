@@ -1,0 +1,42 @@
+
+<launch>
+
+  <arg name="machine" default="localhost" />
+  <arg name="user" default="" />
+  <arg name="camera_topic" default="/head_xtion/depth_registered" />
+  <arg name="model_path" default="/home/strands/models/" />
+  <arg name="planning_method" default="ral16" />
+  <arg name="object_view_map_topic" default="/waypoint_map" />
+  <arg name="record_run" default="false" />
+
+  <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true" />
+
+    <node machine="$(arg machine)" pkg="object_view_generator" type="view_points_service.py" name="object_view_generator" output="screen" respawn="true">
+	<param name="object_view_map_topic" value="$(arg object_view_map_topic)"/>
+    </node>
+
+    <node machine="$(arg machine)" pkg="ptu_follow_frame" type="ptu_follow.py" name="ptu_follow_frame" output="screen" respawn="true"/>
+
+    <node machine="$(arg machine)" pkg="semantic_map_to_2d" type="semantic_map_2d_server" name="semantic_map_2d_server" output="screen" respawn="true"/>
+
+    <node machine="$(arg machine)" pkg="static_transform_manager" type="static_tf_services.py" name="static_transforms_manager" output="screen" respawn="true"/>
+
+    <node machine="$(arg machine)" pkg="camera_tracker" type="camera_tracker_service" name="camera_tracker" output="screen" respawn="true">
+	<param name="camera_topic" value="$(arg camera_topic)"/>
+    </node>
+
+
+    <node machine="$(arg machine)" pkg="incremental_object_learning" type="incremental_object_learning_service" name="incremental_object_learning" output="screen" respawn="true">
+    </node>
+
+   <include file="$(find rosbag_openni_compression)/launch/record_server.launch" >
+    </include>
+
+
+    <node machine="$(arg machine)" pkg="learn_objects_action" type="server.py" name="learn_objects_action_server" output="screen" respawn="true">
+	<param name="model_path" value="$(arg model_path)"/>
+	<param name="planning_method" value="$(arg planning_method)"/>
+	<param name="record_run" value="$(arg record_run)"/>
+    </node>
+
+</launch>

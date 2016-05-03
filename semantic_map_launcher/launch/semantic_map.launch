@@ -11,6 +11,7 @@
   <arg name="max_instances" default="10" />
   <arg name="update_metaroom" default="true" />
   <arg name="newest_dynamic_clusters" default="true" />
+  <arg name="segmentation_method" default="meta_room" />
   <!--<arg name="use_NDT_registration" default="true" /> -->
 
   <arg name="min_object_size" default="500" />
@@ -60,13 +61,15 @@
         <node name="do_sweep" pkg="cloud_merge" type="do_sweep.py" output="screen" respawn="true">
         </node>
 
+        <node name="dynamic_object_compute_mask_server" pkg="object_manager" type="dynamic_object_compute_mask_server" output="screen" respawn="true">
+	        <param name="segmentation_method" value="$(arg segmentation_method)"/>
+        </node>
 	
-    <!-- Action server for executing the PTU sweeps 
+    <!-- Action server for executing the PTU sweeps -->
     <include file="$(find scitos_ptu)/launch/ptu_action_server_metric_map.launch"> 
 
     	<arg name="machine" value="$(arg sweep_ip)"/>
 	<arg name="user" value="$(arg sweep_user)" />  
     </include>
-    -->
 
 </launch>

@@ -1,0 +1,16 @@
+
+<launch>
+
+  <arg name="machine" default="localhost" />
+  <arg name="user" default="" />
+
+  <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true" />
+
+    <!-- The node which provides services for registering two observations (using SIFT feature correspondences) -->
+    <node machine="$(arg machine)" pkg="observation_registration_server" type="observation_registration_server" name="observation_registration_server" output="screen" respawn="true"/>
+
+    <!-- The node which provides services for registering additional views (point clouds) (using SIFT feature correspondences) -->
+    <node machine="$(arg machine)" pkg="additional_view_registration_server" type="additional_view_registration_server" name="additional_view_registration_server" output="screen" respawn="true"/>
+
+
+</launch>

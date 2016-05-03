@@ -30,11 +30,13 @@ add_service_files(
    DynamicObjectsService.srv
    GetDynamicObjectService.srv
    DynamicObjectComputeMaskService.srv
+   ProcessDynamicObjectService.srv
 )
 
 add_message_files(
   FILES
   DynamicObjectTracks.msg
+  DynamicObjectTrackingData.msg
 )
 
 generate_messages(
@@ -80,7 +82,7 @@ add_executable(load_objects_from_mongo ${HDRS} ${SRCS} src/load_objects_from_mon
 add_dependencies(load_objects_from_mongo load_objects_from_mongo_generate_messages_cpp)
 
 add_executable(dynamic_object_compute_mask_server ${HDRS} ${SRCS} src/dynamic_object_compute_mask_server.cpp)
-add_dependencies(dynamic_object_compute_mask_server object_manager_generate_messages_cpp)
+add_dependencies(dynamic_object_compute_mask_server object_manager_generate_messages_cpp observation_registration_services_generate_messages_cpp)
 
  target_link_libraries(dynamic_object
    ${catkin_LIBRARIES}

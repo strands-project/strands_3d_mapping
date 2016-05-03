@@ -105,7 +105,7 @@ void compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT:
     else {
         pcl::PointCloud<int>::Ptr keypoints_ind(new pcl::PointCloud<int>);
         pcl::UniformSampling<PointT> us_detector;
-        us_detector.setRadiusSearch(0.04);
+        us_detector.setRadiusSearch(0.08);
         us_detector.setSearchMethod(tree);
         us_detector.setInputCloud(cloud);
         us_detector.compute(*keypoints_ind);
