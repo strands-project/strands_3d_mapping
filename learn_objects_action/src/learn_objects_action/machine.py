@@ -15,19 +15,21 @@ from std_srvs.srv import Empty
 from std_msgs.msg import String
 from learn_objects_action.util import get_ros_service
 from util import DebugModeServices
+from record import StartRecording, StopRecording
 
 class LearnObjectActionMachineRAL16(smach.StateMachine):
-    def __init__(self, model_path, rois_file, debug_mode):
+    def __init__(self, model_path, rois_file, debug_mode, record_run):
         smach.StateMachine.__init__(self,
                                     outcomes=['succeeded', 'failed', 'preempted'],
-                                    input_keys=['action_goal'], 
-                                    output_keys=['action_result'], 
+                                    input_keys=['action_goal'],
+                                    output_keys=['action_result'],
                                     )
 
         self.userdata.action_result =  LearnObjectResult()
         self._debug_mode = debug_mode
         self._debug_services = DebugModeServices(self.preempt_requested) if self._debug_mode else None
-        
+        self._record_run = record_run
+
         with self:
             smach.StateMachine.add('METRIC_MAP_SWEEP', MetricSweep(debug_mode, self._debug_services),
                transitions={'done':'SELECT_CLUSTER',
@@ -40,9 +42,18 @@ class LearnObjectActionMachineRAL16(smach.StateMachine):
                 transitions={'error':'failed',
                              'success':'START_TRANSFORM',
                             'preempted': 'preempted'})
-            smach.StateMachine.add('START_TRANSFORM', StartTransformation(debug_mode, self._debug_services),
-                transitions={'error':'failed',
-                             'success':'START_PTU_TRACK'})
+            if self._record_run :
+                smach.StateMachine.add('START_TRANSFORM', StartTransformation(debug_mode, self._debug_services),
+                    transitions={'error':'failed',
+                                 'success':'START_RECORDING'})
+                smach.StateMachine.add('START_RECORDING', StartRecording(debug_mode, self._debug_services),
+                    transitions={'error':'failed',
+                                 'success':'START_PTU_TRACK'})
+            else:
+                smach.StateMachine.add('START_TRANSFORM', StartTransformation(debug_mode, self._debug_services),
+                    transitions={'error':'failed',
+                                 'success':'START_PTU_TRACK'})
+
             smach.StateMachine.add('START_PTU_TRACK', StartPTUTrack(debug_mode, self._debug_services),
                 transitions={'error':'failed',
                              'success':'START_CAMERA_TRACK' })
@@ -55,9 +66,18 @@ class LearnObjectActionMachineRAL16(smach.StateMachine):
                              'done':'STOP_CAMERA_TRACK',
                              'preempted':'preempted'})
             self._stop_cam_track = StopCameraTrack(debug_mode, self._debug_services)
-            smach.StateMachine.add('STOP_CAMERA_TRACK', self._stop_cam_track,
-                transitions={'error':'failed',
-                             'success':'STOP_PTU_TRACK' })
+            self._stop_recording = StopRecording(debug_mode, self._debug_services)
+            if self._record_run :
+                smach.StateMachine.add('STOP_CAMERA_TRACK', self._stop_cam_track,
+                    transitions={'error':'failed',
+                                 'success':'STOP_RECORDING' })
+                smach.StateMachine.add('STOP_RECORDING', self._stop_recording,
+                    transitions={'error':'failed',
+                                 'success':'STOP_PTU_TRACK' })
+            else:
+                smach.StateMachine.add('STOP_CAMERA_TRACK', self._stop_cam_track,
+                    transitions={'error':'failed',
+                                 'success':'STOP_PTU_TRACK' })
             self._stop_ptu_track = StopPTUTrack(debug_mode, self._debug_services)
             smach.StateMachine.add('STOP_PTU_TRACK', self._stop_ptu_track,
                 transitions={'error':'failed',
@@ -70,7 +90,7 @@ class LearnObjectActionMachineRAL16(smach.StateMachine):
                 transitions={'error':'failed',
                              'done':'succeeded',
                             'preempted': 'preempted' })
-            
+
             self.set_initial_state(["METRIC_MAP_SWEEP"], userdata=self.userdata)
             self.register_termination_cb(self.finish)
             self._prior_movebase_config = {}
@@ -83,7 +103,7 @@ class LearnObjectActionMachineRAL16(smach.StateMachine):
                                                   String)
 
 
-            
+
     def execute(self, parent_ud = smach.UserData()):
         # Reduce the robot velocity
         self._prior_movebase_config = self._reconfigure_client.update_configuration({})
@@ -101,15 +121,15 @@ class LearnObjectActionMachineRAL16(smach.StateMachine):
         rospy.set_param("/monitored_navigation/recover_states", recoveries)
 
         super(LearnObjectActionMachineRAL16, self).execute(parent_ud)
-            
-    
+
+
     def finish(self, userdata, terminal_states, outcome):
         print "Restoring monitored_nav & move_base parameters"
         # Restore movebase velocities
         self._reconfigure_client.update_configuration(self._prior_movebase_config)
 	print "Parameters:"
 	print rospy.get_param("/monitored_navigation/recover_states")
-        
+
         # Re-enable monitored nav recoveries
         rospy.set_param("/monitored_navigation/recover_states",
                         self._prior_recoveries)
@@ -117,6 +137,10 @@ class LearnObjectActionMachineRAL16(smach.StateMachine):
         # Make sure the PTU is not tracking anything
 	print "Stopping camera tracker."
         self._stop_cam_track.execute(userdata) # this is such an uggly way of doing this!
+
+    	if self._record_run:
+       		print "Stopping recoring camera topics"
+	        self._stop_recording.execute(userdata) # this should already be triggered, but just to double check
 
         # Ensure the PTU has zero velocity
 	print "Stopping PTU tracker."
@@ -132,7 +156,7 @@ class LearnObjectActionMachineRAL16(smach.StateMachine):
 
         # Double certain to save to RombusDB
         self._status_publisher.publish(String("stop_viewing"))
-        
+
 
 ###############################################
 
@@ -141,14 +165,14 @@ class LearnObjectActionMachineInfoGain(smach.StateMachine):
     def __init__(self, model_path,  debug_mode):
         smach.StateMachine.__init__(self,
                                     outcomes=['succeeded', 'failed', 'preempted'],
-                                    input_keys=['action_goal'], 
-                                    output_keys=['action_result'], 
+                                    input_keys=['action_goal'],
+                                    output_keys=['action_result'],
                                     )
 
         self.userdata.action_result =  LearnObjectResult()
         self._debug_mode = debug_mode
         self._debug_services = DebugModeServices(self.preempt_requested) if self._debug_mode else None
-        
+
         with self:
             smach.StateMachine.add('METRIC_MAP_SWEEP', MetricSweep(debug_mode, self._debug_services),
                transitions={'done':'SELECT_CLUSTER',
@@ -165,7 +189,7 @@ class LearnObjectActionMachineInfoGain(smach.StateMachine):
                 transitions={'error':'failed',
                              'done':'succeeded',
                             'preempted': 'preempted' })
-            
+
             self.set_initial_state(["METRIC_MAP_SWEEP"], userdata=self.userdata)
             self.register_termination_cb(self.finish)
             self._prior_movebase_config = {}
@@ -178,7 +202,7 @@ class LearnObjectActionMachineInfoGain(smach.StateMachine):
                                                   String)
 
 
-            
+
     def execute(self, parent_ud = smach.UserData()):
         # Reduce the robot velocity
         self._prior_movebase_config = self._reconfigure_client.update_configuration({})
@@ -196,23 +220,18 @@ class LearnObjectActionMachineInfoGain(smach.StateMachine):
         rospy.set_param("/monitored_navigation/recover_states", recoveries)
 
         super(LearnObjectActionMachineInfoGain, self).execute(parent_ud)
-            
-    
+
+
     def finish(self, userdata, terminal_states, outcome):
         print "Restoring monitored_nav & move_base parameters"
         # Restore movebase velocities
         self._reconfigure_client.update_configuration(self._prior_movebase_config)
 	print "Parameters:"
 	print rospy.get_param("/monitored_navigation/recover_states")
-        
+
         # Re-enable monitored nav recoveries
         rospy.set_param("/monitored_navigation/recover_states",
                         self._prior_recoveries)
 
         # Double certain to save to RombusDB
         self._status_publisher.publish(String("stop_viewing"))
-        
-
-
-
-

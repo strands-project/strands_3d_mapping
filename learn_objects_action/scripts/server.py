@@ -31,11 +31,14 @@ if debug_mode:
 
 
 # Construct state machine
+record_run = rospy.get_param("~record_run", False)
+if record_run:
+    rospy.loginfo("Will record the camera topics as the robot navigates around the object")
 
 planning_method = rospy.get_param("~view_planner", "ral16")
 if planning_method == "ral16":
     rospy.loginfo("Using the RAL-16 method for learning the object.")
-    sm = LearnObjectActionMachineRAL16(model_path, rois_file, debug_mode)
+    sm = LearnObjectActionMachineRAL16(model_path, rois_file, debug_mode, record_run)
     pass
 elif planning_method == "infogain":
     sm = LearnObjectActionMachineInfoGain(model_path, debug_mode)

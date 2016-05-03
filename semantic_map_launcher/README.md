@@ -12,10 +12,9 @@ This launches the metric mapping / semantic mapping nodes from the `strands_3d_m
 * `semantic_map_publisher`
 * `objcet_manager`
 * `do_sweep`
+* `ptu_action_server_metric_map`
+* `dynamic_object_compute_mask_server`
 
-Note: the  `ptu_action_server_metric_map` node needs to be started separetely with:
-
-```rosrun scitos_ptu ptu_action_server_metric_map.py```
 
 ## Parameters
 
@@ -31,4 +30,5 @@ The parameters accepted by the launch file are:
 * `update_metaroom` : update the metaroom with new sweeps. Default `true`
 * `newest_dynamic_clusters` : compute dynamic clusters by comparing the latest sweep with the previous one (as opposed to comparing the latest sweep to the metaroom). Default `true`
 * `min_object_size` : the minimum number of points for a cluster to be reported. Default `500`
+* `segmentation_method` : the segmentation method used to segment the object from the additional views collected by the value. Supported methods: `convex_segmentation` and `meta_room`. Default: `meta_room`.
 
