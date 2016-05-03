@@ -75,7 +75,7 @@ ros::Publisher chatter_pub;
 
 ros::ServiceClient soma2add;
 
-double occlusion_penalty = 10;
+double occlusion_penalty = 15;
 double massreg_timeout = 60;
 
 bool run_search = false;
@@ -453,7 +453,7 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
 			mu->massreg_timeout                 = massreg_timeout;
 			mu->viewer							= viewer;
 			reg->visualizationLvl				= 0;
-			mu->refine(0.03,true);
+			mu->refine(0.001,true);
 			delete mu;
 			delete reg;
 		}
@@ -763,41 +763,40 @@ bool modelFromFrame(quasimodo_msgs::model_from_frame::Request  & req, quasimodo_
 									}
 								}
 
-								cv::Mat overlap	= rgbimage.clone();
-								unsigned short * depthdata = (unsigned short * )depthimage.data;
-								unsigned char * rgbdata = (unsigned char * )rgbimage.data;
-								unsigned char * maskdata = (unsigned char * )maskimage.data;
-								unsigned char * overlapdata = (unsigned char * )overlap.data;
-								for(int pixel = 0; pixel < depthimage.rows*depthimage.cols;pixel++){
-									if(depthdata[pixel] > 0 && maskdata[pixel] > 0){
-										overlapdata[3*pixel+0] = rgbdata[3*pixel+0];
-										overlapdata[3*pixel+1] = rgbdata[3*pixel+1];
-										overlapdata[3*pixel+2] = rgbdata[3*pixel+2];
-									}else{
-										overlapdata[3*pixel+0] = 0;
-										overlapdata[3*pixel+1] = 0;
-										overlapdata[3*pixel+2] = 0;
-									}
-								}
-								cv::namedWindow( "rgbimage", cv::WINDOW_AUTOSIZE );			cv::imshow( "rgbimage", rgbimage );
-								cv::namedWindow( "maskimage", cv::WINDOW_AUTOSIZE );		cv::imshow( "maskimage", maskimage );
-								cv::namedWindow( "depthimage", cv::WINDOW_AUTOSIZE );		cv::imshow( "depthimage", 100*depthimage );
-								cv::namedWindow( "overlap", cv::WINDOW_AUTOSIZE );			cv::imshow( "overlap", overlap );
+//								cv::Mat overlap	= rgbimage.clone();
+//								unsigned short * depthdata = (unsigned short * )depthimage.data;
+//								unsigned char * rgbdata = (unsigned char * )rgbimage.data;
+//								unsigned char * maskdata = (unsigned char * )maskimage.data;
+//								unsigned char * overlapdata = (unsigned char * )overlap.data;
+//								for(int pixel = 0; pixel < depthimage.rows*depthimage.cols;pixel++){
+//									if(depthdata[pixel] > 0 && maskdata[pixel] > 0){
+//										overlapdata[3*pixel+0] = rgbdata[3*pixel+0];
+//										overlapdata[3*pixel+1] = rgbdata[3*pixel+1];
+//										overlapdata[3*pixel+2] = rgbdata[3*pixel+2];
+//									}else{
+//										overlapdata[3*pixel+0] = 0;
+//										overlapdata[3*pixel+1] = 0;
+//										overlapdata[3*pixel+2] = 0;
+//									}
+//								}
+//								cv::namedWindow( "rgbimage", cv::WINDOW_AUTOSIZE );			cv::imshow( "rgbimage", rgbimage );
+//								cv::namedWindow( "maskimage", cv::WINDOW_AUTOSIZE );		cv::imshow( "maskimage", maskimage );
+//								cv::namedWindow( "depthimage", cv::WINDOW_AUTOSIZE );		cv::imshow( "depthimage", 100*depthimage );
+//								cv::namedWindow( "overlap", cv::WINDOW_AUTOSIZE );			cv::imshow( "overlap", overlap );
 
 								Eigen::Affine3d epose = Eigen::Affine3d::Identity();
 								reglib::RGBDFrame * frame = new reglib::RGBDFrame(cameras[0],rgbimage, depthimage, 0, epose.matrix());
 								reglib::Model * searchmodel = new reglib::Model(frame,maskimage);
 								bool res = searchmodel->testFrame(0);
 
-								if(cv::waitKey(0) != 'n'){
+//								if(cv::waitKey(0) != 'n'){
 
-exit(0);
 									//Todo:: check new model is not flat or L shape
 
 									printf("--- trying to add serach results, if more then one addToDB: results added-----\n");
 									addToDB(modeldatabase, searchmodel,false,true);
 									show_sorted();
-								}
+//								}
 							}
 						}
 

@@ -182,8 +182,10 @@ void ModelUpdater::refine(double reg,bool useFullMask){
     massreg->timeout = massreg_timeout;
 	massreg->viewer = viewer;
 	massreg->visualizationLvl = 0;
-	massreg->maskstep = std::max(1,int(0.5+0.2*double(model->frames.size())));
+	massreg->maskstep = 4;//std::max(1,int(0.5+0.02*double(model->frames.size())));
 	massreg->nomaskstep = std::max(1,int(0.5+1.0*double(model->frames.size())));
+
+	printf("maskstep: %i nomaskstep: %i\n",massreg->maskstep,massreg->nomaskstep);
 
 	//massreg->type = PointToPoint;
 	if(useFullMask){
@@ -425,7 +427,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, ModelMask * 
 	std::vector<int> & testh = src_modelmask->testh;
 
 	unsigned int test_nrdata = testw.size();
-	unsigned int indstep = 1;
+	unsigned int indstep = step;
 //	int indstep = std::max(1.0,double(test_nrdata)/double(step));
 //	printf("indstep: %i\n",indstep);
 //	for(unsigned int ind = 0; ind < test_nrdata;ind+=indstep){
@@ -636,7 +638,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, ModelMask * 
 			}
 		}
 		viewer->removeAllPointClouds();
-		printf("%i showing results\n",__LINE__);
+		//printf("%i showing results\n",__LINE__);
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
 		viewer->spin();
@@ -674,7 +676,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, ModelMask * 
 		}
 
 		viewer->removeAllPointClouds();
-		printf("%i showing results\n",__LINE__);
+		//printf("%i showing results\n",__LINE__);
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
 		viewer->spin();
@@ -746,7 +748,7 @@ OcclusionScore ModelUpdater::computeOcclusionScore(RGBDFrame * src, ModelMask * 
 
 		viewer->removeAllPointClouds();
 
-		printf("%i showing results\n",__LINE__);
+		//printf("%i showing results\n",__LINE__);
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
 		viewer->spin();
@@ -904,7 +906,16 @@ vector<vector< OcclusionScore > > ModelUpdater::computeAllOcclusionScores(RGBDFr
 }
 
 vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames, std::vector<ModelMask*> current_modelmasks, bool debugg_scores){
-	printf("getOcclusionScores\n");
+	//printf("getOcclusionScores\n");
+
+	long total_points = 0;
+	for(unsigned int i = 0; i < current_frames.size(); i++){total_points+=current_modelmasks[i]->testw.size();}
+	int step = std::max(long(1),long(total_points*long(current_frames.size()))/long(50000000));
+
+//	printf("total_points: %i\n",total_points);
+//	printf("current_frames.size(): %i\n",current_frames.size());
+//	printf("ratio: %f\n",double(total_points*long(current_frames.size()))/double(50000000));
+//	printf("step: %i\n",step);
 
 	vector<vector < OcclusionScore > > occlusionScores;
 	occlusionScores.resize(current_frames.size());
@@ -920,7 +931,7 @@ vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(std::vector<
     for(unsigned int i = 0; i < current_frames.size(); i++){
 		scores[i][i] = 0;
         for(unsigned int j = i+1; j < current_frames.size(); j++){
-			printf("scores %i %i\n",i,j);
+			//printf("scores %i %i\n",i,j);
 			if(lock && current_modelmasks[j]->sweepid == current_modelmasks[i]->sweepid && current_modelmasks[j]->sweepid != -1){
 				occlusionScores[i][j].score = 99999999;
 				occlusionScores[i][j].occlusions = 0;
@@ -930,7 +941,7 @@ vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(std::vector<
 				Eigen::Matrix4d relative_pose = current_poses[i].inverse() * current_poses[j];
 				occlusionScores[j][i]		= computeOcclusionScore(current_frames[j], current_modelmasks[j],current_frames[i], current_modelmasks[i], relative_pose,max_points,debugg_scores);
 				occlusionScores[i][j]		= computeOcclusionScore(current_frames[i], current_modelmasks[i],current_frames[j], current_modelmasks[j], relative_pose.inverse(),max_points,debugg_scores);
-				printf("scores: %i %i -> occlusion_penalty: %f -> (%f %f) and (%f %f) -> %f \n",i,j,occlusion_penalty,occlusionScores[i][j].score,occlusionScores[i][j].occlusions,occlusionScores[j][i].score,occlusionScores[j][i].occlusions,occlusionScores[i][j].score+occlusionScores[j][i].score - occlusion_penalty*(occlusionScores[i][j].occlusions+occlusionScores[j][i].occlusions));
+				//printf("scores: %i %i -> occlusion_penalty: %f -> (%f %f) and (%f %f) -> %f \n",i,j,occlusion_penalty,occlusionScores[i][j].score,occlusionScores[i][j].occlusions,occlusionScores[j][i].score,occlusionScores[j][i].occlusions,occlusionScores[i][j].score+occlusionScores[j][i].score - occlusion_penalty*(occlusionScores[i][j].occlusions+occlusionScores[j][i].occlusions));
 			}
 			scores[i][j] = occlusionScores[i][j].score+occlusionScores[j][i].score - occlusion_penalty*(occlusionScores[i][j].occlusions+occlusionScores[j][i].occlusions);
 			scores[j][i] = scores[i][j];

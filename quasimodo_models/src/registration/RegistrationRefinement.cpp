@@ -2,7 +2,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "registration/myhull.h"
+//#include "registration/myhull.h"
 
 //#include <pcl/surface/convex_hull.h>
 
@@ -12,12 +12,12 @@ namespace reglib
 RegistrationRefinement::RegistrationRefinement(){
 	only_initial_guess		= false;
 
-	//type					= PointToPlane;
-	type					= PointToPoint;
+	type					= PointToPlane;
+	//type					= PointToPoint;
 	use_PPR_weight			= true;
 	use_features			= true;
 	normalize_matchweights	= true;
-	//DistanceWeightFunction2PPR * fu = new DistanceWeightFunction2PPR();
+
 	DistanceWeightFunction2PPR2 * fu = new DistanceWeightFunction2PPR2();
 	fu->startreg			= 0.01;
 	fu->debugg_print		= false;
@@ -25,126 +25,20 @@ RegistrationRefinement::RegistrationRefinement(){
 
 	visualizationLvl = 1;
 
-	for(unsigned int i= 3; i < 6; i++){
-		feature_start.push_back(i);
-		feature_end.push_back(i);
-		DistanceWeightFunction2PPR * f = new DistanceWeightFunction2PPR();
-		f->regularization	= 0.0;
-		f->maxd 			= 255;
-		f->histogram_size	= 255;
-		feature_func.push_back(f);
-	}
-
     target_points = 250;
     allow_regularization = true;
     maxtime = 9999999;
+
+	nr_arraypoints = 0;
+	arraypoints = 0;
+	trees3d = 0;
+	a3d = 0;
 }
-RegistrationRefinement::~RegistrationRefinement(){}
-
-namespace RigidMotionEstimatorRefinement {
-/// @param Source (one 3D point per column)
-/// @param Target (one 3D point per column)
-/// @param Target normals (one 3D normal per column)
-/// @param Confidence weights
-/// @param Right hand side
-template <typename Derived1, typename Derived2, typename Derived3, typename Derived4, typename Derived5, typename Derived6>
-Eigen::Affine3d point_to_plane(Eigen::MatrixBase<Derived1>& X,
-							   Eigen::MatrixBase<Derived2>& Xn,
-							   Eigen::MatrixBase<Derived3>& Y,
-							   Eigen::MatrixBase<Derived4>& N,
-							   const Eigen::MatrixBase<Derived5>& w,
-							   const Eigen::MatrixBase<Derived6>& u) {
-	typedef Eigen::Matrix<double, 6, 6> Matrix66;
-	typedef Eigen::Matrix<double, 6, 1> Vector6;
-	typedef Eigen::Block<Matrix66, 3, 3> Block33;
-
-	/// Normalize weight vector
-	Eigen::VectorXd w_normalized = w/w.sum();
-	/// De-mean
-	Eigen::Vector3d X_mean;
-	for(int i=0; i<3; ++i){X_mean(i) = (X.row(i).array()*w_normalized.transpose().array()).sum();}
-
-	Eigen::Vector3d Y_mean;
-	for(int i=0; i<3; ++i){Y_mean(i) = (Y.row(i).array()*w_normalized.transpose().array()).sum();}
-
-	X.colwise() -= X_mean;
-	Y.colwise() -= X_mean;
-	/// Prepare LHS and RHS
-	Matrix66 LHS = Matrix66::Zero();
-	Vector6 RHS = Vector6::Zero();
-	Block33 TL = LHS.topLeftCorner<3,3>();
-	Block33 TR = LHS.topRightCorner<3,3>();
-	Block33 BR = LHS.bottomRightCorner<3,3>();
-	Eigen::MatrixXd C = Eigen::MatrixXd::Zero(3,X.cols());
-#pragma omp parallel
-	{
-#pragma omp for
-        for(int i=0; i<X.cols(); i++) {
-			C.col(i) = X.col(i).cross(N.col(i));
-		}
-#pragma omp sections nowait
-		{
-#pragma omp section
-			for(int i=0; i<X.cols(); i++) TL.selfadjointView<Eigen::Upper>().rankUpdate(C.col(i), w(i));
-#pragma omp section
-			for(int i=0; i<X.cols(); i++) TR += (C.col(i)*N.col(i).transpose())*w(i);
-#pragma omp section
-			for(int i=0; i<X.cols(); i++) BR.selfadjointView<Eigen::Upper>().rankUpdate(N.col(i), w(i));
-#pragma omp section
-			for(int i=0; i<C.cols(); i++) {
-				double dist_to_plane = -((X.col(i) - Y.col(i)).dot(N.col(i)) - u(i))*w(i);
-				RHS.head<3>() += C.col(i)*dist_to_plane;
-				RHS.tail<3>() += N.col(i)*dist_to_plane;
-			}
-		}
-	}
-	LHS = LHS.selfadjointView<Eigen::Upper>();
-	/// Compute transformation
-	Eigen::Affine3d transformation;
-	Eigen::LDLT<Matrix66> ldlt(LHS);
-	RHS = ldlt.solve(RHS);
-	transformation  = Eigen::AngleAxisd(RHS(0), Eigen::Vector3d::UnitX()) *
-			Eigen::AngleAxisd(RHS(1), Eigen::Vector3d::UnitY()) *
-			Eigen::AngleAxisd(RHS(2), Eigen::Vector3d::UnitZ());
-
-	Xn = transformation*Xn;
-
-	transformation.translation() = RHS.tail<3>();
-	/// Apply transformation
-	X = transformation*X;
-	/// Re-apply mean
-	X.colwise() += X_mean;
-	Y.colwise() += X_mean;
-
-	//Eigen::Vector3d mean_diff;
-	//for(int i=0; i<3; ++i){mean_diff(i) = ((X-Y).row(i).array()*w_normalized.transpose().array()).sum();}
-
-	//std::cout << mean_diff << std::endl << std::endl;
-	//std::cout << Y_mean << std::endl << std::endl;
-	//std::cout << Y_mean-X_mean << std::endl << std::endl;
-	//std::cout << transformation.translation() << std::endl << std::endl;
-	/// Return transformation
-	return transformation;
-}
-
-/// @param Source (one 3D point per column)
-/// @param Target (one 3D point per column)
-/// @param Target normals (one 3D normal per column)
-/// @param Confidence weights
-template <typename Derived1, typename Derived2, typename Derived3, typename Derived4, typename Derived5>
-inline Eigen::Affine3d point_to_plane(Eigen::MatrixBase<Derived1>& X,
-									  Eigen::MatrixBase<Derived2>& Xn,
-									  Eigen::MatrixBase<Derived3>& Yp,
-									  Eigen::MatrixBase<Derived4>& Yn,
-									  const Eigen::MatrixBase<Derived5>& w) {
-	return point_to_plane(X,Xn,Yp, Yn, w, Eigen::VectorXd::Zero(X.cols()));
-}
-}
-
-double getTimeRefinement(){
-	struct timeval start1;
-	gettimeofday(&start1, NULL);
-	return double(start1.tv_sec+(start1.tv_usec/1000000.0));
+RegistrationRefinement::~RegistrationRefinement(){
+	delete func;
+	if(arraypoints != 0){delete arraypoints;}
+	if(trees3d != 0){delete trees3d;}
+	if(a3d != 0){delete a3d;}
 }
 
 void RegistrationRefinement::setDst(CloudData * dst_){
@@ -156,6 +50,7 @@ void RegistrationRefinement::setDst(CloudData * dst_){
 	ycols = Y.cols();
 	total_dweight.resize(ycols);
 
+	int count = 0;
 	for(unsigned int i = 0; i < d_nr_data/stepy; i++){
 		Y(0,i)	= dst->data(0,i*stepy);
 		Y(1,i)	= dst->data(1,i*stepy);
@@ -163,10 +58,26 @@ void RegistrationRefinement::setDst(CloudData * dst_){
 		N(0,i)	= dst->normals(0,i*stepy);
 		N(1,i)	= dst->normals(1,i*stepy);
 		N(2,i)	= dst->normals(2,i*stepy);
+		count++;
 	}
 
-	/// Build kd-tree
-	tree = new nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>(Y);
+	if(arraypoints != 0){delete arraypoints;}
+	if(trees3d != 0){delete trees3d;}
+	if(a3d != 0){delete a3d;}
+
+	arraypoints = new double[3*count];
+	nr_arraypoints = count;
+	for(unsigned int c = 0; c < count; c++){
+		arraypoints[3*c+0] = Y(0,c);
+		arraypoints[3*c+1] = Y(1,c);
+		arraypoints[3*c+2] = Y(2,c);
+	}
+
+	a3d = new ArrayData3D<double>;
+	a3d->data	= arraypoints;
+	a3d->rows	= count;
+	trees3d	= new Tree3d(3, *a3d, nanoflann::KDTreeSingleIndexAdaptorParams(10));
+	trees3d->buildIndex();
 
 	DST_INORMATION = Eigen::VectorXd::Zero(ycols);
 	for(unsigned int i = 0; i < d_nr_data/stepy; i++){DST_INORMATION(i) = dst->information(0,i*stepy);}
@@ -180,7 +91,6 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 	double stop		= 0.00001;
 
 	func->reset();
-	//if(!allow_regularization){func->regularization = 0;}
 
 	float m00 = guess(0,0); float m01 = guess(0,1); float m02 = guess(0,2); float m03 = guess(0,3);
 	float m10 = guess(1,0); float m11 = guess(1,1); float m12 = guess(1,2); float m13 = guess(1,3);
@@ -191,7 +101,7 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 	X.resize(Eigen::NoChange,s_nr_data/stepx);
 	Xn.resize(Eigen::NoChange,s_nr_data/stepx);
 	unsigned int xcols = X.cols();
-//	printf("xcols: %i\n",xcols);
+
 
 	/// Buffers
 	Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	xcols);
@@ -225,21 +135,29 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 
 	std::vector<int> matchid;
 	matchid.resize(xcols);
-//printf("LINE: %i\n",__LINE__);
 	double score = 0;
 	stop = 99999;
 
-    double start = getTimeRefinement();
+	double start = getTime();
 
-//if(visualizationLvl >= 2){show(X,Y);}
+bool timestopped = false;
 	/// ICP
 	for(int funcupdate=0; funcupdate < 100; ++funcupdate) {
-        if( (getTimeRefinement()-start) > maxtime ){break;}
+		if( (getTime()-start) > maxtime ){timestopped = true; break;}
 		for(int rematching=0; rematching < 100; ++rematching) {
-            if( (getTimeRefinement()-start) > maxtime ){break;}
+			if( (getTime()-start) > maxtime ){timestopped = true; break;}
 
 #pragma omp parallel for
-			for(unsigned int i=0; i< xcols; ++i) {matchid[i] = tree->closest(X.col(i).data());}
+			for(unsigned int i=0; i< xcols; ++i) {
+				std::vector<size_t>   ret_indexes(1);
+				std::vector<double> out_dists_sqr(1);
+				nanoflann::KNNResultSet<double> resultSet(1);
+
+				double * qp = X.col(i).data();
+				resultSet.init(&ret_indexes[0], &out_dists_sqr[0] );
+				trees3d->findNeighbors(resultSet, qp, nanoflann::SearchParams(10));
+				matchid[i] = ret_indexes[0];
+			}
 
 			/// Find closest point
 #pragma omp parallel for
@@ -251,7 +169,7 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 			}
 
 			for(int outer=0; outer< 1; ++outer) {
-                if( (getTimeRefinement()-start) > maxtime ){break;}
+				if( (getTime()-start) > maxtime ){timestopped = true; break;}
 				/// Compute weights
 				switch(type) {
 					case PointToPoint:	{residuals = X-Qp;} 						break;
@@ -271,25 +189,6 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 					default:			{printf("type not set\n");}					break;
 				}
                 for(unsigned int i=0; i<xcols; ++i) {residuals.col(i) *= rangeW(i);}
-
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
-//				printf("//////////////////////////////////////////////////////////////\n");
 				switch(type) {
 					case PointToPoint:	{func->computeModel(residuals);} 	break;
 					case PointToPlane:	{func->computeModel(residuals);}	break;
@@ -297,10 +196,19 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 				}
 
 				for(int rematching2=0; rematching2 < 3; ++rematching2) {
-                    if( (getTimeRefinement()-start) > maxtime ){break;}
+					if( (getTime()-start) > maxtime ){timestopped = true; break;}
 					if(rematching2 != 0){
 #pragma omp parallel for
-						for(unsigned int i=0; i< xcols; ++i) {matchid[i] = tree->closest(X.col(i).data());}
+						for(unsigned int i=0; i< xcols; ++i) {
+							std::vector<size_t>   ret_indexes(1);
+							std::vector<double> out_dists_sqr(1);
+							nanoflann::KNNResultSet<double> resultSet(1);
+
+							double * qp = X.col(i).data();
+							resultSet.init(&ret_indexes[0], &out_dists_sqr[0] );
+							trees3d->findNeighbors(resultSet, qp, nanoflann::SearchParams(10));
+							matchid[i] = ret_indexes[0];
+						}
 
 						/// Find closest point
 #pragma omp parallel for
@@ -313,7 +221,7 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 					}
 
 					for(int inner=0; inner< 40; ++inner) {
-                        if( (getTimeRefinement()-start) > maxtime ){break;}
+						if( (getTime()-start) > maxtime ){timestopped = true; break;}
 						if(inner != 0){
 							switch(type) {
 								case PointToPoint:	{residuals = X-Qp;} 						break;
@@ -348,9 +256,9 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 						//Normalizing weights has an effect simmilar to one to one matching
 						//in that it reduces the effect of border points
 						if(normalize_matchweights){
-							//for(unsigned int i=0; i < ycols; ++i)	{	total_dweight[i] = 0.0000001;}//Reset to small number to avoid division by zero
-							//for(unsigned int i=0; i< xcols; ++i)	{	total_dweight[matchid[i]] += W(i);}
-							//for(unsigned int i=0; i< xcols; ++i)	{	W(i) = W(i)*(W(i)/total_dweight[matchid[i]]);}
+//							for(unsigned int i=0; i < ycols; ++i)	{	total_dweight[i] = 0.0000001;}//Reset to small number to avoid division by zero
+//							for(unsigned int i=0; i< xcols; ++i)	{	total_dweight[matchid[i]] += W(i);}
+//							for(unsigned int i=0; i< xcols; ++i)	{	W(i) = W(i)*(W(i)/total_dweight[matchid[i]]);}
 
 							for(unsigned int i=0; i < ycols; ++i)	{	total_dweight[i] = 99990.0000001;}//Reset to small number to avoid division by zero
 							for(unsigned int i=0; i< xcols; ++i)	{	total_dweight[matchid[i]] = std::min(total_dweight[matchid[i]],residuals.col(i).norm());}
@@ -359,109 +267,63 @@ FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
 							}
 						}
 
-						//printf("nr datas: %i %i\n",s_nr_data,d_nr_data);
-//						if(true){
-//							unsigned int s_nr_data = X.cols();
-//							unsigned int d_nr_data = Qp.cols();
-//							viewer->removeAllPointClouds();
-//							pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-//							pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-//							scloud->points.clear();
-//							dcloud->points.clear();
-//							for(unsigned int i = 0; i < s_nr_data; i++){
-//								pcl::PointXYZRGBNormal p;p.x = X(0,i);p.y = X(1,i);p.z = X(2,i);p.b = 0;p.g = 255;p.r = 0;
-//								scloud->points.push_back(p);
-//							}
-//							for(unsigned int i = 0; i < d_nr_data; i++){
-//								pcl::PointXYZRGBNormal p;p.x = Qp(0,i);p.y = Qp(1,i);p.z = Qp(2,i);p.b = W(i)*255;p.g = W(i)*0;p.r = W(i)*255;
-//								dcloud->points.push_back(p);
-//							}
-
-//							char buf [1024];
-//							for(int k = 0; k < s_nr_data; k++){
-//								sprintf(buf,"line%i",k);
-//								viewer->addLine<pcl::PointXYZRGBNormal>(dcloud->points[k],scloud->points[k],255,0,0,buf);
-//							}
-
-//							viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
-//							viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud");
-//							viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "scloud");
-//							viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "dcloud");
-//							viewer->spin();
-//							viewer->removeAllPointClouds();
-//							viewer->removeAllShapes();
-//						}
-
-
 						W = W.array()*rangeW.array()*rangeW.array();
 						Eigen::Affine3d change;
+
 						switch(type) {
 							case PointToPoint:	{
-							//if(visualizationLvl >= 2){show(X,Qp);}
-								//RigidMotionEstimator::point_to_point(X, Qp, W);
-
 								pcl::TransformationFromCorrespondences tfc1;
-								for(unsigned int c = 0; c < X.cols(); c++){
-									tfc1.add(Eigen::Vector3f(X(0,c), X(1,c),X(2,c)),Eigen::Vector3f(Qp(0,c),Qp(1,c),Qp(2,c)),W(c));
-								}
+								for(unsigned int c = 0; c < X.cols(); c++){tfc1.add(Eigen::Vector3f(X(0,c), X(1,c),X(2,c)),Eigen::Vector3f(Qp(0,c),Qp(1,c),Qp(2,c)),W(c));}
 								Eigen::Affine3d rot = tfc1.getTransformation().cast<double>();
-								//Eigen::MatrixXd X2 = rot*X;
 								X = rot*X;
 								Xn = rot.rotation()*Xn;
-//if(visualizationLvl >= 2){show(X2,Qp);}
 							}break;
-							case PointToPlane:	{change = RigidMotionEstimatorRefinement::point_to_plane(X, Xn, Qp, Qn, W);}	break;
+							case PointToPlane:	{point_to_plane2(X, Xn, Qp, Qn, W);}break;
 							default:  			{printf("type not set\n"); } break;
 						}
-//if(visualizationLvl >= 2){show(X,Qp);}
+
 						stop = 100*func->getConvergenceThreshold();
 						score = Wold.sum()/(pow(func->getNoise(),2)*float(xcols));
 
-						//score = Wold.sum()/float(xcols);
 						double stop1 = (X-Xo1).colwise().norm().mean();
-						if(std::isnan(stop) || std::isnan(stop1)){
-
-							printf("noise: %f\n",func->getNoise());
-							printf("stop: %f stop1: %f\n",stop,stop1);
-
-							exit(0);
-						}
 						Xo1 = X;
 						if(stop1 < stop) break;
 					}
 					double stop2 = (X-Xo2).colwise().norm().mean();
-					//printf("stop: %f stop2: %f\n",stop,stop2);
 					Xo2 = X;
 					if(stop2 < stop) break;
 				}
 				double stop3 = (X-Xo3).colwise().norm().mean();
-				//printf("stop: %f stop3: %f\n",stop,stop3);
 				Xo3 = X;
 				if(stop3 < stop) break;
 			}
 			double stop4 = (X-Xo4).colwise().norm().mean();
-			//printf("stop: %f stop4: %f\n",stop,stop4);
 			Xo4 = X;
 			if(stop4 < stop) break;
 		}
-		//if(visualizationLvl >= 2){show(X,Y);}
 		double noise_before = func->getNoise();
 		func->update();
 		double noise_after = func->getNoise();
 		if(fabs(1.0 - noise_after/noise_before) < 0.01){break;}
 	}
+
+
+
+	//printf("refinement timing: %f (max %f)\n",getTime()-start,maxtime);
+
     if(visualizationLvl >= 2){show(X,Y);}
 
 	pcl::TransformationFromCorrespondences tfc;
 	tfc.reset();
 	for(unsigned int i = 0; i < xcols; i++){
-		Eigen::Vector3f a (X(0,i),						X(1,i),					X(2,i));
-		Eigen::Vector3f b (src->data(0,i*stepx),		src->data(1,i*stepx),	src->data(2,i*stepx));
-		tfc.add(b,a);
+		//Eigen::Vector3f a (X(0,i),						X(1,i),					X(2,i));
+		//Eigen::Vector3f b (src->data(0,i*stepx),		src->data(1,i*stepx),	src->data(2,i*stepx));
+		tfc.add(Eigen::Vector3f(src->data(0,i*stepx),	src->data(1,i*stepx),	src->data(2,i*stepx)),Eigen::Vector3f (X(0,i),X(1,i),	X(2,i)));
 	}
 	guess = tfc.getTransformation().matrix().cast<double>();
+
     FusionResults fr = FusionResults(guess,stop);
-//printf("LINE: %i\n",__LINE__);
+	fr.timeout = timestopped;
 	return fr;
 
 }

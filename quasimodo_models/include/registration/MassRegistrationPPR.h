@@ -4,8 +4,6 @@
 #include "MassRegistration.h"
 #include <time.h>
 
-//#include "DistanceWeightFunction2.h"
-//#include "ICP.h"
 namespace reglib
 {
 
@@ -32,22 +30,26 @@ namespace reglib
 		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > transformed_points;
 		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > transformed_normals;
 		std::vector< Eigen::VectorXd > informations;
-		std::vector< nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * > trees;
+
+        std::vector< int > nr_arraypoints;
+		std::vector< double * > arraypoints;
+		std::vector< Tree3d * > trees3d;
+		std::vector< ArrayData3D<double> * > a3dv;
 
 		std::vector<int> nr_matches;
 		std::vector< std::vector< std::vector<int> > > matchids;
 
 		std::vector<int> sweepids;
 		std::vector<int> background_nr_datas;
-		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > background_points;
-		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > background_colors;
-		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > background_normals;
-		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > background_transformed_points;
-		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > background_transformed_normals;
-		std::vector< Eigen::VectorXd > background_informations;
-		std::vector< nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * > background_trees;
-		std::vector<int> background_nr_matches;
-		std::vector< std::vector< std::vector<int> > > background_matchids;
+//		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > background_points;
+//		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > background_colors;
+//		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > background_normals;
+//		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > background_transformed_points;
+//		std::vector< Eigen::Matrix<double, 3, Eigen::Dynamic> > background_transformed_normals;
+//		std::vector< Eigen::VectorXd > background_informations;
+//		std::vector< nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * > background_trees;
+//		std::vector<int> background_nr_matches;
+//		std::vector< std::vector< std::vector<int> > > background_matchids;
 
 
 //		std::vector<int> feature_start;//Dimension of data a specific feature starts, if the feature is RGB this should be 3

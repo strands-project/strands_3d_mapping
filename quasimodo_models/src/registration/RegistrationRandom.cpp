@@ -1,10 +1,10 @@
 #include "registration/RegistrationRandom.h"
-#include "registration/ICP.h"
+//#include "registration/ICP.h"
 
 #include <iostream>
 #include <fstream>
 
-#include "registration/myhull.h"
+//#include "registration/myhull.h"
 
 //#include <pcl/surface/convex_hull.h>
 
@@ -192,7 +192,7 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	}
 
 	/// Build kd-tree
-	nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>                  kdtree(Y);
+	//nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple>                  kdtree(Y);
 
 	Eigen::VectorXd DST_INORMATION = Eigen::VectorXd::Zero(Y.cols());
 	for(unsigned int i = 0; i < d_nr_data/stepy; i++){DST_INORMATION(i) = dst->information(0,i*stepy);}
@@ -246,6 +246,8 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 
 
 	double sumtime = 0;
+	double sumtimeSum = 0;
+	double sumtimeOK = 0;
 	int r = 0;
 
     refinement->viewer = viewer;
@@ -256,7 +258,7 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 //		double ry = 2.0*M_PI*0.0001*double(rand()%10000);
 //		double rz = 2.0*M_PI*0.0001*double(rand()%10000);
     //double stop = 0;
-	double step = 0.1+2.0*M_PI/4;
+	double step = 0.1+2.0*M_PI/5;
 	for(double rx = 0; rx < 2.0*M_PI; rx += step){
 	for(double ry = 0; ry < 2.0*M_PI; ry += step)
 	for(double rz = 0; rz < 2.0*M_PI; rz += step){
@@ -265,8 +267,8 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 		double start = getTime();
 
 		double meantime = 999999999999;
-		if(r != 0){meantime = sumtime/double(r+1);}
-        refinement->maxtime = 3*meantime;
+		if(r != 0){meantime = sumtimeSum/double(sumtimeOK+1.0);}
+		refinement->maxtime = std::min(0.5,3*meantime);
 
         Eigen::VectorXd startparam = Eigen::VectorXd(3);
         startparam(0) = rx;
@@ -282,9 +284,16 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 		Eigen::Affine3d current_guess = Ymean*randomrot*Xmean.inverse();//*Ymean;
         refinement->target_points = 250;
         FusionResults fr = refinement->getTransform(current_guess.matrix());
-
+//fr.timeout = timestopped;
         double stoptime = getTime();
         sumtime += stoptime-start;
+
+		if(!fr.timeout){
+			sumtimeSum += stoptime-start;
+			sumtimeOK++;
+		}
+
+		//printf("sumtime: %f\n",sumtime);
         stop = fr.score;
         Eigen::Matrix4d m = fr.guess;
         current_guess = m;//fr.guess;
@@ -352,7 +361,7 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	}
 }
 //	printf("sumtime: %f\n",sumtime);
-    refinement->maxtime = 9999999999;
+	//refinement->maxtime = 5*meantime;
 	for(unsigned int ax = 0; ax < all_X.size() && ax < 5; ax++){
 		//printf("%i -> %i\n",ax,count_X[ax]);
 		//if(visualizationLvl >= 2){show(all_X[ax],Y);}

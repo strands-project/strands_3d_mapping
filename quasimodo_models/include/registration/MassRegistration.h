@@ -19,11 +19,12 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-#include "ICP.h"
+//#include "ICP.h"
+//#include "nanoflann.hpp"
 
 #include "../weightfunctions/DistanceWeightFunction2.h"
-#include "RegistrationSICP.h"
 #include "../core/RGBDFrame.h"
+#include "../core/Util.h"
 #include "../model/Model.h"
 
 namespace reglib
@@ -100,6 +101,6 @@ namespace reglib
 
 //#include "RegistrationSICP.h"
 #include "MassRegistrationPPR.h"
-#include "MassRegistrationPPRColor.h"
+//#include "MassRegistrationPPRColor.h"
 //#include "RegistrationGOICP.h"
 #endif // MassRegistration_H

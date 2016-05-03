@@ -19,8 +19,9 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-#include "ICP.h"
-
+//#include "ICP.h"
+#include "../core/Util.h"
+//#include "nanoflann.hpp"
 #include "../weightfunctions/DistanceWeightFunction2.h"
 
 namespace reglib
@@ -43,6 +44,7 @@ namespace reglib
 
 		Eigen::MatrixXd guess;
 		double score;
+		bool timeout;
 
 		std::vector< Eigen::MatrixXd > candidates;
 		std::vector< int > counts;
@@ -87,9 +89,6 @@ namespace reglib
 
 }
 
-#include "RegistrationSICP.h"
-#include "RegistrationPPR.h"
 #include "RegistrationRefinement.h"
-#include "RegistrationRefinementColor.h"
 #include "RegistrationRandom.h"
 #endif // Registration_H

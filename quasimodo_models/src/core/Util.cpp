@@ -1,180 +1,6 @@
 #include "core/Util.h"
 namespace reglib{
 
-    namespace RigidMotionEstimator5 {
-		/// @param Source (one 3D point per column)
-		/// @param Target (one 3D point per column)
-		/// @param Target normals (one 3D normal per column)
-		/// @param Confidence weights
-		/// @param Right hand side
-		template <typename Derived1, typename Derived2, typename Derived3, typename Derived4, typename Derived5, typename Derived6>
-		Eigen::Affine3d point_to_plane(Eigen::MatrixBase<Derived1>& X,
-									   Eigen::MatrixBase<Derived2>& Xn,
-									   Eigen::MatrixBase<Derived3>& Y,
-									   Eigen::MatrixBase<Derived4>& Yn,
-									   const Eigen::MatrixBase<Derived5>& w,
-									   const Eigen::MatrixBase<Derived6>& u,
-									   bool dox,
-									   bool doy) {
-
-			if(!dox && !doy){return Eigen::Affine3d::Identity();}
-
-			typedef Eigen::Matrix<double, 6, 6> Matrix66;
-			typedef Eigen::Matrix<double, 6, 1> Vector6;
-			typedef Eigen::Block<Matrix66, 3, 3> Block33;
-
-			/// Normalize weight vector
-			Eigen::VectorXd w_normalized = w/w.sum();
-			/// De-mean
-			Eigen::Vector3d X_mean;
-			for(int i=0; i<3; ++i){X_mean(i) = (X.row(i).array()*w_normalized.transpose().array()).sum();}
-			X.colwise() -= X_mean;
-			Y.colwise() -= X_mean;
-			/// Prepare LHS and RHS
-
-
-			Matrix66 LHS1 = Matrix66::Zero();
-			Vector6 RHS1 = Vector6::Zero();
-			if(dox){
-				Block33 TL = LHS1.topLeftCorner<3,3>();
-				Block33 TR = LHS1.topRightCorner<3,3>();
-				Block33 BR = LHS1.bottomRightCorner<3,3>();
-				Eigen::MatrixXd C = Eigen::MatrixXd::Zero(3,X.cols());
-				#pragma omp parallel
-				{
-					#pragma omp for
-					for(int i=0; i<X.cols(); i++) {
-						C.col(i) = X.col(i).cross(Yn.col(i));
-					}
-					#pragma omp sections nowait
-					{
-						#pragma omp section
-						for(int i=0; i<X.cols(); i++) TL.selfadjointView<Eigen::Upper>().rankUpdate(C.col(i), w(i));
-						#pragma omp section
-						for(int i=0; i<X.cols(); i++) TR += (C.col(i)*Yn.col(i).transpose())*w(i);
-						#pragma omp section
-						for(int i=0; i<X.cols(); i++) BR.selfadjointView<Eigen::Upper>().rankUpdate(Yn.col(i), w(i));
-						#pragma omp section
-						for(int i=0; i<C.cols(); i++) {
-							double dist_to_plane = -((X.col(i) - Y.col(i)).dot(Yn.col(i)) - u(i))*w(i);
-							RHS1.head<3>() += C.col(i)*dist_to_plane;
-							RHS1.tail<3>() += Yn.col(i)*dist_to_plane;
-						}
-					}
-				}
-				LHS1 = LHS1.selfadjointView<Eigen::Upper>();
-			}
-
-			Matrix66 LHS2 = Matrix66::Zero();
-			Vector6 RHS2 = Vector6::Zero();
-			if(doy){
-				Block33 TL = LHS2.topLeftCorner<3,3>();
-				Block33 TR = LHS2.topRightCorner<3,3>();
-				Block33 BR = LHS2.bottomRightCorner<3,3>();
-				Eigen::MatrixXd C = Eigen::MatrixXd::Zero(3,Y.cols());
-				#pragma omp parallel
-				{
-					#pragma omp for
-					for(int i=0; i<Y.cols(); i++) {
-						C.col(i) = Y.col(i).cross(Xn.col(i));
-					}
-					#pragma omp sections nowait
-					{
-						#pragma omp section
-						for(int i=0; i<Y.cols(); i++) TL.selfadjointView<Eigen::Upper>().rankUpdate(C.col(i), w(i));
-						#pragma omp section
-						for(int i=0; i<Y.cols(); i++) TR += (C.col(i)*Xn.col(i).transpose())*w(i);
-						#pragma omp section
-						for(int i=0; i<Y.cols(); i++) BR.selfadjointView<Eigen::Upper>().rankUpdate(Xn.col(i), w(i));
-						#pragma omp section
-						for(int i=0; i<C.cols(); i++) {
-							double dist_to_plane = -((Y.col(i) - X.col(i)).dot(Xn.col(i)) - u(i))*w(i);
-							RHS2.head<3>() += C.col(i)*dist_to_plane;
-							RHS2.tail<3>() += Xn.col(i)*dist_to_plane;
-						}
-					}
-				}
-				LHS2 = LHS2.selfadjointView<Eigen::Upper>();
-			}
-
-			Matrix66 LHS = LHS1 + LHS2;
-			Vector6 RHS = RHS1 - RHS2;
-			/// Compute transformation
-			Eigen::Affine3d transformation;
-			Eigen::LDLT<Matrix66> ldlt(LHS);
-			RHS = ldlt.solve(RHS);
-			transformation  = Eigen::AngleAxisd(RHS(0), Eigen::Vector3d::UnitX()) *
-							  Eigen::AngleAxisd(RHS(1), Eigen::Vector3d::UnitY()) *
-							  Eigen::AngleAxisd(RHS(2), Eigen::Vector3d::UnitZ());
-			Xn = transformation*Xn;
-
-			transformation.translation() = RHS.tail<3>();
-			/// Apply transformation
-			X = transformation*X;
-			/// Re-apply mean
-			X.colwise() += X_mean;
-			Y.colwise() += X_mean;
-			/// Return transformation
-			return transformation;
-		}
-
-		/// @param Source (one 3D point per column)
-		/// @param Target (one 3D point per column)
-		/// @param Target normals (one 3D normal per column)
-		/// @param Confidence weights
-		template <typename Derived1, typename Derived2, typename Derived3, typename Derived4, typename Derived5>
-		inline Eigen::Affine3d point_to_plane(Eigen::MatrixBase<Derived1>& X,
-											  Eigen::MatrixBase<Derived2>& Xn,
-											  Eigen::MatrixBase<Derived3>& Yp,
-											  Eigen::MatrixBase<Derived4>& Yn,
-											  const Eigen::MatrixBase<Derived5>& w,
-											  bool dox,
-											  bool doy) {
-			return point_to_plane(X,Xn,Yp, Yn, w, Eigen::VectorXd::Zero(X.cols()),dox,doy);
-		}
-
-        /// @param Source (one 3D point per column)
-        /// @param Target (one 3D point per column)
-        /// @param Confidence weights
-        template <typename Derived1, typename Derived2, typename Derived3>
-        Eigen::Affine3d point_to_point(Eigen::MatrixBase<Derived1>& X, Eigen::MatrixBase<Derived2>& Y, const Eigen::MatrixBase<Derived3>& w) {
-            /// Normalize weight vector
-            Eigen::VectorXd w_normalized = w/w.sum();
-            /// De-mean
-            Eigen::Vector3d X_mean, Y_mean;
-            for(int i=0; i<3; ++i) {
-                X_mean(i) = (X.row(i).array()*w_normalized.transpose().array()).sum();
-                Y_mean(i) = (Y.row(i).array()*w_normalized.transpose().array()).sum();
-            }
-            X.colwise() -= X_mean;
-            Y.colwise() -= Y_mean;
-            /// Compute transformation
-            Eigen::Affine3d transformation;
-            Eigen::Matrix3d sigma = X * w_normalized.asDiagonal() * Y.transpose();
-            Eigen::JacobiSVD<Eigen::Matrix3d> svd(sigma, Eigen::ComputeFullU | Eigen::ComputeFullV);
-            if(svd.matrixU().determinant()*svd.matrixV().determinant() < 0.0) {
-                Eigen::Vector3d S = Eigen::Vector3d::Ones(); S(2) = -1.0;
-                transformation.linear().noalias() = svd.matrixV()*S.asDiagonal()*svd.matrixU().transpose();
-            } else {
-                transformation.linear().noalias() = svd.matrixV()*svd.matrixU().transpose();
-            }
-            transformation.translation().noalias() = Y_mean - transformation.linear()*X_mean;
-            /// Apply transformation
-            X = transformation*X;
-            /// Re-apply mean
-            X.colwise() += X_mean;
-            Y.colwise() += Y_mean;
-            /// Return transformation
-            return transformation;
-        }
-        /// @param Source (one 3D point per column)
-        /// @param Target (one 3D point per column)
-        template <typename Derived1, typename Derived2>
-        inline Eigen::Affine3d point_to_point(Eigen::MatrixBase<Derived1>& X, Eigen::MatrixBase<Derived2>& Y) {
-            return point_to_point(X, Y, Eigen::VectorXd::Ones(X.cols()));
-        }
-	}
-
 	double getTime(){
 		struct timeval start1;
 		gettimeofday(&start1, NULL);
@@ -225,5 +51,142 @@ namespace reglib{
 		camera[4] = mat(1,3);
 		camera[5] = mat(2,3);
 		return camera;
+	}
+
+	Eigen::Matrix4d constructTransformationMatrix (const double & alpha, const double & beta, const double & gamma, const double & tx,    const double & ty,   const double & tz){
+		// Construct the transformation matrix from rotation and translation
+		Eigen::Matrix4d transformation_matrix = Eigen::Matrix4d::Zero ();
+		transformation_matrix (0, 0) =  cos (gamma) * cos (beta);
+		transformation_matrix (0, 1) = -sin (gamma) * cos (alpha) + cos (gamma) * sin (beta) * sin (alpha);
+		transformation_matrix (0, 2) =  sin (gamma) * sin (alpha) + cos (gamma) * sin (beta) * cos (alpha);
+		transformation_matrix (1, 0) =  sin (gamma) * cos (beta);
+		transformation_matrix (1, 1) =  cos (gamma) * cos (alpha) + sin (gamma) * sin (beta) * sin (alpha);
+		transformation_matrix (1, 2) = -cos (gamma) * sin (alpha) + sin (gamma) * sin (beta) * cos (alpha);
+		transformation_matrix (2, 0) = -sin (beta);
+		transformation_matrix (2, 1) =  cos (beta) * sin (alpha);
+		transformation_matrix (2, 2) =  cos (beta) * cos (alpha);
+
+		transformation_matrix (0, 3) = tx;
+		transformation_matrix (1, 3) = ty;
+		transformation_matrix (2, 3) = tz;
+		transformation_matrix (3, 3) = 1;
+		return transformation_matrix;
+	}
+
+	void point_to_plane2(		Eigen::Matrix<double, 3, Eigen::Dynamic> & X,
+								Eigen::Matrix<double, 3, Eigen::Dynamic> & Xn,
+								Eigen::Matrix<double, 3, Eigen::Dynamic> & Y,
+								Eigen::Matrix<double, 3, Eigen::Dynamic> & Yn,
+								Eigen::VectorXd & W){
+		typedef Eigen::Matrix<double, 6, 1> Vector6d;
+		typedef Eigen::Matrix<double, 6, 6> Matrix6d;
+
+		Matrix6d ATA;
+		Vector6d ATb;
+		ATA.setZero ();
+		ATb.setZero ();
+
+		unsigned int xcols = X.cols();
+		for(unsigned int i=0; i < xcols; i++) {
+			const double & sx = X(0,i);
+			const double & sy = X(1,i);
+			const double & sz = X(2,i);
+			const double & dx = Y(0,i);
+			const double & dy = Y(1,i);
+			const double & dz = Y(2,i);
+			const double & nx = Xn(0,i);
+			const double & ny = Xn(1,i);
+			const double & nz = Xn(2,i);
+			const double & weight = W(i);
+
+			double a = nz*sy - ny*sz;
+			double b = nx*sz - nz*sx;
+			double c = ny*sx - nx*sy;
+
+			ATA.coeffRef (0) += weight * a * a;
+			ATA.coeffRef (1) += weight * a * b;
+			ATA.coeffRef (2) += weight * a * c;
+			ATA.coeffRef (3) += weight * a * nx;
+			ATA.coeffRef (4) += weight * a * ny;
+			ATA.coeffRef (5) += weight * a * nz;
+			ATA.coeffRef (7) += weight * b * b;
+			ATA.coeffRef (8) += weight * b * c;
+			ATA.coeffRef (9) += weight * b * nx;
+			ATA.coeffRef (10) += weight * b * ny;
+			ATA.coeffRef (11) += weight * b * nz;
+			ATA.coeffRef (14) += weight * c * c;
+			ATA.coeffRef (15) += weight * c * nx;
+			ATA.coeffRef (16) += weight * c * ny;
+			ATA.coeffRef (17) += weight * c * nz;
+			ATA.coeffRef (21) += weight * nx * nx;
+			ATA.coeffRef (22) += weight * nx * ny;
+			ATA.coeffRef (23) += weight * nx * nz;
+			ATA.coeffRef (28) += weight * ny * ny;
+			ATA.coeffRef (29) += weight * ny * nz;
+			ATA.coeffRef (35) += weight * nz * nz;
+
+			double d = weight * (nx*dx + ny*dy + nz*dz - nx*sx - ny*sy - nz*sz);
+
+			ATb.coeffRef (0) += a * d;
+			ATb.coeffRef (1) += b * d;
+			ATb.coeffRef (2) += c * d;
+			ATb.coeffRef (3) += nx * d;
+			ATb.coeffRef (4) += ny * d;
+			ATb.coeffRef (5) += nz * d;
+		}
+
+		ATA.coeffRef (6) = ATA.coeff (1);
+		ATA.coeffRef (12) = ATA.coeff (2);
+		ATA.coeffRef (13) = ATA.coeff (8);
+		ATA.coeffRef (18) = ATA.coeff (3);
+		ATA.coeffRef (19) = ATA.coeff (9);
+		ATA.coeffRef (20) = ATA.coeff (15);
+		ATA.coeffRef (24) = ATA.coeff (4);
+		ATA.coeffRef (25) = ATA.coeff (10);
+		ATA.coeffRef (26) = ATA.coeff (16);
+		ATA.coeffRef (27) = ATA.coeff (22);
+		ATA.coeffRef (30) = ATA.coeff (5);
+		ATA.coeffRef (31) = ATA.coeff (11);
+		ATA.coeffRef (32) = ATA.coeff (17);
+		ATA.coeffRef (33) = ATA.coeff (23);
+		ATA.coeffRef (34) = ATA.coeff (29);
+
+		// Solve A*x = b
+		Vector6d x = static_cast<Vector6d> (ATA.inverse () * ATb);
+		Eigen::Affine3d transformation = Eigen::Affine3d(constructTransformationMatrix(x(0,0),x(1,0),x(2,0),x(3,0),x(4,0),x(5,0)));
+
+		X = transformation*X;
+		transformation(0,3) = 0;
+		transformation(1,3) = 0;
+		transformation(2,3) = 0;
+		Xn = transformation*Xn;
+	}
+
+	bool isconverged(std::vector<Eigen::Matrix4d> before, std::vector<Eigen::Matrix4d> after, double stopvalr, double stopvalt){
+		double change_trans = 0;
+		double change_rot = 0;
+		unsigned int nr_frames = after.size();
+		for(unsigned int i = 0; i < nr_frames; i++){
+			for(unsigned int j = i+1; j < nr_frames; j++){
+				Eigen::Matrix4d diff_before = after[i].inverse()*after[j];
+				Eigen::Matrix4d diff_after	= before[i].inverse()*before[j];
+				Eigen::Matrix4d diff = diff_before.inverse()*diff_after;
+				double dt = 0;
+				for(unsigned int k = 0; k < 3; k++){
+					dt += diff(k,3)*diff(k,3);
+					for(unsigned int l = 0; l < 3; l++){
+						if(k == l){ change_rot += fabs(1-diff(k,l));}
+						else{		change_rot += fabs(diff(k,l));}
+					}
+				}
+				change_trans += sqrt(dt);
+			}
+		}
+
+		change_trans /= double(nr_frames*(nr_frames-1));
+		change_rot	 /= double(nr_frames*(nr_frames-1));
+
+		if(change_trans < stopvalt && change_rot < stopvalr){return true;}
+		else{return false;}
 	}
 }

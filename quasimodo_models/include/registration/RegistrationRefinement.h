@@ -3,10 +3,7 @@
 
 #include "Registration.h"
 #include <time.h>
-
-#include "RegistrationPPR.h"
-#include "ICP.h"
-//#include "GoICP_V1.3/src/jly_goicp.h"
+#include "nanoflann.hpp"
 
 namespace reglib
 {
@@ -25,14 +22,13 @@ namespace reglib
 		unsigned int ycols;
 
 		Eigen::VectorXd DST_INORMATION;
-		//nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> kdtree;
-		nanoflann::KDTreeAdaptor<Eigen::Matrix3Xd, 3, nanoflann::metric_L2_Simple> * tree;
-
-		std::vector<int> feature_start;//Dimension of data a specific feature starts, if the feature is RGB this should be 3
-		std::vector<int> feature_end;//Dimension of data a specific feature ends, if the feature is RGB this should be 5
-		std::vector< DistanceWeightFunction2 * > feature_func;
 
         DistanceWeightFunction2PPR2 * func;
+
+		int nr_arraypoints;
+		double * arraypoints;
+		Tree3d * trees3d;
+		ArrayData3D<double> * a3d;
 
 		RegistrationRefinement();
 		~RegistrationRefinement();

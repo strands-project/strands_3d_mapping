@@ -94,23 +94,6 @@ target_link_libraries(quasimodo_ModelDatabase
                       ${PCL_LIBRARIES}
                       ${catkin_LIBRARIES})
 
-#add_executable(			test_ModelDatabase src/test_ModelDatabase.cpp)
-#add_dependencies(		test_ModelDatabase roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	test_ModelDatabase quasimodo_ModelDatabase quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			brain_test_msgs src/test_msgs.cpp)
-#add_dependencies(		brain_test_msgs roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	brain_test_msgs quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			preload_data src/preload_data.cpp)
-#add_dependencies(		preload_data roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	preload_data quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-
-#add_executable(			preload_chair_data src/preload_chair_data.cpp)
-#add_dependencies(		preload_chair_data roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	preload_chair_data quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
 add_executable(			preload_object_data src/preload_object_data.cpp)
 target_link_libraries(	preload_object_data ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${QT_LIBRARIES} metaroom_xml_parser)
 add_dependencies(		preload_object_data roscpp quasimodo_msgs_generate_messages_cpp)
@@ -121,23 +104,6 @@ target_link_libraries(	robot_listener ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${QT_
 add_dependencies(	robot_listener roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	robot_listener quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(			preload_object_data2 src/preload_object_data2.cpp)
-target_link_libraries(	preload_object_data2 ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${QT_LIBRARIES} metaroom_xml_parser)
-add_dependencies(		preload_object_data2 roscpp quasimodo_msgs_generate_messages_cpp)
-target_link_libraries(	preload_object_data2 quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			load_additional_views src/load_additional_views.cpp)
-#add_dependencies(		load_additional_views roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	load_additional_views quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			preload_test_data src/preload_test_data.cpp)
-#add_dependencies(		preload_test_data roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	preload_test_data quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			usepreload src/usepreload.cpp)
-#add_dependencies(		usepreload roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	usepreload quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
 add_executable(			modelserver src/modelserver.cpp)
 add_dependencies(		modelserver roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	modelserver quasimodo_ModelDatabase quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
@@ -147,56 +113,6 @@ add_executable(			MeshTest src/MeshTest.cpp)
 add_dependencies(		MeshTest roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	MeshTest quasimodo_ModelDatabase quasimodo_Mesher quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
-#add_executable(			modelserver2 src/modelserver2.cpp)
-#add_dependencies(		modelserver2 roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	modelserver2 quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			kinect_node src/kinect_node.cpp)
-#add_dependencies(		kinect_node roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	kinect_node quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			build_dataset_node src/build_dataset_node.cpp)
-#add_dependencies(		build_dataset_node roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	build_dataset_node quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			load_dataset_node src/load_dataset_node.cpp)
-#add_dependencies(		load_dataset_node roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	load_dataset_node quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			pcd_node src/pcd_node.cpp)
-#add_dependencies(		pcd_node roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	pcd_node quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			graph_part src/graph_part.cpp)
-#add_dependencies(		graph_part roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	graph_part quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			super src/super.cpp)
-#add_dependencies(		super roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	super quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-
-#add_executable(			bag_reader src/bag_reader.cpp)
-#add_dependencies(		bag_reader roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	bag_reader quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			make_ply2pcd src/make_ply2pcd.cpp)
-#add_dependencies(		make_ply2pcd roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	make_ply2pcd quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-
-#add_executable(		fb_node src/fb_node.cpp)
-#add_dependencies(		fb_node roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	fb_node quasimodo_ModelUpdater2 image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			test_noise src/test_noise.cpp)
-#add_dependencies(		test_noise roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	test_noise quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
-#add_executable(			test_align src/test_align.cpp)
-#add_dependencies(		test_align roscpp quasimodo_msgs_generate_messages_cpp)
-#target_link_libraries(	test_align  ${CERES_LIBRARIES} quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
-
 #############
 ## Install ##
 #############
@@ -205,19 +121,17 @@ target_link_libraries(	MeshTest quasimodo_ModelDatabase quasimodo_Mesher quasimo
 # See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
 
 # Mark executables and/or libraries for installation
-#install(TARGETS quasimodo_ModelDatabase test_ModelDatabase brain_test_msgs preload_data preload_chair_data preload_object_data preload_test_data
-#                usepreload modelserver MeshTest modelserver2 kinect_node build_dataset_node load_dataset_node pcd_node
-#                graph_part super bag_reader make_ply2pcd fb_node test_noise test_align
+
 install(TARGETS quasimodo_ModelDatabase preload_object_data modelserver robot_listener
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(DIRECTORY src/ModelDatabase
-  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION} # ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-)
+#install(DIRECTORY src/ModelDatabase
+#  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION} # ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+#)
 
-install(DIRECTORY launch
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
+#install(DIRECTORY launch
+#  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+#)

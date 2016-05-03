@@ -44,25 +44,17 @@ FIND_PACKAGE(Ceres REQUIRED)
 INCLUDE_DIRECTORIES(${CERES_INCLUDE_DIRS})
 
 
-add_library(quasimodo_SICP src/registration/ICP.cpp)
-target_link_libraries(quasimodo_SICP ${catkin_LIBRARIES})
-
 add_library(quasimodo_weightlib src/weightfunctions/DistanceWeightFunction2.cpp src/weightfunctions/DistanceWeightFunction2PPR.cpp src/weightfunctions/DistanceWeightFunction2PPR2.cpp)
-target_link_libraries(quasimodo_weightlib quasimodo_SICP ceres glog ${catkin_LIBRARIES})
-
-add_library(quasimodo_myhull src/registration/myhull.cpp)
-target_link_libraries(quasimodo_myhull ${catkin_LIBRARIES})
-
-add_library(quasimodo_reglib src/registration/Registration.cpp src/registration/RegistrationSICP.cpp src/registration/RegistrationPPR.cpp src/registration/RegistrationRandom.cpp src/registration/RegistrationRefinement.cpp src/registration/RegistrationRefinementColor.cpp)
-target_link_libraries(quasimodo_reglib quasimodo_myhull quasimodo_SICP quasimodo_weightlib ceres glog ${catkin_LIBRARIES})
+target_link_libraries(quasimodo_weightlib ceres glog ${catkin_LIBRARIES})
 
 add_library(quasimodo_core src/core/Util.cpp src/core/Camera.cpp src/core/RGBDFrame.cpp)
-target_link_libraries(quasimodo_core ${CERES_LIBRARIES} quasimodo_SICP ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(quasimodo_core ${CERES_LIBRARIES} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
+add_library(quasimodo_reglib src/registration/Registration.cpp src/registration/RegistrationRandom.cpp src/registration/RegistrationRefinement.cpp)
+target_link_libraries(quasimodo_reglib quasimodo_weightlib ceres glog ${catkin_LIBRARIES})
 
-
-add_library(quasimodo_massreglib src/registration/MassRegistration.cpp src/registration/MassRegistrationPPR.cpp src/registration/MassRegistrationPPRColor.cpp)
-target_link_libraries(quasimodo_massreglib quasimodo_reglib quasimodo_core)# g2o_cli g2o_interactive g2o_solver_cholmod g2o_solver_slam2d_linear g2o_types_sba g2o_types_slam3d_addons g2o_core g2o_interface g2o_solver_csparse g2o_solver_structure_only g2o_types_sclam2d g2o_types_slam3d g2o_csparse_extension g2o_opengl_helper g2o_solver_dense g2o_stuff g2o_types_sim3 g2o_viewer g2o_ext_freeglut_minimal g2o_parser g2o_solver_eigen g2o_types_data g2o_types_slam2d_addons g2o_incremental g2o_simulator g2o_solver_pcg g2o_types_icp g2o_types_slam2d)
+add_library(quasimodo_massreglib src/registration/MassRegistration.cpp src/registration/MassRegistrationPPR.cpp)
+target_link_libraries(quasimodo_massreglib quasimodo_reglib quasimodo_core)
 
 add_library(quasimodo_modelmask src/model/ModelMask.cpp)
 target_link_libraries(quasimodo_modelmask quasimodo_core quasimodo_reglib ${catkin_LIBRARIES})
@@ -72,7 +64,6 @@ target_link_libraries(quasimodo_model quasimodo_modelmask quasimodo_core quasimo
 
 add_library(quasimodo_Mesher src/mesher/Mesh.cpp)
 target_link_libraries(quasimodo_Mesher quasimodo_model ${catkin_LIBRARIES})
-
 
 add_library(quasimodo_ModelUpdater src/modelupdater/ModelUpdater.cpp src/modelupdater/ModelUpdaterBasic.cpp src/modelupdater/ModelUpdaterBasicFuse.cpp)
 target_link_libraries(quasimodo_ModelUpdater quasimodo_model quasimodo_reglib quasimodo_massreglib ${catkin_LIBRARIES})
@@ -95,7 +86,7 @@ catkin_package(
 
 
 # Mark executables and/or libraries for installation
-install(TARGETS quasimodo_SICP quasimodo_weightlib quasimodo_myhull quasimodo_reglib quasimodo_core quasimodo_massreglib quasimodo_modelmask quasimodo_model quasimodo_Mesher quasimodo_ModelUpdater
+install(TARGETS quasimodo_weightlib quasimodo_core quasimodo_reglib quasimodo_massreglib quasimodo_modelmask quasimodo_model quasimodo_Mesher quasimodo_ModelUpdater
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

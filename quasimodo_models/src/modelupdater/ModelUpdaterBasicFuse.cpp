@@ -148,8 +148,8 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 	double beforescore = model1->total_scores+model2->total_scores;
 //	printf("beforescore: %f\n",beforescore);
 	//std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_masks,current_modelmasks,false);
-	//std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_modelmasks,false);
-	std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_modelmasks,true);
+	std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_modelmasks,false);
+	//std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_modelmasks,true);
     std::vector<std::vector < float > > scores = getScores(ocs);
 	std::vector<int> partition = getPartition(scores,2,5,2);
 
