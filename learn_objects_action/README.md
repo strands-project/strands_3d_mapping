@@ -24,6 +24,7 @@ is used to trigger a metric map action.
 is used to track the camera pose as the robot drives around.
 - [`incremental_object_learning_srv_definitions`](https://github.com/strands-project/v4r_ros_wrappers/tree/master/incremental_object_learning_srv_definitions)
 is used to stitch together views of the object and learn a model.
+- [`rosbag_openni_compression`](https://github.com/strands-project/data_compression) is used to record a rosbag containing most of the published ros topics (including images from the `head_xtion`camera).
 - [`recognition_srv_definitions`](https://github.com/strands-project/v4r_ros_wrappers/tree/master/recognition_srv_definitions)
 is (not yet) used to re-recognise the learned object.
 
@@ -52,7 +53,7 @@ Additional specific nodes to launch:
 Finally the learn object action can be started:
 
 ```
-rosrun learn_objects_action server.py _model_path:=/home/strands/test_models
+rosrun learn_objects_action server.py _model_path:=/home/strands/test_models _record_run:=False
 ```
 
 There node can be started with the following parameters:
@@ -63,6 +64,16 @@ provided then no SOMA regions will be needed. (see below for example file)
 learning process. At each stage the action server will need confirmation to proceed, supplied over a ros topic.
 - `planning_method`: This selects which planning method to use to aquire the additional object views. Currently just the 
 default 'ral16' is working, but there is a skeleton method 'infogain' that is ready to add the [nbv_planning](https://github.com/cburbridge/scitos_3d_mapping/tree/hydro-devel/nbv_planning) code to.
+- `record_run` : This denotes whether or not to record the ros topics as the robot navigates around a cluster collecting additional views. By default this is False. 
+
+# Launch file
+
+All the dependencies, including the `learn_objects_action` action server can be started with:
+
+```
+roslaunch learn_objects_action learn_objects_dependencies.launch model_path:=/path/to/models/folder 
+```
+
 
 # Triggering a learning session
 
