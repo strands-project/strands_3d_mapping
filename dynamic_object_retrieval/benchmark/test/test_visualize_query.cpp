@@ -1,3 +1,4 @@
+#define VT_PRECOMPILE
 #include <vocabulary_tree/vocabulary_tree.h>
 #include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
 #include <dynamic_object_retrieval/summary_iterators.h>
