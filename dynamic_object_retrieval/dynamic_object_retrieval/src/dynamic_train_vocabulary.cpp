@@ -4,6 +4,7 @@
 
 #include <object_3d_retrieval/supervoxel_segmentation.h>
 
+#define VT_PRECOMPILE
 #include <vocabulary_tree/vocabulary_tree.h>
 #include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
 

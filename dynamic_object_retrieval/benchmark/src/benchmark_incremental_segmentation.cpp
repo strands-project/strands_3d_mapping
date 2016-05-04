@@ -1,6 +1,7 @@
 #include "object_3d_benchmark/benchmark_segmentation.h"
 #include "object_3d_benchmark/benchmark_overlap.h"
 
+#define VT_PRECOMPILE
 #include <vocabulary_tree/vocabulary_tree.h>
 #include <grouped_vocabulary_tree/grouped_vocabulary_tree.h>
 #include <object_3d_retrieval/pfhrgb_estimation.h>
