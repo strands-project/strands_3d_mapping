@@ -26,8 +26,6 @@ Mesh::~Mesh(){}
 void Mesh::build(Model * model, int type){
     if(type == 0){
         Vertex ** pixelvertexes = new Vertex*[640*480];
-
-
         for(unsigned int f = 0; f < model->frames.size(); f++){
             for(unsigned int i = 0; i < 640*480; i++){pixelvertexes[i] = 0;}
             RGBDFrame * frame = model->frames[f];

@@ -62,6 +62,8 @@ namespace reglib
 		~MassRegistrationPPR();
 		
 		MassFusionResults getTransforms(std::vector<Eigen::Matrix4d> guess);
+		void setData(std::vector<RGBDFrame*> frames_, std::vector<ModelMask *> mmasks);
+		void setData(std::vector< pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr > all_clouds);
 
 	};
 

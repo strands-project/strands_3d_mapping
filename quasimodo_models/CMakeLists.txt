@@ -66,7 +66,7 @@ add_library(quasimodo_Mesher src/mesher/Mesh.cpp)
 target_link_libraries(quasimodo_Mesher quasimodo_model ${catkin_LIBRARIES})
 
 add_library(quasimodo_ModelUpdater src/modelupdater/ModelUpdater.cpp src/modelupdater/ModelUpdaterBasic.cpp src/modelupdater/ModelUpdaterBasicFuse.cpp)
-target_link_libraries(quasimodo_ModelUpdater quasimodo_model quasimodo_reglib quasimodo_massreglib ${catkin_LIBRARIES})
+target_link_libraries(quasimodo_ModelUpdater quasimodo_Mesher quasimodo_model quasimodo_reglib quasimodo_massreglib ${catkin_LIBRARIES})
 
 
 catkin_package(

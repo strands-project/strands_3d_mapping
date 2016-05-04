@@ -40,7 +40,7 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 		printf("%i registerModel(%i %i)\n",__LINE__,int(model->id),int(model2->id));
         double best = -99999999999999;
         int best_id = -1;
-		for(unsigned int ca = 0; ca < fr.candidates.size() && ca < 15; ca++){
+		for(unsigned int ca = 0; ca < fr.candidates.size() && ca < 150; ca++){
             Eigen::Matrix4d pose = fr.candidates[ca];
             std::vector<Eigen::Matrix4d>	current_poses;
             std::vector<RGBDFrame*>			current_frames;
@@ -62,7 +62,7 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
             }
 
 			//std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_masks,current_modelmasks);
-			std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_modelmasks);
+			std::vector<std::vector < OcclusionScore > > ocs = getOcclusionScores(current_poses, current_frames,current_modelmasks,false,10.0);
             std::vector<std::vector < float > > scores = getScores(ocs);
             std::vector<int> partition = getPartition(scores,2,5,2);
 
@@ -87,6 +87,8 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
                 best = improvement;
                 best_id = ca;
             }
+
+			printf("tested %i with score: %f\n",ca,sumscore2);
 
             //printf("sumscore before: %f\n",sumscore1);
             //printf("sumscore after: %f\n",sumscore2);
@@ -131,11 +133,6 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
     for(unsigned int i = 0; i < model1->frames.size(); i++){
 		current_poses.push_back(				model1->relativeposes[i]);
 		current_frames.push_back(				model1->frames[i]);
-
-//		cv::namedWindow("mask",	cv::WINDOW_AUTOSIZE);
-//		cv::imshow(		"mask",	model1->masks[i]);
-//		cv::waitKey(0);
-
 		current_modelmasks.push_back(			model1->modelmasks[i]);
 	}
 
@@ -154,19 +151,21 @@ UpdatedModels ModelUpdaterBasicFuse::fuseData(FusionResults * f, Model * model1,
 	std::vector<int> partition = getPartition(scores,2,5,2);
 
 //	printf("model1\n");
+	unsigned int frames1 = model1->scores.size();
+	unsigned int frames2 = model2->scores.size();
 	double sumscore1 = 0;
-    for(unsigned int i = 0; i < model1->scores.size(); i++){
-        for(unsigned int j = 0; j < model1->scores.size(); j++){
-			sumscore1 += model1->scores[i][j];
+	for(unsigned int i = 0; i < frames1; i++){
+		for(unsigned int j = 0; j < frames1; j++){
+			sumscore1 += scores[i][j];
 		}
 	}
 
 
 //	printf("model2\n");
 	double sumscore2 = 0;
-    for(unsigned int i = 0; i < model2->scores.size(); i++){
-        for(unsigned int j = 0; j < model2->scores.size(); j++){
-			sumscore2 += model2->scores[i][j];
+	for(unsigned int i = 0; i < frames2; i++){
+		for(unsigned int j = 0; j < frames2; j++){
+			sumscore2 += scores[i+frames1][j+frames1];
 		}
 	}
 

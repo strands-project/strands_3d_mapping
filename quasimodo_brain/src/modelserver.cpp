@@ -472,9 +472,12 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
 		return;
 	}
 
+	bool changed = false;
+	std::map<int , reglib::Model *>	new_models;
+	std::map<int , reglib::Model *>	updated_models;
 	std::vector<reglib::Model * > models2merge;
 	std::vector<reglib::FusionResults > fr2merge;
-	bool multi_thread = true;
+	bool multi_thread = false;
 	if(multi_thread){
 		const int num_threads = res.size();
 		std::thread t[num_threads];
@@ -490,59 +493,71 @@ void addToDB(ModelDatabase * database, reglib::Model * model, bool add = true, b
 				printf("%i could be registered\n",i);
 			}
 		}
-	}else{
-		for(unsigned int i = 0; i < res.size(); i++){
-			reglib::Model * model2 = res[i];
+
+		for(unsigned int i = 0; i < models2merge.size(); i++){
+			reglib::Model * model2 = models2merge[i];
+
 			reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
 			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
 			mu->occlusion_penalty               = occlusion_penalty;
 			mu->massreg_timeout                 = massreg_timeout;
 			mu->viewer							= viewer;
-			reg->visualizationLvl				= 2;
+			reg->visualizationLvl				= 0;
+
+			reglib::UpdatedModels ud = mu->fuseData(&(fr2merge[i]), model, model2);
+			printf("merge %i to %i\n",int(model->id),int(model2->id));
+			printf("new_models:     %i\n",int(ud.new_models.size()));
+			printf("updated_models: %i\n",int(ud.updated_models.size()));
+			printf("deleted_models: %i\n",int(ud.deleted_models.size()));
+
+			delete mu;
+			delete reg;
+
+			for(unsigned int j = 0; j < ud.new_models.size(); j++){		new_models[ud.new_models[j]->id]			= ud.new_models[j];}
+			for(unsigned int j = 0; j < ud.updated_models.size(); j++){	updated_models[ud.updated_models[j]->id]	= ud.updated_models[j];}
+
+			for(unsigned int j = 0; j < ud.deleted_models.size(); j++){
+				database->remove(ud.deleted_models[j]);
+				delete ud.deleted_models[j];
+			}
+			if(ud.deleted_models.size() > 0){changed = true; break;}
+		}
+	}else{
+		for(unsigned int i = 0; i < res.size(); i++){
+			reglib::Model * model2 = res[i];
+			reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom();
+			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
+			mu->occlusion_penalty               = occlusion_penalty;
+			mu->massreg_timeout                 = massreg_timeout;
+			mu->viewer							= viewer;
+			reg->visualizationLvl				= 0;
 			reglib::FusionResults fr = mu->registerModel(model);
 
 			if(fr.score > 100){
 				fr.guess = fr.guess.inverse();
-				fr2merge.push_back(fr);
-				models2merge.push_back(model2);
+
+				reglib::UpdatedModels ud = mu->fuseData(&fr, model, model2);
+				printf("merge %i to %i\n",int(model->id),int(model2->id));
+				printf("new_models:     %i\n",int(ud.new_models.size()));
+				printf("updated_models: %i\n",int(ud.updated_models.size()));
+				printf("deleted_models: %i\n",int(ud.deleted_models.size()));
+
+				for(unsigned int j = 0; j < ud.new_models.size(); j++){		new_models[ud.new_models[j]->id]			= ud.new_models[j];}
+				for(unsigned int j = 0; j < ud.updated_models.size(); j++){	updated_models[ud.updated_models[j]->id]	= ud.updated_models[j];}
+
+				for(unsigned int j = 0; j < ud.deleted_models.size(); j++){
+					database->remove(ud.deleted_models[j]);
+					delete ud.deleted_models[j];
+				}
+				if(ud.deleted_models.size() > 0){changed = true; break;}
 			}
+
 			delete mu;
 			delete reg;
 		}
 	}
 
-	bool changed = false;
-	std::map<int , reglib::Model *>	new_models;
-	std::map<int , reglib::Model *>	updated_models;
-	for(unsigned int i = 0; i < models2merge.size(); i++){
-		reglib::Model * model2 = models2merge[i];
 
-		reglib::RegistrationRandom *	reg		= new reglib::RegistrationRandom();
-		reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
-		mu->occlusion_penalty               = occlusion_penalty;
-		mu->massreg_timeout                 = massreg_timeout;
-		mu->viewer							= viewer;
-		reg->visualizationLvl				= 0;
-
-		reglib::UpdatedModels ud = mu->fuseData(&(fr2merge[i]), model, model2);
-
-		printf("merge %i to %i\n",int(model->id),int(model2->id));
-		printf("new_models:     %i\n",int(ud.new_models.size()));
-		printf("updated_models: %i\n",int(ud.updated_models.size()));
-		printf("deleted_models: %i\n",int(ud.deleted_models.size()));
-
-		delete mu;
-		delete reg;
-
-		for(unsigned int j = 0; j < ud.new_models.size(); j++){		new_models[ud.new_models[j]->id]			= ud.new_models[j];}
-		for(unsigned int j = 0; j < ud.updated_models.size(); j++){	updated_models[ud.updated_models[j]->id]	= ud.updated_models[j];}
-
-		for(unsigned int j = 0; j < ud.deleted_models.size(); j++){
-			database->remove(ud.deleted_models[j]);
-			delete ud.deleted_models[j];
-		}
-		if(ud.deleted_models.size() > 0){changed = true; break;}
-	}
 
 	for (std::map<int,reglib::Model *>::iterator it=updated_models.begin(); it!=updated_models.end();	++it) {
 		database->remove(it->second);
@@ -832,15 +847,45 @@ int getdir (std::string dir, std::vector<std::string> & files){
 	return 0;
 }
 
-int main(int argc, char **argv){
-	ros::init(argc, argv, "quasimodo_model_server");
-	ros::NodeHandle n;
+void clearMem(){
 
+
+	for(auto iterator = cameras.begin(); iterator != cameras.end(); iterator++) {
+		delete iterator->second;
+	}
+
+	for(auto iterator = frames.begin(); iterator != frames.end(); iterator++) {
+		delete iterator->second;
+	}
+
+	for(auto iterator = models.begin(); iterator != models.end(); iterator++) {
+		reglib::Model * model = iterator->second;
+		for(unsigned int i = 0; i < model->frames.size(); i++){
+			delete model->frames[i];
+		}
+
+		for(unsigned int i = 0; i < model->modelmasks.size(); i++){
+			delete model->modelmasks[i];
+		}
+		delete model;
+	}
+
+	for(auto iterator = updaters.begin(); iterator != updaters.end(); iterator++) {
+		delete iterator->second;
+	}
+
+
+	if(registration != 0){delete registration;}
+	if(modeldatabase != 0){delete modeldatabase;}
+}
+
+int main(int argc, char **argv){
 	cameras[0]		= new reglib::Camera();
 	registration	= new reglib::RegistrationRandom();
-	//modeldatabase	= new ModelDatabaseBasic();
 	modeldatabase	= new ModelDatabaseRGBHistogram(5);
 
+	ros::init(argc, argv, "quasimodo_model_server");
+	ros::NodeHandle n;
 	models_new_pub		= n.advertise<quasimodo_msgs::model>("/models/new",		1000);
 	models_updated_pub	= n.advertise<quasimodo_msgs::model>("/models/updated", 1000);
 	models_deleted_pub	= n.advertise<quasimodo_msgs::model>("/models/deleted", 1000);
@@ -857,12 +902,11 @@ int main(int argc, char **argv){
 	ros::ServiceServer service4 = n.advertiseService("get_model", getModel);
 	ROS_INFO("Ready to add use get_model.");
 
-	soma2add					= n.serviceClient<soma_manager::SOMA2InsertObjs>(		"soma2/insert_objs");
+	soma2add = n.serviceClient<soma_manager::SOMA2InsertObjs>(		"soma2/insert_objs");
 	ROS_INFO("Ready to add use soma2add.");
 
 	ros::Subscriber sub = n.subscribe("/retrieval_result", 1, retrievalCallback);
 	ROS_INFO("Ready to add recieve search results.");
-
 
 	database_pcd_pub  = n.advertise<sensor_msgs::PointCloud2>("modelserver/databasepcd", 1000);
 

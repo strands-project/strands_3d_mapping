@@ -109,6 +109,14 @@ add_dependencies(		modelserver roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	modelserver quasimodo_ModelDatabase quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 
+add_executable(			massregPCD src/massregPCD.cpp)
+add_dependencies(		massregPCD roscpp quasimodo_msgs_generate_messages_cpp)
+target_link_libraries(	massregPCD quasimodo_ModelDatabase quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+
+add_executable(			velodyne2 src/velodyne2.cpp)
+add_dependencies(		velodyne2 roscpp quasimodo_msgs_generate_messages_cpp)
+target_link_libraries(	velodyne2 quasimodo_ModelDatabase quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+
 add_executable(			MeshTest src/MeshTest.cpp)
 add_dependencies(		MeshTest roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	MeshTest quasimodo_ModelDatabase quasimodo_Mesher quasimodo_ModelUpdater image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})

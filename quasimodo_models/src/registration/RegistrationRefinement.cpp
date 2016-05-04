@@ -10,6 +10,11 @@ namespace reglib
 {
 
 RegistrationRefinement::RegistrationRefinement(){
+	//func = 0;
+	nr_arraypoints = 0;
+	arraypoints = 0;
+	trees3d = 0;
+	a3d = 0;
 	only_initial_guess		= false;
 
 	type					= PointToPlane;
@@ -18,27 +23,21 @@ RegistrationRefinement::RegistrationRefinement(){
 	use_features			= true;
 	normalize_matchweights	= true;
 
-	DistanceWeightFunction2PPR2 * fu = new DistanceWeightFunction2PPR2();
-	fu->startreg			= 0.01;
-	fu->debugg_print		= false;
-	func					= fu;
-
 	visualizationLvl = 1;
 
     target_points = 250;
     allow_regularization = true;
     maxtime = 9999999;
 
-	nr_arraypoints = 0;
-	arraypoints = 0;
-	trees3d = 0;
-	a3d = 0;
+	func = new DistanceWeightFunction2PPR2();
+	func->startreg			= 0.1;
+	func->debugg_print		= false;
 }
 RegistrationRefinement::~RegistrationRefinement(){
-	delete func;
-	if(arraypoints != 0){delete arraypoints;}
-	if(trees3d != 0){delete trees3d;}
-	if(a3d != 0){delete a3d;}
+	if(func != 0){delete func; func = 0;}
+	if(arraypoints != 0){delete arraypoints; arraypoints = 0;}
+	if(trees3d != 0){delete trees3d; trees3d = 0;}
+	if(a3d != 0){delete a3d; a3d = 0;}
 }
 
 void RegistrationRefinement::setDst(CloudData * dst_){
@@ -84,6 +83,11 @@ void RegistrationRefinement::setDst(CloudData * dst_){
 }
 
 FusionResults RegistrationRefinement::getTransform(Eigen::MatrixXd guess){
+
+//	DistanceWeightFunction2PPR2 * func = new DistanceWeightFunction2PPR2();
+//	func->startreg			= 0.1;
+//	func->debugg_print		= false;
+
 
 	unsigned int s_nr_data = src->data.cols();
     int stepx = std::max(1,int(s_nr_data)/target_points);
@@ -268,7 +272,6 @@ bool timestopped = false;
 						}
 
 						W = W.array()*rangeW.array()*rangeW.array();
-						Eigen::Affine3d change;
 
 						switch(type) {
 							case PointToPoint:	{
@@ -307,20 +310,17 @@ bool timestopped = false;
 		if(fabs(1.0 - noise_after/noise_before) < 0.01){break;}
 	}
 
-
-
-	//printf("refinement timing: %f (max %f)\n",getTime()-start,maxtime);
-
     if(visualizationLvl >= 2){show(X,Y);}
 
 	pcl::TransformationFromCorrespondences tfc;
 	tfc.reset();
 	for(unsigned int i = 0; i < xcols; i++){
-		//Eigen::Vector3f a (X(0,i),						X(1,i),					X(2,i));
-		//Eigen::Vector3f b (src->data(0,i*stepx),		src->data(1,i*stepx),	src->data(2,i*stepx));
 		tfc.add(Eigen::Vector3f(src->data(0,i*stepx),	src->data(1,i*stepx),	src->data(2,i*stepx)),Eigen::Vector3f (X(0,i),X(1,i),	X(2,i)));
 	}
 	guess = tfc.getTransformation().matrix().cast<double>();
+
+	//delete func;
+	//func = 0;
 
     FusionResults fr = FusionResults(guess,stop);
 	fr.timeout = timestopped;

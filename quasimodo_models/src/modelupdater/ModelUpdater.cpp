@@ -905,23 +905,23 @@ vector<vector< OcclusionScore > > ModelUpdater::computeAllOcclusionScores(RGBDFr
 	return all_scores;
 }
 
-vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames, std::vector<ModelMask*> current_modelmasks, bool debugg_scores){
+vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames, std::vector<ModelMask*> current_modelmasks, bool debugg_scores, double speedup){
 	//printf("getOcclusionScores\n");
 
 	long total_points = 0;
 	for(unsigned int i = 0; i < current_frames.size(); i++){total_points+=current_modelmasks[i]->testw.size();}
-	int step = std::max(long(1),long(total_points*long(current_frames.size()))/long(50000000));
+	int step = std::max(long(1),long(speedup*total_points*long(current_frames.size()))/long(50000000));
 
 //	printf("total_points: %i\n",total_points);
 //	printf("current_frames.size(): %i\n",current_frames.size());
 //	printf("ratio: %f\n",double(total_points*long(current_frames.size()))/double(50000000));
-//	printf("step: %i\n",step);
+	printf("step: %i\n",step);
 
 	vector<vector < OcclusionScore > > occlusionScores;
 	occlusionScores.resize(current_frames.size());
     for(unsigned int i = 0; i < current_frames.size(); i++){occlusionScores[i].resize(current_frames.size());}
 
-	int max_points = 100000.0/double(current_frames.size()*(current_frames.size()-1));
+	int max_points = step;//100000.0/double(current_frames.size()*(current_frames.size()-1));
     //float occlusion_penalty = 10.0f;
 	std::vector<std::vector < float > > scores;
 	scores.resize(occlusionScores.size());
@@ -933,9 +933,9 @@ vector<vector < OcclusionScore > > ModelUpdater::getOcclusionScores(std::vector<
         for(unsigned int j = i+1; j < current_frames.size(); j++){
 			//printf("scores %i %i\n",i,j);
 			if(lock && current_modelmasks[j]->sweepid == current_modelmasks[i]->sweepid && current_modelmasks[j]->sweepid != -1){
-				occlusionScores[i][j].score = 99999999;
+				occlusionScores[i][j].score = 999999;
 				occlusionScores[i][j].occlusions = 0;
-				occlusionScores[j][i].score = 99999999;
+				occlusionScores[j][i].score = 999999;
 				occlusionScores[j][i].occlusions = 0;
 			}else{
 				Eigen::Matrix4d relative_pose = current_poses[i].inverse() * current_poses[j];

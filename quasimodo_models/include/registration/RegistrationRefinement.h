@@ -23,7 +23,7 @@ namespace reglib
 
 		Eigen::VectorXd DST_INORMATION;
 
-        DistanceWeightFunction2PPR2 * func;
+		DistanceWeightFunction2PPR2 * func;
 
 		int nr_arraypoints;
 		double * arraypoints;

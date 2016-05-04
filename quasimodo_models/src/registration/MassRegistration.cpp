@@ -17,6 +17,8 @@ void MassRegistration::setData(std::vector<RGBDFrame*> frames_,std::vector<Model
 	mmasks = mmasks_;
 }
 
+void MassRegistration::setData(std::vector< pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr > all_clouds){}
+
 void MassRegistration::setVisualizationLvl(unsigned int lvl){
 	visualizationLvl = lvl;
 }

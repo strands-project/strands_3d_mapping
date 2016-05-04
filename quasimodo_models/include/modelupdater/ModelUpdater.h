@@ -11,6 +11,7 @@
 #include "../model/Model.h"
 #include "../registration/Registration.h"
 #include "../registration/MassRegistration.h"
+#include "../mesher/Mesh.h"
 
 
 #include <pcl/visualization/pcl_visualizer.h>
@@ -43,6 +44,7 @@ namespace reglib
         double massreg_timeout;
 		boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
 		Model * model;
+		Mesh * mesher;
 
 		ModelUpdater();
 		ModelUpdater(Model * model_);
@@ -60,20 +62,9 @@ namespace reglib
 		virtual void computeResiduals(std::vector<float> & residuals, std::vector<float> & weights, RGBDFrame * src, cv::Mat src_mask, ModelMask * src_modelmask, RGBDFrame * dst, cv::Mat dst_mask, ModelMask * dst_modelmask, Eigen::Matrix4d p, bool debugg = false);
 
 		virtual std::vector<std::vector< OcclusionScore > >	computeAllOcclusionScores(	RGBDFrame * src, cv::Mat src_mask, RGBDFrame * dst, cv::Mat dst_mask,Eigen::Matrix4d p, bool debugg = false);
-//		virtual std::vector<std::vector< OcclusionScore > >	computeAllOcclusionScores(	RGBDFrame * src, RGBDFrame * dst, Eigen::Matrix4d p, bool debugg = false);
-
-		//virtual OcclusionScore computeAllOcclusionScore(RGBDFrame * src, cv::Mat src_mask, RGBDFrame * dst, cv::Mat dst_mask,Eigen::Matrix4d p, bool debugg = false);
-		//virtual std::vector<std::vector< OcclusionScore > > computeAllOcclusionScores(RGBDFrame * src, cv::Mat src_mask, RGBDFrame * dst, cv::Mat dst_mask,Eigen::Matrix4d p, bool debugg){
-
-		//virtual std::vector<std::vector< OcclusionScore > > computeAllOcclusionScore(RGBDFrame * src, cv::Mat src_mask, RGBDFrame * dst, cv::Mat dst_mask,Eigen::Matrix4d p, bool debugg = false);
-		//virtual std::vector<std::vector< OcclusionScore > > getOcclusionScores(RGBDFrame * src, cv::Mat src_mask, RGBDFrame * dst, cv::Mat dst_mask,Eigen::Matrix4d p, bool debugg = false);
-		//virtual std::vector<std::vector<std::vector<std::vector< OcclusionScore > > > > getAllOcclusionScores(vector<Matrix4d> current_poses, vector<RGBDFrame*> current_frames,vector<cv::Mat> current_masks){
-		//virtual std::vector<std::vector<std::vector< OcclusionScore > > > getAllOcclusionScores(RGBDFrame * src, cv::Mat src_mask, RGBDFrame * dst, cv::Mat dst_mask,Eigen::Matrix4d p, bool debugg = false);
-
 		virtual	void computeMassRegistration(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames,std::vector<cv::Mat> current_masks);
 
-//		std::vector<std::vector < OcclusionScore > > getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames,std::vector<cv::Mat> current_masks,std::vector<ModelMask*> current_modelmasks,  bool debugg_scores = false);
-		std::vector<std::vector < OcclusionScore > > getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames, std::vector<ModelMask*> current_modelmasks,  bool debugg_scores = false);
+		std::vector<std::vector < OcclusionScore > > getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames, std::vector<ModelMask*> current_modelmasks,  bool debugg_scores = false, double speedup = 1.0);
         std::vector<std::vector < float > > getScores(std::vector<std::vector < OcclusionScore > > occlusionScores);
 		std::vector<int> getPartition(std::vector< std::vector< float > > & scores, int dims = 2, int nr_todo = 5, double timelimit = 2);
 

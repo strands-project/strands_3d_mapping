@@ -7,32 +7,12 @@ namespace reglib
 
 RegistrationRandom::RegistrationRandom(){
 	only_initial_guess		= false;
-
-	type					= PointToPlane;
-	use_PPR_weight			= true;
-	use_features			= true;
-	normalize_matchweights	= true;
-	//DistanceWeightFunction2PPR * fu = new DistanceWeightFunction2PPR();
-	DistanceWeightFunction2PPR2 * fu = new DistanceWeightFunction2PPR2();
-	fu->startreg			= 0.001;
-	fu->debugg_print		= false;
-	func					= fu;
-
 	visualizationLvl = 1;
-
-	for(unsigned int i= 3; i < 6; i++){
-		feature_start.push_back(i);
-		feature_end.push_back(i);
-		DistanceWeightFunction2PPR * f = new DistanceWeightFunction2PPR();
-		f->regularization	= 0.0;
-		f->maxd 			= 255;
-		f->histogram_size	= 255;
-		feature_func.push_back(f);
-	}
-
 	refinement = new RegistrationRefinement();
 }
-RegistrationRandom::~RegistrationRandom(){}
+RegistrationRandom::~RegistrationRandom(){
+	delete refinement;
+}
 
 void RegistrationRandom::setSrc(CloudData * src_){
 	src = src_;
@@ -254,7 +234,7 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	for(unsigned int ax = 0; ax < all_X.size(); ax++){
         Eigen::Matrix4d np = all_res[ax].matrix();
 		refinement->visualizationLvl = visualizationLvl;
-		if(ax < 15){
+		if(ax < 25){
 			double start = getTime();
 			FusionResults fr1 = refinement->getTransform(np);
 			double stop = getTime();

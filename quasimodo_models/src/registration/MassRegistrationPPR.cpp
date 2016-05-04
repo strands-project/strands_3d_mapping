@@ -206,21 +206,35 @@ void point_to_plane3(		Eigen::Matrix3Xd & X,
 	//constructTransformationMatrix (x (0), x (1), x (2), x (3), x (4), x (5), transformation_matrix);
 }
 
-int testcount = 0;
-MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses){
-	printf("start MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses)\n");
+bool okVal(double v){return !std::isnan(v) && !(v == std::numeric_limits<double>::infinity());}
 
-	unsigned int nr_frames = frames.size();
-	if(poses.size() != nr_frames){
-		printf("ERROR: poses.size() != nr_frames\n");
-		return MassFusionResults();
+bool isValidPoint(pcl::PointXYZRGBNormal p){
+	return	!okVal (p.x)		&& !okVal (p.y)			&& !okVal (p.z) &&			//No nans or inf in position
+			!okVal (p.normal_x) && !okVal (p.normal_y)	&& !okVal (p.normal_z) &&	//No nans or inf in normal
+			!(p.x == 0			&& p.y == 0				&& p.z == 0 ) &&						//not a zero point
+			!(p.normal_x == 0	&& p.normal_y == 0		&& p.normal_z == 0);					//not a zero normal
+}
+
+
+void MassRegistrationPPR::setData(std::vector< pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr > all_clouds){
+	unsigned int nr_frames = all_clouds.size();
+
+	if(arraypoints.size() > 0){
+		for(unsigned int i = 0; i < arraypoints.size(); i++){
+			delete[] arraypoints[i];
+		}
 	}
-	bool internatldebug = testcount++ > 2;
 
-	fast_opt = false;
-	if(fast_opt){
-		printf("debugging... setting nr frames to 3: %s :: %i\n",__FILE__,__LINE__);
-		nr_frames = 3;
+	if(a3dv.size() > 0){
+		for(unsigned int i = 0; i < a3dv.size(); i++){
+			delete a3dv[i];
+		}
+	}
+
+	if(trees3d.size() > 0){
+		for(unsigned int i = 0; i < trees3d.size(); i++){
+			delete trees3d[i];
+		}
 	}
 
 	nr_matches.resize(nr_frames);
@@ -237,6 +251,127 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 	arraypoints.resize(nr_frames);
 	trees3d.resize(nr_frames);
 	a3dv.resize(nr_frames);
+	is_ok.resize(nr_frames);
+
+	for(unsigned int i = 0; i < nr_frames; i++){
+		printf("loading data for %i\n",i);
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud = all_clouds[i];
+		int count = 0;
+		for(unsigned int i = 0; i < cloud->points.size(); i++){
+			if (isValidPoint(cloud->points[i])){
+				count++;
+			}
+		}
+
+		if(count < 10){
+			is_ok[i] = false;
+			continue;
+		}else{
+			is_ok[i] = true;
+		}
+
+		double * ap = new double[3*count];
+		nr_datas[i] = count;
+		matchids[i].resize(nr_frames);
+		points[i].resize(Eigen::NoChange,count);
+		colors[i].resize(Eigen::NoChange,count);
+		normals[i].resize(Eigen::NoChange,count);
+		transformed_points[i].resize(Eigen::NoChange,count);
+		transformed_normals[i].resize(Eigen::NoChange,count);
+
+		nr_arraypoints[i] = count;
+		arraypoints[i] = ap;
+
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & X	= points[i];
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & C	= colors[i];
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & Xn	= normals[i];
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & tX	= transformed_points[i];
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & tXn	= transformed_normals[i];
+		Eigen::VectorXd information (count);
+
+		int c = 0;
+		for(unsigned int i = 0; i < cloud->points.size(); i++){
+			pcl::PointXYZRGBNormal p = cloud->points[i];
+			if (isValidPoint(p)){
+
+				float xn = p.normal_x;
+				float yn = p.normal_y;
+				float zn = p.normal_z;
+
+				float x = p.x;
+				float y = p.y;
+				float z = p.z;
+
+				ap[3*c+0] =x;
+				ap[3*c+1] =y;
+				ap[3*c+2] =z;
+
+				X(0,c)	= x;
+				X(1,c)	= y;
+				X(2,c)	= z;
+				Xn(0,c)	= xn;
+				Xn(1,c)	= yn;
+				Xn(2,c)	= zn;
+
+				information(c) = 1.0/(z*z);
+				C(0,c) = p.r;
+				C(1,c) = p.g;
+				C(2,c) = p.b;
+				c++;
+
+			}
+		}
+
+		informations[i] = information;
+
+		ArrayData3D<double> * a3d = new ArrayData3D<double>;
+		a3d->data	= ap;
+		a3d->rows	= count;
+		a3dv[i]		= a3d;
+		trees3d[i]	= new Tree3d(3, *a3d, nanoflann::KDTreeSingleIndexAdaptorParams(10));
+		trees3d[i]->buildIndex();
+	}
+}
+
+void MassRegistrationPPR::setData(std::vector<RGBDFrame*> frames_,std::vector<ModelMask *> mmasks_){
+	frames = frames_;
+	mmasks = mmasks_;
+
+	unsigned int nr_frames = frames.size();
+
+	if(arraypoints.size() > 0){
+		for(unsigned int i = 0; i < arraypoints.size(); i++){
+			delete[] arraypoints[i];
+		}
+	}
+
+	if(a3dv.size() > 0){
+		for(unsigned int i = 0; i < a3dv.size(); i++){
+			delete a3dv[i];
+		}
+	}
+
+	if(trees3d.size() > 0){
+		for(unsigned int i = 0; i < trees3d.size(); i++){
+			delete trees3d[i];
+		}
+	}
+
+	nr_matches.resize(nr_frames);
+	matchids.resize(nr_frames);
+	nr_datas.resize(nr_frames);
+	points.resize(nr_frames);
+	colors.resize(nr_frames);
+	normals.resize(nr_frames);
+	transformed_points.resize(nr_frames);
+	transformed_normals.resize(nr_frames);
+	informations.resize(nr_frames);
+
+	nr_arraypoints.resize(nr_frames);
+	arraypoints.resize(nr_frames);
+	trees3d.resize(nr_frames);
+	a3dv.resize(nr_frames);
+	is_ok.resize(nr_frames);
 
 	for(unsigned int i = 0; i < nr_frames; i++){
 		printf("loading data for %i\n",i);
@@ -245,10 +380,10 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 		unsigned short * depthdata		= (unsigned short	*)(frames[i]->depth.data);
 		float		   * normalsdata	= (float			*)(frames[i]->normals.data);
 
-		Eigen::Matrix4d p = poses[i];
-		float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
-		float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
-		float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
+//		Eigen::Matrix4d p = poses[i];
+//		float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
+//		float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
+//		float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
 
 		Camera * camera				= frames[i]->camera;
 		const unsigned int width	= camera->width;
@@ -285,11 +420,12 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 		}
 
 		if(count < 10){
-			is_ok.push_back(false);
+			is_ok[i] = false;
 			continue;
 		}else{
-			is_ok.push_back(true);
+			is_ok[i] = true;
 		}
+
 		double * ap = new double[3*count];
 		nr_datas[i] = count;
 		matchids[i].resize(nr_frames);
@@ -299,6 +435,8 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 		transformed_points[i].resize(Eigen::NoChange,count);
 		transformed_normals[i].resize(Eigen::NoChange,count);
 
+		nr_arraypoints[i] = count;
+		arraypoints[i] = ap;
 
 		Eigen::Matrix<double, 3, Eigen::Dynamic> & X	= points[i];
 		Eigen::Matrix<double, 3, Eigen::Dynamic> & C	= colors[i];
@@ -333,13 +471,6 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 						Xn(1,c)	= yn;
 						Xn(2,c)	= zn;
 
-						tX(0,c)		= m00*x + m01*y + m02*z + m03;
-						tX(1,c)		= m10*x + m11*y + m12*z + m13;
-						tX(2,c)		= m20*x + m21*y + m22*z + m23;
-						tXn(0,c)	= m00*xn + m01*yn + m02*zn;
-						tXn(1,c)	= m10*xn + m11*yn + m12*zn;
-						tXn(2,c)	= m20*xn + m21*yn + m22*zn;
-
 						information(c) = 1.0/(z*z);
 						C(0,c) = rgbdata[3*ind+0];
 						C(1,c) = rgbdata[3*ind+1];
@@ -349,17 +480,63 @@ MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d
 				}
 			}
 		}
+		informations[i] = information;
 
-		nr_arraypoints[i] = count;
-		arraypoints[i] = ap;
 		ArrayData3D<double> * a3d = new ArrayData3D<double>;
 		a3d->data	= ap;
 		a3d->rows	= count;
 		a3dv[i]		= a3d;
 		trees3d[i]	= new Tree3d(3, *a3d, nanoflann::KDTreeSingleIndexAdaptorParams(10));
 		trees3d[i]->buildIndex();
+	}
+}
 
-		informations[i] = information;
+int testcount = 0;
+MassFusionResults MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses){
+	printf("start MassRegistrationPPR::getTransforms(std::vector<Eigen::Matrix4d> poses)\n");
+
+	unsigned int nr_frames = informations.size();
+	if(poses.size() != nr_frames){
+		printf("ERROR: poses.size() != informations.size()\n");
+		return MassFusionResults();
+	}
+	bool internatldebug = testcount++ > 2;
+
+	fast_opt = false;
+	if(fast_opt){
+		printf("debugging... setting nr frames to 3: %s :: %i\n",__FILE__,__LINE__);
+		nr_frames = 3;
+	}
+
+	for(unsigned int i = 0; i < nr_frames; i++){
+		printf("loading data for %i\n",i);
+		Eigen::Matrix4d p = poses[i];
+		float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
+		float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
+		float m20 = p(2,0); float m21 = p(2,1); float m22 = p(2,2); float m23 = p(2,3);
+
+		if(!is_ok[i]){continue;}
+
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & X	= points[i];
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & Xn	= normals[i];
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & tX	= transformed_points[i];
+		Eigen::Matrix<double, 3, Eigen::Dynamic> & tXn	= transformed_normals[i];
+		int count = nr_datas[i];
+		for(int c = 0; c < count; c++){
+			float x = X(0,c);
+			float y = X(1,c);
+			float z = X(2,c);
+			float xn = Xn(0,c);
+			float yn = Xn(1,c);
+			float zn = Xn(2,c);
+
+			tX(0,c)		= m00*x + m01*y + m02*z + m03;
+			tX(1,c)		= m10*x + m11*y + m12*z + m13;
+			tX(2,c)		= m20*x + m21*y + m22*z + m23;
+			tXn(0,c)	= m00*xn + m01*yn + m02*zn;
+			tXn(1,c)	= m10*xn + m11*yn + m12*zn;
+			tXn(2,c)	= m20*xn + m21*yn + m22*zn;
+		}
 	}
 
 	func->reset();
