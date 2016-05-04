@@ -1,12 +1,6 @@
 #include "registration/RegistrationRandom.h"
-//#include "registration/ICP.h"
-
 #include <iostream>
 #include <fstream>
-
-//#include "registration/myhull.h"
-
-//#include <pcl/surface/convex_hull.h>
 
 namespace reglib
 {
@@ -37,121 +31,16 @@ RegistrationRandom::RegistrationRandom(){
 	}
 
 	refinement = new RegistrationRefinement();
-	//refinementColor = new RegistrationRefinementColor();
 }
 RegistrationRandom::~RegistrationRandom(){}
-
 
 void RegistrationRandom::setSrc(CloudData * src_){
 	src = src_;
 	refinement->setSrc(src_);
-	//refinementColor->setSrc(src_);
 }
 void RegistrationRandom::setDst(CloudData * dst_){
 	dst = dst_;
 	refinement->setDst(dst_);
-	//refinementColor->setDst(dst_);
-}
-
-
-namespace RigidMotionEstimatorRand {
-	/// @param Source (one 3D point per column)
-	/// @param Target (one 3D point per column)
-	/// @param Target normals (one 3D normal per column)
-	/// @param Confidence weights
-	/// @param Right hand side
-	template <typename Derived1, typename Derived2, typename Derived3, typename Derived4, typename Derived5, typename Derived6>
-	Eigen::Affine3d point_to_plane(Eigen::MatrixBase<Derived1>& X,
-								   Eigen::MatrixBase<Derived2>& Xn,
-								   Eigen::MatrixBase<Derived3>& Y,
-								   Eigen::MatrixBase<Derived4>& N,
-								   const Eigen::MatrixBase<Derived5>& w,
-								   const Eigen::MatrixBase<Derived6>& u) {
-		typedef Eigen::Matrix<double, 6, 6> Matrix66;
-		typedef Eigen::Matrix<double, 6, 1> Vector6;
-		typedef Eigen::Block<Matrix66, 3, 3> Block33;
-
-		/// Normalize weight vector
-		Eigen::VectorXd w_normalized = w/w.sum();
-		/// De-mean
-		Eigen::Vector3d X_mean;
-		for(int i=0; i<3; ++i){X_mean(i) = (X.row(i).array()*w_normalized.transpose().array()).sum();}
-
-		Eigen::Vector3d Y_mean;
-		for(int i=0; i<3; ++i){Y_mean(i) = (Y.row(i).array()*w_normalized.transpose().array()).sum();}
-
-		X.colwise() -= X_mean;
-		Y.colwise() -= X_mean;
-		/// Prepare LHS and RHS
-		Matrix66 LHS = Matrix66::Zero();
-		Vector6 RHS = Vector6::Zero();
-		Block33 TL = LHS.topLeftCorner<3,3>();
-		Block33 TR = LHS.topRightCorner<3,3>();
-		Block33 BR = LHS.bottomRightCorner<3,3>();
-		Eigen::MatrixXd C = Eigen::MatrixXd::Zero(3,X.cols());
-		#pragma omp parallel
-		{
-			#pragma omp for
-			for(int i=0; i<X.cols(); i++) {
-				C.col(i) = X.col(i).cross(N.col(i));
-			}
-			#pragma omp sections nowait
-			{
-				#pragma omp section
-				for(int i=0; i<X.cols(); i++) TL.selfadjointView<Eigen::Upper>().rankUpdate(C.col(i), w(i));
-				#pragma omp section
-				for(int i=0; i<X.cols(); i++) TR += (C.col(i)*N.col(i).transpose())*w(i);
-				#pragma omp section
-				for(int i=0; i<X.cols(); i++) BR.selfadjointView<Eigen::Upper>().rankUpdate(N.col(i), w(i));
-				#pragma omp section
-				for(int i=0; i<C.cols(); i++) {
-					double dist_to_plane = -((X.col(i) - Y.col(i)).dot(N.col(i)) - u(i))*w(i);
-					RHS.head<3>() += C.col(i)*dist_to_plane;
-					RHS.tail<3>() += N.col(i)*dist_to_plane;
-				}
-			}
-		}
-		LHS = LHS.selfadjointView<Eigen::Upper>();
-		/// Compute transformation
-		Eigen::Affine3d transformation;
-		Eigen::LDLT<Matrix66> ldlt(LHS);
-		RHS = ldlt.solve(RHS);
-		transformation  = Eigen::AngleAxisd(RHS(0), Eigen::Vector3d::UnitX()) *
-						  Eigen::AngleAxisd(RHS(1), Eigen::Vector3d::UnitY()) *
-						  Eigen::AngleAxisd(RHS(2), Eigen::Vector3d::UnitZ());
-
-		Xn = transformation*Xn;
-
-		transformation.translation() = RHS.tail<3>();
-		/// Apply transformation
-		X = transformation*X;
-		/// Re-apply mean
-		X.colwise() += X_mean;
-		Y.colwise() += X_mean;
-
-		//Eigen::Vector3d mean_diff;
-		//for(int i=0; i<3; ++i){mean_diff(i) = ((X-Y).row(i).array()*w_normalized.transpose().array()).sum();}
-
-		//std::cout << mean_diff << std::endl << std::endl;
-		//std::cout << Y_mean << std::endl << std::endl;
-		//std::cout << Y_mean-X_mean << std::endl << std::endl;
-		//std::cout << transformation.translation() << std::endl << std::endl;
-		/// Return transformation
-		return transformation;
-	}
-
-	/// @param Source (one 3D point per column)
-	/// @param Target (one 3D point per column)
-	/// @param Target normals (one 3D normal per column)
-	/// @param Confidence weights
-	template <typename Derived1, typename Derived2, typename Derived3, typename Derived4, typename Derived5>
-	inline Eigen::Affine3d point_to_plane(Eigen::MatrixBase<Derived1>& X,
-										  Eigen::MatrixBase<Derived2>& Xn,
-										  Eigen::MatrixBase<Derived3>& Yp,
-										  Eigen::MatrixBase<Derived4>& Yn,
-										  const Eigen::MatrixBase<Derived5>& w) {
-		return point_to_plane(X,Xn,Yp, Yn, w, Eigen::VectorXd::Zero(X.cols()));
-	}
 }
 
 double getTime(){
@@ -221,8 +110,6 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	d_mean_y /= double(d_nr_data);
 	d_mean_z /= double(d_nr_data);
 
-//	printf("%f %f %f\n",d_mean_x,d_mean_y,d_mean_z);
-
 	double stop		= 0.00001;
 
 	Eigen::Affine3d Ymean = Eigen::Affine3d::Identity();
@@ -262,7 +149,7 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	for(double rx = 0; rx < 2.0*M_PI; rx += step){
 	for(double ry = 0; ry < 2.0*M_PI; ry += step)
 	for(double rz = 0; rz < 2.0*M_PI; rz += step){
-		//printf("rx: %f\n",rx);
+		printf("rx: %f ry: %f rz: %f\n",rx,ry,rz);
 
 		double start = getTime();
 
@@ -354,85 +241,10 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
             all_starts.back().push_back(startparam);
 			all_res.push_back(current_guess);
 		}
-//}
         r++;
-		//if(sumtime > 3){break;}
-
 	}
 }
-//	printf("sumtime: %f\n",sumtime);
-	//refinement->maxtime = 5*meantime;
-	for(unsigned int ax = 0; ax < all_X.size() && ax < 5; ax++){
-		//printf("%i -> %i\n",ax,count_X[ax]);
-		//if(visualizationLvl >= 2){show(all_X[ax],Y);}
-	}
 
-/*
-	for(unsigned int ax = 0; ax < all_X.size(); ax++){
-		printf("%i -> %i\n",ax,count_X[ax]);
-
-		show(all_X[ax],Y);
-
-		std::vector< Eigen::VectorXd > axstarts = all_starts[ax];
-
-		myhull * mh = new myhull();
-		//for(double alpha = 0.1; alpha <= 300; alpha += 0.1){
-			double alpha = 0.5;
-			mh->compute(axstarts,alpha);
-
-
-			viewer->removeAllPointClouds();
-			pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-			for(unsigned int bx = 0; bx < all_X.size(); bx++){
-				std::vector< Eigen::VectorXd > bxstarts = all_starts[bx];
-				for(unsigned int i = 0; i < bxstarts.size(); i++){
-					Eigen::VectorXd p2 = bxstarts[i];
-					pcl::PointXYZRGBNormal p;
-					p.x = p2(0);
-					p.y = p2(1);
-					p.z = p2(2);
-					if(ax == bx){
-						p.b = 0;
-						p.g = 0;
-						p.r = 255;
-					}else{
-						p.b = 0;
-						p.g = 255;
-						p.r = 0;
-					}
-					scloud->points.push_back(p);
-				}
-			}
-			viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud");
-			viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "scloud");
-			viewer->spin();
-			viewer->removeAllPointClouds();
-
-			viewer->addPolygonMesh<pcl::PointXYZ> (mh->cloud_hull, mh->polygons);
-			viewer->spin();
-			viewer->removeAllShapes();
-
-			int inliers = 0;
-			int outliers = 0;
-			for(unsigned int bx = 0; bx < all_X.size(); bx++){
-				if(bx == ax){continue;}
-
-				std::vector< Eigen::VectorXd > bxstarts = all_starts[bx];
-
-				for(unsigned int cx = 0; cx < bxstarts.size(); cx++){
-					Eigen::VectorXd p = bxstarts[cx];
-					bool inlier = mh->isInlier( p );
-					inliers += inlier;
-					outliers += !inlier;
-				}
-				//mh->inside(all_starts[ax]);
-			}
-			printf("hull: %i alpha: %f -> inliers: %i outliers: %i\n",ax,alpha,inliers,outliers);
-
-		//}
-        if(visualizationLvl >= 2){show(all_X[ax],Y);}
-	}
-*/
 
 	FusionResults fr = FusionResults();
     refinement->allow_regularization = false;
@@ -441,34 +253,11 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	refinement->target_points = 2000;
 	for(unsigned int ax = 0; ax < all_X.size(); ax++){
         Eigen::Matrix4d np = all_res[ax].matrix();
-//		printf("%i -> %i(%f)\n",ax,count_X[ax],1.0/score_X[ax]);
-
-		//refinementColor->target_points = 500;
-		//refinementColor->visualizationLvl = 2;
-		//refinementColor->viewer = viewer;
-		//FusionResults fr1 = refinementColor->getTransform(np);
-//        exit(0);
-/*
-        int tp = 250;
-        while(tp < s_nr_data){
-            tp *= 2;
-            refinement->target_points = tp;
-            //refinement->visualizationLvl = 2;
-            double start = getTime();
-            FusionResults fr = refinement->getTransform(np);
-            double stop = getTime();
-            printf("refinement cost: %fs\n",stop-start);
-            np = fr.guess;
-            //break;
-        }
-*/
-
 		refinement->visualizationLvl = visualizationLvl;
 		if(ax < 15){
 			double start = getTime();
 			FusionResults fr1 = refinement->getTransform(np);
 			double stop = getTime();
-			//printf("%i refinement cost: %fs\n",ax,stop-start);
 			np = fr1.guess;
 		}
 		refinement->visualizationLvl = 0;
@@ -478,20 +267,6 @@ FusionResults RegistrationRandom::getTransform(Eigen::MatrixXd guess){
 	}
 	refinement->target_points = tpbef;
 	return fr;
-/*
-
-	float score = Wold.sum()*pow(func->getNoise(),-1)/float(s_nr_data);
-
-	tfc.reset();
-	for(unsigned int i = 0; i < s_nr_data; i++){
-		Eigen::Vector3f a (X(0,i),				X(1,i),			X(2,i));
-		Eigen::Vector3f b (src->data(0,i),		src->data(1,i), src->data(2,i));
-		tfc.add(b,a);
-	}
-	np = tfc.getTransformation().matrix().cast<double>();
-//exit(0);
-	return FusionResults(np,score);
-	*/
 }
 
 }

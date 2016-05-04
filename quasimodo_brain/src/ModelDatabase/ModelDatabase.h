@@ -28,5 +28,6 @@ class ModelDatabase{
 };
 
 #include "ModelDatabaseBasic.h"
+#include "ModelDatabaseRGBHistogram.h"
 //#include "ModelDatabaseRetrieval.h"
 #endif // ModelDatabase_H

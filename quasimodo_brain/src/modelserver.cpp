@@ -838,7 +838,8 @@ int main(int argc, char **argv){
 
 	cameras[0]		= new reglib::Camera();
 	registration	= new reglib::RegistrationRandom();
-	modeldatabase	= new ModelDatabaseBasic();
+	//modeldatabase	= new ModelDatabaseBasic();
+	modeldatabase	= new ModelDatabaseRGBHistogram(5);
 
 	models_new_pub		= n.advertise<quasimodo_msgs::model>("/models/new",		1000);
 	models_updated_pub	= n.advertise<quasimodo_msgs::model>("/models/updated", 1000);

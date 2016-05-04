@@ -85,7 +85,7 @@ catkin_package(
 
 include_directories(${catkin_INCLUDE_DIRS})
 
-add_library(quasimodo_ModelDatabase src/ModelDatabase/ModelDatabase.cpp src/ModelDatabase/ModelDatabaseBasic.cpp)# src/ModelDatabase/ModelDatabaseRetrieval.cpp)
+add_library(quasimodo_ModelDatabase src/ModelDatabase/ModelDatabase.cpp src/ModelDatabase/ModelDatabaseBasic.cpp  src/ModelDatabase/ModelDatabaseRGBHistogram.cpp)# src/ModelDatabase/ModelDatabaseRetrieval.cpp)
 target_link_libraries(quasimodo_ModelDatabase
 					  #${retrieval_libraries}
 					  #${benchmark_libraries}
