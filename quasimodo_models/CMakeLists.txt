@@ -11,6 +11,15 @@ find_package(catkin REQUIRED COMPONENTS
 	pcl_ros
 )
 
+
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES quasimodo_ModelUpdater quasimodo_SICP quasimodo_reglib quasimodo_massreglib quasimodo_model quasimodo_core quasimodo_myhull quasimodo_Mesher quasimodo_weightlib quasimodo_modelmask
+#  CATKIN_DEPENDS other_catkin_pkg
+#  DEPENDS system_lib
+)
+
+
 ##############################################
 ##################### INCLUDES ###############
 ##############################################
@@ -69,12 +78,6 @@ add_library(quasimodo_ModelUpdater src/modelupdater/ModelUpdater.cpp src/modelup
 target_link_libraries(quasimodo_ModelUpdater quasimodo_Mesher quasimodo_model quasimodo_reglib quasimodo_massreglib ${catkin_LIBRARIES})
 
 
-catkin_package(
-  INCLUDE_DIRS include
-#  LIBRARIES quasimodo_models
-#  CATKIN_DEPENDS other_catkin_pkg
-#  DEPENDS system_lib
-)
 
 #############
 ## Install ##
