@@ -14,7 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES quasimodo_ModelUpdater quasimodo_SICP quasimodo_reglib quasimodo_massreglib quasimodo_model quasimodo_core quasimodo_myhull quasimodo_Mesher quasimodo_weightlib quasimodo_modelmask
+  LIBRARIES quasimodo_ModelUpdater quasimodo_reglib quasimodo_massreglib quasimodo_model quasimodo_core quasimodo_Mesher quasimodo_weightlib quasimodo_modelmask
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
 )
