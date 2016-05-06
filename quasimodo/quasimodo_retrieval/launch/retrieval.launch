@@ -1,0 +1,14 @@
+<launch>
+    <arg name="search_directly" default="false"/>
+    <arg name="vocabulary_path" default="/home/strands/.semanticMap/vocabulary"/>
+
+    <node pkg="surfelize_it" type="topic_processor" name="topic_processor" output="screen" respawn="true"/>
+    <node pkg="quasimodo_retrieval" type="quasimodo_retrieval_node" name="quasimodo_retrieval_node" output="screen" respawn="true">
+        <param name="vocabulary_path" value="$(arg vocabulary_path)"/>
+    </node>
+    <node pkg="quasimodo_retrieval" type="quasimodo_visualization_server" name="quasimodo_visualization_server" output="screen" respawn="true"/>
+    <node pkg="quasimodo_retrieval" type="quasimodo_logging_server" name="quasimodo_logging_server" output="screen" respawn="true"/>
+    <group if="$(arg search_directly)">
+        <node pkg="quasimodo_retrieval" type="quasimodo_retrieve_observation" name="quasimodo_retrieve_observation" output="screen" respawn="true"/>
+    </group>
+</launch>

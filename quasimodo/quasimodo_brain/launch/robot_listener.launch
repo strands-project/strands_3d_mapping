@@ -1,0 +1,5 @@
+<launch>
+    <arg name="topicname" default="/some/topic"/>
+    <node pkg="quasimodo_brain" type="robot_listener" name="robot_listener" output="screen" respawn="false"  args="$(arg topicname)">
+    </node>
+</launch>

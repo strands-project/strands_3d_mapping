@@ -1,0 +1,5 @@
+uint64 frame_id
+uint64 isnewmodel
+sensor_msgs/Image mask
+---
+uint64 model_id

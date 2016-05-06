@@ -1,0 +1,26 @@
+<launch>
+    <arg name="data_path" default="/home/strands/.semanticMap"/>
+    <arg name="add_previous_maps" default="false"/>
+
+    <node pkg="surfelize_it" type="run_map_processor.py" name="run_map_processor" output="screen" respawn="true"/>
+    <node pkg="retrieval_processing" type="retrieval_segmentation" name="retrieval_segmentation" output="screen" respawn="false">
+        <param name="threshold" value="0.3"/>
+        <param name="data_path" value="$(arg data_path)"/>
+        <param name="bypass" value="false" type="bool"/>
+    </node>
+    <node pkg="retrieval_processing" type="retrieval_features" name="retrieval_features" output="screen" respawn="false">
+        <param name="bypass" value="false" type="bool"/>
+    </node>
+    <node pkg="retrieval_processing" type="retrieval_vocabulary" name="retrieval_vocabulary" output="screen" respawn="false">
+        <param name="vocabulary_path" value="$(arg data_path)/vocabulary"/>
+        <param name="data_path" value="$(arg data_path)"/>
+        <param name="min_training_sweeps" value="20"/>
+        <param name="bypass" value="false" type="bool"/>
+    </node>
+    <group if="$(arg add_previous_maps)">
+        <node pkg="retrieval_processing" type="retrieval_simulate_observations" name="retrieval_simulate_observations" output="screen" respawn="false">
+            <param name="data_path" value="$(arg data_path)"/>
+            <param name="bypass_surfelize" value="false" type="bool"/>
+        </node>
+    </group>
+</launch>
