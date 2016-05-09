@@ -1,0 +1,6 @@
+<launch>
+    <node pkg="quasimodo_brain" type="preload_object_data" name="preload_object_data" output="screen" respawn="true">
+        <param name="folder" value="/media/nbore/My Passport/icra_data_surfels/controlled_experiments/object_2_fire_extinguisher"/>
+    </node>
+    <node pkg="quasimodo_brain" type="modelserver" name="modelserver" output="screen" respawn="true"/>
+</launch>

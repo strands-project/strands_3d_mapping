@@ -1,0 +1,33 @@
+<launch>
+
+    <arg name="data_path" default="/home/strands/.semanticMap"/>
+    <arg name="vocabulary_path" default="$(arg data_path)/vocabulary"/>
+    <arg name="occlusion_penalty" default="5"/>
+    <arg name="massreg_timeout" default="60"/>
+    <arg name="modelpath" default="./"/>
+    <arg name="flags" default=""/>
+    <arg name="add_previous_maps" default="false"/>
+
+    <arg name="topicname" default="/some/topic"/>
+
+    <include file="$(find retrieval_processing)/launch/processing.launch">
+        <arg name="data_path" value="$(arg data_path)"/>
+        <arg name="add_previous_maps" value="$(arg add_previous_maps)"/>
+    </include>
+
+    <include file="$(find quasimodo_retrieval)/launch/retrieval.launch">
+        <arg name="vocabulary_path" value="$(arg vocabulary_path)"/>
+    </include>
+
+    <include file="$(find quasimodo_brain)/launch/modelserver.launch">
+        <arg name="occlusion_penalty" value="$(arg occlusion_penalty)"/>
+        <arg name="massreg_timeout" value="$(arg massreg_timeout)"/>
+        <arg name="modelpath" value="$(arg modelpath)"/>
+        <arg name="flags" value="$(arg flags)"/>
+    </include>
+
+    <include file="$(find quasimodo_brain)/launch/robot_listener.launch">
+        <arg name="topicname" value="$(arg topicname)"/>
+    </include>
+
+</launch>

@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<package>
+  <name>quasimodo_retrieval</name>
+  <version>0.0.0</version>
+  <description>The quasimodo_retrieval package</description>
+
+  <!-- One maintainer tag required, multiple allowed, one person per tag -->
+  <!-- Example:  -->
+  <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
+  <maintainer email="nbore@todo.todo">nbore</maintainer>
+
+
+  <!-- One license tag required, multiple allowed, one license per tag -->
+  <!-- Commonly used license strings: -->
+  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
+  <license>TODO</license>
+
+
+  <!-- Url tags are optional, but mutiple are allowed, one per tag -->
+  <!-- Optional attribute type can be: website, bugtracker, or repository -->
+  <!-- Example: -->
+  <!-- <url type="website">http://wiki.ros.org/quasimodo_retrieval</url> -->
+
+
+  <!-- Author tags are optional, mutiple are allowed, one per tag -->
+  <!-- Authors do not have to be maintianers, but could be -->
+  <!-- Example: -->
+  <!-- <author email="jane.doe@example.com">Jane Doe</author> -->
+
+
+  <!-- The *_depend tags are used to specify dependencies -->
+  <!-- Dependencies can be catkin packages or system dependencies -->
+  <!-- Examples: -->
+  <!-- Use build_depend for packages you need at compile time: -->
+  <!--   <build_depend>message_generation</build_depend> -->
+  <!-- Use buildtool_depend for build tool packages: -->
+  <!--   <buildtool_depend>catkin</buildtool_depend> -->
+  <!-- Use run_depend for packages you need at runtime: -->
+  <!--   <run_depend>message_runtime</run_depend> -->
+  <!-- Use test_depend for packages you need only for testing: -->
+  <!--   <test_depend>gtest</test_depend> -->
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>libpcl-all-dev</build_depend>
+  <build_depend>libopencv-dev</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>quasimodo_msgs</build_depend>
+  <build_depend>image_geometry</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>tf_conversions</build_depend>
+  <build_depend>eigen_conversions</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>metaroom_xml_parser</build_depend>
+  <build_depend>pcl_ros</build_depend>
+  <build_depend>k_means_tree</build_depend>
+  <build_depend>dynamic_object_retrieval</build_depend>
+  <build_depend>object_3d_benchmark</build_depend>
+  <build_depend>dynamic_reconfigure</build_depend>
+  <build_depend>libqt4-dev</build_depend>
+  <build_depend>libqt4-opengl-dev</build_depend>
+  <build_depend>soma2_msgs</build_depend>
+  <run_depend>libpcl-all</run_depend>
+  <run_depend>libopencv-dev</run_depend>
+  <run_depend>cv_bridge</run_depend>
+  <run_depend>message_runtime</run_depend>
+  <run_depend>quasimodo_msgs</run_depend>
+  <run_depend>image_geometry</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>tf_conversions</run_depend>
+  <run_depend>eigen_conversions</run_depend>
+  <run_depend>tf</run_depend>
+  <run_depend>metaroom_xml_parser</run_depend>
+  <run_depend>pcl_ros</run_depend>
+  <run_depend>k_means_tree</run_depend>
+  <run_depend>dynamic_object_retrieval</run_depend>
+  <run_depend>object_3d_benchmark</run_depend>
+  <run_depend>dynamic_reconfigure</run_depend>
+  <run_depend>libqt4</run_depend>
+  <run_depend>libqt4-opengl</run_depend>
+  <run_depend>soma2_msgs</run_depend>
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+
+  </export>
+</package>

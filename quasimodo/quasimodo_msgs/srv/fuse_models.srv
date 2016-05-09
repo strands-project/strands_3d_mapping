@@ -1,0 +1,5 @@
+uint64 model1
+uint64 model2
+geometry_msgs/Pose pose
+---
+uint64 fused_model
