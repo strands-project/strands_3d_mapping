@@ -187,8 +187,8 @@ target_link_libraries(test_added_count ${ROS_LIBRARIES}  dynamic_visualize ${ROS
 add_executable(test_feature_keypoint_match test/test_feature_keypoint_match.cpp)
 target_link_libraries(test_feature_keypoint_match ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(test_segmentation test/test_segmentation.cpp)
-target_link_libraries(test_segmentation  dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(test_cloud_segmentation test/test_segmentation.cpp)
+target_link_libraries(test_cloud_segmentation  dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_surfel_segmentation test/test_surfel_segmentation.cpp)
 target_link_libraries(test_surfel_segmentation  dynamic_visualize pfhrgb_estimation shot_estimation ${ROS_LIBRARIES} ${OpenCV_LIBS} ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${PCL_LIBRARIES})
@@ -236,7 +236,7 @@ if (catkin_FOUND)
                     dynamic_visualize extract_sift dynamic_retrieval extract_surfel_features dynamic_init_folders dynamic_convex_segmentation
                     dynamic_supervoxel_convex_segmentation dynamic_extract_convex_features dynamic_extract_supervoxel_features
                     dynamic_create_subsegments dynamic_init_vocabulary dynamic_train_vocabulary dynamic_query_vocabulary dynamic_extract_sift
-                    test_added_count test_feature_keypoint_match test_segmentation test_surfel_segmentation test_gt_labelled_data
+                    test_added_count test_feature_keypoint_match test_cloud_segmentation test_surfel_segmentation test_gt_labelled_data
                     test_supervoxel_keypoints test_supervoxel_convex_mapping test_visualize_keypoints test_query_keypoints test_adjacencies test_top_match_one_map
       ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
       LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
