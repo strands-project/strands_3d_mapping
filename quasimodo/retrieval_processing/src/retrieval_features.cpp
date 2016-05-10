@@ -157,6 +157,9 @@ void features_callback(const std_msgs::String::ConstPtr& msg)
         HistCloudT::Ptr desc_cloud(new HistCloudT);
         CloudT::Ptr kp_cloud(new CloudT);
         dynamic_object_retrieval::compute_features(desc_cloud, kp_cloud, segment, surfel_map);
+
+        cout << "Saving " << feature_path.string() << " with " << desc_cloud->size() << " number of features. " << endl;
+
         //test_compute_features(desc_cloud, kp_cloud, segment, surfel_map);
         if (desc_cloud->empty()) {
             // push back one inf point on descriptors and keypoints

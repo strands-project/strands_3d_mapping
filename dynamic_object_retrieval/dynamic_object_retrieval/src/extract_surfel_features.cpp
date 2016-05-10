@@ -144,8 +144,6 @@ void compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT:
     for (size_t i = 0; i < pfhrgb_cloud.size(); ++i) {
         std::copy(pfhrgb_cloud.at(i).histogram, pfhrgb_cloud.at(i).histogram+N, features->at(i).histogram);
     }
-
-    std::cout << "Number of features: " << pfhrgb_cloud.size() << std::endl;
 }
 
 NormalCloudT::Ptr compute_surfel_normals(SurfelCloudT::Ptr& surfel_cloud, CloudT::Ptr& segment)

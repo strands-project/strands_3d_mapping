@@ -106,9 +106,11 @@ int main(int argc, char** argv)
 
 
     if (bypass_surfelize) {
+        cout << "Advertising " << "/surfelization_done" << endl;
         string_pub = n.advertise<std_msgs::String>("/surfelization_done", 1);
     }
     else {
+        cout << "Advertising " << "/local_metric_map/room_observations" << endl;
         room_pub = n.advertise<semantic_map::RoomObservation>("/local_metric_map/room_observations", 1);
     }
     ros::Subscriber sub = n.subscribe("/vocabulary_done", 1, callback);
@@ -116,11 +118,13 @@ int main(int argc, char** argv)
     ros::Duration(1.0).sleep();
 
     if (bypass_surfelize) {
+        cout << "Publishing initial simulated observation after surfelization: " << sweep_xmls[sweep_ind] << endl;
         std_msgs::String sweep_msg;
         sweep_msg.data = sweep_xmls[sweep_ind++];
         string_pub.publish(sweep_msg);
     }
     else {
+        cout << "Publishing initial simulated observation: " << sweep_xmls[sweep_ind] << endl;
         semantic_map::RoomObservation sweep_msg;
         sweep_msg.xml_file_name = sweep_xmls[sweep_ind++];
         room_pub.publish(sweep_msg);
