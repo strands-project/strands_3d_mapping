@@ -242,7 +242,7 @@ struct segment_uris {
 
     void load(const boost::filesystem::path& data_path)
     {
-        std::ifstream in((data_path / boost::filesystem::path(vocabulary) / boost::filesystem::path("segment_uris.json")).string());
+        std::ifstream in((data_path / boost::filesystem::path("segment_uris.json")).string());
         {
             cereal::JSONInputArchive archive_i(in);
             archive_i(*this);
@@ -253,7 +253,8 @@ struct segment_uris {
         }
         */
 
-        if (!uris.empty() && !boost::filesystem::path(index_convex_segment_paths[0]).is_absolute()) {
+        // we can actually assume that 0 is a file since the first ones are used to train the vocabulary
+        if (!uris.empty() && !boost::filesystem::path(uris[0].substr(7, uris[0].size()-7)).is_absolute()) {
             for (std::string& segment_path : uris) {
                 //segment_path = boost::filesystem::canonical(segment_path, data_path).string();
                 //HMMM, this will start with a slash?
@@ -275,7 +276,8 @@ struct segment_uris {
         }
         */
 
-        if (!uris.empty() && is_sub_dir(boost::filesystem::path(index_convex_segment_paths[0]), data_path.parent_path())) {
+        // we can actually assume that 0 is a file since the first ones are used to train the vocabulary
+        if (!uris.empty() && is_sub_dir(boost::filesystem::path(uris[0].substr(7, uris[0].size()-7)), data_path.parent_path())) {
             for (std::string& segment_path : uris) {
                 if (segment_path.compare(0, 7, "file://") == 0) {
                     segment_path = std::string("file://") + make_relative(boost::filesystem::path(segment_path.substr(7, segment_path.size()-7)), data_path.parent_path()).string();

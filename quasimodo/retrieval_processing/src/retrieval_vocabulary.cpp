@@ -127,6 +127,8 @@ void train_vocabulary(const boost::filesystem::path& data_path)
     AdjacencyT adjacencies;
     vector<IndexT> indices;
 
+    dynamic_object_retrieval::segment_uris uris;
+
     size_t counter = 0; // index among all segments
     size_t sweep_i; // index of sweep
     size_t last_sweep = 0; // last index of sweep
@@ -193,6 +195,9 @@ void train_vocabulary(const boost::filesystem::path& data_path)
             indices.push_back(index);
         }
 
+        // here we insert in the uris
+        uris.uris.push_back(string("file://") + segment_path.string());
+
         ++counter;
         ++sweep_counter;
         if (sweep_i >= min_training_sweeps && islast) {
@@ -214,6 +219,7 @@ void train_vocabulary(const boost::filesystem::path& data_path)
     summary.nbr_annotated_sweeps = 0;
 
     summary.save(vocabulary_path);
+    uris.save(vocabulary_path);
     dynamic_object_retrieval::save_vocabulary(*vt, vocabulary_path);
 }
 
@@ -278,7 +284,10 @@ bool vocabulary_service(quasimodo_msgs::index_cloud::Request& req, quasimodo_msg
     HistCloudT::Ptr features(new HistCloudT);
     pcl::fromROSMsg(req.cloud, *features);
     vector<IndexT> indices;
-    IndexT index(sweep_offset + sweep_i, offset, 0); // we only have one segment within these observations -> sweep_index = 0
+    // the question is what offsets we should assign these, I think in reality it doesn't matter, possibly the sweep offset might not get set automatically
+    // let's just try 0, 0 for now
+    //IndexT index(sweep_offset + sweep_i, offset, 0); // we only have one segment within these observations -> sweep_index = 0
+    IndexT index(0, 0, 0); // we only have one segment within these observations -> sweep_index = 0
     indices.push_back(index);
     AdjacencyT adjacencies;
 
@@ -382,7 +391,7 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
         uris.load(vocabulary_path);
         uris.uris.reserve(uris.uris.size() + segment_strings.size());
         for (const string& segment_path : segment_strings) {
-            uris.push_back(string("file://") + segment_path);
+            uris.uris.push_back(string("file://") + segment_path);
         }
         uris.save(vocabulary_path);
     }
