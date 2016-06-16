@@ -15,6 +15,9 @@
 #include <metaroom_xml_parser/load_utilities.h>
 #include <dynamic_object_retrieval/definitions.h>
 
+#include <quasimodo_msgs/transform_cloud.h>
+#include <pcl_ros/point_cloud.h>
+
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 
@@ -35,6 +38,7 @@ using SurfelT = SurfelType;
 using SurfelCloudT = pcl::PointCloud<SurfelT>;
 
 ros::Publisher pub;
+ros::ServiceServer service;
 
 /*
 void test_compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT::Ptr& cloud,
@@ -136,6 +140,38 @@ void test_compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, Cl
 }
 */
 
+bool features_service(quasimodo_msgs::transform_cloud::Request& req, quasimodo_msgs::transform_cloud::Response& resp)
+{
+    double threshold = 0.4;
+
+    SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
+    pcl::fromROSMsg(req.cloud, *surfel_cloud);
+    HistCloudT::Ptr desc_cloud(new HistCloudT);
+    CloudT::Ptr kp_cloud(new CloudT);
+
+    NormalCloudT::Ptr normals(new NormalCloudT);
+    CloudT::Ptr cloud(new CloudT);
+    cloud->reserve(surfel_cloud->size());
+    normals->reserve(surfel_cloud->size());
+    for (const SurfelT& s : surfel_cloud->points) {
+        if (s.confidence < threshold) {
+            continue;
+        }
+        PointT p;
+        p.getVector3fMap() = s.getVector3fMap();
+        p.rgba = s.rgba;
+        NormalT n;
+        n.getNormalVector3fMap() = s.getNormalVector3fMap();
+        cloud->push_back(p);
+        normals->push_back(n);
+    }
+    dynamic_object_retrieval::compute_features(desc_cloud, kp_cloud, cloud, normals);
+    pcl::toROSMsg(*desc_cloud, resp.cloud1);
+    pcl::toROSMsg(*kp_cloud, resp.cloud2);
+
+    return true;
+}
+
 void features_callback(const std_msgs::String::ConstPtr& msg)
 {
     cout << "Received callback with path " << msg->data << endl;
@@ -200,6 +236,7 @@ int main(int argc, char** argv)
     pn.param<bool>("bypass", bypass, 0);
 
     pub = n.advertise<std_msgs::String>("/features_done", 1);
+    service = n.advertiseService("/retrieval_features_service", features_service);
 
     ros::Subscriber sub;
     if (bypass) {

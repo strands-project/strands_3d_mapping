@@ -91,6 +91,8 @@ public:
         pn.param<std::string>("input", retrieval_input, std::string("/models/query"));
 
         summary.load(vocabulary_path);
+        cout << "Loaded summary from: " << (vocabulary_path / "vocabulary_summary.json").string() << endl;
+        cout << "With data path: " << summary.noise_data_path << endl;
 
         // Load and save data in the relative format
         /*

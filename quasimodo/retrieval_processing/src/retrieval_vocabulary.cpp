@@ -12,6 +12,9 @@
 #include <metaroom_xml_parser/load_utilities.h>
 #include <dynamic_object_retrieval/definitions.h>
 
+#include <pcl_ros/point_cloud.h>
+#include <quasimodo_msgs/index_cloud.h>
+
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 
@@ -260,6 +263,49 @@ pair<size_t, size_t> get_offsets_in_data(const boost::filesystem::path& sweep_pa
     return make_pair(0, 0);
 }
 
+bool vocabulary_service(quasimodo_msgs::index_cloud::Request& req, quasimodo_msgs::index_cloud::Response& resp)
+{
+    // let's just create a "ghost" indexing for now, to see if it actually works by comparing to the actual
+    // segments_summary.json, maybe even have a separate file for the segment uri:s
+
+    // maybe just skip this before we have actually trained the vocabulary, would make things a lot easier, yes, good idea
+
+    if (vt == NULL) {
+        cout << "Vocabulary not trained yet, can not add any object search observations yet, perform more sweeps first..." << endl;
+        return false;
+    }
+
+    HistCloudT::Ptr features(new HistCloudT);
+    pcl::fromROSMsg(req.cloud, *features);
+    vector<IndexT> indices;
+    IndexT index(sweep_offset + sweep_i, offset, 0); // we only have one segment within these observations -> sweep_index = 0
+    indices.push_back(index);
+    AdjacencyT adjacencies;
+
+    if (features->size() > 0) {
+        vt->append_cloud(features, indices, adjacencies, false);
+    }
+
+    {
+        dynamic_object_retrieval::segment_uris uris;
+        uris.load(vocabulary_path);
+        uris.uris.push_back(string("mongodb://") + "world_state" + "/" + "quasimodo" + "/" + req.object_id);
+        uris.save(vocabulary_path);
+    }
+
+    // This part is new!
+    {
+        dynamic_object_retrieval::vocabulary_summary summary;
+        summary.load(vocabulary_path);
+        summary.nbr_noise_segments += 1;
+        summary.nbr_noise_sweeps++;
+        summary.save(vocabulary_path);
+        dynamic_object_retrieval::save_vocabulary(*vt, vocabulary_path);
+    }
+
+    return true;
+}
+
 void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
 {
     cout << "Received callback with path " << msg->data << endl;
@@ -305,11 +351,16 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
     dynamic_object_retrieval::sweep_convex_segment_cloud_map clouds(sweep_xml.parent_path());
     dynamic_object_retrieval::sweep_convex_feature_cloud_map segment_features(sweep_xml.parent_path());
     dynamic_object_retrieval::sweep_convex_keypoint_cloud_map segment_keypoints(sweep_xml.parent_path());
-    for (auto tup : dynamic_object_retrieval::zip(segment_features, segment_keypoints, clouds)) {
+    dynamic_object_retrieval::sweep_convex_segment_map segment_paths(sweep_xml.parent_path());
+    // maybe also iterate over the segment paths?
+    vector<string> segment_strings;
+    for (auto tup : dynamic_object_retrieval::zip(segment_features, segment_keypoints, clouds, segment_paths)) {
         HistCloudT::Ptr features_i;
         CloudT::Ptr keypoints_i;
         CloudT::Ptr segment;
-        tie(features_i, keypoints_i, segment) = tup;
+        boost::filesystem::path segment_path;
+        tie(features_i, keypoints_i, segment, segment_path) = tup;
+        segment_strings.push_back(segment_path.string());
 
         features->insert(features->end(), features_i->begin(), features_i->end());
 
@@ -324,6 +375,16 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
     if (features->size() > 0) {
         adjacencies.push_back(compute_group_adjacencies(segments_path));
         vt->append_cloud(features, indices, adjacencies, false);
+    }
+
+    {
+        dynamic_object_retrieval::segment_uris uris;
+        uris.load(vocabulary_path);
+        uris.uris.reserve(uris.uris.size() + segment_strings.size());
+        for (const string& segment_path : segment_strings) {
+            uris.push_back(string("file://") + segment_path);
+        }
+        uris.save(vocabulary_path);
     }
 
     // This part is new!

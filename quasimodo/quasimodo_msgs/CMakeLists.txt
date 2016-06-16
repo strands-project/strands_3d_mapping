@@ -51,12 +51,14 @@ add_message_files(
   retrieval_query.msg
   retrieval_query_result.msg
   SOMA2Object.msg
+  fused_world_state_object.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
   index_frame.srv
+  index_cloud.srv
   model_from_frame.srv
   cloud_from_model.srv
   fuse_models.srv
@@ -64,6 +66,7 @@ add_service_files(
   query_cloud.srv
   simple_query_cloud.srv
   visualize_query.srv
+  transform_cloud.srv
 )
 
 ## Generate actions in the 'action' folder
