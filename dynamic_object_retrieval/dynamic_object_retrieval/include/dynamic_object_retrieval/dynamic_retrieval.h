@@ -17,8 +17,15 @@
 #include <boost/filesystem.hpp>
 #include <pcl/io/pcd_io.h>
 #include <dynamic_object_retrieval/definitions.h>
+#include <mongodb_store/message_store.h>
 
 #define WITH_SURFEL_NORMALS 1
+#define WITH_UNIVERSAL_URIS 1
+
+#if WITH_UNIVERSAL_URIS
+#include <quasimodo_msgs/fused_world_state_object.h>
+#include <pcl_ros/point_cloud.h>
+#endif
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
@@ -42,12 +49,95 @@ struct path_result<grouped_vocabulary_tree<HistT, 8> > {
 template <typename IndexT>
 std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<IndexT>& scores, const vocabulary_summary& summary)
 {
+    // OK, this is where we add the new type of segment_uris
+#if WITH_UNIVERSAL_URIS
+
+    ros::NodeHandle n("/dynamic_retrieval");
+    size_t offset = summary.nbr_noise_segments;
+    segment_uris uris;
+    uris.load(boost::filesystem::path(summary.noise_data_path));
+    mongodb_store::MessageStoreProxy* message_store = NULL;
+    for (IndexT s : scores) {
+        if (s.index >= offset) {
+            std::cout << "URI loading does not support noise+annotated data structure!" << std::endl;
+            exit(-1);
+        }
+        std::string uri = uris.uris[s.index];
+        if (uri.compare(0, 10, "mongodb://") == 0) {
+            std::string db_uri = uri.substr(7, uri.size()-7);
+            std::vector<std::string> strs;
+            boost::split(strs, db_uri, boost::is_any_of("/"));
+            std::cout << "Initializing message story proxy with database: " << strs[0] << ", collection: " << strs[1] << std::endl;
+            message_store = new mongodb_store::MessageStoreProxy(n, strs[1], strs[0]);
+            break;
+        }
+    }
+
+    std::vector<boost::filesystem::path> retrieved_paths;
+    for (IndexT s : scores) {
+        // should we write to some temporary files and return the paths to those?
+        // e.g. in ~/.ros/quasimodo
+        // the question is also if we should write a dummy surfel_map.pcd containing the cloud and a separate object.pcd with only points
+        // another possibility would be to actually just write surfel_map.pcd, that should be enough?
+        // the big problem is that we won't able to get any of the info in room.xml
+        if (s.index >= offset) {
+            std::cout << "URI loading does not support noise+annotated data structure!" << std::endl;
+            exit(-1);
+        }
+        std::string uri = uris.uris[s.index];
+        if (uri.compare(0, 7, "file://") == 0) {
+            retrieved_paths.push_back(boost::filesystem::path(uri.substr(7, uri.size()-7)));
+        }
+        else if (uri.compare(0, 10, "mongodb://") == 0) {
+            // don't delete anything here, instead have a cache based on the database id:s
+            // use boost split to split separate the uri into database / collection / id
+            std::string db_uri = uri.substr(7, uri.size()-7);
+            std::vector<std::string> strs;
+            boost::split(strs, db_uri, boost::is_any_of("/"));
+
+            // how do we get the home directory correctly?
+            boost::filesystem::path temp_path = boost::filesystem::path("~/.ros/quasimodo/temp") / (strs[2] + ".pcd");
+
+            if (boost::filesystem::exists(temp_path)) {
+                retrieved_paths.push_back(temp_path);
+                continue;
+            }
+
+            if (!boost::filesystem::exists("~/.ros/quasimodo/temp")) {
+                boost::filesystem::create_directories("~/.ros/quasimodo/temp");
+            }
+
+            boost::shared_ptr<quasimodo_msgs::fused_world_state_object> message;
+            mongo::BSONObj bson_message;
+            std::tie(message, bson_message) = message_store->queryID<quasimodo_msgs::fused_world_state_object>(strs[2]);
+            SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
+            pcl::fromROSMsg(message->surfel_cloud, *surfel_cloud);
+            pcl::io::savePCDFileBinary(temp_path.string(), *surfel_cloud);
+            retrieved_paths.push_back(temp_path);
+
+            // [0] - database, [1] - collection, [2] - mongodb object id
+
+        }
+        else {
+            std::cout << "Loading from segment URI problem: URI not well formed!" << std::endl;
+            exit(-1);
+        }
+    }
+
+    if (message_store != NULL) { // redundant but clearer
+        delete message_store;
+    }
+
+    return retrieved_paths;
+#else
     // here we'll make use of the info saved in the data_summaries
     // maybe we should cache these as well as they might get big?
     data_summary noise_summary;
     noise_summary.load(boost::filesystem::path(summary.noise_data_path));
     data_summary annotated_summary;
     annotated_summary.load(boost::filesystem::path(summary.annotated_data_path));
+
+
 
     std::vector<boost::filesystem::path> retrieved_paths;
     size_t offset = summary.nbr_noise_segments;
@@ -62,6 +152,7 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
     }
 
     return retrieved_paths;
+#endif
 }
 
 //std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<index_score>& scores, const vocabulary_summary& summary);
