@@ -1,0 +1,4 @@
+sensor_msgs/PointCloud2[] clouds
+sensor_msgs/Image[] masks
+---
+sensor_msgs/PointCloud2[] clouds

@@ -67,6 +67,7 @@ add_service_files(
   simple_query_cloud.srv
   visualize_query.srv
   transform_cloud.srv
+  mask_pointclouds.srv
 )
 
 ## Generate actions in the 'action' folder

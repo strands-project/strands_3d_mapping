@@ -1,0 +1,2 @@
+sensor_msgs/PointCloud2 surfel_cloud
+string object_id
