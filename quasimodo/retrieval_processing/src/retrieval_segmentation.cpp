@@ -60,6 +60,7 @@ int colormap[][3] = {
 
 ros::Publisher pub;
 ros::Publisher vis_cloud_pub;
+ros::ServiceServer service;
 double threshold;
 dynamic_object_retrieval::data_summary data_summary;
 boost::filesystem::path data_path;
@@ -78,20 +79,21 @@ bool segmentation_service(quasimodo_msgs::mask_pointclouds::Request& req, quasim
             exit(-1);
         }
         cv::Mat mask;
-        cv::cvtColor(cv_ptr->image, mask, CV_8UC1);
+        cv::cvtColor(cv_ptr->image, mask, CV_BGR2GRAY);
 
-        CloudT::Ptr masked_cloud(new CloudT);
         for (size_t y = 0; y < mask.rows; ++y) {
             for (size_t x = 0; x < mask.cols; ++x) {
                 size_t index = y*mask.cols + x;
-                if (mask.at<uchar>(y, x) = 255) {
-                    masked_cloud->push_back(cloud->at(index));
+                if (int(mask.at<uchar>(y, x)) != 255) {
+                    cloud->points[index].x = std::numeric_limits<float>::infinity();
+                    cloud->points[index].y = std::numeric_limits<float>::infinity();
+                    cloud->points[index].z = std::numeric_limits<float>::infinity();
                 }
             }
         }
 
         sensor_msgs::PointCloud2 masked_msg;
-        pcl::toROSMsg(*masked_cloud, masked_msg);
+        pcl::toROSMsg(*cloud, masked_msg);
         resp.clouds.push_back(masked_msg);
     }
 
@@ -229,6 +231,7 @@ int main(int argc, char** argv)
 
     pub = n.advertise<std_msgs::String>("/segmentation_done", 1);
     vis_cloud_pub = n.advertise<sensor_msgs::PointCloud2>("/retrieval_processing/segmentation_cloud", 1);
+    service = n.advertiseService("/retrieval_segmentation_service", segmentation_service);
 
     ros::Subscriber sub;
     if (bypass) {

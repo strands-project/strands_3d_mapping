@@ -54,6 +54,7 @@ using AdjacencyT = vector<set<pair<int, int> > >;
 // does that mean we need to provide the querying
 // interface as well? maybe
 ros::Publisher pub;
+ros::ServiceServer service;
 int min_training_sweeps;
 size_t nbr_added_sweeps;
 boost::filesystem::path vocabulary_path;
@@ -297,7 +298,18 @@ bool vocabulary_service(quasimodo_msgs::index_cloud::Request& req, quasimodo_msg
 
     {
         dynamic_object_retrieval::segment_uris uris;
-        uris.load(vocabulary_path);
+        if (boost::filesystem::exists(vocabulary_path / "segment_uris.json"))
+        {
+            uris.load(vocabulary_path);
+        }
+        else {
+            // load all the segments summaries and push them as uris
+            dynamic_object_retrieval::data_summary segments_summary;
+            segments_summary.load(vocabulary_path.parent_path());
+            for (const string& segment_path : segments_summary.index_convex_segment_paths) {
+                uris.uris.push_back(string("file://") + segment_path);
+            }
+        }
         uris.uris.push_back(string("mongodb://") + "world_state" + "/" + "quasimodo" + "/" + req.object_id);
         uris.save(vocabulary_path);
     }
@@ -306,6 +318,7 @@ bool vocabulary_service(quasimodo_msgs::index_cloud::Request& req, quasimodo_msg
     {
         dynamic_object_retrieval::vocabulary_summary summary;
         summary.load(vocabulary_path);
+        resp.id = summary.nbr_noise_segments;
         summary.nbr_noise_segments += 1;
         summary.nbr_noise_sweeps++;
         summary.save(vocabulary_path);
@@ -444,12 +457,14 @@ int main(int argc, char** argv)
         vt = new VocT(vocabulary_path.string());
         vt->set_min_match_depth(3);
         dynamic_object_retrieval::load_vocabulary(*vt, vocabulary_path);
+        vt->set_cache_path(vocabulary_path.string());
     }
     else {
         vt = NULL;
     }
 
     pub = n.advertise<std_msgs::String>("/vocabulary_done", 1);
+    service = n.advertiseService("/retrieval_vocabulary_service", vocabulary_service);
 
     ros::Subscriber sub;
     if (bypass) {

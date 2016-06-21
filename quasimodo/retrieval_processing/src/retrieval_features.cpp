@@ -141,11 +141,13 @@ void test_compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, Cl
 */
 
 bool features_service(quasimodo_msgs::transform_cloud::Request& req, quasimodo_msgs::transform_cloud::Response& resp)
-{
+{   
     double threshold = 0.4;
 
     SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
     pcl::fromROSMsg(req.cloud, *surfel_cloud);
+    cout << "Got service cloud with size: " << surfel_cloud->size() << endl;
+
     HistCloudT::Ptr desc_cloud(new HistCloudT);
     CloudT::Ptr kp_cloud(new CloudT);
 
@@ -165,6 +167,8 @@ bool features_service(quasimodo_msgs::transform_cloud::Request& req, quasimodo_m
         cloud->push_back(p);
         normals->push_back(n);
     }
+    cout << "Service points after confidence " << threshold << ": " << cloud->size() << endl;
+
     dynamic_object_retrieval::compute_features(desc_cloud, kp_cloud, cloud, normals);
     pcl::toROSMsg(*desc_cloud, resp.cloud1);
     pcl::toROSMsg(*kp_cloud, resp.cloud2);

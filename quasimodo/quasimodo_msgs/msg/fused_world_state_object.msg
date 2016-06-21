@@ -1,2 +1,5 @@
 sensor_msgs/PointCloud2 surfel_cloud
+sensor_msgs/PointCloud2 features
+sensor_msgs/PointCloud2 keypoints
 string object_id
+uint64 vocabulary_id

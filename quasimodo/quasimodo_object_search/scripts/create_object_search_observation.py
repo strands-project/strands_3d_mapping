@@ -75,10 +75,11 @@ def chron_callback():
 
                 transforms.append(transform)
 
-            rospy.wait_for_service('retrieval_segmentation_server')
+            print "Waiting for retrieval_segmentation_service..."
+            rospy.wait_for_service('retrieval_segmentation_service')
             try:
-                surfelize_server = rospy.ServiceProxy('retrieval_segmentation_server', mask_pointclouds)
-                resp = surfelize_server(request)
+                surfelize_server = rospy.ServiceProxy('retrieval_segmentation_service', mask_pointclouds)
+                resp = surfelize_server(req)
             except rospy.ServiceException, e:
                 print "Service call failed: %s"%e
                 return
@@ -88,16 +89,17 @@ def chron_callback():
             #std_msgs/Float32[]	  intrinsics # can be empty
             #---
             #sensor_msgs/PointCloud2 processed_cloud
-            request = ProcessRegisteredViewsRequest()
-            request.registered_views = resp.clouds
+            req = ProcessRegisteredViewsRequest()
+            req.registered_views = resp.clouds
             # This should possibly be transformed to the frame of the first
             # observation to make visualization a bit easier
-            request.registered_views_transforms = transforms
+            req.registered_views_transforms = transforms
 
+            print "Waiting for surfelize_server..."
             rospy.wait_for_service('surfelize_server')
             try:
                 surfelize_server = rospy.ServiceProxy('surfelize_server', ProcessRegisteredViews)
-                resp = surfelize_server(request)
+                resp = surfelize_server(req)
             except rospy.ServiceException, e:
                 print "Service call failed: %s"%e
                 return
@@ -106,12 +108,13 @@ def chron_callback():
             new_obj.surfel_cloud = resp.processed_cloud
             new_obj.object_id = x.id
 
+            print "Waiting for retrieval_features_service..."
             rospy.wait_for_service('retrieval_features_service')
             req = transform_cloudRequest()
-            req.cloud = new_obj.surfel_cloud
+            req.cloud = resp.processed_cloud
             try:
                 surfelize_server = rospy.ServiceProxy('retrieval_features_service', transform_cloud)
-                resp = surfelize_server(request)
+                resp = surfelize_server(req)
             except rospy.ServiceException, e:
                 print "Service call failed: %s"%e
                 return
@@ -121,18 +124,19 @@ def chron_callback():
 
             object_id = msg_store.insert(new_obj)
 
+            print "Waiting for retrieval_vocabulary_service..."
             rospy.wait_for_service('retrieval_vocabulary_service')
             req = index_cloudRequest()
-            req.cloud = new_obj.surfel_cloud
+            req.cloud = new_obj.features
             req.object_id = object_id
             try:
                 surfelize_server = rospy.ServiceProxy('retrieval_vocabulary_service', index_cloud)
-                resp = surfelize_server(request)
+                resp = surfelize_server(req)
             except rospy.ServiceException, e:
                 print "Service call failed: %s"%e
                 return
 
-            new_obj.vocabulary_index = resp.id
+            new_obj.vocabulary_id = resp.id
             msg_store.update_id(object_id, new_obj)
             # Now, simply save this in mongodb, or maybe extract features first?
 
@@ -154,4 +158,5 @@ if __name__ == '__main__':
     r = rospy.Rate(1.0/(60.0*UPDATE_INT_MINUTES)) # 10hz
     while not rospy.is_shutdown():
         chron_callback()
+        break
         r.sleep()
