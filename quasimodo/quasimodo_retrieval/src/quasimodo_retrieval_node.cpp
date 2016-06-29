@@ -405,6 +405,11 @@ public:
         // This is just to make sure that we have valid results even when some meta rooms have been deleted
         size_t counter = 0;
         while (counter < number_query) {
+            // assume that everything in mongodb is kept
+            if (results.first[counter].first.stem().string() == "surfel_map") {
+                ++counter;
+                continue;
+            }
             if (!boost::filesystem::exists(results.first[counter].first)) {
                 auto iter = std::find_if(results.first.begin()+counter, results.first.end(), [](const pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type>& res) {
                     return boost::filesystem::exists(res.first);
@@ -527,6 +532,11 @@ public:
         // This is just to make sure that we have valid results even when some meta rooms have been deleted
         size_t counter = 0;
         while (counter < number_query) {
+            // assume that everything in mongodb is kept
+            if (results.first[counter].first.stem().string() == "surfel_map") {
+                ++counter;
+                continue;
+            }
             if (!boost::filesystem::exists(results.first[counter].first)) {
                 auto iter = std::find_if(results.first.begin()+counter, results.first.end(), [](const pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type>& v) {
                     return boost::filesystem::exists(v.first);
