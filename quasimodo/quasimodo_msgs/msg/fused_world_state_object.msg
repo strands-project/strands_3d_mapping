@@ -3,3 +3,8 @@ sensor_msgs/PointCloud2 features
 sensor_msgs/PointCloud2 keypoints
 string object_id
 uint64 vocabulary_id
+sensor_msgs/Image[] images
+sensor_msgs/Image[] depths
+sensor_msgs/Image[] masks
+geometry_msgs/Pose[] transforms
+

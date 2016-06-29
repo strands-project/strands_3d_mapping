@@ -19,6 +19,7 @@ from quasimodo_msgs.msg import fused_world_state_object
 from quasimodo_msgs.srv import transform_cloud, transform_cloudRequest, transform_cloudResponse
 from quasimodo_msgs.srv import index_cloud, index_cloudRequest, index_cloudResponse
 from quasimodo_msgs.srv import mask_pointclouds, mask_pointcloudsRequest, mask_pointcloudsResponse
+from geometry_msgs.msg import Pose
 import time
 
 UPDATE_INT_MINUTES = 100000.0
@@ -107,6 +108,16 @@ def chron_callback():
             new_obj = fused_world_state_object()
             new_obj.surfel_cloud = resp.processed_cloud
             new_obj.object_id = x.id
+
+            for obs, pose in zip(wo._observations, wo._poses):
+                new_obj.transforms.append(Pose())
+                new_obj.transforms[-1].position.x = pose.position.x
+                new_obj.transforms[-1].position.y = pose.position.y
+                new_obj.transforms[-1].position.z = pose.position.z
+                new_obj.transforms[-1].orientation.x = pose.quaternion.x
+                new_obj.transforms[-1].orientation.y = pose.quaternion.y
+                new_obj.transforms[-1].orientation.z = pose.quaternion.z
+                new_obj.transforms[-1].orientation.w = pose.quaternion.w
 
             print "Waiting for retrieval_features_service..."
             rospy.wait_for_service('retrieval_features_service')
