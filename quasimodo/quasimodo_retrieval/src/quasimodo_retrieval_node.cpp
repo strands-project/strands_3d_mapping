@@ -28,6 +28,13 @@
 #include <dynamic_reconfigure/server.h>
 #include <quasimodo_retrieval/parametersConfig.h>
 
+#define WITH_UNIVERSAL_URIS 1
+
+#if WITH_UNIVERSAL_URIS
+#include <mongodb_store/message_store.h>
+#include <quasimodo_msgs/fused_world_state_object.h>
+#endif
+
 using namespace std;
 
 using PointT = pcl::PointXYZRGB;
@@ -200,6 +207,62 @@ public:
         return images;
     }
 
+    tuple<vector<cv::Mat>, vector<cv::Mat>, vector<cv::Mat>, vector<int> >
+    generate_images_for_mongodb_object(const CloudT::Ptr& cloud, const Eigen::Matrix3f& K,
+        const boost::filesystem::path& sweep_xml,
+        const vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >& transforms)
+    {
+        tuple<vector<cv::Mat>, vector<cv::Mat>, vector<cv::Mat>, vector<int> > images;
+
+        //int height = 480;
+        //int width = 640;
+
+        string mongodb_id = sweep_xml.parent_path().stem().string();
+        //string mongodb_uri = string("/world_state/quasimodo/") / mongodb_id;
+
+        mongodb_store::MessageStoreProxy message_store_quasimodo(n, "quasimodo", "world_state");
+        pair<boost::shared_ptr<quasimodo_msgs::fused_world_state_object>, mongo::BSONObj> query = message_store_quasimodo.queryID<quasimodo_msgs::fused_world_state_object>(mongodb_id);
+
+        for (int i = 0; i < query.first->images.size(); ++i) {
+            cv_bridge::CvImagePtr cv_mask_ptr;
+            try {
+                cv_mask_ptr = cv_bridge::toCvCopy(query.first->masks[i], sensor_msgs::image_encodings::BGR8);
+            }
+            catch (cv_bridge::Exception& e) {
+                ROS_ERROR("cv_bridge exception: %s", e.what());
+                exit(-1);
+            }
+            cv::Mat mask;
+            cv::cvtColor(cv_mask_ptr->image, mask, CV_BGR2GRAY);
+
+            cv_bridge::CvImagePtr cv_image_ptr;
+            try {
+                cv_image_ptr = cv_bridge::toCvCopy(query.first->images[i], sensor_msgs::image_encodings::BGR8);
+            }
+            catch (cv_bridge::Exception& e) {
+                ROS_ERROR("cv_bridge exception: %s", e.what());
+                exit(-1);
+            }
+
+            cv_bridge::CvImagePtr cv_depth_ptr;
+            try {
+                cv_depth_ptr = cv_bridge::toCvCopy(query.first->depths[i], sensor_msgs::image_encodings::MONO16);
+            }
+            catch (cv_bridge::Exception& e) {
+                ROS_ERROR("cv_bridge exception: %s", e.what());
+                exit(-1);
+            }
+
+            get<0>(images).push_back(mask);
+            get<1>(images).push_back(cv_image_ptr->image);
+            get<2>(images).push_back(cv_depth_ptr->image);
+            get<3>(images).push_back(i);
+
+        }
+
+        return images;
+    }
+
     void test_compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT::Ptr& cloud,
                                NormalCloudT::Ptr& normals, bool do_visualize = false, bool is_query = false)
     {
@@ -357,6 +420,7 @@ public:
         }
         results.first.resize(counter);
 
+        // the sweep paths are of the form /path/to/room.xml, which do not exist for mongodb results
         tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
         cout << "Query cloud size: " << cloud->size() << endl;
@@ -369,9 +433,14 @@ public:
         for (auto s : results.first) {
             boost::filesystem::path segment_path = s.first;
             string name = segment_path.stem().string();
-            size_t last_index = name.find_last_not_of("0123456789");
-            int index = stoi(name.substr(last_index + 1));
-            indices.push_back(index);
+            if (name == "surfel_map") { // for the mongodb results
+                indices.push_back(-1);
+            }
+            else { // for the metric map results
+                size_t last_index = name.find_last_not_of("0123456789");
+                int index = stoi(name.substr(last_index + 1));
+                indices.push_back(index);
+            }
             scores.push_back(s.second.score);
         }
 
@@ -391,14 +460,20 @@ public:
         K << 540.0f, 0.0f, 320.0f, 0.0f, 540.0f, 240.0f, 0.0f, 0.0f, 1.0f;
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
             vector<int> inds;
-            auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
             vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > sweep_transforms;
-            for (tf::StampedTransform& t : sweep_data.vIntermediateRoomCloudTransformsRegistered) {
-                Eigen::Affine3d e;
-                tf::transformTFToEigen(t, e);
-                sweep_transforms.push_back(e.inverse().matrix().cast<float>());
+            if (indices[i] == -1) { // special case for mongodb result
+                tie(masks[i], images[i], depths[i], inds) = generate_images_for_mongodb_object(retrieved_clouds[i], K, sweep_paths[i], sweep_transforms);
             }
-            tie(masks[i], images[i], depths[i], inds) = generate_images_for_object(retrieved_clouds[i], K, sweep_paths[i], sweep_transforms);
+            else {
+                auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
+                for (tf::StampedTransform& t : sweep_data.vIntermediateRoomCloudTransformsRegistered) {
+                    Eigen::Affine3d e;
+                    tf::transformTFToEigen(t, e);
+                    sweep_transforms.push_back(e.inverse().matrix().cast<float>());
+                }
+                tie(masks[i], images[i], depths[i], inds) = generate_images_for_object(retrieved_clouds[i], K, sweep_paths[i], sweep_transforms);
+
+            }
             for (int j = 0; j < inds.size(); ++j) {
                 paths[i].push_back(sweep_paths[i].string() + " " + to_string(inds[j]));
             }
@@ -483,10 +558,14 @@ public:
         for (auto s : results.first) {
             boost::filesystem::path segment_path = s.first;
             string name = segment_path.stem().string();
-            size_t last_index = name.find_last_not_of("0123456789");
-            int index = stoi(name.substr(last_index + 1));
-            indices.push_back(index);
-            // indices.push_back(s.second.index); // global index in the vocabulary
+            if (name == "surfel_map") { // for the mongodb results
+                indices.push_back(-1);
+            }
+            else { // for the metric map results
+                size_t last_index = name.find_last_not_of("0123456789");
+                int index = stoi(name.substr(last_index + 1));
+                indices.push_back(index);
+            }
             scores.push_back(s.second.score);
         }
 
@@ -494,24 +573,26 @@ public:
         vector<vector<cv::Mat> > masks(retrieved_clouds.size());
         vector<vector<cv::Mat> > images(retrieved_clouds.size());
         vector<vector<cv::Mat> > depths(retrieved_clouds.size());
-        vector<vector<string> > paths(retrieved_clouds.size());
+        vector<vector<string> > paths(retrieved_clouds.size());        
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
             vector<int> inds;
-            auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
             vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > sweep_transforms;
-            for (tf::StampedTransform& t : sweep_data.vIntermediateRoomCloudTransformsRegistered) {
-                Eigen::Affine3d e;
-                tf::transformTFToEigen(t, e);
-                sweep_transforms.push_back(e.inverse().matrix().cast<float>());
+            if (indices[i] == -1) { // special case for mongodb result
+                tie(masks[i], images[i], depths[i], inds) = generate_images_for_mongodb_object(retrieved_clouds[i], K, sweep_paths[i], sweep_transforms);
             }
-            tie(masks[i], images[i], depths[i], inds) = generate_images_for_object(retrieved_clouds[i], K, sweep_paths[i], sweep_transforms);
+            else {
+                auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
+                for (tf::StampedTransform& t : sweep_data.vIntermediateRoomCloudTransformsRegistered) {
+                    Eigen::Affine3d e;
+                    tf::transformTFToEigen(t, e);
+                    sweep_transforms.push_back(e.inverse().matrix().cast<float>());
+                }
+                tie(masks[i], images[i], depths[i], inds) = generate_images_for_object(retrieved_clouds[i], K, sweep_paths[i], sweep_transforms);
+
+            }
             for (int j = 0; j < inds.size(); ++j) {
                 paths[i].push_back(sweep_paths[i].string() + " " + to_string(inds[j]));
             }
-
-            //Eigen::Affine3d AT;
-            //tf::transformTFToEigen(sweep_data.vIntermediateRoomCloudTransforms[0], AT);
-            //pcl::transformPointCloud(*retrieved_clouds[i], *retrieved_clouds[i], AT);
         }
 
         //cv::Mat full_query_image = benchmark_retrieval::sweep_get_rgb_at(sweep_xml, scan_index);
