@@ -29,6 +29,7 @@ pub = ()
 
 def retrieval_callback(object_id):
 
+    # This hardcoding is no good!
     world_model = World(server_host='localhost',server_port=62345)
     print(object_id)
     wo = world_model.get_object(object_id)
@@ -99,4 +100,5 @@ def retrieval_callback(object_id):
 if __name__ == '__main__':
     rospy.init_node('retrieve_object_search', anonymous = False)
     pub = rospy.Publisher("/models/query", retrieval_query)
+    sub = rospy.Subscriber("/models/mongodb_query", std_msgs.String, callback=retrieval_callback)
     rospy.spin()

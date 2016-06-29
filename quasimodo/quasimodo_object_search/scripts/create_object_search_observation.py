@@ -49,6 +49,7 @@ def chron_callback():
     else:
         print("got " + str(len(response.objects)) + " SOMA objects")
         msg_store = MessageStoreProxy(database='world_state', collection='quasimodo')
+        # This hardcoding is no good!
         world_model = World(server_host='localhost',server_port=62345)
         #print world_model
         for x in response.objects:
