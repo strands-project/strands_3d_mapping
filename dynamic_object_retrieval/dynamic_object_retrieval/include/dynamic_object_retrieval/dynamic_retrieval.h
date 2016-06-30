@@ -55,7 +55,8 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
     ros::NodeHandle n("/dynamic_retrieval");
     size_t offset = summary.nbr_noise_segments;
     segment_uris uris;
-    uris.load(boost::filesystem::path(summary.noise_data_path));
+    std::cout << "Loading URI:s file: " << (boost::filesystem::path(summary.noise_data_path) / "vocabulary" / "segment_uris.json").string() << std::endl;
+    uris.load(boost::filesystem::path(summary.noise_data_path) / "vocabulary");
     mongodb_store::MessageStoreProxy* message_store = NULL;
     for (IndexT s : scores) {
         if (s.index >= offset) {
@@ -63,6 +64,7 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
             exit(-1);
         }
         std::string uri = uris.uris[s.index];
+        std::cout << "Got URI: " << uri << std::endl;
         if (uri.compare(0, 10, "mongodb://") == 0) {
             std::string db_uri = uri.substr(7, uri.size()-7);
             std::vector<std::string> strs;
