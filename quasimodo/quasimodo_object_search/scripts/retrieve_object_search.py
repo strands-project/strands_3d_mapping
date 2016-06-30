@@ -6,6 +6,7 @@ from sensor_msgs.msg import PointCloud2, PointField
 #from world_modeling.srv import *
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
+import numpy as np
 
 # SOMA2 stuff
 from soma2_msgs.msg import SOMA2Object
@@ -22,8 +23,7 @@ from quasimodo_msgs.srv import mask_pointclouds, mask_pointcloudsRequest, mask_p
 from quasimodo_msgs.msg import retrieval_query
 from geometry_msgs.msg import Pose
 import time
-
-UPDATE_INT_MINUTES = 100000.0
+import std_msgs
 
 pub = ()
 
@@ -32,7 +32,7 @@ def retrieval_callback(object_id):
     # This hardcoding is no good!
     world_model = World(server_host='localhost',server_port=62345)
     print(object_id)
-    wo = world_model.get_object(object_id)
+    wo = world_model.get_object(object_id.data)
 
     transforms = [] #wo._poses
     images = []
@@ -42,12 +42,12 @@ def retrieval_callback(object_id):
     req = mask_pointcloudsRequest()
     for obs, pose in zip(wo._observations, wo._poses):
 
-        images.append(fo.get_message("/head_xtion/rgb/image_rect_color"))
+        images.append(obs.get_message("/head_xtion/rgb/image_rect_color"))
         depthmat = np.zeros((480,640,1), np.uint16)
         # have to be careful here, Johan has a different encoding
         depths.append(CvBridge().cv2_to_imgmsg(depthmat, "mono16"))
-        masks.append(fo.get_message("rgb_mask"))
-        cameras = fo.get_message("/head_xtion/depth_registered/sw_registered/camera_info")
+        masks.append(obs.get_message("rgb_mask"))
+        cameras.append(obs.get_message("/head_xtion/depth_registered/sw_registered/camera_info"))
         req.clouds.append(obs.get_message("/head_xtion/depth_registered/points"))
         req.masks.append(obs.get_message("rgb_mask"))
 
@@ -99,6 +99,6 @@ def retrieval_callback(object_id):
 
 if __name__ == '__main__':
     rospy.init_node('retrieve_object_search', anonymous = False)
-    pub = rospy.Publisher("/models/query", retrieval_query)
-    sub = rospy.Subscriber("/models/mongodb_query", std_msgs.String, callback=retrieval_callback)
+    pub = rospy.Publisher("/models/query", data_class=retrieval_query, queue_size=None)
+    sub = rospy.Subscriber("/models/mongodb_query", std_msgs.msg.String, callback=retrieval_callback)
     rospy.spin()
