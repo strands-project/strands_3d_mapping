@@ -22,6 +22,7 @@ using ceres::Solve;
 
 class pair3DError : public SizedCostFunction<3, 6, 6, 4> {
 	public:
+    static bool optimizeCameraParams;
 	pair3DError(double sw, double sh, double sz,double dw, double dh, double dz, double weight);
 	~pair3DError();
 	bool Evaluate(double const* const* parameters, double* residuals, double** jacobians) const ;
@@ -34,7 +35,7 @@ class pair3DError : public SizedCostFunction<3, 6, 6, 4> {
 	double dh;
 	double dz;
 	double weight;
-    bool optimizeCameraParams;
+    //bool optimizeCameraParams;
     double information;
 };
 #endif
