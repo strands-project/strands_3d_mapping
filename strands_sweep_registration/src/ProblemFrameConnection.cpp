@@ -30,8 +30,10 @@ void ProblemFrameConnection::addMatchesToProblem(ceres::Problem & problem, float
 		double sz	= src->keypoint_depth.at(src_kp_id);
 		double dz	= dst->keypoint_depth.at(dst_kp_id);			
 
-		CostFunction* err = new pair3DError(src_kp.pt.x,src_kp.pt.y,sz,dst_kp.pt.x,dst_kp.pt.y,dz,weight);
-		problem.AddResidualBlock(err, NULL, src_variable, dst_variable, params);
+        //CostFunction* err = new pair3DError(src_kp.pt.x,src_kp.pt.y,sz,dst_kp.pt.x,dst_kp.pt.y,dz,weight/pow(sz*sz+dz*dz,2));
+        CostFunction* err = new pair3DError(src_kp.pt.x,src_kp.pt.y,sz,dst_kp.pt.x,dst_kp.pt.y,dz,weight);
+        problem.AddResidualBlock(err, 0, src_variable, dst_variable, params);
+        problem.AddResidualBlock(err, new ceres::HuberLoss(0.1), src_variable, dst_variable, params);
 	}
 }
 
