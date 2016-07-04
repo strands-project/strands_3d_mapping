@@ -48,7 +48,7 @@ public:
         sub = n.subscribe(input, 1, &retrieval_cloud_visualizer::callback, this);
 
         for (size_t i = 0; i < 10; ++i) {
-            pubs[i] = n.advertise<sensor_msgs::PointCloud2>(string("/retrieval_cloud/") + to_string(i), 1, true);
+            pubs[i] = n.advertise<sensor_msgs::PointCloud2>(string("/retrieval_raw_cloud/") + to_string(i), 1, true);
         }
     }
 
@@ -63,14 +63,14 @@ public:
                 if (mask.at<uchar>(i, j) == 0) {
                     continue;
                 }
-                float d = 0.0002f*float(depth.at<uint16_t>(i, j));
+                float d = 0.001f*float(depth.at<uint16_t>(i, j));
                 Eigen::Vector3f ep(float(j), float(i), 1.0f);
                 ep = K.inverse()*ep;
                 ep = d/ep(2)*ep;
                 PointT p;
                 p.getVector3fMap() = ep;
                 cv::Vec3b colors = rgb.at<cv::Vec3b>(i, j);
-                p.r = colors[0]; p.g = colors[1]; p.b = colors[2];
+                p.r = colors[2]; p.g = colors[1]; p.b = colors[0];
                 cloud->push_back(p);
             }
         }
@@ -81,7 +81,7 @@ public:
 
     void callback(const quasimodo_msgs::retrieval_query_result& result)
     {
-        int m = result.result.retrieved_clouds.size(); // 10!
+        const int m = 10;//result.result.retrieved_clouds.size(); // 10!
 
         for (int j = 0; j < m; ++j) {
             int n = result.result.retrieved_images[j].images.size();
@@ -97,7 +97,7 @@ public:
 
                 cv_bridge::CvImagePtr cv_ptr;
                 try {
-                    cv_ptr = cv_bridge::toCvCopy(result.result.retrieved_images[j].images[j], sensor_msgs::image_encodings::BGR8);
+                    cv_ptr = cv_bridge::toCvCopy(result.result.retrieved_images[j].images[i], sensor_msgs::image_encodings::BGR8);
                 }
                 catch (cv_bridge::Exception& e) {
                     ROS_ERROR("cv_bridge exception: %s", e.what());
@@ -106,7 +106,7 @@ public:
 
                 cv_bridge::CvImagePtr cv_depth_ptr;
                 try {
-                    cv_depth_ptr = cv_bridge::toCvCopy(result.result.retrieved_depths[j].images[j], sensor_msgs::image_encodings::MONO16);
+                    cv_depth_ptr = cv_bridge::toCvCopy(result.result.retrieved_depths[j].images[i], sensor_msgs::image_encodings::MONO16);
                 }
                 catch (cv_bridge::Exception& e) {
                     ROS_ERROR("cv_bridge exception: %s", e.what());
@@ -115,7 +115,7 @@ public:
 
                 cv_bridge::CvImagePtr cv_mask_ptr;
                 try {
-                    cv_mask_ptr = cv_bridge::toCvCopy(result.result.retrieved_masks[j].images[j], sensor_msgs::image_encodings::MONO8);
+                    cv_mask_ptr = cv_bridge::toCvCopy(result.result.retrieved_masks[j].images[i], sensor_msgs::image_encodings::MONO8);
                 }
                 catch (cv_bridge::Exception& e) {
                     ROS_ERROR("cv_bridge exception: %s", e.what());
