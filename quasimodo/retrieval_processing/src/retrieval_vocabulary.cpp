@@ -251,14 +251,14 @@ pair<size_t, size_t> get_offsets_in_data(const boost::filesystem::path& sweep_pa
         // skips 0, that's ok
         if (sweep_i != last_sweep) {
             // this should actually work, right?
-            cout << sweep_path.string() << endl;
-            cout << segment_path.parent_path().parent_path().string() << endl;
+            //cout << sweep_path.string() << endl;
+            //cout << segment_path.parent_path().parent_path().string() << endl;
             if (sweep_path == segment_path.parent_path().parent_path()) {
                 cout << "Matching!" << endl;
                 return make_pair(sweep_i, counter);
             }
             else {
-                cout << "Not matching!" << endl;
+                //cout << "Not matching!" << endl;
             }
         }
 

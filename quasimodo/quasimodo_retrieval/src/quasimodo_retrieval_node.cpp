@@ -54,6 +54,7 @@ public:
     ros::Publisher pub;
     ros::ServiceServer service;
     ros::Publisher keypoint_pub;
+    ros::Publisher pubs[10];
     ros::Subscriber sub;
 
     dynamic_reconfigure::Server<quasimodo_retrieval::parametersConfig> server;
@@ -126,6 +127,9 @@ public:
 
         pub = n.advertise<quasimodo_msgs::retrieval_query_result>(retrieval_output, 1);
         keypoint_pub = n.advertise<sensor_msgs::PointCloud2>("/models/keypoints", 1);
+        for (size_t i = 0; i < 10; ++i) {
+            pubs[i] = n.advertise<sensor_msgs::PointCloud2>(string("/retrieval_cloud/") + to_string(i), 1, true);
+        }
         sub = n.subscribe(retrieval_input, 10, &retrieval_node::run_retrieval, this);
         service = n.advertiseService("/query_normal_cloud", &retrieval_node::service_callback, this);
         /*
@@ -160,6 +164,7 @@ public:
         for (int i = 0; i < transforms.size(); ++i) {
             cv::Mat mask = cv::Mat::zeros(height, width, CV_8UC1);
             int sum = 0;
+            pair<cv::Mat, cv::Mat> intermediate_images = sweep_get_rgbd_at(sweep_xml, i);
             for (const PointT& p : cloud->points) {
                 Eigen::Vector4f q = transforms[i]*p.getVector4fMap();
                 if (q(2)/q(3) < 0) {
@@ -169,6 +174,12 @@ public:
                 int x = int(r(0)/r(2));
                 int y = int(r(1)/r(2));
                 if (x >= width || x < 0 || y >= height || y < 0) {
+                    continue;
+                }
+                float depth = 0.001f*float(intermediate_images.second.at<uint16_t>(y, x));
+                //cout << "Depth: " << depth << endl;
+                //cout << "Point depth: " << q(2)/q(3) << endl;
+                if (fabs(depth - q(2)) > 0.02f) {
                     continue;
                 }
                 mask.at<uint8_t>(y, x) = 255;
@@ -187,7 +198,6 @@ public:
 
 
             get<0>(images).push_back(mask);
-            pair<cv::Mat, cv::Mat> intermediate_images = sweep_get_rgbd_at(sweep_xml, i);
             get<1>(images).push_back(intermediate_images.first);
             get<2>(images).push_back(intermediate_images.second);
             //get<1>(images).push_back(benchmark_retrieval::sweep_get_rgb_at(sweep_xml, i));
@@ -508,7 +518,8 @@ public:
         cam_model.fromCameraInfo(query_msg->camera);
         cv::Matx33d cvK = cam_model.intrinsicMatrix();
         Eigen::Matrix3f K = Eigen::Map<Eigen::Matrix3d>(cvK.val).cast<float>();
-        K << 525.0f, 0.0f, 319.5f, 0.0f, 525.0f, 239.5f, 0.0f, 0.0f, 1.0f; // should be removed if Johan returns K?
+        K << 528.0f, 0.0f, 317.0f, 0.0f, 525.0f, 245.0f, 0.0f, 0.0f, 1.0f; // surfelize_it intrinsics
+       // K << 525.0f, 0.0f, 319.5f, 0.0f, 525.0f, 239.5f, 0.0f, 0.0f, 1.0f; // should be removed if Johan returns K?
 
         HistCloudT::Ptr features(new HistCloudT);
         CloudT::Ptr keypoints(new CloudT);
@@ -611,6 +622,12 @@ public:
 
         tf::transformTFToMsg(room_transform, result.query.room_transform);
         result.result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices);
+        for (int i = 0; i < retrieved_clouds.size(); ++i) {
+            sensor_msgs::PointCloud2 cloud_msg = result.result.retrieved_clouds[i];
+            cloud_msg.header.stamp = ros::Time::now();
+            cloud_msg.header.frame_id = "/map";
+            pubs[i].publish(cloud_msg);
+        }
         pub.publish(result);
 
         cout << "Finished retrieval..." << endl;
