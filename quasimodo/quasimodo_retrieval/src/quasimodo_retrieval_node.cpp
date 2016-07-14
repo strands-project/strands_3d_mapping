@@ -52,6 +52,7 @@ class retrieval_node {
 public:
     ros::NodeHandle n;
     ros::Publisher pub;
+    ros::Publisher img_pub;
     ros::ServiceServer service;
     ros::Publisher keypoint_pub;
     ros::Publisher pubs[10];
@@ -126,6 +127,7 @@ public:
         server.setCallback(boost::bind(&retrieval_node::parameters_callback, this, _1, _2));
 
         pub = n.advertise<quasimodo_msgs::retrieval_query_result>(retrieval_output, 1);
+        img_pub = n.advertise<sensor_msgs::Image>("/quasimodo_retrieval/raw_visualization", 1, true);
         keypoint_pub = n.advertise<sensor_msgs::PointCloud2>("/models/keypoints", 1);
         for (size_t i = 0; i < 10; ++i) {
             pubs[i] = n.advertise<sensor_msgs::PointCloud2>(string("/retrieval_cloud/") + to_string(i), 1, true);
@@ -495,6 +497,8 @@ public:
         }
 
         res.result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices);
+        sensor_msgs::Image img_msg = construct_results_image(images);
+        img_pub.publish(img_msg);
 
         cout << "Finished retrieval..." << endl;
     }
@@ -629,6 +633,8 @@ public:
             pubs[i].publish(cloud_msg);
         }
         pub.publish(result);
+        sensor_msgs::Image img_msg = construct_results_image(images);
+        img_pub.publish(img_msg);
 
         cout << "Finished retrieval..." << endl;
     }
@@ -655,6 +661,26 @@ public:
         cv_pub_ptr->image = cv_image;
         cv_pub_ptr->encoding = "mono8";
         ros_image = *cv_pub_ptr->toImageMsg();
+    }
+
+    sensor_msgs::Image construct_results_image(const vector<vector<cv::Mat> >& images)
+    {
+        int width = 640;
+        int height = 480;
+
+        pair<int, int> sizes = make_pair(2, 5);
+
+        cv::Mat visualization = cv::Mat::zeros(height*sizes.first, width*sizes.second, CV_8UC3);
+        for (size_t i = 0; i < images.size(); ++i) {
+            size_t offset_height = i / sizes.second;
+            size_t offset_width = i % sizes.second;
+            images[i][0].copyTo(visualization(cv::Rect(offset_width*width, offset_height*height, width, height)));
+        }
+
+        sensor_msgs::Image img_msg;
+        convert_to_img_msg(visualization, img_msg);
+
+        return img_msg;
     }
 
     quasimodo_msgs::retrieval_result construct_msgs(const vector<CloudT::Ptr>& clouds,
