@@ -26,6 +26,7 @@ import time
 import std_msgs
 
 pub = ()
+cloud_pub = ()
 
 def retrieval_callback(object_id):
 
@@ -89,16 +90,21 @@ def retrieval_callback(object_id):
     query.cloud = resp.processed_cloud
     query.depth = depths[0]
     query.image = images[0]
-    query.mask = masks[0]
+    cv_bgr_mask = cv_image = CvBridge().imgmsg_to_cv2(masks[0], "bgr8")
+    cv_mask = cv2.cvtColor(cv_bgr_mask, cv2.COLOR_BGR2GRAY)
+    query.mask = CvBridge().cv2_to_imgmsg(cv_mask, "mono8") #masks[0]
     query.number_query = 10
     query.room_transform = transforms[0]
 
     pub.publish(query)
+    resp.processed_cloud.header.frame_id = "/map"
+    cloud_pub.publish(resp.processed_cloud)
 
     print("done")
 
 if __name__ == '__main__':
     rospy.init_node('retrieve_object_search', anonymous = False)
     pub = rospy.Publisher("/models/query", data_class=retrieval_query, queue_size=None)
+    cloud_pub = rospy.Publisher("/models/fused", data_class=PointCloud2, queue_size=None)
     sub = rospy.Subscriber("/models/mongodb_query", std_msgs.msg.String, callback=retrieval_callback)
     rospy.spin()

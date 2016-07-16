@@ -62,15 +62,24 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
     std::cout << "Loading URI:s file: " << (boost::filesystem::path(summary.noise_data_path) / "vocabulary" / "segment_uris.json").string() << std::endl;
     uris.load(boost::filesystem::path(summary.noise_data_path) / "vocabulary");
     mongodb_store::MessageStoreProxy* message_store = NULL;
+
+    for (IndexT s : scores) {
+        std::cout << "1. Index: " << s.index << std::endl;
+    }
+
     for (IndexT s : scores) {
         if (s.index >= offset) {
+            std::cout << "1. Index: " << s.index << " is larger than: " << offset << std::endl;
             std::cout << "URI loading does not support noise+annotated data structure!" << std::endl;
+            std::cout << "Got URI: " << uris.uris[s.index] << std::endl;
             exit(-1);
         }
         std::string uri = uris.uris[s.index];
-        std::cout << "Got URI: " << uri << std::endl;
+        if (verbose) {
+            std::cout << "Got URI: " << uri << " at index: " << s.index << std::endl;
+        }
         if (uri.compare(0, 10, "mongodb://") == 0) {
-            std::string db_uri = uri.substr(7, uri.size()-7);
+            std::string db_uri = uri.substr(10, uri.size()-10);
             std::vector<std::string> strs;
             boost::split(strs, db_uri, boost::is_any_of("/"));
             std::cout << "Initializing message story proxy with database: " << strs[0] << ", collection: " << strs[1] << std::endl;
@@ -87,7 +96,9 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
         // another possibility would be to actually just write surfel_map.pcd, that should be enough?
         // the big problem is that we won't able to get any of the info in room.xml
         if (s.index >= offset) {
+            std::cout << "2. Index: " << s.index << " is larger than: " << offset << std::endl;
             std::cout << "URI loading does not support noise+annotated data structure!" << std::endl;
+            std::cout << "Got URI: " << uris.uris[s.index] << std::endl;
             exit(-1);
         }
         std::string uri = uris.uris[s.index];
@@ -97,20 +108,20 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
         else if (uri.compare(0, 10, "mongodb://") == 0) {
             // don't delete anything here, instead have a cache based on the database id:s
             // use boost split to split separate the uri into database / collection / id
-            std::string db_uri = uri.substr(7, uri.size()-7);
+            std::string db_uri = uri.substr(10, uri.size()-10);
             std::vector<std::string> strs;
             boost::split(strs, db_uri, boost::is_any_of("/"));
 
             // how do we get the home directory correctly?
-            boost::filesystem::path temp_path = boost::filesystem::path("~/.ros/quasimodo/temp") / (strs[2] + ".pcd");
+            boost::filesystem::path temp_path = boost::filesystem::absolute(boost::filesystem::path("quasimodo/temp") / (strs[2] + ".pcd"));
 
             if (boost::filesystem::exists(temp_path)) {
                 retrieved_paths.push_back(temp_path);
                 continue;
             }
 
-            if (!boost::filesystem::exists("~/.ros/quasimodo/temp")) {
-                boost::filesystem::create_directories("~/.ros/quasimodo/temp");
+            if (!boost::filesystem::exists("quasimodo/temp")) {
+                boost::filesystem::create_directories("quasimodo/temp");
             }
 
             boost::shared_ptr<quasimodo_msgs::fused_world_state_object> message;

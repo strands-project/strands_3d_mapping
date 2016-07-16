@@ -175,6 +175,9 @@ void train_vocabulary(const boost::filesystem::path& data_path)
             sweep_counter = 0;
         }
 
+        // here we insert in the uris
+        uris.uris.push_back(string("file://") + segment_path.string());
+
         if (features_i->size() < min_segment_features) {
             ++counter;
             ++sweep_counter;
@@ -195,9 +198,6 @@ void train_vocabulary(const boost::filesystem::path& data_path)
         for (size_t i = 0; i < features_i->size(); ++i) {
             indices.push_back(index);
         }
-
-        // here we insert in the uris
-        uris.uris.push_back(string("file://") + segment_path.string());
 
         ++counter;
         ++sweep_counter;
@@ -288,8 +288,12 @@ bool vocabulary_service(quasimodo_msgs::index_cloud::Request& req, quasimodo_msg
     // the question is what offsets we should assign these, I think in reality it doesn't matter, possibly the sweep offset might not get set automatically
     // let's just try 0, 0 for now
     //IndexT index(sweep_offset + sweep_i, offset, 0); // we only have one segment within these observations -> sweep_index = 0
-    IndexT index(0, 0, 0); // we only have one segment within these observations -> sweep_index = 0
-    indices.push_back(index);
+    dynamic_object_retrieval::vocabulary_summary summary;
+    summary.load(vocabulary_path);
+    IndexT index(100000, summary.nbr_noise_segments, 0); // this is a bit weird, did not think we relied on these, we only have one segment within these observations -> sweep_index = 0
+    for (size_t i = 0; i < features->size(); ++i) {
+        indices.push_back(index);
+    }
     AdjacencyT adjacencies;
 
     if (features->size() > 0) {
@@ -298,8 +302,8 @@ bool vocabulary_service(quasimodo_msgs::index_cloud::Request& req, quasimodo_msg
 
     {
         dynamic_object_retrieval::segment_uris uris;
-        if (boost::filesystem::exists(vocabulary_path / "segment_uris.json"))
-        {
+        if (boost::filesystem::exists(vocabulary_path / "segment_uris.json")) {
+            cout << "Segment uris file already exists, loading..." << endl;
             uris.load(vocabulary_path);
         }
         else {
@@ -315,15 +319,12 @@ bool vocabulary_service(quasimodo_msgs::index_cloud::Request& req, quasimodo_msg
     }
 
     // This part is new!
-    {
-        dynamic_object_retrieval::vocabulary_summary summary;
-        summary.load(vocabulary_path);
-        resp.id = summary.nbr_noise_segments;
-        summary.nbr_noise_segments += 1;
-        summary.nbr_noise_sweeps++;
-        summary.save(vocabulary_path);
-        dynamic_object_retrieval::save_vocabulary(*vt, vocabulary_path);
-    }
+
+    resp.id = summary.nbr_noise_segments;
+    summary.nbr_noise_segments += 1;
+    summary.nbr_noise_sweeps++;
+    summary.save(vocabulary_path);
+    dynamic_object_retrieval::save_vocabulary(*vt, vocabulary_path);
 
     return true;
 }
@@ -348,6 +349,9 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
                 break;
             }
             ++nbr_segmented_sweeps;
+            if (boost::filesystem::path(xml) == sweep_xml) {
+                break;
+            }
         }
         if (nbr_segmented_sweeps >= min_training_sweeps + 1) {
             train_vocabulary(data_path);
@@ -357,6 +361,8 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
         pub.publish(done_msg);
         return;
     }
+
+    cout << "After training: " << endl;
 
     size_t offset; // same thing here, index among segments, can't take this from vocab, instead parse everything?
     size_t sweep_offset;
