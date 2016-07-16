@@ -113,15 +113,15 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
             boost::split(strs, db_uri, boost::is_any_of("/"));
 
             // how do we get the home directory correctly?
-            boost::filesystem::path temp_path = boost::filesystem::absolute(boost::filesystem::path("quasimodo/temp") / (strs[2] + ".pcd"));
+            boost::filesystem::path temp_path = boost::filesystem::absolute(boost::filesystem::path("quasimodo/temp") / strs[2] / "surfel_map.pcd");
 
-            if (boost::filesystem::exists(temp_path)) {
+            if (boost::filesystem::exists(temp_path.parent_path())) {
                 retrieved_paths.push_back(temp_path);
                 continue;
             }
 
-            if (!boost::filesystem::exists("quasimodo/temp")) {
-                boost::filesystem::create_directories("quasimodo/temp");
+            if (!boost::filesystem::exists(temp_path.parent_path())) {
+                boost::filesystem::create_directories(temp_path.parent_path());
             }
 
             boost::shared_ptr<quasimodo_msgs::fused_world_state_object> message;

@@ -216,6 +216,16 @@ public:
 
         // now probably do some dilation on the masks
 
+        if (get<0>(images).empty()) {
+            cv::Mat mask = cv::Mat::zeros(height, width, CV_8UC1);
+            cv::Mat depth = cv::Mat::zeros(height, width, CV_16UC1);
+            cv::Mat image = cv::Mat::zeros(height, width, CV_8UC3);
+            get<0>(images).push_back(mask);
+            get<1>(images).push_back(image);
+            get<2>(images).push_back(depth);
+            get<3>(images).push_back(-1);
+        }
+
         return images;
     }
 
@@ -270,6 +280,16 @@ public:
             get<2>(images).push_back(cv_depth_ptr->image);
             get<3>(images).push_back(i);
 
+        }
+
+        if (get<0>(images).empty()) {
+            cv::Mat mask = cv::Mat::zeros(480, 640, CV_8UC1);
+            cv::Mat depth = cv::Mat::zeros(480, 640, CV_16UC1);
+            cv::Mat image = cv::Mat::zeros(480, 640, CV_8UC3);
+            get<0>(images).push_back(mask);
+            get<1>(images).push_back(image);
+            get<2>(images).push_back(depth);
+            get<3>(images).push_back(-1);
         }
 
         return images;
@@ -542,16 +562,12 @@ public:
         vector<boost::filesystem::path> sweep_paths;
         //auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth,
         //                                                                   K, number_query, vocabulary_path, summary, false);
-        auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, 200, vocabulary_path, summary);
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, 200, vocabulary_path, summary, true);
 
         // This is just to make sure that we have valid results even when some meta rooms have been deleted
         size_t counter = 0;
         while (counter < number_query) {
             // assume that everything in mongodb is kept
-            if (results.first[counter].first.stem().string() == "surfel_map") {
-                ++counter;
-                continue;
-            }
             if (!boost::filesystem::exists(results.first[counter].first)) {
                 auto iter = std::find_if(results.first.begin()+counter, results.first.end(), [](const pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type>& v) {
                     return boost::filesystem::exists(v.first);
@@ -569,9 +585,24 @@ public:
 
         tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
-        auto data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[0].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
-        tf::StampedTransform room_transform = data.vIntermediateRoomCloudTransforms[0];
-        room_transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
+        cout << "Sweep paths:" << endl;
+        for (boost::filesystem::path sweep_path : sweep_paths) {
+            cout << sweep_path.string() << endl;
+        }
+
+
+        // FIXME: This is a hack that requires that at least one is not from MongoDB, needs fixing!
+        tf::StampedTransform room_transform;
+        for (int i = 0; i < retrieved_clouds.size(); ++i) {
+            string name = results.first[i].first.stem().string();
+            cout << name << endl;
+            if (name != "surfel_map") {
+                auto data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
+                room_transform = data.vIntermediateRoomCloudTransforms[0];
+                room_transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
+                break;
+            }
+        }
 
         cout << "Query cloud size: " << cloud->size() << endl;
         for (CloudT::Ptr& c : retrieved_clouds) {
@@ -583,6 +614,7 @@ public:
         for (auto s : results.first) {
             boost::filesystem::path segment_path = s.first;
             string name = segment_path.stem().string();
+            cout << name << endl;
             if (name == "surfel_map") { // for the mongodb results
                 indices.push_back(-1);
             }
@@ -598,12 +630,12 @@ public:
         vector<vector<cv::Mat> > masks(retrieved_clouds.size());
         vector<vector<cv::Mat> > images(retrieved_clouds.size());
         vector<vector<cv::Mat> > depths(retrieved_clouds.size());
-        vector<vector<string> > paths(retrieved_clouds.size());        
+        vector<vector<string> > paths(retrieved_clouds.size());
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
             vector<int> inds;
             vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > sweep_transforms;
             if (indices[i] == -1) { // special case for mongodb result
-                tie(masks[i], images[i], depths[i], inds) = generate_images_for_mongodb_object(retrieved_clouds[i], K, sweep_paths[i], sweep_transforms);
+                tie(masks[i], images[i], depths[i], inds) = generate_images_for_mongodb_object(retrieved_clouds[i], K, boost::filesystem::path(results.first[i].first), sweep_transforms);
             }
             else {
                 auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
@@ -670,8 +702,12 @@ public:
 
         pair<int, int> sizes = make_pair(2, 5);
 
+        cout << "Images size: " << images.size() << endl;
+
         cv::Mat visualization = cv::Mat::zeros(height*sizes.first, width*sizes.second, CV_8UC3);
         for (size_t i = 0; i < images.size(); ++i) {
+            cout << "Image " << i << " size: " << images[i].size() << endl;
+            cout << "Image " << i << " dimensions: " << images[i][0].rows << " x " << images[i][0].cols << endl;
             size_t offset_height = i / sizes.second;
             size_t offset_width = i % sizes.second;
             images[i][0].copyTo(visualization(cv::Rect(offset_width*width, offset_height*height, width, height)));
