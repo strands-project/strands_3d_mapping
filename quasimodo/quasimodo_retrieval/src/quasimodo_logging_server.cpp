@@ -48,14 +48,21 @@ public:
             cout << "Retrieved image paths length: " << res.result.retrieved_image_paths.size() << endl;
             boost::filesystem::path sweep_xml = boost::filesystem::path(res.result.retrieved_image_paths[i].strings[0]).parent_path() / "room.xml";
             cout << "Sweep xml: " << sweep_xml.string() << endl;
-            auto data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_xml.string(), vector<string>({"RoomIntermediateCloud"}), false, false);
-            boost::posix_time::ptime start_time = data.roomLogStartTime;
-            boost::posix_time::ptime time_t_epoch(boost::gregorian::date(1970,1,1));
-            boost::posix_time::time_duration diff = start_time - time_t_epoch;
-            Eigen::Affine3d AT;
-            cout << "Intermediate room cloud transforms length: " << data.vIntermediateRoomCloudTransforms.size() << endl;
-            tf::transformTFToEigen(data.vIntermediateRoomCloudTransforms[0], AT);
-            pcl_ros::transformPointCloud(AT.matrix().cast<float>(), res.result.retrieved_clouds[i], soma_req.objects[i].cloud);
+            boost::posix_time::time_duration diff;
+            if (sweep_xml.parent_path().parent_path().stem() == "temp") {
+                soma_req.objects[i].cloud = res.result.retrieved_clouds[i];
+                diff = boost::posix_time::time_duration(10, 10, 10); // just placeholder for now, should get real timestamp and transform from mongodb object
+            }
+            else {
+                auto data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_xml.string(), vector<string>({"RoomIntermediateCloud"}), false, false);
+                boost::posix_time::ptime start_time = data.roomLogStartTime;
+                boost::posix_time::ptime time_t_epoch(boost::gregorian::date(1970,1,1));
+                diff = start_time - time_t_epoch;
+                Eigen::Affine3d AT;
+                cout << "Intermediate room cloud transforms length: " << data.vIntermediateRoomCloudTransforms.size() << endl;
+                tf::transformTFToEigen(data.vIntermediateRoomCloudTransforms[0], AT);
+                pcl_ros::transformPointCloud(AT.matrix().cast<float>(), res.result.retrieved_clouds[i], soma_req.objects[i].cloud);
+            }
             //soma_req.objects[i].cloud = res.result.retrieved_clouds[i];
             cout << "Retrieved initial poses length: " << res.result.retrieved_initial_poses.size() << endl;
             soma_req.objects[i].pose = res.result.retrieved_initial_poses[i].poses[0];

@@ -116,7 +116,7 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
             boost::filesystem::path temp_path = boost::filesystem::absolute(boost::filesystem::path("quasimodo/temp") / strs[2] / "surfel_map.pcd");
 
             if (boost::filesystem::exists(temp_path.parent_path())) {
-                retrieved_paths.push_back(temp_path);
+                retrieved_paths.push_back(temp_path.parent_path() / "convex_segments" / "segment.pcd");
                 continue;
             }
 
