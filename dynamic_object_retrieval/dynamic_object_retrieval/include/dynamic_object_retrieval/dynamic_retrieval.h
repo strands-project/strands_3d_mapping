@@ -122,6 +122,7 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
 
             if (!boost::filesystem::exists(temp_path.parent_path())) {
                 boost::filesystem::create_directories(temp_path.parent_path());
+                boost::filesystem::create_directory(temp_path.parent_path() / "convex_segments");
             }
 
             boost::shared_ptr<quasimodo_msgs::fused_world_state_object> message;
@@ -130,7 +131,8 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
             SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
             pcl::fromROSMsg(message->surfel_cloud, *surfel_cloud);
             pcl::io::savePCDFileBinary(temp_path.string(), *surfel_cloud);
-            retrieved_paths.push_back(temp_path);
+            pcl::io::savePCDFileBinary((temp_path.parent_path() / "convex_segments" / "segment.pcd").string(), *surfel_cloud);
+            retrieved_paths.push_back(temp_path.parent_path() / "convex_segments" / "segment.pcd");
 
             // [0] - database, [1] - collection, [2] - mongodb object id
 

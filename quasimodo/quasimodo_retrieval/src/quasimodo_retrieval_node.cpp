@@ -239,7 +239,7 @@ public:
         //int height = 480;
         //int width = 640;
 
-        string mongodb_id = sweep_xml.parent_path().stem().string();
+        string mongodb_id = sweep_xml.parent_path().parent_path().stem().string();
         //string mongodb_uri = string("/world_state/quasimodo/") / mongodb_id;
 
         mongodb_store::MessageStoreProxy message_store_quasimodo(n, "quasimodo", "world_state");
@@ -596,7 +596,7 @@ public:
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
             string name = results.first[i].first.stem().string();
             cout << name << endl;
-            if (name != "surfel_map") {
+            if (name != "segment") {
                 auto data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
                 room_transform = data.vIntermediateRoomCloudTransforms[0];
                 room_transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
@@ -615,7 +615,7 @@ public:
             boost::filesystem::path segment_path = s.first;
             string name = segment_path.stem().string();
             cout << name << endl;
-            if (name == "surfel_map") { // for the mongodb results
+            if (name == "segment") { // for the mongodb results
                 indices.push_back(-1);
             }
             else { // for the metric map results
