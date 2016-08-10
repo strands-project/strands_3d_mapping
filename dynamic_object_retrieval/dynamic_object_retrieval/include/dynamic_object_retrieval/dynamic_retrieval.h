@@ -46,8 +46,19 @@ struct path_result<grouped_vocabulary_tree<HistT, 8> > {
     using type = std::vector<boost::filesystem::path>;
 };
 
+enum uri_kind {
+    metaroom,
+    mongodb,
+    all
+};
+
+// this should have some switch for what to keep
+// if kind = uri_kind::mongodb, every index will be returned but we will only keep the first (what number) which are valid
+// alternatively, maybe return empty paths for everything else? sounds good, or rather, let's still return the files
+// but somehow we need to know how many to load... let's hardcode for now
 template <typename IndexT>
-std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<IndexT>& scores, const vocabulary_summary& summary, bool verbose = false)
+std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<IndexT>& scores, const vocabulary_summary& summary,
+                                                         bool verbose = false, uri_kind kind = uri_kind::all)
 {
     if (verbose) {
         std::cout << "Entering get_retrieved_paths" << std::endl;
@@ -89,6 +100,7 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
     }
 
     std::vector<boost::filesystem::path> retrieved_paths;
+    size_t loaded_mongodb_results = 0;
     for (IndexT s : scores) {
         // should we write to some temporary files and return the paths to those?
         // e.g. in ~/.ros/quasimodo
@@ -108,6 +120,13 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
         else if (uri.compare(0, 10, "mongodb://") == 0) {
             // don't delete anything here, instead have a cache based on the database id:s
             // use boost split to split separate the uri into database / collection / id
+
+            if (kind == uri_kind::mongodb && loaded_mongodb_results > 20) { // TODO: hard coded for now, let's revisit
+                retrieved_paths.push_back(boost::filesystem::path());
+                continue;
+            }
+            ++loaded_mongodb_results;
+
             std::string db_uri = uri.substr(10, uri.size()-10);
             std::vector<std::string> strs;
             boost::split(strs, db_uri, boost::is_any_of("/"));
@@ -196,13 +215,13 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
 
 //std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<index_score>& scores, const vocabulary_summary& summary);
 std::vector<std::pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type> >
-get_retrieved_path_scores(const std::vector<vocabulary_tree<HistT, 8>::result_type>& scores, const vocabulary_summary& summary, bool verbose = false)
+get_retrieved_path_scores(const std::vector<vocabulary_tree<HistT, 8>::result_type>& scores, const vocabulary_summary& summary, bool verbose = false, uri_kind kind = uri_kind::all)
 {
     if (verbose) {
         std::cout << "Entering get_retrieved_path_scores" << std::endl;
     }
 
-    std::vector<boost::filesystem::path> paths = get_retrieved_paths(scores, summary, verbose);
+    std::vector<boost::filesystem::path> paths = get_retrieved_paths(scores, summary, verbose, kind);
     std::vector<std::pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type> > path_scores;
     for (auto tup : dynamic_object_retrieval::zip(paths, scores)) {
         path_scores.push_back(std::make_pair(boost::get<0>(tup), boost::get<1>(tup)));
@@ -216,7 +235,7 @@ get_retrieved_path_scores(const std::vector<vocabulary_tree<HistT, 8>::result_ty
 }
 
 std::vector<std::pair<std::vector<boost::filesystem::path>, grouped_vocabulary_tree<HistT, 8>::result_type> >
-get_retrieved_path_scores(const std::vector<grouped_vocabulary_tree<HistT, 8>::result_type>& scores, const vocabulary_summary& summary, bool verbose = false)
+get_retrieved_path_scores(const std::vector<grouped_vocabulary_tree<HistT, 8>::result_type>& scores, const vocabulary_summary& summary, bool verbose = false, uri_kind kind = uri_kind::all)
 {
     // OK, now we need to get the paths for all of the stuff within the scans instead, so basically
     // we need to get a subsegment_sweep__path_iterator and add all of the path corresponding to groups
@@ -273,7 +292,7 @@ template <typename VocabularyT>
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >
 query_vocabulary(HistCloudT::Ptr& features, size_t nbr_query, VocabularyT& vt,
                  const boost::filesystem::path& vocabulary_path,
-                 const vocabulary_summary& summary, bool verbose = false)
+                 const vocabulary_summary& summary, bool verbose = false, uri_kind kind = uri_kind::all)
 {
     // we need to cache the vt if we are to do this multiple times
     if (vt.empty()) {
@@ -287,9 +306,30 @@ query_vocabulary(HistCloudT::Ptr& features, size_t nbr_query, VocabularyT& vt,
 
     // add some common methods in vt for querying, really only one!
     std::vector<typename VocabularyT::result_type> scores;
-    vt.query_vocabulary(scores, features, nbr_query);
+    if (kind == uri_kind::mongodb) {
+        vt.query_vocabulary(scores, features, 0); // return all results, remove some later
+    }
+    else {
+        vt.query_vocabulary(scores, features, nbr_query);
+    }
 
-    return get_retrieved_path_scores(scores, summary, verbose);
+    // maybe this would be the place to remove the rotten eggs, considering scores is passed as const
+    using result_type = std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type>;
+    std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > results = get_retrieved_path_scores(scores, summary, verbose, kind);
+    results.erase(std::remove_if(results.begin(), results.end(), [&kind](const result_type& r) {
+        if (r.first.empty()) {
+            return true;
+        }
+        boost::filesystem::path segment_path = r.first;
+        std::string name = segment_path.stem().string();
+        if (kind == uri_kind::mongodb && name != "segment") { // for the mongodb results
+            return true;
+        }
+        return false;
+    }), results.end());
+    results.resize(std::min(nbr_query, results.size()));
+
+    return results;
 }
 
 // OK, the solution here is to turn the groups into the path scores
@@ -297,7 +337,7 @@ template <>
 std::vector<std::pair<path_result<grouped_vocabulary_tree<HistT, 8> >::type, typename grouped_vocabulary_tree<HistT, 8>::result_type> >
 query_vocabulary(HistCloudT::Ptr& features, size_t nbr_query, grouped_vocabulary_tree<HistT, 8>& vt,
                  const boost::filesystem::path& vocabulary_path,
-                 const vocabulary_summary& summary, bool verbose)
+                 const vocabulary_summary& summary, bool verbose, uri_kind kind)
 {
     // we need to cache the vt if we are to do this multiple times
     if (vt.empty()) {
@@ -310,7 +350,7 @@ query_vocabulary(HistCloudT::Ptr& features, size_t nbr_query, grouped_vocabulary
     std::vector<typename grouped_vocabulary_tree<HistT, 8>::result_type> scores;
     vt.query_vocabulary(scores, features, nbr_query);
 
-    return get_retrieved_path_scores(scores, summary);
+    return get_retrieved_path_scores(scores, summary, verbose, kind);
 }
 
 void insert_index_score(std::vector<std::pair<int, double> >& weighted_indices, const vocabulary_tree<HistT, 8>::result_type& index, float score)
@@ -622,7 +662,7 @@ std::pair<std::vector<std::pair<typename path_result<VocabularyT>::type, typenam
 std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> > >
 query_reweight_vocabulary(VocabularyT& vt, HistCloudT::Ptr& query_features,
                           size_t nbr_query, const boost::filesystem::path& vocabulary_path,
-                          const vocabulary_summary& summary, bool verbose = false)
+                          const vocabulary_summary& summary, bool verbose = false, uri_kind kind = uri_kind::all)
 {
     using result_type = std::vector<std::pair<typename path_result<VocabularyT>::type, typename VocabularyT::result_type> >;
 
@@ -637,7 +677,7 @@ query_reweight_vocabulary(VocabularyT& vt, HistCloudT::Ptr& query_features,
     std::cout << "Querying vocabulary..." << std::endl;
     TICK("query_vocabulary");
 
-    result_type retrieved_paths = query_vocabulary(query_features, nbr_query, vt, vocabulary_path, summary, verbose);
+    result_type retrieved_paths = query_vocabulary(query_features, nbr_query, vt, vocabulary_path, summary, verbose, kind);
     TOCK("query_vocabulary");
 
     return make_pair(retrieved_paths, result_type());

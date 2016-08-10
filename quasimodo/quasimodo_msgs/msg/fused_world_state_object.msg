@@ -7,4 +7,5 @@ sensor_msgs/Image[] images
 sensor_msgs/Image[] depths
 sensor_msgs/Image[] masks
 geometry_msgs/Pose[] transforms
-
+string inserted_at
+string removed_at

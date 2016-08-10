@@ -1,0 +1,8 @@
+uint64 INSERT=1
+uint64 REMOVE=2
+uint64 action
+quasimodo_msgs/model model
+uint64 object_id
+---
+uint64 vocabulary_id
+uint64 object_id
