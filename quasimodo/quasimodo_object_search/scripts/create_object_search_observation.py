@@ -22,7 +22,7 @@ from quasimodo_msgs.srv import mask_pointclouds, mask_pointcloudsRequest, mask_p
 from geometry_msgs.msg import Pose
 import time
 
-UPDATE_INT_MINUTES = 100000.0
+UPDATE_INT_MINUTES = 10.0
 
 def chron_callback():
 
@@ -156,7 +156,7 @@ def chron_callback():
 
             print object_id
 
-            break
+            #break # if you only want to add one object
 
 
 
