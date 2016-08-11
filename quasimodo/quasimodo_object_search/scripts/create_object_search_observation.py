@@ -109,6 +109,8 @@ def chron_callback():
             new_obj = fused_world_state_object()
             new_obj.surfel_cloud = resp.processed_cloud
             new_obj.object_id = x.id
+            now = datetime.now()
+            new_obj.inserted_at = now.strftime("%Y-%m-%d %H:%M:%S")
 
             for obs, pose in zip(wo._observations, wo._poses):
                 new_obj.transforms.append(Pose())

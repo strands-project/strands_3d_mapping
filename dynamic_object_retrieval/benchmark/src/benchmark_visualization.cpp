@@ -247,7 +247,7 @@ cv::Mat render_image(CloudT::Ptr& cloud, const Eigen::Matrix4f& T, const Eigen::
 cv::Mat make_image(std::vector<CloudT::Ptr>& results, const Eigen::Matrix4f& room_transform,
                    vector<boost::filesystem::path>& sweep_paths, const std::vector<std::string>& optional_text)
 {
-    pair<int, int> sizes = make_pair(1, 10);//get_similar_sizes(results.size());
+    pair<int, int> sizes = make_pair(1, std::min(10, int(results.size())));//get_similar_sizes(results.size());
 
     int width = 200;
     int height = 200;

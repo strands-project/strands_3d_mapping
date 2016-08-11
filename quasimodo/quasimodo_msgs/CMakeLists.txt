@@ -68,6 +68,7 @@ add_service_files(
   visualize_query.srv
   transform_cloud.srv
   mask_pointclouds.srv
+  insert_model.srv
 )
 
 ## Generate actions in the 'action' folder

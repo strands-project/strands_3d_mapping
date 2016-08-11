@@ -432,6 +432,10 @@ public:
         vector<CloudT::Ptr> retrieved_clouds;
         vector<boost::filesystem::path> sweep_paths;
         // we should retrieve more than we want and only keep the results with valid files on the system
+        // FIXME: add support for grouped vocabulary here also,
+        // all of the message types should support it, just a matter
+        // of going from the native types to ros types, vis server should also support it
+        // make the few thing which might be dependent templatized functions
         auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, 200, vocabulary_path, summary);
 
         // This is just to make sure that we have valid results even when some meta rooms have been deleted
@@ -525,7 +529,23 @@ public:
 
     void run_retrieval(const quasimodo_msgs::retrieval_query::ConstPtr& query_msg) //const string& sweep_xml)
     {
-        cout << "Received query msg..." << endl;
+        cout << "Received query msg of kind " << query_msg->query_kind << "..." << endl;
+
+        dynamic_object_retrieval::uri_kind kind;
+        switch (query_msg->query_kind) {
+        case quasimodo_msgs::retrieval_query::MONGODB_QUERY:
+            kind = dynamic_object_retrieval::uri_kind::mongodb;
+            break;
+        case quasimodo_msgs::retrieval_query::METAROOM_QUERY:
+            kind = dynamic_object_retrieval::uri_kind::metaroom;
+            break;
+        case quasimodo_msgs::retrieval_query::ALL_QUERY:
+            kind = dynamic_object_retrieval::uri_kind::all;
+            break;
+        default:
+            cout << "Invalid quasimodo_msgs::retrieval_query::query_kind option: " << query_msg->query_kind << endl;
+            return;
+        }
 
         pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr normal_cloud(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
         pcl::fromROSMsg(query_msg->cloud, *normal_cloud);
@@ -562,11 +582,11 @@ public:
         vector<boost::filesystem::path> sweep_paths;
         //auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth,
         //                                                                   K, number_query, vocabulary_path, summary, false);
-        auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, 200, vocabulary_path, summary, true);
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, 200, vocabulary_path, summary, true, kind);
 
         // This is just to make sure that we have valid results even when some meta rooms have been deleted
         size_t counter = 0;
-        while (counter < number_query) {
+        while (counter < std::min(number_query, int32_t(results.first.size()))) {
             // assume that everything in mongodb is kept
             if (!boost::filesystem::exists(results.first[counter].first)) {
                 auto iter = std::find_if(results.first.begin()+counter, results.first.end(), [](const pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type>& v) {

@@ -125,7 +125,6 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
                 retrieved_paths.push_back(boost::filesystem::path());
                 continue;
             }
-            ++loaded_mongodb_results;
 
             std::string db_uri = uri.substr(10, uri.size()-10);
             std::vector<std::string> strs;
@@ -134,8 +133,9 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
             // how do we get the home directory correctly?
             boost::filesystem::path temp_path = boost::filesystem::absolute(boost::filesystem::path("quasimodo/temp") / strs[2] / "surfel_map.pcd");
 
-            if (boost::filesystem::exists(temp_path.parent_path())) {
+            if (kind == uri_kind::all && boost::filesystem::exists(temp_path.parent_path())) {
                 retrieved_paths.push_back(temp_path.parent_path() / "convex_segments" / "segment.pcd");
+                ++loaded_mongodb_results;
                 continue;
             }
 
@@ -151,7 +151,14 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
             pcl::fromROSMsg(message->surfel_cloud, *surfel_cloud);
             pcl::io::savePCDFileBinary(temp_path.string(), *surfel_cloud);
             pcl::io::savePCDFileBinary((temp_path.parent_path() / "convex_segments" / "segment.pcd").string(), *surfel_cloud);
-            retrieved_paths.push_back(temp_path.parent_path() / "convex_segments" / "segment.pcd");
+
+            if (kind == uri_kind::mongodb && !message->removed_at.empty()) {
+                retrieved_paths.push_back(boost::filesystem::path());
+            }
+            else {
+                retrieved_paths.push_back(temp_path.parent_path() / "convex_segments" / "segment.pcd");
+                ++loaded_mongodb_results;
+            }
 
             // [0] - database, [1] - collection, [2] - mongodb object id
 
@@ -294,6 +301,10 @@ query_vocabulary(HistCloudT::Ptr& features, size_t nbr_query, VocabularyT& vt,
                  const boost::filesystem::path& vocabulary_path,
                  const vocabulary_summary& summary, bool verbose = false, uri_kind kind = uri_kind::all)
 {
+    if (verbose) {
+        std::cout << "Entering query_vocabulary ..." << std::endl;
+    }
+
     // we need to cache the vt if we are to do this multiple times
     if (vt.empty()) {
         if (verbose) {
@@ -328,6 +339,11 @@ query_vocabulary(HistCloudT::Ptr& features, size_t nbr_query, VocabularyT& vt,
         return false;
     }), results.end());
     results.resize(std::min(nbr_query, results.size()));
+
+    if (verbose) {
+        std::cout << "Exiting query_vocabulary with " << results.size() << " nbr results ..." << std::endl;
+    }
+
 
     return results;
 }

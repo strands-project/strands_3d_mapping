@@ -95,6 +95,8 @@ def retrieval_callback(object_id):
     query.mask = CvBridge().cv2_to_imgmsg(cv_mask, "mono8") #masks[0]
     query.number_query = 10
     query.room_transform = transforms[0]
+    #query.query_kind = retrieval_query.ALL_QUERY
+    query.query_kind = retrieval_query.MONGODB_QUERY
 
     pub.publish(query)
     resp.processed_cloud.header.frame_id = "/map"

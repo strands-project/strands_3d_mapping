@@ -23,7 +23,7 @@ from quasimodo_msgs.srv import insert_model, insert_modelRequest, insert_modelRe
 from geometry_msgs.msg import Pose
 import time
 
-def insert_model():
+def insert_model_cb():
     msg_store = MessageStoreProxy(database='world_state', collection='quasimodo')
 
     transforms = []
@@ -118,32 +118,37 @@ def insert_model():
 
     resp = insert_modelResponse()
     resp.vocabulary_id = new_obj.vocabulary_id
-    resp.object_id = new_obj.object_id
+    resp.object_id = object_id
 
     return resp
 
-def remove_model(req):
+def remove_model_cb(req):
 
     msg_store = MessageStoreProxy(database='world_state', collection='quasimodo')
     # msg_store.delete(req.object_id)
     # resp = insert_modelResponse()
     # resp.object_id = req.object_id
 
-    new_obj = msg_store.query_id(req.object_id, fused_world_state_object)
+    new_obj = msg_store.query_id(req.object_id, 'quasimodo_msgs/fused_world_state_object')[0]
+    #print new_obj
     now = datetime.now()
     new_obj.removed_at = now.strftime("%Y-%m-%d %H:%M:%S")
     msg_store.update_id(req.object_id, new_obj)
+
+    resp = insert_modelResponse()
+    resp.vocabulary_id = new_obj.vocabulary_id
+    resp.object_id = req.object_id
 
     return resp
 
 def service_callback(req):
 
     if req.action == insert_modelRequest.REMOVE:
-        resp = remove_model(req)
+        resp = remove_model_cb(req)
         if not resp:
             print "Failed to remove model..."
     elif req.action == insert_modelRequest.INSERT:
-        resp = insert_model(req)
+        resp = insert_model_cb(req)
         if not resp:
             print "Failed to remove model..."
     else:
