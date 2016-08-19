@@ -66,7 +66,8 @@ public:
     string retrieval_output;
     string retrieval_input;
 
-    VocabularyT vt;
+    //VocabularyT vt;
+    grouped_vocabulary_tree<HistT, 8> vt;
     dynamic_object_retrieval::vocabulary_summary summary;
 
     double iss_model_resolution; // 0.004
@@ -133,7 +134,7 @@ public:
             pubs[i] = n.advertise<sensor_msgs::PointCloud2>(string("/retrieval_cloud/") + to_string(i), 1, true);
         }
         sub = n.subscribe(retrieval_input, 10, &retrieval_node::run_retrieval, this);
-        service = n.advertiseService("/query_normal_cloud", &retrieval_node::service_callback, this);
+        //service = n.advertiseService("/query_normal_cloud", &retrieval_node::service_callback, this);
         /*
         vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
         for (const string& xml : folder_xmls) {
@@ -405,6 +406,7 @@ public:
         std::cout << "Number of features: " << pfhrgb_cloud.size() << std::endl;
     }
 
+    /*
     bool service_callback(quasimodo_msgs::simple_query_cloud::Request& req,
                           quasimodo_msgs::simple_query_cloud::Response& res)
     {
@@ -526,6 +528,62 @@ public:
 
         cout << "Finished retrieval..." << endl;
     }
+    */
+
+    // to have this templated is totally unnecessary but whatever
+    void prune_results(std::pair<std::vector<std::pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type> >,
+                       std::vector<std::pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type> > >& results)
+    {
+        size_t counter = 0;
+        while (counter < std::min(number_query, int32_t(results.first.size()))) {
+            // assume that everything in mongodb is kept
+            if (!boost::filesystem::exists(results.first[counter].first)) {
+                auto iter = std::find_if(results.first.begin()+counter, results.first.end(), [](const pair<boost::filesystem::path, typename VocabularyT::result_type>& v) {
+                    return boost::filesystem::exists(v.first);
+                });
+                if (iter == results.first.end()) {
+                    break;
+                }
+                std::swap(results.first[counter], *iter);
+            }
+            else {
+                ++counter;
+            }
+        }
+        results.first.resize(counter);
+    }
+
+    void prune_results(std::pair<std::vector<std::pair<std::vector<boost::filesystem::path>, grouped_vocabulary_tree<HistT, 8>::result_type> >,
+                       std::vector<std::pair<std::vector<boost::filesystem::path>, grouped_vocabulary_tree<HistT, 8>::result_type> > >& results)
+    {
+        size_t counter = 0;
+        while (counter < std::min(number_query, int32_t(results.first.size()))) {
+            // assume that everything in mongodb is kept
+            if (!boost::filesystem::exists(results.first[counter].first[0])) {
+                auto iter = std::find_if(results.first.begin()+counter, results.first.end(), [](const pair<std::vector<boost::filesystem::path>, grouped_vocabulary_tree<HistT, 8>::result_type>& v) {
+                    return boost::filesystem::exists(v.first[0]);
+                });
+                if (iter == results.first.end()) {
+                    break;
+                }
+                std::swap(results.first[counter], *iter);
+            }
+            else {
+                ++counter;
+            }
+        }
+        results.first.resize(counter);
+    }
+
+    boost::filesystem::path base_path(const boost::filesystem::path& path)
+    {
+        return path;
+    }
+
+    boost::filesystem::path base_path(const vector<boost::filesystem::path>& path)
+    {
+        return path[0];
+    }
 
     void run_retrieval(const quasimodo_msgs::retrieval_query::ConstPtr& query_msg) //const string& sweep_xml)
     {
@@ -582,27 +640,19 @@ public:
         vector<boost::filesystem::path> sweep_paths;
         //auto results = dynamic_object_retrieval::query_reweight_vocabulary(vt, refined_query, query_image, query_depth,
         //                                                                   K, number_query, vocabulary_path, summary, false);
-        auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, 200, vocabulary_path, summary, true, kind);
+        /*
+         * This should be fine for grouped queries, what I was using in the paper
+         * The exists next will have to be changed somehow
+         * Then load_retrieved_clouds is exactly the same that I used in the paper
+         *
+         *
+         */
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary((VocabularyT&)vt, features, 200, vocabulary_path, summary, true, kind);
 
         // This is just to make sure that we have valid results even when some meta rooms have been deleted
-        size_t counter = 0;
-        while (counter < std::min(number_query, int32_t(results.first.size()))) {
-            // assume that everything in mongodb is kept
-            if (!boost::filesystem::exists(results.first[counter].first)) {
-                auto iter = std::find_if(results.first.begin()+counter, results.first.end(), [](const pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type>& v) {
-                    return boost::filesystem::exists(v.first);
-                });
-                if (iter == results.first.end()) {
-                    break;
-                }
-                std::swap(results.first[counter], *iter);
-            }
-            else {
-                ++counter;
-            }
-        }
-        results.first.resize(counter);
+        prune_results(results);
 
+        // this is OK, both return the clouds and paths
         tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
 
         cout << "Sweep paths:" << endl;
@@ -614,7 +664,7 @@ public:
         // FIXME: This is a hack that requires that at least one is not from MongoDB, needs fixing!
         tf::StampedTransform room_transform;
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
-            string name = results.first[i].first.stem().string();
+            string name = base_path(results.first[i].first).stem().string();
             cout << name << endl;
             if (name != "segment") {
                 auto data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
@@ -632,7 +682,7 @@ public:
         vector<float> scores;
         vector<int> indices;
         for (auto s : results.first) {
-            boost::filesystem::path segment_path = s.first;
+            boost::filesystem::path segment_path = base_path(s.first);
             string name = segment_path.stem().string();
             cout << name << endl;
             if (name == "segment") { // for the mongodb results
@@ -655,7 +705,7 @@ public:
             vector<int> inds;
             vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > sweep_transforms;
             if (indices[i] == -1) { // special case for mongodb result
-                tie(masks[i], images[i], depths[i], inds) = generate_images_for_mongodb_object(retrieved_clouds[i], K, boost::filesystem::path(results.first[i].first), sweep_transforms);
+                tie(masks[i], images[i], depths[i], inds) = generate_images_for_mongodb_object(retrieved_clouds[i], K, base_path(results.first[i].first), sweep_transforms);
             }
             else {
                 auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
@@ -802,9 +852,24 @@ int main(int argc, char** argv)
 {
     ros::init(argc, argv, "quasimodo_retrieval_node");
 
-    retrieval_node<grouped_vocabulary_tree<HistT, 8> > rs(ros::this_node::getName());
+    ros::NodeHandle pn("~");
+    bool enable_incremental;
+    pn.param<bool>("enable_incremental", enable_incremental, false);
 
-    ros::spin();
+    if (enable_incremental) {
+
+        retrieval_node<grouped_vocabulary_tree<HistT, 8> > rs(ros::this_node::getName());
+
+        ros::spin();
+
+    }
+    else {
+
+        retrieval_node<vocabulary_tree<HistT, 8> > rs(ros::this_node::getName());
+
+        ros::spin();
+
+    }
 
     return 0;
 }
