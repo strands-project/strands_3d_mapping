@@ -299,6 +299,7 @@ void vocabulary_tree<Point, K>::source_freqs_for_node(std::map<int, int>& source
     }
 }
 
+// we should make some const here to make clear what happens
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& included_indices, CloudPtrT& cloud, vector<vocabulary_vector>& smaller_freqs,
                                                             set<pair<int, int> >& adjacencies, map<node*, int>& mapping, map<int, node*>& inverse_mapping, int hint) // TODO: const

@@ -52,6 +52,8 @@ enum uri_kind {
     all
 };
 
+
+
 // this should have some switch for what to keep
 // if kind = uri_kind::mongodb, every index will be returned but we will only keep the first (what number) which are valid
 // alternatively, maybe return empty paths for everything else? sounds good, or rather, let's still return the files
@@ -246,6 +248,167 @@ get_retrieved_path_scores(const std::vector<grouped_vocabulary_tree<HistT, 8>::r
 {
     // OK, now we need to get the paths for all of the stuff within the scans instead, so basically
     // we need to get a subsegment_sweep__path_iterator and add all of the path corresponding to groups
+
+    if (verbose) {
+        std::cout << "Entering get_retrieved_path_scores" << std::endl;
+    }
+
+#if WITH_UNIVERSAL_URIS
+
+    using IndexT = grouped_vocabulary_tree<HistT, 8>::result_type;
+
+    std::vector<std::pair<std::vector<boost::filesystem::path>, grouped_vocabulary_tree<HistT, 8>::result_type> > path_scores;
+
+    ros::NodeHandle n("/dynamic_retrieval");
+    size_t offset = summary.nbr_noise_segments;
+    segment_uris uris;
+    std::cout << "Loading URI:s file: " << (boost::filesystem::path(summary.noise_data_path) / "vocabulary" / "segment_uris.json").string() << std::endl;
+    uris.load(boost::filesystem::path(summary.noise_data_path) / "vocabulary");
+    mongodb_store::MessageStoreProxy* message_store = NULL;
+
+    for (IndexT s : scores) {
+        std::cout << "1. Index: " << s.subgroup_global_indices[0] << std::endl;
+    }
+
+    for (IndexT s : scores) {
+        int index = s.subgroup_global_indices[0];
+        if (index >= offset) {
+            std::cout << "1. Index: " << index << " is larger than: " << offset << std::endl;
+            std::cout << "URI loading does not support noise+annotated data structure!" << std::endl;
+            std::cout << "Got URI: " << uris.uris[index] << std::endl;
+            exit(-1);
+        }
+        std::string uri = uris.uris[index];
+        if (verbose) {
+            std::cout << "Got URI: " << uri << " at index: " << index << std::endl;
+        }
+        if (uri.compare(0, 10, "mongodb://") == 0) {
+            std::string db_uri = uri.substr(10, uri.size()-10);
+            std::vector<std::string> strs;
+            boost::split(strs, db_uri, boost::is_any_of("/"));
+            std::cout << "Initializing message story proxy with database: " << strs[0] << ", collection: " << strs[1] << std::endl;
+            message_store = new mongodb_store::MessageStoreProxy(n, strs[1], strs[0]);
+            break;
+        }
+    }
+
+    int temp = 0;
+    size_t loaded_mongodb_results = 0;
+    for (const grouped_vocabulary_tree<HistT, 8>::result_type& score : scores) {
+        int index = score.subgroup_global_indices[0];
+
+        std::cout << "Iteration nbr: " << temp << std::endl;
+        std::cout << "Scores size: " << scores.size() << std::endl;
+        std::cout << "Subsegments in group: " << score.subgroup_group_indices.size() << std::endl;
+        ++temp;
+        path_scores.push_back(std::make_pair(std::vector<boost::filesystem::path>(), score));
+
+        // find the uri of the first segment to determine if mongodb result or metaroom result
+        std::string uri = uris.uris[index];
+        if (uri.compare(0, 7, "file://") == 0) {
+            //retrieved_paths.push_back(boost::filesystem::path(uri.substr(7, uri.size()-7)));
+
+            int sweep_id = score.group_index;
+            std::cout << "Getting sweep xml for group: " << sweep_id << std::endl;
+            std::cout << "With subsegment: " << score.subgroup_index << std::endl;
+            boost::filesystem::path sweep_path = dynamic_object_retrieval::get_sweep_xml(sweep_id, summary);
+            std::cout << "Getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
+            if (summary.subsegment_type == "subsegment" || summary.subsegment_type == "supervoxel") {
+                dynamic_object_retrieval::sweep_subsegment_keypoint_map subsegments(sweep_path); // this is a problem
+                std::cout << "Finished getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
+                int counter = 0;
+                for (const boost::filesystem::path& path : subsegments) {
+                    if (std::find(score.subgroup_group_indices.begin(), score.subgroup_group_indices.end(), counter) != score.subgroup_group_indices.end()) {
+                        path_scores.back().first.push_back(path);
+                    }
+                    ++counter;
+                }
+            }
+            else if (summary.subsegment_type == "convex_segment") {
+                dynamic_object_retrieval::sweep_convex_segment_map subsegments(sweep_path); // this is a problem
+                std::cout << "Finished getting a subsegment iterator for sweep: " << sweep_path.string() << std::endl;
+                int counter = 0;
+                for (const boost::filesystem::path& path : subsegments) {
+                    if (std::find(score.subgroup_group_indices.begin(), score.subgroup_group_indices.end(), counter) != score.subgroup_group_indices.end()) {
+                        path_scores.back().first.push_back(path);
+                    }
+                    ++counter;
+                }
+            }
+            else {
+                std::cout << summary.subsegment_type << " not a valid subsegment type..." << std::endl;
+                exit(-1);
+            }
+
+            std::cout << "Finished getting sweep xml for group: " << sweep_id << std::endl;
+            std::cout << "Got " << path_scores.back().first.size() << " subsegments..." << std::endl;
+        }
+        else if (uri.compare(0, 10, "mongodb://") == 0) {
+            // don't delete anything here, instead have a cache based on the database id:s
+            // use boost split to split separate the uri into database / collection / id
+
+            if (kind == uri_kind::mongodb && loaded_mongodb_results > 20) { // TODO: hard coded for now, let's revisit
+                path_scores.back().first.push_back(boost::filesystem::path());
+                continue;
+            }
+
+            std::string db_uri = uri.substr(10, uri.size()-10);
+            std::vector<std::string> strs;
+            boost::split(strs, db_uri, boost::is_any_of("/"));
+
+            // how do we get the home directory correctly?
+            boost::filesystem::path temp_path = boost::filesystem::absolute(boost::filesystem::path("quasimodo/temp") / strs[2] / "surfel_map.pcd");
+
+            if (kind == uri_kind::all && boost::filesystem::exists(temp_path.parent_path())) {
+                path_scores.back().first.push_back(temp_path.parent_path() / "convex_segments" / "segment.pcd");
+                ++loaded_mongodb_results;
+                continue;
+            }
+
+            if (!boost::filesystem::exists(temp_path.parent_path())) {
+                boost::filesystem::create_directories(temp_path.parent_path());
+                boost::filesystem::create_directory(temp_path.parent_path() / "convex_segments");
+            }
+
+            boost::shared_ptr<quasimodo_msgs::fused_world_state_object> message;
+            mongo::BSONObj bson_message;
+            std::tie(message, bson_message) = message_store->queryID<quasimodo_msgs::fused_world_state_object>(strs[2]);
+            SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
+            pcl::fromROSMsg(message->surfel_cloud, *surfel_cloud);
+            pcl::io::savePCDFileBinary(temp_path.string(), *surfel_cloud);
+            pcl::io::savePCDFileBinary((temp_path.parent_path() / "convex_segments" / "segment.pcd").string(), *surfel_cloud);
+
+            if (kind == uri_kind::mongodb && !message->removed_at.empty()) {
+                path_scores.back().first.push_back(boost::filesystem::path());
+            }
+            else {
+                path_scores.back().first.push_back(temp_path.parent_path() / "convex_segments" / "segment.pcd");
+                ++loaded_mongodb_results;
+            }
+
+            // [0] - database, [1] - collection, [2] - mongodb object id
+
+        }
+        else {
+            std::cout << "Loading from segment URI problem: URI not well formed!" << std::endl;
+            exit(-1);
+        }
+
+
+    }
+
+    if (message_store != NULL) { // redundant but clearer
+        delete message_store;
+    }
+
+    if (verbose) {
+        std::cout << "Exiting get_retrieved_path_scores" << std::endl;
+    }
+
+    return path_scores;
+
+#else
+
     std::vector<std::pair<std::vector<boost::filesystem::path>, grouped_vocabulary_tree<HistT, 8>::result_type> > path_scores;
 
     int temp = 0;
@@ -292,7 +455,13 @@ get_retrieved_path_scores(const std::vector<grouped_vocabulary_tree<HistT, 8>::r
         ++temp;
     }
 
+    if (verbose) {
+        std::cout << "Exiting get_retrieved_path_scores" << std::endl;
+    }
+
     return path_scores;
+
+#endif
 }
 
 template <typename VocabularyT>
@@ -364,9 +533,30 @@ query_vocabulary(HistCloudT::Ptr& features, size_t nbr_query, grouped_vocabulary
 
     // add some common methods in vt for querying, really only one!
     std::vector<typename grouped_vocabulary_tree<HistT, 8>::result_type> scores;
-    vt.query_vocabulary(scores, features, nbr_query);
+    if (kind == uri_kind::mongodb) {
+        vt.query_vocabulary(scores, features, 300); // TODO: make this a constant!
+    }
+    else {
+        vt.query_vocabulary(scores, features, nbr_query);
+    }
 
-    return get_retrieved_path_scores(scores, summary, verbose, kind);
+    using path_type = path_result<grouped_vocabulary_tree<HistT, 8> >::type;
+    using result_type = std::pair<path_type, grouped_vocabulary_tree<HistT, 8>::result_type>;
+    std::vector<result_type> results = get_retrieved_path_scores(scores, summary, verbose, kind);
+    results.erase(std::remove_if(results.begin(), results.end(), [&kind](const result_type& r) {
+        if (r.first.empty()) {
+            return true;
+        }
+        boost::filesystem::path segment_path = r.first[0];
+        std::string name = segment_path.stem().string();
+        if (kind == uri_kind::mongodb && name != "segment") { // for the mongodb results
+            return true;
+        }
+        return false;
+    }), results.end());
+    results.resize(std::min(nbr_query, results.size()));
+
+    return results;
 }
 
 void insert_index_score(std::vector<std::pair<int, double> >& weighted_indices, const vocabulary_tree<HistT, 8>::result_type& index, float score)
