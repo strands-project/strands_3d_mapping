@@ -6,3 +6,4 @@ image_array[] retrieved_masks
 string_array[] retrieved_image_paths
 float64[] retrieved_distance_scores
 int_array[] segment_indices
+geometry_msgs/Pose[] global_poses

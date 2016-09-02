@@ -52,6 +52,8 @@ add_message_files(
   retrieval_query_result.msg
   SOMA2Object.msg
   fused_world_state_object.msg
+  model_array.msg
+  retrieval_query_array.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -69,6 +71,7 @@ add_service_files(
   transform_cloud.srv
   mask_pointclouds.srv
   insert_model.srv
+  model_to_retrieval_query.srv
 )
 
 ## Generate actions in the 'action' folder

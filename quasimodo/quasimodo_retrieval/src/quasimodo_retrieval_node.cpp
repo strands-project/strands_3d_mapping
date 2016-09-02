@@ -19,6 +19,7 @@
 #include "quasimodo_msgs/retrieval_query_result.h"
 #include "quasimodo_msgs/retrieval_query.h"
 #include "quasimodo_msgs/simple_query_cloud.h"
+#include "quasimodo_msgs/query_cloud.h"
 #include <pcl_ros/point_cloud.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
@@ -134,7 +135,7 @@ public:
             pubs[i] = n.advertise<sensor_msgs::PointCloud2>(string("/retrieval_cloud/") + to_string(i), 1, true);
         }
         sub = n.subscribe(retrieval_input, 10, &retrieval_node::run_retrieval, this);
-        //service = n.advertiseService("/query_normal_cloud", &retrieval_node::service_callback, this);
+        service = n.advertiseService("/quasimodo_retrieval_service", &retrieval_node::service_callback, this);
         /*
         vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
         for (const string& xml : folder_xmls) {
@@ -406,130 +407,6 @@ public:
         std::cout << "Number of features: " << pfhrgb_cloud.size() << std::endl;
     }
 
-    /*
-    bool service_callback(quasimodo_msgs::simple_query_cloud::Request& req,
-                          quasimodo_msgs::simple_query_cloud::Response& res)
-    {
-        // we assume that req.query_cloud contains a cloud with PointXYZRGBNormal
-        cout << "Received query msg..." << endl;
-
-        pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr normal_cloud(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-        pcl::fromROSMsg(req.query_cloud, *normal_cloud);
-
-        CloudT::Ptr cloud(new CloudT);
-        NormalCloudT::Ptr normals(new NormalCloudT);
-        cloud->reserve(normal_cloud->size()); normals->reserve(normal_cloud->size());
-        for (const pcl::PointXYZRGBNormal& pn : normal_cloud->points) {
-            PointT p; p.getVector3fMap() = pn.getVector3fMap(); p.rgba = pn.rgba;
-            NormalT n; n.getNormalVector3fMap() = pn.getNormalVector3fMap();
-            cloud->push_back(p); normals->push_back(n);
-        }
-
-        HistCloudT::Ptr features(new HistCloudT);
-        CloudT::Ptr keypoints(new CloudT);
-        cout << "Computing features..." << endl;
-        test_compute_features(features, keypoints, cloud, normals, false, true);
-        cout << "Done computing features..." << endl;
-
-        vector<CloudT::Ptr> retrieved_clouds;
-        vector<boost::filesystem::path> sweep_paths;
-        // we should retrieve more than we want and only keep the results with valid files on the system
-        // FIXME: add support for grouped vocabulary here also,
-        // all of the message types should support it, just a matter
-        // of going from the native types to ros types, vis server should also support it
-        // make the few thing which might be dependent templatized functions
-        auto results = dynamic_object_retrieval::query_reweight_vocabulary((vocabulary_tree<HistT, 8>&)vt, features, 200, vocabulary_path, summary);
-
-        // This is just to make sure that we have valid results even when some meta rooms have been deleted
-        size_t counter = 0;
-        while (counter < number_query) {
-            // assume that everything in mongodb is kept
-            if (results.first[counter].first.stem().string() == "surfel_map") {
-                ++counter;
-                continue;
-            }
-            if (!boost::filesystem::exists(results.first[counter].first)) {
-                auto iter = std::find_if(results.first.begin()+counter, results.first.end(), [](const pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type>& res) {
-                    return boost::filesystem::exists(res.first);
-                });
-                if (iter == results.first.end()) {
-                    break;
-                }
-                std::swap(results.first[counter], *iter);
-            }
-            else {
-                ++counter;
-            }
-        }
-        results.first.resize(counter);
-
-        // the sweep paths are of the form /path/to/room.xml, which do not exist for mongodb results
-        tie(retrieved_clouds, sweep_paths) = benchmark_retrieval::load_retrieved_clouds(results.first);
-
-        cout << "Query cloud size: " << cloud->size() << endl;
-        for (CloudT::Ptr& c : retrieved_clouds) {
-            cout << "Retrieved cloud size: " << c->size() << endl;
-        }
-
-        vector<float> scores;
-        vector<int> indices;
-        for (auto s : results.first) {
-            boost::filesystem::path segment_path = s.first;
-            string name = segment_path.stem().string();
-            if (name == "surfel_map") { // for the mongodb results
-                indices.push_back(-1);
-            }
-            else { // for the metric map results
-                size_t last_index = name.find_last_not_of("0123456789");
-                int index = stoi(name.substr(last_index + 1));
-                indices.push_back(index);
-            }
-            scores.push_back(s.second.score);
-        }
-
-        vector<vector<Eigen::Matrix4f>, Eigen::aligned_allocator<Eigen::Matrix4f > > initial_poses;
-        vector<vector<cv::Mat> > masks(retrieved_clouds.size());
-        vector<vector<cv::Mat> > images(retrieved_clouds.size());
-        vector<vector<cv::Mat> > depths(retrieved_clouds.size());
-        vector<vector<string> > paths(retrieved_clouds.size());
-        Eigen::Matrix3f K;
-        // The new parameters in surfelize_it: 528, 525, 317, 245
-        // The old parameters in surfelize_it: 540, 540, 320, 240
-
-        // The old parameters in this node:
-        // K << 525.0f, 0.0f, 319.5f, 0.0f, 525.0f, 239.5f, 0.0f, 0.0f, 1.0f;
-
-        // Just for johan to test:
-        K << 540.0f, 0.0f, 320.0f, 0.0f, 540.0f, 240.0f, 0.0f, 0.0f, 1.0f;
-        for (int i = 0; i < retrieved_clouds.size(); ++i) {
-            vector<int> inds;
-            vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > sweep_transforms;
-            if (indices[i] == -1) { // special case for mongodb result
-                tie(masks[i], images[i], depths[i], inds) = generate_images_for_mongodb_object(retrieved_clouds[i], K, sweep_paths[i], sweep_transforms);
-            }
-            else {
-                auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
-                for (tf::StampedTransform& t : sweep_data.vIntermediateRoomCloudTransformsRegistered) {
-                    Eigen::Affine3d e;
-                    tf::transformTFToEigen(t, e);
-                    sweep_transforms.push_back(e.inverse().matrix().cast<float>());
-                }
-                tie(masks[i], images[i], depths[i], inds) = generate_images_for_object(retrieved_clouds[i], K, sweep_paths[i], sweep_transforms);
-
-            }
-            for (int j = 0; j < inds.size(); ++j) {
-                paths[i].push_back(sweep_paths[i].string() + " " + to_string(inds[j]));
-            }
-        }
-
-        res.result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices);
-        sensor_msgs::Image img_msg = construct_results_image(images);
-        img_pub.publish(img_msg);
-
-        cout << "Finished retrieval..." << endl;
-    }
-    */
-
     // to have this templated is totally unnecessary but whatever
     void prune_results(std::pair<std::vector<std::pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type> >,
                        std::vector<std::pair<boost::filesystem::path, vocabulary_tree<HistT, 8>::result_type> > >& results)
@@ -585,12 +462,12 @@ public:
         return path[0];
     }
 
-    void run_retrieval(const quasimodo_msgs::retrieval_query::ConstPtr& query_msg) //const string& sweep_xml)
+    bool retrieval_implementation(const quasimodo_msgs::retrieval_query& query, quasimodo_msgs::retrieval_result& result, geometry_msgs::Transform& query_room_transform)
     {
-        cout << "Received query msg of kind " << query_msg->query_kind << "..." << endl;
+        cout << "Received query msg of kind " << query.query_kind << "..." << endl;
 
         dynamic_object_retrieval::uri_kind kind;
-        switch (query_msg->query_kind) {
+        switch (query.query_kind) {
         case quasimodo_msgs::retrieval_query::MONGODB_QUERY:
             kind = dynamic_object_retrieval::uri_kind::mongodb;
             break;
@@ -601,12 +478,12 @@ public:
             kind = dynamic_object_retrieval::uri_kind::all;
             break;
         default:
-            cout << "Invalid quasimodo_msgs::retrieval_query::query_kind option: " << query_msg->query_kind << endl;
-            return;
+            cout << "Invalid quasimodo_msgs::retrieval_query::query_kind option: " << query.query_kind << endl;
+            return false;
         }
 
         pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr normal_cloud(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-        pcl::fromROSMsg(query_msg->cloud, *normal_cloud);
+        pcl::fromROSMsg(query.cloud, *normal_cloud);
         CloudT::Ptr cloud(new CloudT);
         NormalCloudT::Ptr normals(new NormalCloudT);
         cloud->reserve(normal_cloud->size()); normals->reserve(normal_cloud->size());
@@ -617,7 +494,7 @@ public:
         }
 
         image_geometry::PinholeCameraModel cam_model;
-        cam_model.fromCameraInfo(query_msg->camera);
+        cam_model.fromCameraInfo(query.camera);
         cv::Matx33d cvK = cam_model.intrinsicMatrix();
         Eigen::Matrix3f K = Eigen::Map<Eigen::Matrix3d>(cvK.val).cast<float>();
         K << 528.0f, 0.0f, 317.0f, 0.0f, 525.0f, 245.0f, 0.0f, 0.0f, 1.0f; // surfelize_it intrinsics
@@ -722,23 +599,40 @@ public:
             }
         }
 
-        //cv::Mat full_query_image = benchmark_retrieval::sweep_get_rgb_at(sweep_xml, scan_index);
-        quasimodo_msgs::retrieval_query_result result;
-        result.query = *query_msg;
 
-        tf::transformTFToMsg(room_transform, result.query.room_transform);
-        result.result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices);
+
+        tf::transformTFToMsg(room_transform, query_room_transform);
+        result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices);
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
-            sensor_msgs::PointCloud2 cloud_msg = result.result.retrieved_clouds[i];
+            sensor_msgs::PointCloud2 cloud_msg = result.retrieved_clouds[i];
             cloud_msg.header.stamp = ros::Time::now();
             cloud_msg.header.frame_id = "/map";
             pubs[i].publish(cloud_msg);
         }
-        pub.publish(result);
+
         sensor_msgs::Image img_msg = construct_results_image(images);
         img_pub.publish(img_msg);
 
         cout << "Finished retrieval..." << endl;
+
+        return true;
+    }
+
+    bool service_callback(quasimodo_msgs::query_cloud::Request& req,
+                          quasimodo_msgs::query_cloud::Response& res)
+    {
+        geometry_msgs::Transform query_room_transform;
+        return retrieval_implementation(req.query, res.result, query_room_transform);
+    }
+
+    void run_retrieval(const quasimodo_msgs::retrieval_query::ConstPtr& query_msg) //const string& sweep_xml)
+    {
+        quasimodo_msgs::retrieval_query_result result;
+        geometry_msgs::Transform query_room_transform;
+        retrieval_implementation(*query_msg, result.result, query_room_transform);
+        result.query = *query_msg;
+        result.query.room_transform = query_room_transform;
+        pub.publish(result);
     }
 
     void convert_to_img_msg(const cv::Mat& cv_image, sensor_msgs::Image& ros_image)
