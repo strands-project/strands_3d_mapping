@@ -1,0 +1,20 @@
+<launch>
+    <arg name="search_directly" default="false"/>
+    <arg name="data_path" default="/home/strands/.semanticMap/vocabulary"/>
+    <arg name="enable_incremental" default="false"/>
+
+    <include file="$(find quasimodo_retrieval)/launch/retrieval.launch">
+        <arg name="search_directly" value="false"/>
+        <arg name="vocabulary_path" value="$(arg data_path)/vocabulary"/>
+        <arg name="enable_incremental" value="$(arg enable_incremental)"/>
+    </include>
+
+    <include file="$(find retrieval_processing)/launch/processing.launch">
+        <arg name="data_path" value="$(arg data_path)"/>
+    </include>
+
+    <node pkg="quasimodo_object_search" type="insert_object_server.py" name="insert_object_server" output="screen" respawn="true"/>
+
+    <node pkg="surfelize_it" type="surfelize_server" name="surfelize_server" output="screen" respawn="true"/>
+
+</launch>

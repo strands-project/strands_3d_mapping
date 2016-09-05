@@ -151,6 +151,9 @@ public:
         if (summary.last_updated == temp_summary.last_updated) {
             return false;
         }
+
+        cout << "Re-loading new vocabulary with timestamp: " << temp_summary.last_updated << endl;
+
         summary = temp_summary;
         vt = grouped_vocabulary_tree<HistT, 8>();
         dynamic_object_retrieval::load_vocabulary(vt, vocabulary_path);
