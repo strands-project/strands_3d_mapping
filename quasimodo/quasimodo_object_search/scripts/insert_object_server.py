@@ -23,14 +23,14 @@ from quasimodo_msgs.srv import insert_model, insert_modelRequest, insert_modelRe
 from geometry_msgs.msg import Pose
 import time
 
-def insert_model_cb():
+def insert_model_cb(req):
     msg_store = MessageStoreProxy(database='world_state', collection='quasimodo')
 
     transforms = []
-    req = mask_pointcloudsRequest()
+    mreq = mask_pointcloudsRequest()
     for cloud, mask, pose in zip(req.model.clouds, req.model.masks, req.model.local_poses):
-        req.clouds.append(cloud)
-        req.masks.append(mask)
+        mreq.clouds.append(cloud)
+        mreq.masks.append(mask)
 
         transform = Transform()
         transform.rotation.x = pose.quaternion.x
@@ -46,7 +46,7 @@ def insert_model_cb():
     rospy.wait_for_service('retrieval_segmentation_service')
     try:
         surfelize_server = rospy.ServiceProxy('retrieval_segmentation_service', mask_pointclouds)
-        resp = surfelize_server(req)
+        resp = surfelize_server(mreq)
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
         return False
@@ -66,7 +66,7 @@ def insert_model_cb():
 
     new_obj = fused_world_state_object()
     new_obj.surfel_cloud = resp.processed_cloud
-    new_obj.object_id = x.id
+    new_obj.object_id = resp.id
     now = datetime.now()
     new_obj.inserted_at = now.strftime("%Y-%m-%d %H:%M:%S")
 
