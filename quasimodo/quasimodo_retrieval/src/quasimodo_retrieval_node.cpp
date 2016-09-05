@@ -144,6 +144,21 @@ public:
         */
     }
 
+    bool maybe_reload()
+    {
+        dynamic_object_retrieval::vocabulary_summary temp_summary;
+        temp_summary.load(vocabulary_path);
+        if (summary.last_updated == temp_summary.last_updated) {
+            return false;
+        }
+        summary = temp_summary;
+        vt = grouped_vocabulary_tree<HistT, 8>();
+        dynamic_object_retrieval::load_vocabulary(vt, vocabulary_path);
+        vt.set_cache_path(vocabulary_path.string());
+        vt.set_min_match_depth(3);
+        vt.compute_normalizing_constants();
+    }
+
     pair<cv::Mat, cv::Mat> sweep_get_rgbd_at(const boost::filesystem::path& sweep_xml, int i)
     {
         stringstream ss;
@@ -750,18 +765,30 @@ int main(int argc, char** argv)
     bool enable_incremental;
     pn.param<bool>("enable_incremental", enable_incremental, false);
 
+    ros::Rate loop_rate(10);
+
     if (enable_incremental) {
 
         retrieval_node<grouped_vocabulary_tree<HistT, 8> > rs(ros::this_node::getName());
 
-        ros::spin();
+        while (true)
+        {
+            ros::spinOnce();
+            loop_rate.sleep();
+            rs.maybe_reload();
+        }
 
     }
     else {
 
         retrieval_node<vocabulary_tree<HistT, 8> > rs(ros::this_node::getName());
 
-        ros::spin();
+        while (true)
+        {
+            ros::spinOnce();
+            loop_rate.sleep();
+            rs.maybe_reload();
+        }
 
     }
 

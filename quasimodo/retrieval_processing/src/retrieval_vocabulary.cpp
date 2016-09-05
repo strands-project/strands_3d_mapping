@@ -18,6 +18,11 @@
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 
+#include <chrono>  // chrono::system_clock
+#include <ctime>   // localtime
+#include <sstream> // stringstream
+#include <iomanip> // put_time
+
 /**
  * The most reasonable thing to keep track of which metaroom folders that we have traversed
  * would be to create a new json file in the vocabulary folder with a list of all the sweeps
@@ -219,6 +224,11 @@ void train_vocabulary(const boost::filesystem::path& data_path)
     summary.nbr_annotated_segments = 0;
     summary.nbr_annotated_sweeps = 0;
 
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+    char buffer [80];
+    std::strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", std::localtime(&in_time_t));
+    summary.last_updated = string(buffer);
     summary.save(vocabulary_path);
     uris.save(vocabulary_path);
     dynamic_object_retrieval::save_vocabulary(*vt, vocabulary_path);
@@ -323,6 +333,14 @@ bool vocabulary_service(quasimodo_msgs::index_cloud::Request& req, quasimodo_msg
     resp.id = summary.nbr_noise_segments;
     summary.nbr_noise_segments += 1;
     summary.nbr_noise_sweeps++;
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+    char buffer [80];
+    std::strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", std::localtime(&in_time_t));
+    //std::stringstream ss;
+    //ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %H:%M:%S");
+    //summary.last_updated = ss.str();
+    summary.last_updated = string(buffer);
     summary.save(vocabulary_path);
     dynamic_object_retrieval::save_vocabulary(*vt, vocabulary_path);
 
@@ -420,6 +438,11 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
     summary.load(vocabulary_path);
     summary.nbr_noise_segments += counter;
     summary.nbr_noise_sweeps++;
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+    char buffer [80];
+    std::strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", std::localtime(&in_time_t));
+    summary.last_updated = string(buffer);
     summary.save(vocabulary_path);
     dynamic_object_retrieval::save_vocabulary(*vt, vocabulary_path);
     // End of new part!

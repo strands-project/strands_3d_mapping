@@ -85,6 +85,8 @@ struct vocabulary_summary {
     size_t max_training_features;
     size_t max_append_features;
 
+    std::string last_updated; // string for checking last update, used to know when to reload
+
     void load(const boost::filesystem::path& data_path)
     {
         std::ifstream in((data_path / boost::filesystem::path("vocabulary_summary.json")).string());
@@ -133,7 +135,8 @@ struct vocabulary_summary {
                 cereal::make_nvp("vocabulary_tree_size", vocabulary_tree_size),
                 cereal::make_nvp("min_segment_features", min_segment_features),
                 cereal::make_nvp("max_training_features", max_training_features),
-                cereal::make_nvp("max_append_features", max_append_features));
+                cereal::make_nvp("max_append_features", max_append_features),
+                cereal::make_nvp("last_updated", last_updated));
     }
 
     vocabulary_summary() : vocabulary_type("standard"), subsegment_type(""), noise_data_path(""), annotated_data_path(""), nbr_noise_segments(0), nbr_annotated_segments(0),
