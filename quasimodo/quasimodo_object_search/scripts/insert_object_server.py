@@ -23,20 +23,22 @@ from quasimodo_msgs.srv import insert_model, insert_modelRequest, insert_modelRe
 from geometry_msgs.msg import Pose
 import time
 
-def insert_model_cb(req):
+def insert_model_cb(sreq):
     msg_store = MessageStoreProxy(database='world_state', collection='quasimodo')
 
+    local_poses = sreq.model.local_poses
+
     transforms = []
-    mreq = mask_pointcloudsRequest()
-    for cloud, mask, pose in zip(req.model.clouds, req.model.masks, req.model.local_poses):
-        mreq.clouds.append(cloud)
-        mreq.masks.append(mask)
+    req = mask_pointcloudsRequest()
+    for cloud, mask, pose in zip(sreq.model.clouds, sreq.model.masks, sreq.model.local_poses):
+        req.clouds.append(cloud)
+        req.masks.append(mask)
 
         transform = Transform()
-        transform.rotation.x = pose.quaternion.x
-        transform.rotation.y = pose.quaternion.y
-        transform.rotation.z = pose.quaternion.z
-        transform.rotation.w = pose.quaternion.w
+        transform.rotation.x = pose.orientation.x
+        transform.rotation.y = pose.orientation.y
+        transform.rotation.z = pose.orientation.z
+        transform.rotation.w = pose.orientation.w
         transform.translation.x = pose.position.x
         transform.translation.y = pose.position.y
         transform.translation.z = pose.position.z
@@ -46,7 +48,7 @@ def insert_model_cb(req):
     rospy.wait_for_service('retrieval_segmentation_service')
     try:
         surfelize_server = rospy.ServiceProxy('retrieval_segmentation_service', mask_pointclouds)
-        resp = surfelize_server(mreq)
+        resp = surfelize_server(req)
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
         return False
@@ -66,19 +68,16 @@ def insert_model_cb(req):
 
     new_obj = fused_world_state_object()
     new_obj.surfel_cloud = resp.processed_cloud
-    new_obj.object_id = resp.id
+    new_obj.object_id = "null"
     now = datetime.now()
     new_obj.inserted_at = now.strftime("%Y-%m-%d %H:%M:%S")
+    new_obj.transforms = local_poses
 
-    for obs, pose in zip(wo._observations, wo._poses):
-        new_obj.transforms.append(Pose())
-        new_obj.transforms[-1].position.x = pose.position.x
-        new_obj.transforms[-1].position.y = pose.position.y
-        new_obj.transforms[-1].position.z = pose.position.z
-        new_obj.transforms[-1].orientation.x = pose.quaternion.x
-        new_obj.transforms[-1].orientation.y = pose.quaternion.y
-        new_obj.transforms[-1].orientation.z = pose.quaternion.z
-        new_obj.transforms[-1].orientation.w = pose.quaternion.w
+    # TODO: mongodb does not support including all of this because of the size
+    # for rgbd_frame, mask in zip(sreq.model.frames, sreq.model.masks):
+    #     new_obj.depths.append(rgbd_frame.depth)
+    #     new_obj.images.append(rgbd_frame.rgb)
+    #     new_obj.masks.append(mask)
 
     print "Waiting for retrieval_features_service..."
     rospy.wait_for_service('retrieval_features_service')
