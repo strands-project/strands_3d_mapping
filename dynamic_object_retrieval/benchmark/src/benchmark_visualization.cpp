@@ -28,9 +28,21 @@ cv::Mat make_visualization_image(cv::Mat& query_image, const string& query_label
             p.getVector4fMap() = T*p.getVector4fMap();
         }
     }*/
-    cv::Mat result_image = make_image(clouds, T, sweep_paths, optional_text);
+    cv::Mat result_image;
+    vector<cv::Mat> individual_images;
+    tie(result_image, individual_images) = make_image(clouds, T, sweep_paths, optional_text);
     return add_query_image(result_image, query_image, query_label);
     //return result_image;
+}
+
+cv::Mat make_visualization_image(cv::Mat& query_image, const string& query_label, vector<CloudT::Ptr>& clouds,
+                                 vector<boost::filesystem::path>& sweep_paths, const vector<string>& optional_text,
+                                 const Eigen::Matrix4f& T, vector<cv::Mat>& individual_images)
+{
+    cv::Mat result_image;
+    tie(result_image, individual_images) = make_image(clouds, T, sweep_paths, optional_text);
+    individual_images.insert(individual_images.begin(), result_image.clone());
+    return add_query_image(result_image, query_image, query_label);
 }
 
 cv::Mat make_visualization_image(CloudT::Ptr& query_cloud, cv::Mat& query_mask, const boost::filesystem::path& query_path,
@@ -70,7 +82,9 @@ cv::Mat make_visualization_image(CloudT::Ptr& query_cloud, cv::Mat& query_mask, 
     cv::Mat inverted_mask;
     cv::bitwise_not(query_mask, inverted_mask);
     image.setTo(cv::Scalar(255, 255, 255), inverted_mask);
-    cv::Mat result_image = make_image(clouds, T, sweep_paths, optional_text);
+    cv::Mat result_image;
+    vector<cv::Mat> individual_images;
+    tie(result_image, individual_images) = make_image(clouds, T, sweep_paths, optional_text);
     return add_query_image(result_image, image, query_label);
     //return result_image;
 }
@@ -244,8 +258,8 @@ cv::Mat render_image(CloudT::Ptr& cloud, const Eigen::Matrix4f& T, const Eigen::
 }
 
 // the question is if we actually need the paths for this?
-cv::Mat make_image(std::vector<CloudT::Ptr>& results, const Eigen::Matrix4f& room_transform,
-                   vector<boost::filesystem::path>& sweep_paths, const std::vector<std::string>& optional_text)
+pair<cv::Mat, vector<cv::Mat> > make_image(std::vector<CloudT::Ptr>& results, const Eigen::Matrix4f& room_transform,
+                                           vector<boost::filesystem::path>& sweep_paths, const std::vector<std::string>& optional_text)
 {
     pair<int, int> sizes = make_pair(1, std::min(10, int(results.size())));//get_similar_sizes(results.size());
 
@@ -253,6 +267,7 @@ cv::Mat make_image(std::vector<CloudT::Ptr>& results, const Eigen::Matrix4f& roo
     int height = 200;
 
     cv::Mat visualization = cv::Mat::zeros(height*sizes.first, width*sizes.second, CV_8UC3);
+    cv::Mat individual_images;
 
     int counter = 0;
     for (CloudT::Ptr& cloud : results) {
@@ -327,6 +342,7 @@ cv::Mat make_image(std::vector<CloudT::Ptr>& results, const Eigen::Matrix4f& roo
         int offset_height = counter / sizes.second;
         int offset_width = counter % sizes.second;
         sub_image.copyTo(visualization(cv::Rect(offset_width*width, offset_height*height, width, height)));
+        individual_images.push_back(sub_image);
 
         //cv::imshow("test", visualization);
         //cv::waitKey();
@@ -338,7 +354,7 @@ cv::Mat make_image(std::vector<CloudT::Ptr>& results, const Eigen::Matrix4f& roo
         visualization = cv::Mat::zeros(height*2, width*5, CV_8UC3);
     }
 
-    return visualization;
+    return make_pair(visualization, individual_images);
 }
 
 } // namespace benchmark_retrieval

@@ -2,3 +2,4 @@ retrieval_query query
 retrieval_result result
 ---
 sensor_msgs/Image image
+quasimodo_msgs/image_array images
