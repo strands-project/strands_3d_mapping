@@ -576,6 +576,7 @@ public:
 
         vector<float> scores;
         vector<int> indices;
+        vector<int> vocabulary_ids;
         for (auto s : results.first) {
             boost::filesystem::path segment_path = base_path(s.first);
             string name = segment_path.stem().string();
@@ -589,6 +590,7 @@ public:
                 indices.push_back(index);
             }
             scores.push_back(s.second.score);
+            vocabulary_ids.push_back(s.second.index);
         }
 
         vector<vector<Eigen::Matrix4f>, Eigen::aligned_allocator<Eigen::Matrix4f > > initial_poses;
@@ -620,7 +622,7 @@ public:
 
 
         tf::transformTFToMsg(room_transform, query_room_transform);
-        result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices);
+        result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices, vocabulary_ids);
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
             sensor_msgs::PointCloud2 cloud_msg = result.retrieved_clouds[i];
             cloud_msg.header.stamp = ros::Time::now();
@@ -708,7 +710,8 @@ public:
                                                     const vector<vector<cv::Mat> >& masks,
                                                     const vector<vector<string> >& paths,
                                                     const vector<float>& scores,
-                                                    const vector<int>& indices)
+                                                    const vector<int>& indices,
+                                                    const vector<int>& vocabulary_ids)
     {
         quasimodo_msgs::retrieval_result res;
 
@@ -734,6 +737,7 @@ public:
         res.retrieved_image_paths.resize(number_retrieved);
         res.retrieved_distance_scores.resize(number_retrieved);
         res.segment_indices.resize(number_retrieved);
+        res.vocabulary_ids.resize(number_retrieved);
 
         for (int i = 0; i < number_retrieved; ++i) {
             pcl::toROSMsg(*clouds[i], res.retrieved_clouds[i]);
@@ -754,6 +758,7 @@ public:
             }
             res.retrieved_distance_scores[i] = scores[i];
             res.segment_indices[i].ints.push_back(indices[i]);
+            res.vocabulary_ids[i] = vocabulary_ids[i];
         }
 
         return res;
