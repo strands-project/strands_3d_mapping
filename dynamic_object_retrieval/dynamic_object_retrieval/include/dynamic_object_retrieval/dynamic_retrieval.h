@@ -149,6 +149,12 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
             boost::shared_ptr<quasimodo_msgs::fused_world_state_object> message;
             mongo::BSONObj bson_message;
             std::tie(message, bson_message) = message_store->queryID<quasimodo_msgs::fused_world_state_object>(strs[2]);
+
+            if (message->transforms.empty()) {
+                retrieved_paths.push_back(boost::filesystem::path());
+                continue;
+            }
+
             SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
             pcl::fromROSMsg(message->surfel_cloud, *surfel_cloud);
             pcl::io::savePCDFileBinary(temp_path.string(), *surfel_cloud);
@@ -373,6 +379,12 @@ get_retrieved_path_scores(const std::vector<grouped_vocabulary_tree<HistT, 8>::r
             boost::shared_ptr<quasimodo_msgs::fused_world_state_object> message;
             mongo::BSONObj bson_message;
             std::tie(message, bson_message) = message_store->queryID<quasimodo_msgs::fused_world_state_object>(strs[2]);
+
+            if (message->transforms.empty()) {
+                path_scores.back().first.push_back(boost::filesystem::path());
+                continue;
+            }
+
             SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
             pcl::fromROSMsg(message->surfel_cloud, *surfel_cloud);
             pcl::io::savePCDFileBinary(temp_path.string(), *surfel_cloud);
