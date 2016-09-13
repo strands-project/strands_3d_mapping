@@ -15,13 +15,14 @@ from geometry_msgs.msg import Pose, Transform
 from observation_registration_services.srv import ProcessRegisteredViews, ProcessRegisteredViewsRequest, ProcessRegisteredViewsResponse
 from soma_io.state import World, Object
 from datetime import datetime, timedelta
-from quasimodo_msgs.msg import fused_world_state_object
+from quasimodo_msgs.msg import fused_world_state_object, image_array
 from quasimodo_msgs.srv import transform_cloud, transform_cloudRequest, transform_cloudResponse
 from quasimodo_msgs.srv import index_cloud, index_cloudRequest, index_cloudResponse
 from quasimodo_msgs.srv import mask_pointclouds, mask_pointcloudsRequest, mask_pointcloudsResponse
 from quasimodo_msgs.srv import insert_model, insert_modelRequest, insert_modelResponse
 from geometry_msgs.msg import Pose
 import time
+import json
 
 def insert_model_cb(sreq):
     msg_store = MessageStoreProxy(database='world_state', collection='quasimodo')
@@ -72,6 +73,21 @@ def insert_model_cb(sreq):
     now = datetime.now()
     new_obj.inserted_at = now.strftime("%Y-%m-%d %H:%M:%S")
     new_obj.transforms = local_poses
+
+    new_obj_depths = image_array()
+    new_obj_images = image_array()
+    new_obj_masks = image_array()
+    for rgbd_frame, mask in zip(sreq.model.frames, sreq.model.masks):
+        new_obj_depths.images.append(rgbd_frame.depth)
+        new_obj_images.images.append(rgbd_frame.rgb)
+        new_obj_masks.images.append(mask)
+
+    new_obj_associated_mongodb_fields = {}
+    new_obj_associated_mongodb_fields["depths"] = msg_store.insert(new_obj_depths)
+    new_obj_associated_mongodb_fields["images"] = msg_store.insert(new_obj_images)
+    new_obj_associated_mongodb_fields["masks"] = msg_store.insert(new_obj_masks)
+
+    new_obj.associated_mongodb_fields_map = json.dumps(new_obj_associated_mongodb_fields, ensure_ascii=True)
 
     # TODO: mongodb does not support including all of this because of the size
     # for rgbd_frame, mask in zip(sreq.model.frames, sreq.model.masks):

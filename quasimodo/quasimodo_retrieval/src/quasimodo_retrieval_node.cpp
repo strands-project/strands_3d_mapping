@@ -48,6 +48,44 @@ POINT_CLOUD_REGISTER_POINT_STRUCT (HistT,
                                    (float[N], histogram, histogram)
 )
 
+namespace cereal
+{
+//! Loading for std::map<std::string, std::string> for text based archives
+template <class Archive, class C, class A>
+typename std::enable_if<traits::is_text_archive<Archive>::value, void>::type
+load(Archive& ar, std::map<std::string, std::string, C, A>& map)
+{
+    map.clear();
+
+    auto hint = map.begin();
+    while (true) {
+        const auto namePtr = ar.getNodeName();
+        if(!namePtr) {
+            break;
+        }
+        std::string key = namePtr;
+        std::string value; ar( value );
+        hint = map.emplace_hint( hint, std::move( key ), std::move( value ) );
+    }
+}
+} // namespace cereal
+
+template <typename Msg1, typename Msg2>
+Msg1 get_associated_mongodb_field(mongodb_store::MessageStoreProxy& message_store, const Msg2& message, const string& field)
+{
+    stringstream associated_mongodb_fields_map;
+    associated_mongodb_fields_map << "{\"value0\":  " << message.associated_mongodb_fields_map << "}";
+    map<string, string> associated_mongodb_fields;
+    {
+        cereal::JSONInputArchive archive_i(associated_mongodb_fields_map);
+        archive_i(associated_mongodb_fields);
+    }
+    string mongodb_id = associated_mongodb_fields.at(field);
+    pair<boost::shared_ptr<Msg1>, mongo::BSONObj> query = message_store.queryID<Msg1>(mongodb_id);
+    return *query.first;
+}
+
+
 template<typename VocabularyT>
 class retrieval_node {
 public:
@@ -264,6 +302,9 @@ public:
 
         mongodb_store::MessageStoreProxy message_store_quasimodo(n, "quasimodo", "world_state");
         pair<boost::shared_ptr<quasimodo_msgs::fused_world_state_object>, mongo::BSONObj> query = message_store_quasimodo.queryID<quasimodo_msgs::fused_world_state_object>(mongodb_id);
+        query.first->depths = get_associated_mongodb_field<quasimodo_msgs::image_array>(message_store_quasimodo, *query.first, "depths").images;
+        query.first->images = get_associated_mongodb_field<quasimodo_msgs::image_array>(message_store_quasimodo, *query.first, "images").images;
+        query.first->masks = get_associated_mongodb_field<quasimodo_msgs::image_array>(message_store_quasimodo, *query.first, "masks").images;
 
         for (int i = 0; i < query.first->images.size(); ++i) {
             cv_bridge::CvImagePtr cv_mask_ptr;
