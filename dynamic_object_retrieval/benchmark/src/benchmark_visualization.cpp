@@ -41,7 +41,7 @@ cv::Mat make_visualization_image(cv::Mat& query_image, const string& query_label
 {
     cv::Mat result_image;
     tie(result_image, individual_images) = make_image(clouds, T, sweep_paths, optional_text);
-    individual_images.insert(individual_images.begin(), result_image.clone());
+    individual_images.insert(individual_images.begin(), query_image.clone());
     return add_query_image(result_image, query_image, query_label);
 }
 
@@ -267,7 +267,7 @@ pair<cv::Mat, vector<cv::Mat> > make_image(std::vector<CloudT::Ptr>& results, co
     int height = 200;
 
     cv::Mat visualization = cv::Mat::zeros(height*sizes.first, width*sizes.second, CV_8UC3);
-    cv::Mat individual_images;
+    vector<cv::Mat> individual_images;
 
     int counter = 0;
     for (CloudT::Ptr& cloud : results) {
