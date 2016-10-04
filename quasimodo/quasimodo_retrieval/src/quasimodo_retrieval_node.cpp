@@ -25,6 +25,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <tf_conversions/tf_eigen.h>
 #include <tf/transform_datatypes.h>
+#include <eigen_conversions/eigen_msg.h>
 
 #include <dynamic_reconfigure/server.h>
 #include <quasimodo_retrieval/parametersConfig.h>
@@ -521,6 +522,16 @@ public:
         return path[0];
     }
 
+    vector<int> vocabulary_set(const grouped_vocabulary_tree<HistT, 8>::result_type& vec)
+    {
+        return vec.subgroup_global_indices;
+    }
+
+    vector<int> vocabulary_set(const vocabulary_tree<HistT, 8>::result_type&  ind)
+    {
+        return vector<int> {ind.index};
+    }
+
     bool retrieval_implementation(const quasimodo_msgs::retrieval_query& query, quasimodo_msgs::retrieval_result& result, geometry_msgs::Transform& query_room_transform)
     {
         cout << "Received query msg of kind " << query.query_kind << "..." << endl;
@@ -617,7 +628,7 @@ public:
 
         vector<float> scores;
         vector<int> indices;
-        vector<int> vocabulary_ids;
+        vector<vector<int> > vocabulary_ids;
         for (auto s : results.first) {
             boost::filesystem::path segment_path = base_path(s.first);
             string name = segment_path.stem().string();
@@ -631,10 +642,12 @@ public:
                 indices.push_back(index);
             }
             scores.push_back(s.second.score);
-            vocabulary_ids.push_back(s.second.index);
+            //vocabulary_ids.push_back(s.second.index);
+            vocabulary_ids.push_back(vocabulary_set(s.second));
         }
 
         vector<vector<Eigen::Matrix4f>, Eigen::aligned_allocator<Eigen::Matrix4f > > initial_poses;
+        vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > global_transforms;
         vector<vector<cv::Mat> > masks(retrieved_clouds.size());
         vector<vector<cv::Mat> > images(retrieved_clouds.size());
         vector<vector<cv::Mat> > depths(retrieved_clouds.size());
@@ -643,15 +656,20 @@ public:
             vector<int> inds;
             vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > sweep_transforms;
             if (indices[i] == -1) { // special case for mongodb result
+                global_transforms.push_back(Eigen::Matrix4f());
+                global_transforms.back().setIdentity();
                 tie(masks[i], images[i], depths[i], inds) = generate_images_for_mongodb_object(retrieved_clouds[i], K, base_path(results.first[i].first), sweep_transforms);
             }
             else {
-                auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
+                auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);    
                 for (tf::StampedTransform& t : sweep_data.vIntermediateRoomCloudTransformsRegistered) {
                     Eigen::Affine3d e;
                     tf::transformTFToEigen(t, e);
                     sweep_transforms.push_back(e.inverse().matrix().cast<float>());
                 }
+                Eigen::Affine3d e;
+                tf::transformTFToEigen(sweep_data.vIntermediateRoomCloudTransforms[0], e);
+                global_transforms.push_back(e.matrix().cast<float>());
                 tie(masks[i], images[i], depths[i], inds) = generate_images_for_object(retrieved_clouds[i], K, sweep_paths[i], sweep_transforms);
 
             }
@@ -660,10 +678,8 @@ public:
             }
         }
 
-
-
         tf::transformTFToMsg(room_transform, query_room_transform);
-        result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices, vocabulary_ids);
+        result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices, vocabulary_ids, global_transforms);
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
             sensor_msgs::PointCloud2 cloud_msg = result.retrieved_clouds[i];
             cloud_msg.header.stamp = ros::Time::now();
@@ -752,7 +768,8 @@ public:
                                                     const vector<vector<string> >& paths,
                                                     const vector<float>& scores,
                                                     const vector<int>& indices,
-                                                    const vector<int>& vocabulary_ids)
+                                                    const vector<vector<int> >& vocabulary_ids,
+                                                    const vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >& global_poses)
     {
         quasimodo_msgs::retrieval_result res;
 
@@ -779,6 +796,7 @@ public:
         res.retrieved_distance_scores.resize(number_retrieved);
         res.segment_indices.resize(number_retrieved);
         res.vocabulary_ids.resize(number_retrieved);
+        res.global_poses.resize(number_retrieved);
 
         for (int i = 0; i < number_retrieved; ++i) {
             pcl::toROSMsg(*clouds[i], res.retrieved_clouds[i]);
@@ -799,7 +817,14 @@ public:
             }
             res.retrieved_distance_scores[i] = scores[i];
             res.segment_indices[i].ints.push_back(indices[i]);
-            res.vocabulary_ids[i] = vocabulary_ids[i];
+
+            stringstream ss;
+            for (int ind : vocabulary_ids[i]) {
+                cout << "Writing retrieval ind: " << ind << endl;
+                ss << ind << " ";
+            }
+            res.vocabulary_ids[i] = ss.str();
+            tf::poseEigenToMsg(Eigen::Affine3d(global_poses[i].cast<double>()), res.global_poses[i]);
         }
 
         return res;
