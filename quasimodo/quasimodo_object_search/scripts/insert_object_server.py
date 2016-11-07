@@ -8,7 +8,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import cv2
 
 # SOMA2 stuff
-from soma2_msgs.msg import SOMA2Object
+from soma_msgs.msg import SOMAObject
 from mongodb_store.message_store import MessageStoreProxy
 from soma_manager.srv import *
 from geometry_msgs.msg import Pose, Transform

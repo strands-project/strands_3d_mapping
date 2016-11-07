@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 
 # SOMA2 stuff
-from soma2_msgs.msg import SOMA2Object
+from soma_msgs.msg import SOMAObject
 from mongodb_store.message_store import MessageStoreProxy
 from soma_manager.srv import *
 from geometry_msgs.msg import Pose, Transform

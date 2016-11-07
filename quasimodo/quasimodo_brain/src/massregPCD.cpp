@@ -15,9 +15,9 @@
 #include "quasimodo_msgs/retrieval_query_result.h"
 #include "quasimodo_msgs/retrieval_query.h"
 #include "quasimodo_msgs/retrieval_result.h"
-#include "soma2_msgs/SOMA2Object.h"
+#include "soma_msgs/SOMAObject.h"
 
-#include "soma_manager/SOMA2InsertObjs.h"
+#include "soma_manager/SOMAInsertObjs.h"
 
 //#include "modelupdater/ModelUpdater.h"
 //#include "/home/johane/catkin_ws_dyn/src/quasimodo_models/include/modelupdater/ModelUpdater.h"

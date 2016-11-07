@@ -8,7 +8,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import cv2
 
 # SOMA2 stuff
-from soma2_msgs.msg import SOMA2Object
+from soma_msgs.msg import SOMAObject
 from mongodb_store.message_store import MessageStoreProxy
 from soma_manager.srv import *
 from geometry_msgs.msg import Pose, Transform
@@ -27,11 +27,11 @@ UPDATE_INT_MINUTES = 10.0
 def chron_callback():
 
     print("making query")
-    soma_query = rospy.ServiceProxy('soma2/query_db',SOMA2QueryObjs)
+    soma_query = rospy.ServiceProxy('soma/query_db',SOMAQueryObjs)
     print("done query")
 
     # Query all observations during the last 30 mins
-    query = SOMA2QueryObjsRequest()
+    query = SOMAQueryObjsRequest()
     query.query_type = 0
     query.objecttypes=['unknown']
     query.uselowertime = True
@@ -166,7 +166,7 @@ def chron_callback():
 if __name__ == '__main__':
     rospy.init_node('create_object_search_observation', anonymous = False)
     print("getting soma service")
-    rospy.wait_for_service('soma2/query_db')
+    rospy.wait_for_service('soma/query_db')
     print("done initializing")
 
     r = rospy.Rate(1.0/(60.0*UPDATE_INT_MINUTES)) # 10hz
