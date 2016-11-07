@@ -16,6 +16,9 @@ add_definitions(-std=c++11 -O3)
 # Show where to find the find package scripts
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
+set(stopwatch_dir ${CMAKE_CURRENT_SOURCE_DIR}/stopwatch)
+set(stopwatch_include_dir ${stopwatch_dir}/src)
+
 # Define the locations of the k_means_tree project
 # If using catkin, including it using catkin instead
 if (catkin_FOUND)
@@ -23,6 +26,7 @@ if (catkin_FOUND)
                         metaroom_xml_parser object_manager k_means_tree convex_segmentation)
     set(ROS_LIBRARIES ${catkin_LIBRARIES})
     include_directories(${catkin_INCLUDE_DIRS})
+    #set(stopwatch_library_dir ${CATKIN_DEVEL_PREFIX}/stopwatch/build)
 else()
     set(k_means_tree_dir ${CMAKE_CURRENT_SOURCE_DIR}/../k_means_tree)
     set(k_means_tree_library_dir ${k_means_tree_dir}/build)
@@ -57,23 +61,22 @@ else()
 
     # Define the locations of cereal serialization header files
     set(cereal_include_dir ${CMAKE_CURRENT_SOURCE_DIR}/../k_means_tree/cereal/include)
+
+    # Only compile the stopwatch project if it's not with catkin
     include_directories(${cereal_include_dir})
+    set(stopwatch_library_dir ${stopwatch_dir}/build)
+    # Compile the stopwatch project, needed for this
+    ExternalProject_Add(stopwatch_project
+      DOWNLOAD_COMMAND ""
+      SOURCE_DIR ${stopwatch_include_dir}
+      BINARY_DIR ${stopwatch_library_dir}
+      BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
+      INSTALL_COMMAND ""
+    )
 endif()
 
 # Eh, we need to somehow build this maybe?
-set(stopwatch_dir ${CMAKE_CURRENT_SOURCE_DIR}/stopwatch)
-set(stopwatch_include_dir ${stopwatch_dir}/src)
-set(stopwatch_library_dir ${stopwatch_dir}/build)
 include_directories(${stopwatch_include_dir})
-
-# Compile the stopwatch project, needed for this
-ExternalProject_Add(stopwatch_project
-  DOWNLOAD_COMMAND ""
-  SOURCE_DIR ${stopwatch_include_dir}
-  BINARY_DIR ${stopwatch_library_dir}
-  BUILD_COMMAND ${CMAKE_MAKE_PROGRAM}
-  INSTALL_COMMAND ""
-)
 
 # Find PCL
 find_package(PCL 1.6 REQUIRED COMPONENTS common io search visualization surface kdtree features surface segmentation octree filter keypoints)
