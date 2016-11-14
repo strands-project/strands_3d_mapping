@@ -16,7 +16,7 @@
 
 // for logging to soma in mongodb
 #include <soma_msgs/SOMAObject.h>
-#include <soma_manager/SOMA2InsertObjs.h>
+#include <soma_manager/SOMAInsertObjs.h>
 #include <mongodb_store/MongoInsert.h>
 
 using namespace std;
@@ -40,7 +40,7 @@ public:
 
     void callback(const quasimodo_msgs::retrieval_query_result& res)
     {
-        soma_manager::SOMA2InsertObjs::Request soma_req;
+        soma_manager::SOMAInsertObjs::Request soma_req;
 
         size_t N = res.result.retrieved_clouds.size();
         soma_req.objects.resize(N);
