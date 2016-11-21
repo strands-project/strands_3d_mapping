@@ -1,6 +1,8 @@
 #include <quasimodo_conversions/conversions.h>
 #include <soma_llsd/GetScene.h>
 #include <soma_llsd/InsertScene.h>
+#include <soma_llsd/AddObservationsToSegment.h>
+#include <soma_llsd/InsertSegment.h>
 
 #include <pcl_ros/point_cloud.h>
 #include <cv_bridge/cv_bridge.h>
@@ -180,16 +182,26 @@ void soma_observation_to_frame(ros::NodeHandle& n, const soma_llsd_msgs::Observa
 
 // ### response has id field! ###
 
-void raw_frames_to_soma_scene(const cv::Mat& rgb, const cv::Mat& depth,
+void raw_frames_to_soma_scene(ros::NodeHandle& n, const cv::Mat& rgb, const cv::Mat& depth,
                               const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& cloud,
                               const Eigen::Matrix4d& pose, const Eigen::Matrix3d& K,
                               const std::string& waypoint, const std::string episode_id,
                               soma_llsd_msgs::Scene& scene)
 {
-    convert_to_img_msg(rgb, scene.rgb_img);
-    convert_to_depth_msg(depth, scene.depth_img);
-    pcl::toROSMsg(*cloud, scene.cloud);
-    tf::poseEigenToMsg(Eigen::Affine3d(pose), scene.robot_pose);
+    ros::ServiceClient client = n.serviceClient<soma_llsd::InsertScene>("/soma_llsd/insert_scene");
+    ROS_INFO("Waiting for /soma_llsd/insert_scene service...");
+    if (!client.waitForExistence(ros::Duration(1.0))) {
+        ROS_INFO("Failed to get /soma_llsd/insert_scene service!");
+        return;
+    }
+    ROS_INFO("Got /soma_llsd/insert_scene service");
+
+    soma_llsd::InsertScene scene_srv;
+
+    convert_to_img_msg(rgb, scene_srv.request.rgb_img);
+    convert_to_depth_msg(depth, scene_srv.request.depth_img);
+    pcl::toROSMsg(*cloud, scene_srv.request.cloud);
+    tf::poseEigenToMsg(Eigen::Affine3d(pose), scene_srv.request.robot_pose);
     sensor_msgs::CameraInfo info;
     info.K.at(0) = K(0, 0);
     info.K.at(1) = K(0, 1);
@@ -208,8 +220,45 @@ void raw_frames_to_soma_scene(const cv::Mat& rgb, const cv::Mat& depth,
     info.P.at(10) = K(2, 2);
     info.height = rgb.rows;
     info.width = rgb.cols;
-    scene.waypoint = waypoint;
-    scene.episode_id = episode_id;
+    scene_srv.request.camera_info = info;
+    scene_srv.request.waypoint = waypoint;
+    scene_srv.request.episode_id = episode_id;
+
+    if (!client.call(scene_srv) || scene_srv.response.result) {
+        ROS_ERROR("Failed to call service /soma_llsd/insert_scene");
+        return;
+    }
+
+    scene = scene_srv.response.response;
+}
+
+void add_masks_to_soma_segment(ros::NodeHandle& n, std::vector<std::string>& scene_ids, std::vector<cv::Mat>& masks,
+                               std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> >& poses, soma_llsd_msgs::Segment& segment)
+{
+    ros::ServiceClient client = n.serviceClient<soma_llsd::InsertSegment>("/soma_llsd/insert_segment");
+    ROS_INFO("Waiting for /soma_llsd/insert_segment service...");
+    if (!client.waitForExistence(ros::Duration(1.0))) {
+        ROS_INFO("Failed to get /soma_llsd/insert_segment service!");
+        return;
+    }
+    ROS_INFO("Got /soma_llsd/insert_segment service");
+
+    soma_llsd::InsertSegment segment_srv;
+
+    size_t N = masks.size();
+    segment_srv.request.observations.resize(N);
+    for (size_t i = 0; i < N; ++i) {
+        convert_to_mask_msg(masks[i], segment_srv.request.observations[i].image_mask);
+        tf::poseEigenToMsg(Eigen::Affine3d(poses[i]), segment_srv.request.observations[i].pose);
+        segment_srv.request.observations[i].scene_id = scene_ids[i];
+    }
+
+    if (!client.call(segment_srv) || segment_srv.response.result) {
+        ROS_ERROR("Failed to call service /soma_llsd/insert_segment");
+        return;
+    }
+
+    segment = segment_srv.response.response;
 }
 
 } // namespace quasimodo_conversions
