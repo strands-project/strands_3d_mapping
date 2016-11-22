@@ -1,6 +1,7 @@
 <launch>
-    <arg name="data_path" default="/home/strands/.semanticMap"/>
-    <arg name="add_previous_maps" default="false"/>
+    <arg name="data_path" default="/home/nbore/Data/KTH_longterm_dataset_labels"/>
+    <arg name="add_previous_maps" default="true"/>
+    <arg name="start_add_map_ind" default="-1"/>
     <arg name="bypass_segmentation" default="false"/>
     <arg name="bypass_features" default="false"/>
     <arg name="bypass_vocabulary" default="false"/>
@@ -18,13 +19,14 @@
     <node pkg="retrieval_processing" type="retrieval_vocabulary" name="retrieval_vocabulary" output="screen" respawn="false">
         <param name="vocabulary_path" value="$(arg data_path)/vocabulary"/>
         <param name="data_path" value="$(arg data_path)"/>
-        <param name="min_training_sweeps" value="20"/>
+        <param name="min_training_sweeps" value="100"/>
         <param name="bypass" value="$(arg bypass_vocabulary)" type="bool"/>
     </node>
     <group if="$(arg add_previous_maps)">
         <node pkg="retrieval_processing" type="retrieval_simulate_observations" name="retrieval_simulate_observations" output="screen" respawn="false">
             <param name="data_path" value="$(arg data_path)"/>
             <param name="bypass_surfelize" value="$(arg bypass_surfelize)" type="bool"/>
+            <param name="start_add_map_ind" value="$(arg start_add_map_ind)"/>
         </node>
     </group>
 </launch>
