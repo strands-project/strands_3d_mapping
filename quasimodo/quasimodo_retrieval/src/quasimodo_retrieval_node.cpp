@@ -195,7 +195,7 @@ public:
         }
 
         cout << "Re-loading new vocabulary with timestamp: " << temp_summary.last_updated << endl;
-        ros::Duration(0.2).sleep(); // sleep for a little bit to make sure the vocabulary is saved
+        ros::Duration(0.5).sleep(); // sleep for a little bit to make sure the vocabulary is saved
 
         summary = temp_summary;
         vt = grouped_vocabulary_tree<HistT, 8>();
