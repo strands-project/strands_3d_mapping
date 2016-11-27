@@ -112,6 +112,7 @@ public:
 
     double iss_model_resolution; // 0.004
     double pfhrgb_radius_search; // 0.04
+    bool is_running;
 
     void parameters_callback(quasimodo_retrieval::parametersConfig& config, uint32_t level) {
         iss_model_resolution = config.iss_model_resolution;
@@ -162,6 +163,8 @@ public:
             vt.compute_normalizing_constants();
         }
 
+        is_running = false;
+
 
         //dynamic_reconfigure::Server<quasimodo_retrieval::parametersConfig>::CallbackType f;
         //f = boost::bind(&retrieval_node::parameters_callback, this, _1, _2);
@@ -187,11 +190,12 @@ public:
     {
         dynamic_object_retrieval::vocabulary_summary temp_summary;
         temp_summary.load(vocabulary_path);
-        if (summary.last_updated == temp_summary.last_updated) {
+        if (summary.last_updated == temp_summary.last_updated || is_running) {
             return false;
         }
 
         cout << "Re-loading new vocabulary with timestamp: " << temp_summary.last_updated << endl;
+        ros::Duration(0.2).sleep(); // sleep for a little bit to make sure the vocabulary is saved
 
         summary = temp_summary;
         vt = grouped_vocabulary_tree<HistT, 8>();
@@ -199,6 +203,8 @@ public:
         vt.set_cache_path(vocabulary_path.string());
         vt.set_min_match_depth(3);
         vt.compute_normalizing_constants();
+
+        return true;
     }
 
     pair<cv::Mat, cv::Mat> sweep_get_rgbd_at(const boost::filesystem::path& sweep_xml, int i)
@@ -535,6 +541,7 @@ public:
     bool retrieval_implementation(const quasimodo_msgs::retrieval_query& query, quasimodo_msgs::retrieval_result& result, geometry_msgs::Transform& query_room_transform)
     {
         cout << "Received query msg of kind " << query.query_kind << "..." << endl;
+        is_running = true;
 
         dynamic_object_retrieval::uri_kind kind;
         switch (query.query_kind) {
@@ -549,6 +556,7 @@ public:
             break;
         default:
             cout << "Invalid quasimodo_msgs::retrieval_query::query_kind option: " << query.query_kind << endl;
+            is_running = false;
             return false;
         }
 
@@ -691,6 +699,8 @@ public:
         img_pub.publish(img_msg);
 
         cout << "Finished retrieval..." << endl;
+
+        is_running = false;
 
         return true;
     }
