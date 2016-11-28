@@ -1,14 +1,16 @@
 <launch>
     <arg name="search_directly" default="false"/>
     <arg name="data_path" default="/home/strands/.semanticMap/vocabulary"/>
-    <arg name="enable_incremental" default="true"/>
+    <arg name="enable_incremental" default="false"/>
     <arg name="add_previous_maps" default="false"/>
     <arg name="start_add_map_ind" default="-1"/>
+    <arg name="min_match_depth" default="1"/>
 
     <include file="$(find quasimodo_retrieval)/launch/retrieval.launch">
         <arg name="search_directly" value="false"/>
         <arg name="vocabulary_path" value="$(arg data_path)/vocabulary"/>
         <arg name="enable_incremental" value="$(arg enable_incremental)"/>
+        <arg name="min_match_depth" value="$(arg min_match_depth)"/>
     </include>
 
     <include file="$(find retrieval_processing)/launch/processing.launch">

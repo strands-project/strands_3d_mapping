@@ -93,6 +93,7 @@ public:
     ros::NodeHandle n;
     ros::Publisher pub;
     ros::Publisher img_pub;
+    ros::Publisher depth_pub;
     ros::ServiceServer service;
     ros::Publisher keypoint_pub;
     ros::Publisher pubs[10];
@@ -113,6 +114,8 @@ public:
     double iss_model_resolution; // 0.004
     double pfhrgb_radius_search; // 0.04
     bool is_running;
+
+    int min_match_depth;
 
     void parameters_callback(quasimodo_retrieval::parametersConfig& config, uint32_t level) {
         iss_model_resolution = config.iss_model_resolution;
@@ -141,6 +144,8 @@ public:
         pn.param<std::string>("output", retrieval_output, std::string("retrieval_result"));
         pn.param<std::string>("input", retrieval_input, std::string("/models/query"));
 
+        pn.param<int>("min_match_depth", min_match_depth, 3);
+
         summary.load(vocabulary_path);
         cout << "Loaded summary from: " << (vocabulary_path / "vocabulary_summary.json").string() << endl;
         cout << "With data path: " << summary.noise_data_path << endl;
@@ -159,7 +164,7 @@ public:
         if (vt.empty()) {
             dynamic_object_retrieval::load_vocabulary(vt, vocabulary_path);
             vt.set_cache_path(vocabulary_path.string());
-            vt.set_min_match_depth(3);
+            vt.set_min_match_depth(min_match_depth);
             vt.compute_normalizing_constants();
         }
 
@@ -171,7 +176,8 @@ public:
         server.setCallback(boost::bind(&retrieval_node::parameters_callback, this, _1, _2));
 
         pub = n.advertise<quasimodo_msgs::retrieval_query_result>(retrieval_output, 1);
-        img_pub = n.advertise<sensor_msgs::Image>("/quasimodo_retrieval/raw_visualization", 1, true);
+        img_pub = n.advertise<sensor_msgs::Image>("/quasimodo_retrieval/raw_rgb_visualization", 1, true);
+        depth_pub = n.advertise<sensor_msgs::Image>("/quasimodo_retrieval/raw_depth_visualization", 1, true);
         keypoint_pub = n.advertise<sensor_msgs::PointCloud2>("/models/keypoints", 1);
         for (size_t i = 0; i < 10; ++i) {
             pubs[i] = n.advertise<sensor_msgs::PointCloud2>(string("/retrieval_cloud/") + to_string(i), 1, true);
@@ -195,13 +201,13 @@ public:
         }
 
         cout << "Re-loading new vocabulary with timestamp: " << temp_summary.last_updated << endl;
-        ros::Duration(0.5).sleep(); // sleep for a little bit to make sure the vocabulary is saved
+        ros::Duration(3.0).sleep(); // sleep for a little bit to make sure the vocabulary is saved
 
         summary = temp_summary;
         vt = grouped_vocabulary_tree<HistT, 8>();
         dynamic_object_retrieval::load_vocabulary(vt, vocabulary_path);
         vt.set_cache_path(vocabulary_path.string());
-        vt.set_min_match_depth(3);
+        vt.set_min_match_depth(min_match_depth);
         vt.compute_normalizing_constants();
 
         return true;
@@ -602,7 +608,7 @@ public:
          *
          *
          */
-        auto results = dynamic_object_retrieval::query_reweight_vocabulary((VocabularyT&)vt, features, 200, vocabulary_path, summary, true, kind);
+        auto results = dynamic_object_retrieval::query_reweight_vocabulary((VocabularyT&)vt, features, 200, vocabulary_path, summary, false, kind);
 
         // This is just to make sure that we have valid results even when some meta rooms have been deleted
         prune_results(results);
@@ -688,15 +694,23 @@ public:
 
         tf::transformTFToMsg(room_transform, query_room_transform);
         result = construct_msgs(retrieved_clouds, initial_poses, images, depths, masks, paths, scores, indices, vocabulary_ids, global_transforms);
+
+        cout << "============ Returning filtered results: ============" << endl;
         for (int i = 0; i < retrieved_clouds.size(); ++i) {
             sensor_msgs::PointCloud2 cloud_msg = result.retrieved_clouds[i];
             cloud_msg.header.stamp = ros::Time::now();
             cloud_msg.header.frame_id = "/map";
             pubs[i].publish(cloud_msg);
-        }
 
-        sensor_msgs::Image img_msg = construct_results_image(images);
+            cout << "Path: " << result.retrieved_image_paths[i].strings[0] << ", Voc. ind: " << result.vocabulary_ids[i] << endl;
+        }
+        cout << "=====================================================" << endl;
+
+        sensor_msgs::Image img_msg;
+        sensor_msgs::Image depth_msg;
+        tie(img_msg, depth_msg) = construct_results_image(images, depths);
         img_pub.publish(img_msg);
+        depth_pub.publish(depth_msg);
 
         cout << "Finished retrieval..." << endl;
 
@@ -709,7 +723,16 @@ public:
                           quasimodo_msgs::query_cloud::Response& res)
     {
         geometry_msgs::Transform query_room_transform;
-        return retrieval_implementation(req.query, res.result, query_room_transform);
+
+        bool success = retrieval_implementation(req.query, res.result, query_room_transform);
+
+        quasimodo_msgs::retrieval_query_result result;
+        result.query = req.query;
+        result.result = res.result;
+        result.query.room_transform = query_room_transform;
+        pub.publish(result);
+
+        return success;
     }
 
     void run_retrieval(const quasimodo_msgs::retrieval_query::ConstPtr& query_msg) //const string& sweep_xml)
@@ -746,7 +769,8 @@ public:
         ros_image = *cv_pub_ptr->toImageMsg();
     }
 
-    sensor_msgs::Image construct_results_image(const vector<vector<cv::Mat> >& images)
+    pair<sensor_msgs::Image, sensor_msgs::Image> construct_results_image(const vector<vector<cv::Mat> >& images,
+                                                                         const vector<vector<cv::Mat> >& depths)
     {
         int width = 640;
         int height = 480;
@@ -756,18 +780,24 @@ public:
         cout << "Images size: " << images.size() << endl;
 
         cv::Mat visualization = cv::Mat::zeros(height*sizes.first, width*sizes.second, CV_8UC3);
+        cv::Mat depth_visualization = cv::Mat::zeros(height*sizes.first, width*sizes.second, CV_16UC1);
         for (size_t i = 0; i < images.size(); ++i) {
             cout << "Image " << i << " size: " << images[i].size() << endl;
             cout << "Image " << i << " dimensions: " << images[i][0].rows << " x " << images[i][0].cols << endl;
             size_t offset_height = i / sizes.second;
             size_t offset_width = i % sizes.second;
-            images[i][0].copyTo(visualization(cv::Rect(offset_width*width, offset_height*height, width, height)));
+            cv::Rect image_rect(offset_width*width, offset_height*height, width, height);
+            images[i][0].copyTo(visualization(image_rect));
+            depths[i][0].copyTo(depth_visualization(image_rect));
         }
 
         sensor_msgs::Image img_msg;
         convert_to_img_msg(visualization, img_msg);
 
-        return img_msg;
+        sensor_msgs::Image depth_msg;
+        convert_to_depth_msg(depth_visualization, depth_msg);
+
+        return make_pair(img_msg, depth_msg);
     }
 
     quasimodo_msgs::retrieval_result construct_msgs(const vector<CloudT::Ptr>& clouds,

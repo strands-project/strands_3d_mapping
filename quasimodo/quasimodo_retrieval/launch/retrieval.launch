@@ -2,11 +2,13 @@
     <arg name="search_directly" default="false"/>
     <arg name="vocabulary_path" default="/home/strands/.semanticMap/vocabulary"/>
     <arg name="enable_incremental" default="false"/>
+    <arg name="min_match_depth" default="3"/>
 
     <node pkg="surfelize_it" type="topic_processor" name="topic_processor" output="screen" respawn="true"/>
     <node pkg="quasimodo_retrieval" type="quasimodo_retrieval_node" name="quasimodo_retrieval_node" output="screen" respawn="true">
         <param name="vocabulary_path" value="$(arg vocabulary_path)"/>
         <param name="enable_incremental" value="$(arg enable_incremental)"/>
+        <param name="min_match_depth" value="$(arg min_match_depth)"/>
     </node>
     <node pkg="quasimodo_retrieval" type="quasimodo_visualization_server" name="quasimodo_visualization_server" output="screen" respawn="true"/>
     <node pkg="quasimodo_retrieval" type="quasimodo_logging_server" name="quasimodo_logging_server" output="screen" respawn="true"/>

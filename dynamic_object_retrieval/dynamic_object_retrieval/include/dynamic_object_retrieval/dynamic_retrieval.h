@@ -77,10 +77,6 @@ std::vector<boost::filesystem::path> get_retrieved_paths(const std::vector<Index
     mongodb_store::MessageStoreProxy* message_store = NULL;
 
     for (IndexT s : scores) {
-        std::cout << "1. Index: " << s.index << std::endl;
-    }
-
-    for (IndexT s : scores) {
         if (s.index >= offset) {
             std::cout << "1. Index: " << s.index << " is larger than: " << offset << std::endl;
             std::cout << "URI loading does not support noise+annotated data structure!" << std::endl;
@@ -271,10 +267,6 @@ get_retrieved_path_scores(const std::vector<grouped_vocabulary_tree<HistT, 8>::r
     std::cout << "Loading URI:s file: " << (boost::filesystem::path(summary.noise_data_path) / "vocabulary" / "segment_uris.json").string() << std::endl;
     uris.load(boost::filesystem::path(summary.noise_data_path) / "vocabulary");
     mongodb_store::MessageStoreProxy* message_store = NULL;
-
-    for (IndexT s : scores) {
-        std::cout << "1. Index: " << s.subgroup_global_indices[0] << std::endl;
-    }
 
     for (IndexT s : scores) {
         int index = s.subgroup_global_indices[0];
