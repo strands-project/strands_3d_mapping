@@ -254,6 +254,8 @@ pair<size_t, size_t> get_offsets_in_data(const boost::filesystem::path& sweep_pa
     // number of sweeps and segments
     // the question is how to do that if the node is restarted...
     // maybe add a couple of more fields in the vocabulary_summary?
+
+    // this relies on everything being correctly segmented. is that always the case?
     for (auto tup : dynamic_object_retrieval::zip(sweep_indices, segment_paths)) {
 
         boost::tie(sweep_i, segment_path) = tup;
@@ -349,6 +351,9 @@ bool vocabulary_service(quasimodo_msgs::index_cloud::Request& req, quasimodo_msg
 
 void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
 {
+    std_msgs::String done_msg;
+    done_msg.data = msg->data;
+
     cout << "Received callback with path " << msg->data << endl;
     boost::filesystem::path sweep_xml(msg->data);
     boost::filesystem::path segments_path = sweep_xml.parent_path() / "convex_segments";
@@ -378,6 +383,18 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
         done_msg.data = msg->data;
         pub.publish(done_msg);
         return;
+    }
+
+    {
+        dynamic_object_retrieval::segment_uris uris;
+        uris.load(vocabulary_path);
+        dynamic_object_retrieval::sweep_convex_segment_map segment_paths(sweep_xml.parent_path());
+        string segment_uri = string("file://") + (*segment_paths.begin()).string(); // the first element of segment paths
+        if (std::find(uris.uris.begin(), uris.uris.end(), segment_uri) != uris.uris.end()) {
+            cout << "Segment " << segment_uri << " already added to vocabulary, finishing sweep " << msg->data << "..." << endl;
+            pub.publish(done_msg);
+            return;
+        }
     }
 
     cout << "After training: " << endl;
@@ -423,6 +440,7 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
         vt->append_cloud(features, indices, adjacencies, false);
     }
 
+    // we can use this to check if they've already been added
     {
         dynamic_object_retrieval::segment_uris uris;
         uris.load(vocabulary_path);
@@ -447,8 +465,6 @@ void vocabulary_callback(const std_msgs::String::ConstPtr& msg)
     dynamic_object_retrieval::save_vocabulary(*vt, vocabulary_path);
     // End of new part!
 
-    std_msgs::String done_msg;
-    done_msg.data = msg->data;
     pub.publish(done_msg);
 }
 
@@ -507,4 +523,3 @@ int main(int argc, char** argv)
 
     return 0;
 }
-

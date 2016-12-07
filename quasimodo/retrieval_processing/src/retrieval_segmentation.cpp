@@ -102,10 +102,20 @@ bool segmentation_service(quasimodo_msgs::mask_pointclouds::Request& req, quasim
 
 void segmentation_callback(const std_msgs::String::ConstPtr& msg)
 {
-    data_summary.load(data_path);
+    std_msgs::String done_msg;
+    done_msg.data = msg->data;
 
     boost::filesystem::path sweep_xml(msg->data);
     boost::filesystem::path surfel_path = sweep_xml.parent_path() / "surfel_map.pcd";
+    boost::filesystem::path segments_path = sweep_xml.parent_path() / "convex_segments";
+    if (boost::filesystem::exists(segments_path)) {
+        cout << "Convex segments " << segments_path.string() << " already exist, finishing sweep " << msg->data << "..." << endl;
+        // assume this is already in the data summary then ...
+        pub.publish(done_msg);
+        return;
+    }
+
+    data_summary.load(data_path);
 
     SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
     pcl::io::loadPCDFile(surfel_path.string(), *surfel_cloud);
@@ -161,7 +171,6 @@ void segmentation_callback(const std_msgs::String::ConstPtr& msg)
     vis_cloud_pub.publish(vis_msg);
 #endif
 
-    boost::filesystem::path segments_path = sweep_xml.parent_path() / "convex_segments";
     boost::filesystem::create_directory(segments_path);
     ss.save_graph(*convex_g, (segments_path / "graph.cereal").string());
 
@@ -185,8 +194,6 @@ void segmentation_callback(const std_msgs::String::ConstPtr& msg)
 
     summary.save(segments_path);
 
-    std_msgs::String done_msg;
-    done_msg.data = msg->data;
     pub.publish(done_msg);
 
     data_summary.nbr_sweeps++;

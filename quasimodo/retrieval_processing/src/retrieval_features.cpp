@@ -194,6 +194,11 @@ void features_callback(const std_msgs::String::ConstPtr& msg)
         boost::filesystem::path keypoint_path;
         tie(segment, feature_path, keypoint_path) = tup;
 
+        if (boost::filesystem::exists(feature_path) && boost::filesystem::exists(keypoint_path)) {
+            cout << "Features " << feature_path.string() << " already exist, finishing sweep " << msg->data << "..." << endl;
+            break;
+        }
+
         HistCloudT::Ptr desc_cloud(new HistCloudT);
         CloudT::Ptr kp_cloud(new CloudT);
         dynamic_object_retrieval::compute_features(desc_cloud, kp_cloud, segment, surfel_map);
