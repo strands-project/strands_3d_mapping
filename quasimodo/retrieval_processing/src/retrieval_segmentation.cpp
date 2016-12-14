@@ -100,22 +100,49 @@ bool segmentation_service(quasimodo_msgs::mask_pointclouds::Request& req, quasim
     return true;
 }
 
+bool maybe_append(const boost::filesystem::path& segments_path)
+{
+    {
+        std::stringstream ss;
+        ss << "segment" << std::setw(4) << std::setfill('0') << 0;
+        boost::filesystem::path segment_path = segments_path / (ss.str() + ".pcd");
+        if (std::find(data_summary.index_convex_segment_paths.begin(),
+                      data_summary.index_convex_segment_paths.end(),
+                      segment_path.string()) !=
+                data_summary.index_convex_segment_paths.end()) {
+            return false;
+        }
+    }
+
+    dynamic_object_retrieval::sweep_summary summary;
+    summary.load(segments_path);
+
+    for (int i : summary.segment_indices) {
+        std::stringstream ss;
+        ss << "segment" << std::setw(4) << std::setfill('0') << i;
+        boost::filesystem::path segment_path = segments_path / (ss.str() + ".pcd");
+        data_summary.index_convex_segment_paths.push_back(segment_path.string());
+    }
+
+    return true;
+}
+
 void segmentation_callback(const std_msgs::String::ConstPtr& msg)
 {
     std_msgs::String done_msg;
     done_msg.data = msg->data;
+
+    data_summary.load(data_path);
 
     boost::filesystem::path sweep_xml(msg->data);
     boost::filesystem::path surfel_path = sweep_xml.parent_path() / "surfel_map.pcd";
     boost::filesystem::path segments_path = sweep_xml.parent_path() / "convex_segments";
     if (boost::filesystem::exists(segments_path)) {
         cout << "Convex segments " << segments_path.string() << " already exist, finishing sweep " << msg->data << "..." << endl;
-        // assume this is already in the data summary then ...
+        maybe_append(segments_path);
         pub.publish(done_msg);
         return;
     }
-
-    data_summary.load(data_path);
 
     SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
     pcl::io::loadPCDFile(surfel_path.string(), *surfel_cloud);
