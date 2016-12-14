@@ -124,6 +124,8 @@ bool maybe_append(const boost::filesystem::path& segments_path)
         data_summary.index_convex_segment_paths.push_back(segment_path.string());
     }
 
+    summary.save(segments_path);
+
     return true;
 }
 
