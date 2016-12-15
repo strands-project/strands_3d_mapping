@@ -2,7 +2,7 @@
     <arg name="search_directly" default="false"/>
     <arg name="data_path" default="/home/strands/.semanticMap/vocabulary"/>
     <arg name="enable_incremental" default="false"/>
-    <arg name="add_previous_maps" default="false"/>
+    <arg name="add_previous_maps" default="true"/>
     <arg name="start_add_map_ind" default="-1"/>
     <arg name="min_match_depth" default="1"/>
 

@@ -106,6 +106,12 @@ bool maybe_append(const boost::filesystem::path& segments_path)
         std::stringstream ss;
         ss << "segment" << std::setw(4) << std::setfill('0') << 0;
         boost::filesystem::path segment_path = segments_path / (ss.str() + ".pcd");
+
+        cout << "Comparing segments of type: " << endl;
+        cout << data_summary.index_convex_segment_paths[0] << endl;
+        cout << "to" << endl;
+        cout << segment_path.string() << endl;
+
         if (std::find(data_summary.index_convex_segment_paths.begin(),
                       data_summary.index_convex_segment_paths.end(),
                       segment_path.string()) !=
@@ -124,7 +130,7 @@ bool maybe_append(const boost::filesystem::path& segments_path)
         data_summary.index_convex_segment_paths.push_back(segment_path.string());
     }
 
-    summary.save(segments_path);
+    data_summary.save(data_path);
 
     return true;
 }
