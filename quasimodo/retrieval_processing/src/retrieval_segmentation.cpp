@@ -137,12 +137,12 @@ bool maybe_append(const boost::filesystem::path& segments_path)
 
 void segmentation_callback(const std_msgs::String::ConstPtr& msg)
 {
-    std_msgs::String done_msg;
-    done_msg.data = msg->data;
-
     data_summary.load(data_path);
 
-    boost::filesystem::path sweep_xml(msg->data);
+    boost::filesystem::path sweep_xml = boost::filesystem::canonical(msg->data);
+    std_msgs::String done_msg;
+    done_msg.data = sweep_xml.string();
+
     boost::filesystem::path surfel_path = sweep_xml.parent_path() / "surfel_map.pcd";
     boost::filesystem::path segments_path = sweep_xml.parent_path() / "convex_segments";
     if (boost::filesystem::exists(segments_path)) {
