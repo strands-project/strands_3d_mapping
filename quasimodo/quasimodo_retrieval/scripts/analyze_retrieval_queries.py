@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import rospy
 from soma_msgs.msg import SOMAObject
 from mongodb_store.message_store import MessageStoreProxy
 from soma_manager.srv import *
@@ -8,7 +9,7 @@ from prettytable import PrettyTable
 
 def create_analysis_for_type(type):
     print("making query")
-    soma_query = rospy.ServiceProxy('soma/query_db', SOMAQueryObjs)
+    soma_query = rospy.ServiceProxy('soma/query_objects', SOMAQueryObjs)
     print("done query")
 
     # Query all observations during the last 30 mins
@@ -40,12 +41,12 @@ def create_analysis_for_type(type):
 
         if x.metadata in queries:
             queries[x.metadata] += 1
-        else
+        else:
             queries[x.metadata] = 1
 
         if ids[0] in rooms:
             rooms[ids[0]] += 1
-        else
+        else:
             rooms[ids[0]] = 1
 
     nbr_queries = len(queries)
@@ -59,9 +60,9 @@ if __name__ == '__main__':
     t = PrettyTable(['Entity', 'Quasimodo Model DB Query', 'Quasimodo Metarooms Query'])
     t.add_row(['Number queries:', db_nbr_queries, metaroom_nbr_queries])
     t.add_row(['Number results:', db_nbr_results, metaroom_nbr_results])
-    for k, v in db_rooms.items()
+    for k, v in db_rooms.items():
         t.add_row([k, v, 0])
-    for k, v in metaroom_rooms.items()
+    for k, v in metaroom_rooms.items():
         t.add_row([k, 0, v])
 
     print t
