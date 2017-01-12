@@ -32,6 +32,8 @@ def create_analysis_for_type(type):
         print("No SOMA objects!")
         return
 
+    response.objects = [x for x in response.objects if x.type == type] # for some reason the objecttype doesn't get filtered?
+
     rooms = {}
     queries = {}
     nbr_results = len(response.objects)
