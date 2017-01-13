@@ -6,6 +6,8 @@ from mongodb_store.message_store import MessageStoreProxy
 from soma_manager.srv import *
 #from tabulate import tabulate
 from prettytable import PrettyTable
+import json
+import os.path
 
 def create_analysis_for_type(type):
     print("making query")
@@ -55,16 +57,37 @@ def create_analysis_for_type(type):
 
     return rooms, nbr_queries, nbr_results
 
-if __name__ == '__main__':
+def get_metaroom_segment_stats(data_path):
+
+    with open(os.path.join(data_path, 'segments_summary.json')) as data_file:
+        data = json.load(data_file)
+
+    nbr_sweeps = data['value0']['nbr_sweeps']
+    nbr_segments = data['value0']['nbr_convex_segments']
+
+    return nbr_sweeps, nbr_segments
+
+def run(data_path):
+
+    nbr_sweeps, nbr_segments = get_metaroom_segment_stats(data_path)
     db_rooms, db_nbr_queries, db_nbr_results = create_analysis_for_type("quasimodo_db_result")
     metaroom_rooms, metaroom_nbr_queries, metaroom_nbr_results = create_analysis_for_type("quasimodo_metaroom_result")
 
     t = PrettyTable(['Entity', 'Quasimodo Model DB Query', 'Quasimodo Metarooms Query'])
     t.add_row(['Number queries:', db_nbr_queries, metaroom_nbr_queries])
     t.add_row(['Number results:', db_nbr_results, metaroom_nbr_results])
+    t.add_row(['Indexed sweeps:', '-', nbr_sweeps])
+    t.add_row(['Indexed segments:', '-', nbr_segments])
     for k, v in db_rooms.items():
-        t.add_row([k, v, 0])
+        t.add_row([k, v, '-'])
     for k, v in metaroom_rooms.items():
-        t.add_row([k, 0, v])
+        t.add_row([k, '-', v])
 
     print t
+
+if __name__ == '__main__':
+
+    if len(sys.argv) < 2:
+        print "Please provide the semantic maps data path..."
+    else:
+        run(sys.argv[1])
