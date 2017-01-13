@@ -8,6 +8,7 @@ from soma_manager.srv import *
 from prettytable import PrettyTable
 import json
 import os.path
+from quasimodo_msgs.msg import fused_world_state_object
 
 def create_analysis_for_type(type):
     print("making query")
@@ -74,8 +75,14 @@ def get_metaroom_segment_stats(data_path):
 
     return nbr_sweeps, nbr_segments
 
+def get_database_segment_stats():
+    msg_store = MessageStoreProxy(database="world_state", collection="quasimodo")
+    resp = msg_store.query(fused_world_state_object._type, message_query={"removed_at": ""})
+    print resp
+
 def run(data_path):
 
+    get_database_segment_stats()
     nbr_sweeps, nbr_segments = get_metaroom_segment_stats(data_path)
     db_rooms, db_nbr_queries, db_nbr_results = create_analysis_for_type("quasimodo_db_result")
     metaroom_rooms, metaroom_nbr_queries, metaroom_nbr_results = create_analysis_for_type("quasimodo_metaroom_result")
@@ -86,7 +93,7 @@ def run(data_path):
     t.add_row(['Indexed sweeps:', '-', nbr_sweeps])
     t.add_row(['Indexed segments:', '-', nbr_segments])
     for k, v in db_rooms.items():
-        t.add_row(["Sweeps with %d nbr search results: " % k, v, '-'])
+        t.add_row(["Objects with %d nbr search results: " % k, v, '-'])
     for k, v in metaroom_rooms.items():
         t.add_row(["Sweeps with %d nbr search results: " % k, v, '-'])
 
