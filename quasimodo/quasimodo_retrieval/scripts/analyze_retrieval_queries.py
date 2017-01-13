@@ -55,7 +55,14 @@ def create_analysis_for_type(type):
 
     nbr_queries = len(queries)
 
-    return rooms, nbr_queries, nbr_results
+    reversed_dict = {}
+    for k, v in rooms.items():
+        if v in reversed_dict:
+            v += 1
+        else:
+            v = 1
+
+    return rooms, reversed_dict, nbr_results
 
 def get_metaroom_segment_stats(data_path):
 
@@ -79,9 +86,9 @@ def run(data_path):
     t.add_row(['Indexed sweeps:', '-', nbr_sweeps])
     t.add_row(['Indexed segments:', '-', nbr_segments])
     for k, v in db_rooms.items():
-        t.add_row([k, v, '-'])
+        t.add_row(["Sweeps with %d nbr search results: " % k, v, '-'])
     for k, v in metaroom_rooms.items():
-        t.add_row([k, '-', v])
+        t.add_row(["Sweeps with %d nbr search results: " % k, v, '-'])
 
     print t
 
