@@ -58,11 +58,11 @@ def create_analysis_for_type(type):
     reversed_dict = {}
     for k, v in rooms.items():
         if v in reversed_dict:
-            v += 1
+            reversed_dict[v] += 1
         else:
-            v = 1
+            reversed_dict[v] = 1
 
-    return rooms, reversed_dict, nbr_results
+    return reversed_dict, nbr_queries, nbr_results
 
 def get_metaroom_segment_stats(data_path):
 
