@@ -30,7 +30,7 @@ def create_analysis_for_type(type):
 
     if not response.objects:
         print("No SOMA objects!")
-        return
+        return [], 0, 0
 
     response.objects = [x for x in response.objects if x.type == type] # for some reason the objecttype doesn't get filtered?
 

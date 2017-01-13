@@ -27,7 +27,7 @@ UPDATE_INT_MINUTES = 10.0
 def chron_callback():
 
     print("making query")
-    soma_query = rospy.ServiceProxy('soma/query_db',SOMAQueryObjs)
+    soma_query = rospy.ServiceProxy('soma/query_objects',SOMAQueryObjs)
     print("done query")
 
     # Query all observations during the last 30 mins
