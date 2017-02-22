@@ -3,6 +3,8 @@
 #include "retrieval_tools/surfel_type.h"
 #include <pcl/kdtree/flann.h>
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
+#include <stdlib.h>
+#include <time.h>
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
@@ -37,7 +39,26 @@ int main(int argc, char** argv)
         {217,217,217},
         {188,128,189},
         {204,235,197},
-        {255,237,111}
+        {255,237,111},
+        {255, 179, 0},
+        {128, 62, 117},
+        {255, 104, 0},
+        {166, 189, 215},
+        {193, 0, 32},
+        {206, 162, 98},
+        {0, 125, 52},
+        {246, 118, 142},
+        {0, 83, 138},
+        {255, 122, 92},
+        {83, 55, 122},
+        {255, 142, 0},
+        {179, 40, 81},
+        {244, 200, 0},
+        {127, 24, 13},
+        {147, 170, 0},
+        {89, 51, 21},
+        {241, 58, 19},
+        {35, 44, 22}
     };
 
     if (argc < 2) {
@@ -61,12 +82,16 @@ int main(int argc, char** argv)
 
     cout << "Analyzing convex segments..." << endl;
 
+    srand(time(NULL));
+    size_t modulo = rand() % 44;
+
     SurfelCloudT::Ptr colored_cloud(new SurfelCloudT);
     for (auto tup : dynamic_object_retrieval::zip(segments, indices)) {
         // here it seems like we're gonna have to wrap our own solution by wrapping two octrees (or voxelgrids?)
         CloudT::Ptr c;
         size_t index;
         tie(c, index) = tup;
+        index += modulo;
 
         // now, associate each point in segment with a surfel in the surfel cloud!
         for (const PointT& p : c->points) {
@@ -83,9 +108,9 @@ int main(int argc, char** argv)
             }
             SurfelT q = surfel_cloud->at(indices[0]);
             uint8_t* rgb = (uint8_t*)(&q.rgba);
-            rgb[2] = colormap[index % 24][0];
-            rgb[1] = colormap[index % 24][1];
-            rgb[0] = colormap[index % 24][2];
+            rgb[2] = colormap[index % 44][0];
+            rgb[1] = colormap[index % 44][1];
+            rgb[0] = colormap[index % 44][2];
             colored_cloud->push_back(q);
         }
     }
