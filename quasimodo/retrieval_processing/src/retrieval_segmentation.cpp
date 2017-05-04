@@ -13,6 +13,9 @@
 
 #include <ros/ros.h>
 #include <std_msgs/String.h>
+#include <cv_bridge/cv_bridge.h>
+
+#include <quasimodo_msgs/mask_pointclouds.h>
 
 #define VISUALIZE 1
 
@@ -57,16 +60,97 @@ int colormap[][3] = {
 
 ros::Publisher pub;
 ros::Publisher vis_cloud_pub;
+ros::ServiceServer service;
 double threshold;
 dynamic_object_retrieval::data_summary data_summary;
 boost::filesystem::path data_path;
+
+bool segmentation_service(quasimodo_msgs::mask_pointclouds::Request& req, quasimodo_msgs::mask_pointclouds::Response& resp)
+{
+    for (size_t i = 0; i < req.clouds.size(); ++i) {
+        CloudT::Ptr cloud(new CloudT);
+        pcl::fromROSMsg(req.clouds[i], *cloud);
+        cv_bridge::CvImagePtr cv_ptr;
+        try {
+            cv_ptr = cv_bridge::toCvCopy(req.masks[i], sensor_msgs::image_encodings::BGR8);
+        }
+        catch (cv_bridge::Exception& e) {
+            ROS_ERROR("cv_bridge exception: %s", e.what());
+            exit(-1);
+        }
+        cv::Mat mask;
+        cv::cvtColor(cv_ptr->image, mask, CV_BGR2GRAY);
+
+        for (size_t y = 0; y < mask.rows; ++y) {
+            for (size_t x = 0; x < mask.cols; ++x) {
+                size_t index = y*mask.cols + x;
+                if (int(mask.at<uchar>(y, x)) != 255) {
+                    cloud->points[index].x = std::numeric_limits<float>::infinity();
+                    cloud->points[index].y = std::numeric_limits<float>::infinity();
+                    cloud->points[index].z = std::numeric_limits<float>::infinity();
+                }
+            }
+        }
+
+        sensor_msgs::PointCloud2 masked_msg;
+        pcl::toROSMsg(*cloud, masked_msg);
+        resp.clouds.push_back(masked_msg);
+    }
+
+    return true;
+}
+
+bool maybe_append(const boost::filesystem::path& segments_path)
+{
+    {
+        std::stringstream ss;
+        ss << "segment" << std::setw(4) << std::setfill('0') << 0;
+        boost::filesystem::path segment_path = segments_path / (ss.str() + ".pcd");
+
+        cout << "Comparing segments of type: " << endl;
+        cout << data_summary.index_convex_segment_paths[0] << endl;
+        cout << "to" << endl;
+        cout << segment_path.string() << endl;
+
+        if (std::find(data_summary.index_convex_segment_paths.begin(),
+                      data_summary.index_convex_segment_paths.end(),
+                      segment_path.string()) !=
+                data_summary.index_convex_segment_paths.end()) {
+            return false;
+        }
+    }
+
+    dynamic_object_retrieval::sweep_summary summary;
+    summary.load(segments_path);
+
+    for (int i : summary.segment_indices) {
+        std::stringstream ss;
+        ss << "segment" << std::setw(4) << std::setfill('0') << i;
+        boost::filesystem::path segment_path = segments_path / (ss.str() + ".pcd");
+        data_summary.index_convex_segment_paths.push_back(segment_path.string());
+    }
+
+    data_summary.save(data_path);
+
+    return true;
+}
 
 void segmentation_callback(const std_msgs::String::ConstPtr& msg)
 {
     data_summary.load(data_path);
 
-    boost::filesystem::path sweep_xml(msg->data);
+    boost::filesystem::path sweep_xml = boost::filesystem::canonical(msg->data);
+    std_msgs::String done_msg;
+    done_msg.data = sweep_xml.string();
+
     boost::filesystem::path surfel_path = sweep_xml.parent_path() / "surfel_map.pcd";
+    boost::filesystem::path segments_path = sweep_xml.parent_path() / "convex_segments";
+    if (boost::filesystem::exists(segments_path)) {
+        cout << "Convex segments " << segments_path.string() << " already exist, finishing sweep " << msg->data << "..." << endl;
+        maybe_append(segments_path);
+        pub.publish(done_msg);
+        return;
+    }
 
     SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
     pcl::io::loadPCDFile(surfel_path.string(), *surfel_cloud);
@@ -122,7 +206,6 @@ void segmentation_callback(const std_msgs::String::ConstPtr& msg)
     vis_cloud_pub.publish(vis_msg);
 #endif
 
-    boost::filesystem::path segments_path = sweep_xml.parent_path() / "convex_segments";
     boost::filesystem::create_directory(segments_path);
     ss.save_graph(*convex_g, (segments_path / "graph.cereal").string());
 
@@ -146,8 +229,6 @@ void segmentation_callback(const std_msgs::String::ConstPtr& msg)
 
     summary.save(segments_path);
 
-    std_msgs::String done_msg;
-    done_msg.data = msg->data;
     pub.publish(done_msg);
 
     data_summary.nbr_sweeps++;
@@ -192,6 +273,7 @@ int main(int argc, char** argv)
 
     pub = n.advertise<std_msgs::String>("/segmentation_done", 1);
     vis_cloud_pub = n.advertise<sensor_msgs::PointCloud2>("/retrieval_processing/segmentation_cloud", 1);
+    service = n.advertiseService("/retrieval_segmentation_service", segmentation_service);
 
     ros::Subscriber sub;
     if (bypass) {

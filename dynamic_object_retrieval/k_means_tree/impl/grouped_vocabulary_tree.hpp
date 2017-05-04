@@ -73,8 +73,15 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& up
 
         vector<int> selected_indices;
         // get<1>(scores[i])) is actually the index within the group!
-        double score = super::compute_min_combined_dist(selected_indices, query_cloud, vectors, adjacencies,
-                                                        mapping, inverse_mapping, scores[i].subgroup_index);
+        double score;
+        if (adjacencies.empty()) {
+            score = scores[i].score;
+            selected_indices.push_back(0);
+        }
+        else {
+            score = super::compute_min_combined_dist(selected_indices, query_cloud, vectors, adjacencies,
+                                                     mapping, inverse_mapping, scores[i].subgroup_index);
+        }
         //double score = scores[i].score;
         //selected_indices.push_back(scores[i].subgroup_index);
         updated_scores.push_back(result_type(float(score), scores[i].group_index, selected_indices[0]));
@@ -105,6 +112,9 @@ void grouped_vocabulary_tree<Point, K>::query_vocabulary(vector<result_type>& up
     vector<pair<result_type, size_t> > index_scores;
     int current_index = -1;
     for (size_t i = 0; i < updated_scores.size(); ++i) {
+        if (updated_scores[i].group_index == 100000) {
+            continue;
+        }
         if (updated_scores[i].group_index != current_index) {
             current_index = updated_scores[i].group_index;
             std::sort(index_scores.begin(), index_scores.end(), [](const pair<result_type, size_t>& s1, const pair<result_type, size_t>& s2)
@@ -281,6 +291,10 @@ template <typename Point, size_t K>
 void grouped_vocabulary_tree<Point, K>::load_cached_vocabulary_vectors_for_group(vector<vocabulary_vector>& vectors,
                                                                                  set<pair<int, int> >& adjacencies, int i)
 {
+    if (i == 100000) { // this is hardcoded atm, but segments that don't have adjacencies should use this index
+        return;
+    }
+
     boost::filesystem::path cache_path = boost::filesystem::path(save_state_path) / "vocabulary_vectors";
 
     stringstream ss;

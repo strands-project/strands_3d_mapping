@@ -54,8 +54,8 @@ public:
     //sensor_msgs/Image image
     //sensor_msgs/CameraInfo camera
     //geometry_msgs/Transform room_transform
-    sensor_msgs::Image vis_img_from_msgs(const quasimodo_msgs::retrieval_query& query,
-                                         const quasimodo_msgs::retrieval_result& result)
+    quasimodo_msgs::visualize_query::Response vis_img_from_msgs(const quasimodo_msgs::retrieval_query& query,
+                                                                const quasimodo_msgs::retrieval_result& result)
     {
         cv_bridge::CvImagePtr cv_ptr;
         try {
@@ -125,19 +125,33 @@ public:
 
         label_pub.publish(label_msg);
 
-        cv::Mat visualization = benchmark_retrieval::make_visualization_image(cv_ptr->image, query_label, retrieved_clouds, sweep_paths, dummy_labels, T);
+        vector<cv::Mat> individual_images;
+        cv::Mat visualization = benchmark_retrieval::make_visualization_image(cv_ptr->image, query_label, retrieved_clouds,
+                                                                              sweep_paths, dummy_labels, T, individual_images);
 
-        cv_bridge::CvImagePtr cv_pub_ptr(new cv_bridge::CvImage);
-        cv_pub_ptr->image = visualization;
-        cv_pub_ptr->encoding = "bgr8";
 
-        return *cv_pub_ptr->toImageMsg();
+
+        quasimodo_msgs::visualize_query::Response resp;
+        {
+            cv_bridge::CvImagePtr cv_pub_ptr(new cv_bridge::CvImage);
+            cv_pub_ptr->image = visualization;
+            cv_pub_ptr->encoding = "bgr8";
+            resp.image = *cv_pub_ptr->toImageMsg();
+        }
+        for (cv::Mat& im : individual_images) {
+            cv_bridge::CvImagePtr cv_pub_ptr(new cv_bridge::CvImage);
+            cv_pub_ptr->image = im;
+            cv_pub_ptr->encoding = "bgr8";
+            resp.images.images.push_back(*cv_pub_ptr->toImageMsg());
+        }
+
+        return resp;
     }
 
     bool service_callback(quasimodo_msgs::visualize_query::Request& req,
                           quasimodo_msgs::visualize_query::Response& res)
     {
-        res.image = vis_img_from_msgs(req.query, req.result);
+        res = vis_img_from_msgs(req.query, req.result);
 
         image_pub.publish(res.image);
 
@@ -146,9 +160,9 @@ public:
 
     void callback(const quasimodo_msgs::retrieval_query_result& res)
     {
-        sensor_msgs::Image image = vis_img_from_msgs(res.query, res.result);
+        quasimodo_msgs::visualize_query::Response resp = vis_img_from_msgs(res.query, res.result);
 
-        image_pub.publish(image);
+        image_pub.publish(resp.image);
     }
 };
 

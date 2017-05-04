@@ -94,6 +94,8 @@ int main(int argc, char** argv)
     pn.param<string>("data_path", data_path, "");
 
     pn.param<bool>("bypass_surfelize", bypass_surfelize, true);
+    int start_add_map_ind;
+    pn.param<int>("start_add_map_ind", start_add_map_ind, -1);
 
     sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path, true);
     if (sweep_xmls.empty()) {
@@ -101,14 +103,20 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    sweep_ind = get_correct_sweep_ind(data_path); // 0;
+    if (start_add_map_ind < 0) {
+        sweep_ind = get_correct_sweep_ind(data_path);
+    }
+    else {
+        sweep_ind = start_add_map_ind;
+    }
     cout << "Starting at sweep number: " << sweep_ind << endl;
 
-
     if (bypass_surfelize) {
+        cout << "Advertising " << "/surfelization_done" << endl;
         string_pub = n.advertise<std_msgs::String>("/surfelization_done", 1);
     }
     else {
+        cout << "Advertising " << "/local_metric_map/room_observations" << endl;
         room_pub = n.advertise<semantic_map::RoomObservation>("/local_metric_map/room_observations", 1);
     }
     ros::Subscriber sub = n.subscribe("/vocabulary_done", 1, callback);
@@ -116,11 +124,13 @@ int main(int argc, char** argv)
     ros::Duration(1.0).sleep();
 
     if (bypass_surfelize) {
+        cout << "Publishing initial simulated observation after surfelization: " << sweep_xmls[sweep_ind] << endl;
         std_msgs::String sweep_msg;
         sweep_msg.data = sweep_xmls[sweep_ind++];
         string_pub.publish(sweep_msg);
     }
     else {
+        cout << "Publishing initial simulated observation: " << sweep_xmls[sweep_ind] << endl;
         semantic_map::RoomObservation sweep_msg;
         sweep_msg.xml_file_name = sweep_xmls[sweep_ind++];
         room_pub.publish(sweep_msg);

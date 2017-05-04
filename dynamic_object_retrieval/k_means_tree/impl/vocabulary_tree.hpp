@@ -299,6 +299,7 @@ void vocabulary_tree<Point, K>::source_freqs_for_node(std::map<int, int>& source
     }
 }
 
+// we should make some const here to make clear what happens
 template <typename Point, size_t K>
 double vocabulary_tree<Point, K>::compute_min_combined_dist(vector<int>& included_indices, CloudPtrT& cloud, vector<vocabulary_vector>& smaller_freqs,
                                                             set<pair<int, int> >& adjacencies, map<node*, int>& mapping, map<int, node*>& inverse_mapping, int hint) // TODO: const
@@ -838,3 +839,19 @@ void vocabulary_tree<Point, K>::load(Archive& archive)
     cout << "Finished loading vocabulary_tree" << endl;
 }
 */
+
+template <typename Point, size_t K>
+double vocabulary_tree<Point, K>::compute_distance(const std::map<node*, double>& vec1, double norm1,
+                                                   const std::map<node*, double>& vec2, double norm2) const
+{
+    double score = 0.0;
+    for (const pair<node* const, double>& n : vec1) {
+        if (vec2.count(n.first) == 0) {
+            continue;
+        }
+        // actually we don't need to check the depth of the node since that is already handled by compute_query_vector: GREAT!
+        score += std::min(n.second, vec2.at(n.first));
+    }
+    score = 1.0 - score/std::max(norm1, norm2);
+    return score;
+}

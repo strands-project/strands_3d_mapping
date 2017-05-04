@@ -1,0 +1,4 @@
+sensor_msgs/PointCloud2 cloud
+---
+sensor_msgs/PointCloud2 cloud1
+sensor_msgs/PointCloud2 cloud2

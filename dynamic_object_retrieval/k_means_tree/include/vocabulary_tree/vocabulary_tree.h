@@ -76,7 +76,6 @@ protected:
 
     double pexp(const double v) const;
     double proot(const double v) const;
-    double compute_query_vector(std::map<node*, double>& query_id_freqs, CloudPtrT& query_cloud);
     void compute_query_vector(std::map<node*, int>& query_id_freqs, CloudPtrT& query_cloud);
     double compute_query_vector(std::map<node*, std::pair<double, int> >& query_id_freqs, CloudPtrT& query_cloud);
     void source_freqs_for_node(std::map<int, int>& source_id_freqs, node* n) const;
@@ -128,6 +127,9 @@ public:
     double compute_query_index_vector(std::map<int, double>& query_index_freqs, CloudPtrT& query_cloud, std::map<node*, int>& mapping);
     void compute_query_index_vector(std::map<int, int>& query_index_freqs, CloudPtrT& query_cloud, std::map<node*, int>& mapping);
     vocabulary_vector compute_query_index_vector(CloudPtrT& query_cloud, std::map<node *, int> &mapping);
+
+    double compute_query_vector(std::map<node*, double>& query_id_freqs, CloudPtrT& query_cloud);
+    double compute_distance(const std::map<node*, double>& vec1, double norm1, const std::map<node*, double>& vec2, double norm2) const;
 
     /*
     template <class Archive> void save(Archive& archive) const;

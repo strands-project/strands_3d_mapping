@@ -15,9 +15,9 @@
 #include "quasimodo_msgs/retrieval_query_result.h"
 #include "quasimodo_msgs/retrieval_query.h"
 #include "quasimodo_msgs/retrieval_result.h"
-#include "soma2_msgs/SOMA2Object.h"
+#include "soma_msgs/SOMAObject.h"
 
-#include "soma_manager/SOMA2InsertObjs.h"
+#include "soma_manager/SOMAInsertObjs.h"
 
 //#include "modelupdater/ModelUpdater.h"
 //#include "/home/johane/catkin_ws_dyn/src/quasimodo_models/include/modelupdater/ModelUpdater.h"
@@ -73,7 +73,7 @@ ros::Publisher model_pcd_pub;
 ros::Publisher database_pcd_pub;
 ros::Publisher chatter_pub;
 
-ros::ServiceClient soma2add;
+ros::ServiceClient soma_add;
 
 double occlusion_penalty = 15;
 double massreg_timeout = 60;
@@ -247,10 +247,10 @@ quasimodo_msgs::model getModelMSG(reglib::Model * model){
 	return msg;
 }
 
-std::vector<soma2_msgs::SOMA2Object> getSOMA2ObjectMSGs(reglib::Model * model){
-	std::vector<soma2_msgs::SOMA2Object> msgs;
+std::vector<soma_msgs::SOMAObject> getSOMA2ObjectMSGs(reglib::Model * model){
+	std::vector<soma_msgs::SOMAObject> msgs;
 	for(unsigned int i = 0; i < model->frames.size(); i++){
-		soma2_msgs::SOMA2Object msg;
+		soma_msgs::SOMAObject msg;
 		char buf [1024];
 		sprintf(buf,"id_%i_%i",int(model->id),int(model->frames[i]->id));
 		msg.id				= std::string(buf);
@@ -346,17 +346,17 @@ std::vector<soma2_msgs::SOMA2Object> getSOMA2ObjectMSGs(reglib::Model * model){
 }
 
 void publishModel(reglib::Model * model){
-	//	std::vector<soma2_msgs::SOMA2Object> somamsgs = getSOMA2ObjectMSGs(model);
-	soma_manager::SOMA2InsertObjs objs;
+	//	std::vector<soma_msgs::SOMAObject> somamsgs = getSOMA2ObjectMSGs(model);
+	soma_manager::SOMAInsertObjs objs;
 	objs.request.objects = getSOMA2ObjectMSGs(model);
-	if (soma2add.call(objs)){//Add frame to model server
+	if (soma_add.call(objs)){//Add frame to model server
 		////			int frame_id = ifsrv.response.frame_id;
-	}else{ROS_ERROR("Failed to call service soma2add");}
+	}else{ROS_ERROR("Failed to call service soma_add");}
 
 	//	for(int i = 0; i < somamsgs.size(); i++){
-	//		if (soma2add.call(somamsgs[i])){//Add frame to model server
+	//		if (soma_add.call(somamsgs[i])){//Add frame to model server
 	////			int frame_id = ifsrv.response.frame_id;
-	//		 }else{ROS_ERROR("Failed to call service soma2add");}
+	//		 }else{ROS_ERROR("Failed to call service soma_add");}
 	//	 }
 }
 
@@ -902,8 +902,8 @@ int main(int argc, char **argv){
 	ros::ServiceServer service4 = n.advertiseService("get_model", getModel);
 	ROS_INFO("Ready to add use get_model.");
 
-	soma2add = n.serviceClient<soma_manager::SOMA2InsertObjs>(		"soma2/insert_objs");
-	ROS_INFO("Ready to add use soma2add.");
+	soma_add = n.serviceClient<soma_manager::SOMAInsertObjs>("soma/insert_objs");
+	ROS_INFO("Ready to add use soma_add.");
 
 	ros::Subscriber sub = n.subscribe("/retrieval_result", 1, retrievalCallback);
 	ROS_INFO("Ready to add recieve search results.");

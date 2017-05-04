@@ -8,7 +8,7 @@ add_definitions(-std=c++11 -O3)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS roscpp tf sensor_msgs std_msgs image_geometry metaroom_xml_parser quasimodo_msgs message_runtime
                                         message_generation tf_conversions pcl_ros image_geometry cv_bridge tf_conversions eigen_conversions
-                                        k_means_tree dynamic_object_retrieval object_3d_benchmark dynamic_reconfigure soma2_msgs)
+                                        k_means_tree dynamic_object_retrieval object_3d_benchmark dynamic_reconfigure soma_msgs)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -175,6 +175,7 @@ add_executable(quasimodo_retrieval_server src/quasimodo_retrieval_server.cpp)
 add_executable(quasimodo_retrieval_publisher src/quasimodo_retrieval_publisher.cpp)
 add_executable(quasimodo_visualization_server src/quasimodo_visualization_server.cpp)
 add_executable(quasimodo_visualize_model src/quasimodo_visualize_model.cpp)
+add_executable(quasimodo_visualize_retrieval_cloud src/quasimodo_visualize_retrieval_cloud.cpp)
 add_executable(quasimodo_retrieval_node src/quasimodo_retrieval_node.cpp)
 add_executable(quasimodo_retrieve_observation src/quasimodo_retrieve_observation.cpp)
 add_executable(quasimodo_logging_server src/quasimodo_logging_server.cpp)
@@ -185,7 +186,7 @@ add_dependencies(quasimodo_visualization_server quasimodo_msgs_generate_messages
 add_dependencies(quasimodo_visualize_model quasimodo_msgs_generate_messages_cpp)
 add_dependencies(quasimodo_retrieval_node quasimodo_msgs_generate_messages_cpp)
 add_dependencies(quasimodo_retrieve_observation quasimodo_msgs_generate_messages_cpp)
-add_dependencies(quasimodo_logging_server quasimodo_msgs_generate_messages_cpp soma2_msgs_generate_messages_cpp)
+add_dependencies(quasimodo_logging_server quasimodo_msgs_generate_messages_cpp soma_msgs_generate_messages_cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -216,6 +217,13 @@ target_link_libraries(quasimodo_retrieval_publisher
 target_link_libraries(quasimodo_visualize_model
 #  ${retrieval_libraries}
 #  ${benchmark_libraries}
+  ${OpenCV_LIBS}
+  ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(quasimodo_visualize_retrieval_cloud
   ${OpenCV_LIBS}
   ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
   ${PCL_LIBRARIES}
@@ -281,7 +289,7 @@ install(
 
 # Mark executables and/or libraries for installation
 install(TARGETS quasimodo_retrieval_server quasimodo_retrieval_publisher quasimodo_visualization_server
-                quasimodo_visualize_model quasimodo_retrieval_node quasimodo_retrieve_observation quasimodo_logging_server
+                quasimodo_visualize_model quasimodo_visualize_retrieval_cloud quasimodo_retrieval_node quasimodo_retrieve_observation quasimodo_logging_server
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

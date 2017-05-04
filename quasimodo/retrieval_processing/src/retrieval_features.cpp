@@ -15,6 +15,9 @@
 #include <metaroom_xml_parser/load_utilities.h>
 #include <dynamic_object_retrieval/definitions.h>
 
+#include <quasimodo_msgs/transform_cloud.h>
+#include <pcl_ros/point_cloud.h>
+
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 
@@ -35,6 +38,7 @@ using SurfelT = SurfelType;
 using SurfelCloudT = pcl::PointCloud<SurfelT>;
 
 ros::Publisher pub;
+ros::ServiceServer service;
 
 /*
 void test_compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, CloudT::Ptr& cloud,
@@ -136,6 +140,42 @@ void test_compute_features(HistCloudT::Ptr& features, CloudT::Ptr& keypoints, Cl
 }
 */
 
+bool features_service(quasimodo_msgs::transform_cloud::Request& req, quasimodo_msgs::transform_cloud::Response& resp)
+{
+    double threshold = 0.4;
+
+    SurfelCloudT::Ptr surfel_cloud(new SurfelCloudT);
+    pcl::fromROSMsg(req.cloud, *surfel_cloud);
+    cout << "Got service cloud with size: " << surfel_cloud->size() << endl;
+
+    HistCloudT::Ptr desc_cloud(new HistCloudT);
+    CloudT::Ptr kp_cloud(new CloudT);
+
+    NormalCloudT::Ptr normals(new NormalCloudT);
+    CloudT::Ptr cloud(new CloudT);
+    cloud->reserve(surfel_cloud->size());
+    normals->reserve(surfel_cloud->size());
+    for (const SurfelT& s : surfel_cloud->points) {
+        if (s.confidence < threshold) {
+            continue;
+        }
+        PointT p;
+        p.getVector3fMap() = s.getVector3fMap();
+        p.rgba = s.rgba;
+        NormalT n;
+        n.getNormalVector3fMap() = s.getNormalVector3fMap();
+        cloud->push_back(p);
+        normals->push_back(n);
+    }
+    cout << "Service points after confidence " << threshold << ": " << cloud->size() << endl;
+
+    dynamic_object_retrieval::compute_features(desc_cloud, kp_cloud, cloud, normals);
+    pcl::toROSMsg(*desc_cloud, resp.cloud1);
+    pcl::toROSMsg(*kp_cloud, resp.cloud2);
+
+    return true;
+}
+
 void features_callback(const std_msgs::String::ConstPtr& msg)
 {
     cout << "Received callback with path " << msg->data << endl;
@@ -154,9 +194,17 @@ void features_callback(const std_msgs::String::ConstPtr& msg)
         boost::filesystem::path keypoint_path;
         tie(segment, feature_path, keypoint_path) = tup;
 
+        if (boost::filesystem::exists(feature_path) && boost::filesystem::exists(keypoint_path)) {
+            cout << "Features " << feature_path.string() << " already exist, finishing sweep " << msg->data << "..." << endl;
+            break;
+        }
+
         HistCloudT::Ptr desc_cloud(new HistCloudT);
         CloudT::Ptr kp_cloud(new CloudT);
         dynamic_object_retrieval::compute_features(desc_cloud, kp_cloud, segment, surfel_map);
+
+        cout << "Saving " << feature_path.string() << " with " << desc_cloud->size() << " number of features. " << endl;
+
         //test_compute_features(desc_cloud, kp_cloud, segment, surfel_map);
         if (desc_cloud->empty()) {
             // push back one inf point on descriptors and keypoints
@@ -195,15 +243,20 @@ int main(int argc, char** argv)
     //pn.param<double>("threshold", threshold, 0.4);
     bool bypass;
     pn.param<bool>("bypass", bypass, 0);
+    string input;
+    pn.param<string>("input", input, "/segmentation_done");
+    string service_name;
+    pn.param<string>("service", service_name, "/retrieval_features_service");
 
     pub = n.advertise<std_msgs::String>("/features_done", 1);
+    service = n.advertiseService(service_name, features_service);
 
     ros::Subscriber sub;
     if (bypass) {
-        sub = n.subscribe("/segmentation_done", 1, bypass_callback);
+        sub = n.subscribe(input, 1, bypass_callback);
     }
     else {
-        sub = n.subscribe("/segmentation_done", 1, features_callback);
+        sub = n.subscribe(input, 1, features_callback);
     }
 
     ros::spin();
