@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>convex_segmentation</name>
-  <version>0.0.1</version>
+  <version>0.0.12</version>
   <description>
       This is a framework for querying for point clouds within a
       collection of large 3d maps.

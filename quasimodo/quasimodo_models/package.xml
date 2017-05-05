@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>quasimodo_models</name>
-  <version>0.0.0</version>
+  <version>0.0.12</version>
   <description>The quasimodo_models package</description>
 
   <maintainer email="ekz@kth.se">johane</maintainer>

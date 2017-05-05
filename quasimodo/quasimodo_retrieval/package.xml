@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>quasimodo_retrieval</name>
-  <version>0.0.0</version>
+  <version>0.0.12</version>
   <description>The quasimodo_retrieval package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
