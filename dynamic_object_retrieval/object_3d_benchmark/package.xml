@@ -1,11 +1,10 @@
 <?xml version="1.0"?>
 <package>
-  <name>retrieval_tools</name>
-  <version>0.0.1</version>
+  <name>object_3d_benchmark</name>
+  <version>0.0.12</version>
   <description>
-      This is an implementation of the vocabulary tree representation
-      of Nister and Stewenius. It also includes support for grouped
-      subsets and graph reasoning within the vocabulary tree.
+      This is a framework for querying for point clouds within a
+      collection of large 3d maps.
   </description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
@@ -26,6 +25,7 @@
 
   <!-- The *_depend tags are used to specify dependencies -->
   <!-- Dependencies can be catkin packages or system dependencies -->
+  <!-- roscpp tf tf_conversions pcl_ros metaroom_xml_parser object_manager -->
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>libpcl-all-dev</build_depend>
   <build_depend>libopencv-dev</build_depend>
@@ -38,7 +38,10 @@
   <build_depend>k_means_tree</build_depend>
   <build_depend>dynamic_object_retrieval</build_depend>
   <build_depend>convex_segmentation</build_depend>
+  <build_depend>opengl</build_depend>
   <build_depend>libqt4-dev</build_depend>
+  <build_depend>libqt4-opengl-dev</build_depend>
+  <build_depend>libpng12-dev</build_depend>
   <run_depend>libpcl-all</run_depend>
   <run_depend>libopencv-dev</run_depend>
   <run_depend>roscpp</run_depend>
@@ -50,7 +53,10 @@
   <run_depend>k_means_tree</run_depend>
   <run_depend>dynamic_object_retrieval</run_depend>
   <run_depend>convex_segmentation</run_depend>
+  <run_depend>opengl</run_depend>
   <run_depend>libqt4</run_depend>
+  <run_depend>libqt4-opengl</run_depend>
+  <run_depend>libpng12-dev</run_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

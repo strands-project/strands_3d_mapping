@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>k_means_tree</name>
-  <version>0.0.1</version>
+  <version>0.0.12</version>
   <description>
       This is an implementation of the vocabulary tree representation
       of Nister and Stewenius. It also includes support for grouped
